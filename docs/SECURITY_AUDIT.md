@@ -155,7 +155,9 @@ surface that only exists at euid 0:
    and message values straight into a root-privileged process.
 2. **Network as root**: `--check-update` shells out to `curl`/`wget`
    with uid 0 — PATH resolution, the TLS stack, and response parsing
-   all run inside the root trust domain instead of the user's.
+   all run inside the root trust domain instead of the user's. CLOSED
+   since the NIGHT-security-4 follow-up: the command now hard-refuses
+   at euid 0 before any fetcher spawns (see the runtime guard below).
 3. **Terminal escape output as root**: the renderer's ANSI byte stream
    is write-only and audited (section 5), but on a shared or forwarded
    root session every escape-handling surface becomes a root-level
@@ -173,8 +175,23 @@ argument parsing (clap error output stays clean) and before any command
 output, one warning block is emitted to **stderr** — covering
 `--version`, `--check-update`, `--doctor`, `--help`, benchmark, and the
 interactive loop. stdout is never touched, so piped output stays clean.
-The guard is advisory, never blocking, by design: container defaults
-legitimately run as euid 0, and a hard refusal would break them.
+
+The guard is **two-tier** (NIGHT-security-4 follow-up, 2026-09-21):
+
+- **LOCAL surfaces** (interactive loop, config, `--version`, `--doctor`,
+  `--help`, benchmark) stay advisory, warn-and-continue: container
+  defaults legitimately run as euid 0, and a hard refusal would break
+  them.
+- **NETWORK egress** — the one root surface with no legitimate
+  container case — hard-refuses: `--check-update` at euid 0 emits one
+  stderr refusal block and exits 2 (the `cli/ux.rs` fatal-CLI
+  contract) BEFORE any curl/wget spawn. The gate sits in the
+  `--check-update` dispatch arm (`cli/early_returns.rs`, the sole
+  caller of `platform/update.rs::check_update`), so no route to the
+  network fetch can skip it. No override exists — no flag, no env
+  var. Forced-root environments check releases from a user shell or
+  the manual releases URL
+  (`https://github.com/oxyzenQ/cosmostrix/releases/latest`).
 
 **If you are forced to run as root anyway** (documented mitigation, in
 order of preference):
@@ -183,8 +200,9 @@ order of preference):
    cosmostrix`, or run inside the user session).
 2. Contain it — container/sandbox with dropped capabilities, read-only
    root filesystem, isolated `HOME`.
-3. Never run `--check-update` as root — check releases from a user
-   shell instead.
+3. Never run `--check-update` as root — enforced since the follow-up:
+   the command hard-refuses at euid 0 with exit 2. Check releases from
+   a user shell or the manual releases URL instead.
 4. Never share the root session or terminal with other users.
 5. Treat root-owned config artifacts as suspect — audit
    `/root/.config/cosmostrix/` and `/etc/cosmostrix/` before relying
@@ -192,9 +210,13 @@ order of preference):
 
 **Honest limits**: the guard is unix-only — Windows has no euid (the
 Administrator elevation model is a different trust boundary and out of
-scope). It warns; it deliberately does not block. A root run inside a
-container is indistinguishable from a root run on a workstation, which
-is exactly why the warning is advisory text rather than an exit.
+scope). It warns on local surfaces and deliberately does not block
+them; the single network surface (`--check-update`) hard-refuses with
+no override. A root run inside a container is indistinguishable from
+a root run on a workstation, which is exactly why local warnings stay
+advisory text rather than an exit — and why the network refusal is
+unconditional: an update check has no container-workflow case that a
+refusal could break.
 
 ## Cross-References
 

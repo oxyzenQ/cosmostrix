@@ -100,6 +100,7 @@ P5 probe ends it.
 | P5 probe ends a redirected run (#3) | 0 (graceful shutdown path) |
 | Headless ENXIO fast fail (#7) | 1 |
 | Both fetch tools missing in `--check-update` | 2 (config-error family) |
+| `--check-update` refused at euid 0 (running as root) | 2 (security refusal) |
 
 All of them are panic-free and leave no core dump; the difference is
 which layer caught the broken pipe (see the mechanisms below).

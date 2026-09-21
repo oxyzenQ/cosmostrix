@@ -21,10 +21,22 @@
 //! interactive loop). stdout is never touched, so piped output stays
 //! clean.
 //!
-//! Advisory by design, never blocking: container defaults legitimately
-//! run as euid 0 (a hard refusal would break them), and `sudo -u
-//! <other-user>` correctly does not warn — the effective UID is the
-//! ground truth, not the elevation path.
+//! Advisory for LOCAL surfaces, never blocking: container defaults
+//! legitimately run as euid 0 (a hard refusal would break them), and
+//! `sudo -u <other-user>` correctly does not warn — the effective UID
+//! is the ground truth, not the elevation path.
+//!
+//! Two-tier policy (owner follow-up, 2026-09-21: the warning alone
+//! left the root network fetch alive — `--check-update` must
+//! hard-refuse): LOCAL surfaces (render, config, `--version`,
+//! `--doctor`, benchmark) warn and continue, preserving the
+//! container-root case. NETWORK egress is the one root surface with
+//! NO legitimate container case: `--check-update` spawns curl/wget
+//! inside the root trust domain, so it hard-refuses at euid 0 — one
+//! stderr refusal block, then exit 2 (the cli/ux.rs fatal-CLI
+//! contract), emitted BEFORE any fetcher spawns. No override exists:
+//! no flag, no env var. Forced-root environments check releases from
+//! a user shell or the manual releases URL instead.
 //!
 //! The canonical policy text ("Running as Root") lives in
 //! docs/SECURITY_AUDIT.md; this warning cites it exactly once
@@ -90,6 +102,52 @@ pub(crate) fn warn_if_root() {
         for line in &lines[1..] {
             eprintln_safe!("{line}");
         }
+    }
+}
+
+/// Exit code for the `--check-update` root refusal: 2, the house
+/// fatal-CLI contract (cli/ux.rs — "every fatal CLI error exits 2",
+/// clap's usage code). Scripts already branching on cosmostrix's
+/// non-zero exits need no new case; the refusal block on stderr
+/// identifies the cause.
+pub(crate) const UPDATE_REFUSED_EXIT_CODE: i32 = 2;
+
+/// The `--check-update` root refusal, one entry per line — same block
+/// family as [`root_warning_lines`]: line 0 is the headline (rendered
+/// bold warning yellow), the rest are plain two-space-indented body
+/// lines. Fixed app constants — no user data is interpolated.
+#[must_use]
+pub(crate) fn root_update_refusal_lines() -> [&'static str; 8] {
+    [
+        "cosmostrix: security refusal: --check-update denied at euid 0",
+        "  Network egress is refused at root: the update check spawns curl or",
+        "  wget against the GitHub releases API with uid 0 privileges.",
+        "  No override exists. Drop sudo/su and re-run --check-update as a",
+        "  regular user, or check the latest release manually at",
+        "  https://github.com/oxyzenQ/cosmostrix/releases/latest",
+        "  Policy: root runs are local-render-only. Read",
+        "  docs/SECURITY_AUDIT.md, \"Running as Root\".",
+    ]
+}
+
+/// HARD refusal for the `--check-update` network egress at euid 0.
+///
+/// Emits the refusal block to stderr and exits
+/// [`UPDATE_REFUSED_EXIT_CODE`] — no override, no fetcher spawn, no
+/// stdout output. No-op for regular users, for `sudo -u <user>`
+/// targets (effective UID non-zero), and on non-Unix platforms.
+///
+/// Never call from tests: on a root host (root CI containers exist)
+/// this exits the test process — pin [`root_update_refusal_lines`] and
+/// [`UPDATE_REFUSED_EXIT_CODE`] instead.
+pub(crate) fn refuse_update_check_if_root() {
+    if is_effective_root() {
+        let lines = root_update_refusal_lines();
+        eprintln_safe!("{}", warn_bold(lines[0]));
+        for line in &lines[1..] {
+            eprintln_safe!("{line}");
+        }
+        std::process::exit(UPDATE_REFUSED_EXIT_CODE);
     }
 }
 
@@ -165,5 +223,83 @@ mod tests {
     #[test]
     fn is_effective_root_is_callable() {
         let _ = is_effective_root();
+    }
+
+    /// NIGHT-security-4 follow-up: the refusal headline must name the
+    /// denied action (`--check-update`), the refusal class (security
+    /// refusal), and the trigger (euid 0) — parallel to the warning
+    /// headline contract above.
+    #[test]
+    fn refusal_headline_pins_the_denied_action() {
+        let lines = root_update_refusal_lines();
+        assert!(
+            lines[0].starts_with("cosmostrix: security refusal: --check-update denied at euid 0"),
+            "headline drifted: {}",
+            lines[0]
+        );
+        let joined = lines.join("\n");
+        assert!(joined.contains("Network egress"), "risk class missing");
+    }
+
+    /// The refusal is HARD: the text must state that no override
+    /// exists — that sentence is the policy contract the canonical doc
+    /// cites. If an override is ever introduced deliberately, this
+    /// test is the tripwire that forces the docs to change with it.
+    #[test]
+    fn refusal_states_no_override() {
+        let joined = root_update_refusal_lines().join("\n");
+        assert!(
+            joined.contains("No override exists"),
+            "hard-refuse contract missing: {joined}"
+        );
+    }
+
+    /// The refusal must teach the correction (drop sudo/su, regular
+    /// user) AND the zero-network alternative (manual releases URL) so
+    /// a forced-root environment never hits a dead end — same
+    /// actionable-error principle as update.rs NO_FETCHER_MSG.
+    #[test]
+    fn refusal_teaches_correction_and_alternative() {
+        let joined = root_update_refusal_lines().join("\n");
+        assert!(joined.contains("Drop sudo/su"));
+        assert!(joined.contains("regular user"));
+        assert!(joined.contains("releases/latest"));
+    }
+
+    /// NIGHT-docs-8 tell-once: the refusal cites the canonical policy
+    /// doc (SECURITY_AUDIT.md, "Running as Root") exactly once, like
+    /// the warning — cite, do not re-tell.
+    #[test]
+    fn refusal_cites_the_canonical_policy_doc() {
+        let joined = root_update_refusal_lines().join("\n");
+        assert!(
+            joined.contains("docs/SECURITY_AUDIT.md"),
+            "refusal lost the SECURITY_AUDIT.md pointer"
+        );
+        assert!(
+            joined.contains("\"Running as Root\""),
+            "refusal lost the section name"
+        );
+    }
+
+    /// Formatting contract: every refusal line fits an 80-column
+    /// terminal with the two-space body indent (house multi-line
+    /// style), same as the warning block.
+    #[test]
+    fn refusal_lines_fit_80_columns() {
+        for (i, line) in root_update_refusal_lines().iter().enumerate() {
+            assert!(
+                line.chars().count() <= 80,
+                "line {i} exceeds 80 columns: {line}"
+            );
+        }
+    }
+
+    /// The refusal exits 2 — the cli/ux.rs fatal-CLI contract ("every
+    /// fatal CLI error exits 2"). A different code here must be a
+    /// deliberate contract change documented in ux.rs, not a drift.
+    #[test]
+    fn refusal_exit_code_is_the_fatal_cli_contract() {
+        assert_eq!(UPDATE_REFUSED_EXIT_CODE, 2);
     }
 }

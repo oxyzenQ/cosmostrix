@@ -73,6 +73,7 @@ use crate::doctor;
 use crate::help_detail;
 use crate::info;
 use crate::output::println_safe;
+use crate::platform::root_guard;
 use crate::platform::update;
 use crate::safepath::validate_config_path;
 use crate::terminal::reset_terminal_emergency;
@@ -105,6 +106,12 @@ fn dispatch_post_config(cmd: PostConfigCmd, args: &Args) -> std::io::Result<()> 
             Ok(())
         }
         PostConfigCmd::CheckUpdate => {
+            // NIGHT-security-4 follow-up: at euid 0 the update check
+            // hard-refuses BEFORE any curl/wget spawn — network egress
+            // has no legitimate root case, so root runs stay
+            // local-render-only. Refusal block + exit 2 (the ux.rs
+            // fatal-CLI contract) live in platform/root_guard.rs.
+            root_guard::refuse_update_check_if_root();
             if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
                 ux::die_config(format!("error: update check failed: {e}"));
             }

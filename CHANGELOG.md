@@ -23,6 +23,41 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### security: NIGHT-security-4 follow-up — hard refuse `--check-update` at euid 0: network egress denied at root (exit 2)
+
+- **Change**: owner follow-up — the NIGHT-security-4 warning alone left
+  the root network fetch alive: `sudo cosmostrix -v --check-update`
+  still ran the full curl/wget spawn with uid 0 privileges after the
+  warning. The guard is now two-tier: LOCAL surfaces (interactive
+  loop, config, `--version`, `--doctor`, `--help`, benchmark) stay
+  advisory — container defaults legitimately run as euid 0 — while
+  NETWORK egress, the one root surface with no legitimate container
+  case, hard-refuses. At euid 0 the `--check-update` dispatch arm
+  (`cli/early_returns.rs`, the sole caller of
+  `platform/update.rs::check_update`) emits one stderr refusal block
+  and exits 2 (the `cli/ux.rs` fatal-CLI contract: every fatal CLI
+  error exits 2) BEFORE any curl/wget spawn — stdout is never touched
+  and no fetcher process is ever created. No override exists: no
+  flag, no env var. Forced-root environments check releases from a
+  user shell or the manual releases URL. `sudo -u <user>` targets
+  (effective UID non-zero), regular users, and non-Unix platforms are
+  unaffected.
+- **Docs**: `docs/SECURITY_AUDIT.md` section 11 updated to the
+  two-tier runtime-guard contract (advisory local / hard-refused
+  network), risk item 2 marked closed, forced-root mitigation item 3
+  marked enforced, honest limits refined. Exit-code row added to
+  `docs/USAGE_PIPE_REDIRECT.md`; README Requirements and
+  `docs/SYSTEM_REQUIREMENTS.md` root bullets updated for accuracy
+  (cite-only, NIGHT-docs-8 tell-once).
+- **Verification**: 6 new unit tests in `root_guard.rs` (refusal
+  headline contract, no-override hard-refuse tripwire, correction +
+  manual-URL alternative, canonical-doc citation, 80-column
+  formatting, exit-code contract); simulated-root build (temporary
+  euid-0 patch, reverted) verified `--check-update` exits 2 with zero
+  stdout bytes and zero fetcher spawn after the warning block;
+  non-root run verified unchanged (exit 0, clean stderr, normal
+  report).
+
 ### security: NIGHT-security-4 — root-usage guard: loud stderr warning when running as root (euid 0), plus the canonical "Running as Root" policy
 
 - **Change**: owner report — `sudo cosmostrix -vV` and `sudo cosmostrix

@@ -264,8 +264,9 @@ matrix.
   reports an actionable error with the manual releases URL when neither
   is installed)
 - **Root privileges** — runs as a regular user by design; root execution
-  is an unsupported, warning-guarded use case (policy:
-  `docs/SECURITY_AUDIT.md`, "Running as Root")
+  is an unsupported use case: warning-guarded locally, `--check-update`
+  hard-refused at euid 0 (policy: `docs/SECURITY_AUDIT.md`, "Running as
+  Root")
 
 ## Verification
 
