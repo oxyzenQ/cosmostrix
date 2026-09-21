@@ -130,6 +130,72 @@ behavior only.
 4. Consider replacing `curl` subprocess in `--update` with `ureq` (compiled-out by default) so users don't need to trust whatever `curl` binary is on `PATH`. Defense-in-depth, not a vulnerability.
 5. Re-audit `unsafe` sites when adding new FFI (the policy forbids new `unsafe` in renderer/core paths).
 
+## 11. Running as Root — Wrong Use Case (NIGHT-security-4)
+
+**Owner report (2026-09-21)**: `sudo cosmostrix -vV` and `sudo cosmostrix
+--check-update` both ran silently — the config path switched to
+`/root/.config/cosmostrix/config.toml` and the update check performed its
+network fetch with uid 0 privileges, with zero indication that anything
+about the trust boundary had changed.
+
+**Policy**: cosmostrix is designed for regular (non-root) users. Running
+it as root (`sudo`, `su`, setuid) is an **unsupported, high-risk wrong
+use case** — it is not part of any documented workflow, and the runtime
+guard below makes the mistake loud on every invocation. This section is
+the canonical policy text (NIGHT-docs-8 tell-once rule: other docs cite
+this section, they do not re-tell it).
+
+**Why root execution is high-risk here** — every item below is attack
+surface that only exists at euid 0:
+
+1. **Root-owned config trust**: the path whitelist still applies, but the
+   process now parses config as uid 0 — a root-private hostile
+   `/root/.config/cosmostrix/config.toml` (planted by any earlier root
+   compromise, invisible to user-level audits) drives charset, scene,
+   and message values straight into a root-privileged process.
+2. **Network as root**: `--check-update` shells out to `curl`/`wget`
+   with uid 0 — PATH resolution, the TLS stack, and response parsing
+   all run inside the root trust domain instead of the user's.
+3. **Terminal escape output as root**: the renderer's ANSI byte stream
+   is write-only and audited (section 5), but on a shared or forwarded
+   root session every escape-handling surface becomes a root-level
+   surface.
+4. **Root-owned artifacts**: `--dump-config`/`--save-baseline` writes
+   create root-owned files — the exact ownership-corruption class that
+   makes `scripts/install.sh` refuse to run as root (section 7).
+
+**Runtime guard** (`src/platform/root_guard.rs`): `libc::geteuid()` FFI —
+the same libc-FFI family as `clock/posix_time.rs`, SAFETY-commented, no
+new dependency (libc is already the unix target-gated dependency in
+`Cargo.toml`). Effective UID is the ground truth, so `sudo -u <user>`
+targets correctly do NOT warn. On every invocation with euid 0, after
+argument parsing (clap error output stays clean) and before any command
+output, one warning block is emitted to **stderr** — covering
+`--version`, `--check-update`, `--doctor`, `--help`, benchmark, and the
+interactive loop. stdout is never touched, so piped output stays clean.
+The guard is advisory, never blocking, by design: container defaults
+legitimately run as euid 0, and a hard refusal would break them.
+
+**If you are forced to run as root anyway** (documented mitigation, in
+order of preference):
+
+1. Don't — drop back to a regular user first (`sudo -u <user>
+   cosmostrix`, or run inside the user session).
+2. Contain it — container/sandbox with dropped capabilities, read-only
+   root filesystem, isolated `HOME`.
+3. Never run `--check-update` as root — check releases from a user
+   shell instead.
+4. Never share the root session or terminal with other users.
+5. Treat root-owned config artifacts as suspect — audit
+   `/root/.config/cosmostrix/` and `/etc/cosmostrix/` before relying
+   on them.
+
+**Honest limits**: the guard is unix-only — Windows has no euid (the
+Administrator elevation model is a different trust boundary and out of
+scope). It warns; it deliberately does not block. A root run inside a
+container is indistinguishable from a root run on a workstation, which
+is exactly why the warning is advisory text rather than an exit.
+
 ## Cross-References
 
 - `docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md` — detailed `unsafe` review

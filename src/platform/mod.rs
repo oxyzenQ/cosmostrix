@@ -231,4 +231,5 @@ mod tests {
 // Submodules (moved from src/ root for clean src/ layout)
 pub(crate) mod fork_guard;
 pub(crate) mod panic_hook;
+pub(crate) mod root_guard;
 pub(crate) mod update;

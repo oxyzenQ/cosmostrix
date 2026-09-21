@@ -192,6 +192,8 @@ cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 - Linux kernel 2.6.27+ / macOS 10.12+ / Windows 10 1809+
 - A terminal supporting ANSI escape sequences, alternate screen, and raw mode
 - Best results with 256-color or truecolor terminals
+- A regular (non-root) user account — root execution is a warning-guarded,
+  unsupported use case ([Security Audit, "Running as Root"](docs/SECURITY_AUDIT.md))
 
 For the full compatibility matrix (kernel versions, glibc/musl, CPU architectures, terminal capabilities), see [System Requirements](docs/SYSTEM_REQUIREMENTS.md).
 

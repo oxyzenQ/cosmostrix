@@ -23,6 +23,45 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### security: NIGHT-security-4 — root-usage guard: loud stderr warning when running as root (euid 0), plus the canonical "Running as Root" policy
+
+- **Change**: owner report — `sudo cosmostrix -vV` and `sudo cosmostrix
+  --check-update` ran silently: the config path switched to
+  `/root/.config/cosmostrix/config.toml` and the update check performed
+  its network fetch with uid 0 privileges, with zero indication that
+  the trust boundary had changed. Root execution is a wrong use case:
+  cosmostrix is designed for regular (non-root) users. New
+  `src/platform/root_guard.rs` reads the effective UID via
+  `libc::geteuid()` (same libc-FFI family as `clock/posix_time.rs`,
+  SAFETY-commented, no new dependency — libc is already the unix
+  target-gated dependency) and, on every euid-0 invocation, emits one
+  warning block to stderr: after argument parsing (clap error output
+  stays clean) and before any command output, so `--version`,
+  `--check-update`, `--doctor`, `--help`, benchmark, and the interactive
+  loop are all covered. stdout is never touched — piped output stays
+  clean. Advisory, never blocking: container defaults legitimately run
+  as euid 0, and `sudo -u <user>` targets (effective UID non-zero)
+  correctly do not warn. Non-Unix (Windows) is a no-op stub — no euid,
+  no root concept. Warning text pins the doc pointer as a contract:
+  it cites `docs/SECURITY_AUDIT.md` "Running as Root" exactly once
+  (NIGHT-docs-8 tell-once rule).
+- **Docs**: `docs/SECURITY_AUDIT.md` new section 11 "Running as Root —
+  Wrong Use Case" — the canonical policy: why root execution is
+  high-risk (root-owned config trust, network fetch in the root trust
+  domain, uid 0 terminal escape output on shared sessions, root-owned
+  `--dump-config`/`--save-baseline` artifacts), the runtime guard
+  contract, forced-root mitigation guidance (drop back to a user,
+  container/sandbox, never `--check-update` as root), and honest limits
+  (unix-only, advisory-not-blocking). Cite-only pointers added to
+  README Requirements and SYSTEM_REQUIREMENTS "What's NOT Required" —
+  policy text lives in SECURITY_AUDIT.md alone.
+- **Verification**: 5 new unit tests in `root_guard.rs` (headline
+  trigger contract, canonical-doc citation, non-root-design teaching,
+  80-column formatting, cross-platform callability); manual
+  non-root run verified warning-free with clean stderr; simulated-root
+  build (temporary euid-0 patch, reverted) verified the full warning
+  block renders before command output with stdout untouched.
+
 ### docs: NIGHT-docs-8 — usage deduplication across README and living docs (tell once, don't double)
 
 - **Change**: owner report — README.md carries duplicated usage info,

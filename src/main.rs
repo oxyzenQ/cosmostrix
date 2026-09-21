@@ -272,18 +272,10 @@ fn main() -> std::io::Result<()> {
         ux::die_input_with_usage(e);
     }
 
-    // Expand -mb "text" into --message-border -m "text"
-    // -m "text" = message without border (default)
-    // -mb "text" = message with border
-    // Also handle -mb=text form.
-    // This runs AFTER prevalidation so the internal --message-border token
-    // injected here is not caught by the REMOVED_FLAGS check.
-    //
-    // v80.0.0-beta.1 msg-fill-style (2026-08-30 LOC refactor): the -mb loop was
-    // extracted to cli/argv_expand.rs (main.rs was at 757/800 LOC) and
-    // extended with the -mfs <style> → --msg-fill-style <style> shorthand
-    // (clap short flags are single-char, so multi-char shorthands must be
-    // rewritten pre-parse; -mfss typos exit with a did-you-mean tip).
+    // Shorthand expansion (-mb, -mfs). The token table, pre-parse
+    // rationale, and the -mfss typo guard live in cli/argv_expand.rs
+    // (v80 LOC extraction). Runs AFTER prevalidation so the injected
+    // internal tokens bypass the REMOVED_FLAGS check.
     let argv = crate::cli::argv_expand::expand_argv_shorthands(&argv);
 
     // try_get_matches_from_mut (not the consuming try_get_matches_from):
@@ -295,6 +287,13 @@ fn main() -> std::io::Result<()> {
     };
     let mut args =
         Args::from_arg_matches(&matches).unwrap_or_else(|e| cli::ux::exit_clap_error(e, &mut cmd));
+
+    // NIGHT-security-4 (2026-09-21): root-usage guard - one loud stderr
+    // warning when euid == 0, before any command output (all paths
+    // covered: early returns, benchmark, interactive). Advisory, never
+    // blocking. Rationale + policy: src/platform/root_guard.rs and
+    // docs/SECURITY_AUDIT.md "Running as Root".
+    crate::platform::root_guard::warn_if_root();
 
     // --help: print the full curated reference manual and exit.
     //

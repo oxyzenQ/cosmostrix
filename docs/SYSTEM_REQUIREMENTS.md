@@ -263,6 +263,9 @@ matrix.
   (`--check-update` is opt-in; it needs `curl` or `wget` on PATH and
   reports an actionable error with the manual releases URL when neither
   is installed)
+- **Root privileges** — runs as a regular user by design; root execution
+  is an unsupported, warning-guarded use case (policy:
+  `docs/SECURITY_AUDIT.md`, "Running as Root")
 
 ## Verification
 
