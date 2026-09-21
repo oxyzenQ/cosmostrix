@@ -91,21 +91,42 @@ pub(super) fn is_unmodified(modifiers: crossterm::event::KeyModifiers) -> bool {
     modifiers.is_empty()
 }
 
-/// NIGHT-improve-8: returns true when a mouse Down event carries any
-/// modifier bit (SHIFT / CONTROL / ALT / SUPER / HYPER / META).
+/// NIGHT-improve-8 (follow-up): returns true when a mouse event of the
+/// selection-relevant motion family — Down, Drag, Up, or Moved — carries
+/// any modifier bit (SHIFT / CONTROL / ALT / SUPER / HYPER / META).
 ///
-/// Modified clicks are the terminal-native selection bypass: with mouse
-/// reporting active, terminals reserve Shift+click (and most other
+/// Modified mouse events are the terminal-native selection bypass: with
+/// mouse reporting active, terminals reserve Shift+click (and most other
 /// modified clicks) for their LOCAL selection engine and never deliver
 /// them to the application. The minority of terminals that do forward
-/// such events must receive zero visual acknowledgment in response.
-/// The event loop uses this predicate to suppress the click wave and
-/// instead fire a full-frame redraw, which erases the freshly painted
-/// native selection highlight in terminals that clear selection state
-/// when the grid content underneath updates. Plain unmodified clicks
-/// (the hover/click-wave interaction) are unaffected.
-pub(super) fn is_modifier_click(event: &crossterm::event::MouseEvent) -> bool {
-    matches!(event.kind, crossterm::event::MouseEventKind::Down(_)) && !event.modifiers.is_empty()
+/// such events must receive zero visual acknowledgment in response —
+/// and that includes the WHOLE selection gesture, not just the anchor
+/// click: a selection is Down -> Drag* -> Up (and a modified Moved is
+/// the pre-gesture hover). Covering only the Down left the drag phase
+/// acknowledged (the hover glow tracked it) and left the grid static
+/// under the extending selection. The event loop uses this predicate
+/// to freeze the hover glow, suppress the click wave, and instead fire
+/// a full-frame redraw per bypass event, which erases the freshly
+/// painted native selection highlight in terminals that clear selection
+/// state when the grid content underneath updates and keeps the grid
+/// churning under the whole gesture so position-anchored selection
+/// copies (xterm-style: copy reads the CURRENT cell content) capture
+/// moving rain glyphs instead of the highlighted text. Plain unmodified
+/// events (the hover/click-wave interaction) are unaffected.
+///
+/// Modified scroll is deliberately excluded: the wheel is not a
+/// selection primitive, and modifier bits on scroll events must not
+/// trigger spurious full redraws.
+pub(super) fn is_selection_bypass_event(event: &crossterm::event::MouseEvent) -> bool {
+    use crossterm::event::MouseEventKind;
+    !event.modifiers.is_empty()
+        && matches!(
+            event.kind,
+            MouseEventKind::Down(_)
+                | MouseEventKind::Drag(_)
+                | MouseEventKind::Up(_)
+                | MouseEventKind::Moved
+        )
 }
 
 /// Returns true if the key event's modifiers are in the "safe" allowlist:

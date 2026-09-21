@@ -109,9 +109,11 @@ mod v51_intro_brand_pause;
 #[path = "../../test/interactive/tests_night_hunter27.rs"]
 mod tests_night_hunter27;
 
-// NIGHT-improve-8: modified-click (shift+click and any other modifier
-// combination) selection-bypass hardening — zero visual acknowledgment
-// plus a selection-clearing full-frame redraw on forwarded events.
+// NIGHT-improve-8: modified-mouse-event (shift+click and any other
+// modifier combination on the Down/Drag/Up/Moved selection-motion
+// family) selection-bypass hardening — zero visual acknowledgment
+// (hover glow frozen, no click wave) plus a selection-clearing
+// full-frame redraw on every forwarded bypass event.
 #[cfg(test)]
 #[path = "../../test/interactive/tests_night_improve8.rs"]
 mod tests_night_improve8;

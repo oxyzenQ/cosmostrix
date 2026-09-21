@@ -60,7 +60,7 @@ Both live in the key-event branch of the event loop:
 | Only `q` quits (Esc, Ctrl+C, Tab, unknown keys are no-ops) | Same quit policy arm in both modes |
 | Mouse click never exits (v17 policy) | Mouse branch has no screensaver check; clicks only drive glow/click-wave |
 | Mouse capture (blocks drag-select) | Always on in both modes |
-| Modified clicks (shift+click / any modifier+click) produce zero app feedback + selection-clearing redraw (NIGHT-improve-8) | `is_modifier_click()` gates the click-wave arm in the mouse branch; forwarded modified clicks force a full-frame redraw instead |
+| Modified mouse events (shift+click / any modifier on the Down/Drag/Up/Moved selection-motion family) produce zero app feedback + a selection-clearing redraw per event (NIGHT-improve-8 + follow-up) | `is_selection_bypass_event()` gates the hover/click-wave arms in the mouse branch and runs BEFORE the hover-position update (glow frozen during bypass gestures); every forwarded bypass event forces a full-frame redraw instead; modified scroll stays on the plain path |
 | Cinematic intro plays (and `q`/`Q` skips it) | `run_intro_sequence()` has no screensaver check; auto-skip happens only below `MIN_INTRO_COLS x MIN_INTRO_LINES` (10x5) |
 | `--duration` auto-exit, resize handling, adaptive throttling, ambient scheduler, live reload, self-heal | No `cfg.screensaver` reads in those modules |
 

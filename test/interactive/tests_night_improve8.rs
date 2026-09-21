@@ -1,31 +1,32 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! NIGHT-improve-8: modified-click selection-bypass hardening tests.
+//! NIGHT-improve-8: modified-mouse-event selection-bypass hardening tests.
 //!
 //! Owner request: disable copy/paste — text/info must not be copyable,
 //! including via shift+click and any other modifier combination.
 //!
-//! With mouse capture active, terminals reserve modified clicks
+//! With mouse capture active, terminals reserve modified mouse events
 //! (shift+click above all) for their LOCAL selection engine — most never
 //! deliver them to the application. For the minority that forward the
-//! events, the contract pinned here is:
-//! - every modifier combination on a mouse Down is classified as a
-//!   modifier click (`is_modifier_click` == true) and produces zero
-//!   visual acknowledgment (no click wave) plus a selection-clearing
-//!   full-frame redraw (asserted at the classification level — the
-//!   event-loop branch is a one-liner over this predicate);
-//! - plain unmodified clicks keep the normal hover/click-wave behavior
-//!   (predicate stays false);
-//! - modifier bits on non-Down mouse kinds (drag/move/up/scroll) are NOT
-//!   classification hits — selection attempts are Down clicks only, and
-//!   scroll/drag modifiers must not trigger spurious full redraws.
+//! events, the contract pinned here is gesture-level, not click-level:
+//! a selection is Down -> Drag* -> Up (with a modified Moved as the
+//! pre-gesture hover), so EVERY modifier combination on EVERY
+//! selection-motion kind must classify as a selection bypass
+//! (`is_selection_bypass_event` == true) and produce zero visual
+//! acknowledgment (hover glow frozen, no click wave) plus a
+//! selection-clearing full-frame redraw (asserted at the classification
+//! level — the event-loop branch is a one-liner over this predicate).
+//! Plain unmodified events keep the normal hover/click-wave behavior
+//! (predicate stays false). Modified scroll is excluded: the wheel is
+//! not a selection primitive, and modifier bits on scroll kinds must
+//! not trigger spurious full redraws.
 
 #[cfg(test)]
 mod cases_night_improve8 {
-    use crossterm::event::{KeyModifiers, MouseEvent, MouseEventKind};
+    use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
-    use crate::interactive::input::is_modifier_click;
+    use crate::interactive::input::is_selection_bypass_event;
 
     fn mouse_event(kind: MouseEventKind, modifiers: KeyModifiers) -> MouseEvent {
         MouseEvent {
@@ -36,24 +37,22 @@ mod cases_night_improve8 {
         }
     }
 
-    #[test]
-    fn shift_down_is_modifier_click() {
-        // The owner-reported bypass: shift+click.
-        let e = mouse_event(
-            MouseEventKind::Down(crossterm::event::MouseButton::Left),
-            KeyModifiers::SHIFT,
-        );
-        assert!(
-            is_modifier_click(&e),
-            "shift+click must classify as a modifier click (zero-ack + redraw)"
-        );
+    /// Every selection-motion kind: the anchor click, the drag phase,
+    /// the release, and the pre-gesture hover. Returned as a runtime
+    /// array because KeyModifiers bitflag OR-composition is not a
+    /// const operation on this bitflags version.
+    fn motion_kinds() -> [MouseEventKind; 4] {
+        [
+            MouseEventKind::Down(MouseButton::Left),
+            MouseEventKind::Drag(MouseButton::Left),
+            MouseEventKind::Up(MouseButton::Left),
+            MouseEventKind::Moved,
+        ]
     }
 
-    #[test]
-    fn every_modifier_combination_on_down_is_modifier_click() {
-        // "include even shift+click and any" — every modifier bit and
-        // combination on a Down event is a selection-bypass attempt.
-        let combos = [
+    fn modifier_combos() -> [KeyModifiers; 9] {
+        [
+            KeyModifiers::SHIFT,
             KeyModifiers::CONTROL,
             KeyModifiers::ALT,
             KeyModifiers::SUPER,
@@ -62,53 +61,106 @@ mod cases_night_improve8 {
             KeyModifiers::SHIFT | KeyModifiers::CONTROL,
             KeyModifiers::SHIFT | KeyModifiers::ALT,
             KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER,
+        ]
+    }
+
+    #[test]
+    fn shift_down_is_selection_bypass() {
+        // The owner-reported bypass: shift+click.
+        let e = mouse_event(MouseEventKind::Down(MouseButton::Left), KeyModifiers::SHIFT);
+        assert!(
+            is_selection_bypass_event(&e),
+            "shift+click must classify as a selection bypass (zero-ack + redraw)"
+        );
+    }
+
+    #[test]
+    fn every_modifier_combination_on_every_motion_kind_is_selection_bypass() {
+        // "include even shift+click and any" — every modifier bit and
+        // combination on every selection-motion kind (Down, the anchor;
+        // Drag, the extend; Up, the release; Moved, the pre-gesture
+        // hover) is a selection-bypass attempt. The gesture-level
+        // coverage is the follow-up fix: covering only the Down left
+        // the drag phase visually acknowledged and the grid static
+        // under the extending selection.
+        for kind in motion_kinds() {
+            for mods in modifier_combos() {
+                let e = mouse_event(kind, mods);
+                assert!(
+                    is_selection_bypass_event(&e),
+                    "{kind:?} + {mods:?} must classify as a selection bypass"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn full_shift_drag_gesture_sequence_is_selection_bypass() {
+        // The real-world gesture a forwarding terminal delivers for a
+        // shift+drag selection: anchor Down, repeated Drags, release Up
+        // — every event of the sequence must stay on the bypass path.
+        let gesture = [
+            (MouseEventKind::Down(MouseButton::Left), KeyModifiers::SHIFT),
+            (MouseEventKind::Drag(MouseButton::Left), KeyModifiers::SHIFT),
+            (MouseEventKind::Drag(MouseButton::Left), KeyModifiers::SHIFT),
+            (MouseEventKind::Drag(MouseButton::Left), KeyModifiers::SHIFT),
+            (MouseEventKind::Up(MouseButton::Left), KeyModifiers::SHIFT),
         ];
-        for mods in combos {
-            let e = mouse_event(
-                MouseEventKind::Down(crossterm::event::MouseButton::Left),
-                mods,
-            );
+        for (kind, mods) in gesture {
+            let e = mouse_event(kind, mods);
             assert!(
-                is_modifier_click(&e),
-                "down + {mods:?} must classify as a modifier click"
+                is_selection_bypass_event(&e),
+                "every event of a shift+drag selection gesture must classify as a selection bypass"
             );
         }
     }
 
     #[test]
-    fn plain_down_is_not_modifier_click() {
-        // Normal interaction clicks keep the click-wave behavior.
-        for button in [
-            crossterm::event::MouseButton::Left,
-            crossterm::event::MouseButton::Right,
-            crossterm::event::MouseButton::Middle,
-        ] {
-            let e = mouse_event(MouseEventKind::Down(button), KeyModifiers::NONE);
-            assert!(
-                !is_modifier_click(&e),
-                "plain unmodified down must keep the normal click path"
-            );
+    fn plain_motion_events_are_not_selection_bypass() {
+        // Normal interaction events keep the hover/click-wave behavior.
+        for button in [MouseButton::Left, MouseButton::Right, MouseButton::Middle] {
+            for kind in [
+                MouseEventKind::Down(button),
+                MouseEventKind::Drag(button),
+                MouseEventKind::Up(button),
+            ] {
+                let e = mouse_event(kind, KeyModifiers::NONE);
+                assert!(
+                    !is_selection_bypass_event(&e),
+                    "plain unmodified {kind:?} must keep the normal path"
+                );
+            }
         }
+        let moved = mouse_event(MouseEventKind::Moved, KeyModifiers::NONE);
+        assert!(
+            !is_selection_bypass_event(&moved),
+            "plain unmodified Moved must keep the normal hover path"
+        );
     }
 
     #[test]
-    fn non_down_kinds_with_modifiers_are_not_modifier_clicks() {
-        // Selection attempts are Down clicks only. Modifier bits on
-        // drag/move/up/scroll kinds must not trigger the zero-ack +
+    fn modified_scroll_kinds_are_not_selection_bypass() {
+        // The wheel is not a selection primitive. Modifier bits on
+        // scroll kinds must not trigger the zero-ack +
         // selection-clearing redraw path (no spurious full redraws).
-        let kinds = [
-            MouseEventKind::Drag(crossterm::event::MouseButton::Left),
-            MouseEventKind::Moved,
-            MouseEventKind::Up(crossterm::event::MouseButton::Left),
+        let scroll_kinds = [
             MouseEventKind::ScrollUp,
             MouseEventKind::ScrollDown,
+            MouseEventKind::ScrollLeft,
+            MouseEventKind::ScrollRight,
         ];
-        for kind in kinds {
-            let e = mouse_event(kind, KeyModifiers::SHIFT);
-            assert!(
-                !is_modifier_click(&e),
-                "non-down kind with SHIFT must not classify as a modifier click"
-            );
+        for kind in scroll_kinds {
+            for mods in [
+                KeyModifiers::SHIFT,
+                KeyModifiers::CONTROL,
+                KeyModifiers::SHIFT | KeyModifiers::ALT,
+            ] {
+                let e = mouse_event(kind, mods);
+                assert!(
+                    !is_selection_bypass_event(&e),
+                    "{kind:?} + {mods:?} must not classify as a selection bypass"
+                );
+            }
         }
     }
 }

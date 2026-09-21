@@ -23,6 +23,52 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### security: NIGHT-improve-8 follow-up — gesture-level selection-bypass hardening: the whole Down/Drag/Up/Moved motion family now gets zero acknowledgment plus per-event selection-clearing churn
+
+- **Change**: owner follow-up report — rendered text was still copyable
+  ("include even shift+click and any"). The re-audit found the first
+  pass covered only the anchor click of a selection gesture:
+  `is_modifier_click()` classified modified Down events, but modified
+  Drag/Up/Moved events fell through to the plain path — the hover glow
+  tracked the bypass drag (`set_mouse_position` ran before the modifier
+  check in the mouse arm), and no selection-clearing churn happened
+  while the selection extended. The predicate is now
+  `is_selection_bypass_event()` (`src/interactive/input.rs`): every
+  modifier combination on the full selection-motion family (Down,
+  Drag, Up, Moved) is a bypass attempt. The mouse arm in
+  `event_loop_mouse.rs` checks the predicate BEFORE the hover-position
+  update, so a forwarded shift+drag gesture gets zero visual
+  acknowledgment end to end (hover glow frozen, no click wave) plus a
+  full-frame redraw per bypass event — erasing freshly painted native
+  selection highlights in terminals that clear selection state on grid
+  updates, and keeping the grid churning under the whole gesture so
+  position-anchored selection copies (xterm-style: copy reads CURRENT
+  cell content) capture moving rain glyphs, not the text the user
+  highlighted. Modified scroll deliberately stays on the plain path
+  (the wheel is not a selection primitive; no spurious full redraws).
+  The honest trust boundary in `docs/SECURITY_AUDIT.md` is
+  strengthened with a two-class terminal matrix: bypass terminals
+  (mainstream default) intercept modified clicks locally and never
+  forward them — no escape sequence can revoke a terminal's own
+  selection engine, select-all, Ctrl+Shift+C, screenshots, or
+  multiplexer copy-mode, so "still able to copy" there is terminal
+  physics, not an app gap; forwarding terminals (minority; legacy
+  Windows console input is the notable case) are covered by the
+  gesture-level policy above. `docs/SCREENSAVER_MODE.md` interaction
+  table resynced to the new predicate.
+- **Verification**: `test/interactive/tests_night_improve8.rs`
+  rewritten to pin the gesture-level contract — every modifier bit and
+  combination (9 combos) on every motion kind (Down/Drag/Up/Moved),
+  a full shift+drag gesture sequence (Down -> Drag x3 -> Up), plain
+  unmodified events on all three buttons plus Moved stay on the normal
+  path, and all four scroll kinds with modifiers stay excluded;
+  `cargo fmt --check` + `cargo clippy --all-targets` clean; interactive
+  suite 221/221; gate-keepers 13/13 (fresh-clone 664 permission
+  artifacts auto-normalized to the canonical 644/755, no tracked
+  mode-bit changes); runtime surface is event-path only (render
+  pipeline untouched, steady-state frame content identical), benchmark
+  A/B recorded post-commit.
+
 ### security: NIGHT-improve-8 — modified-click selection-bypass hardening: shift+click and any modifier combination produce zero feedback plus a selection-clearing redraw
 
 - **Change**: owner request to disable copy/paste — rendered text/info

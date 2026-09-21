@@ -11,13 +11,16 @@
 //! - mouse capture is held for the entire session, so plain drag-select
 //!   is consumed by the app and never reaches the terminal's selection
 //!   engine;
-//! - modified clicks (shift+click and every other modifier combination)
-//!   are the terminal's local selection bypass — most terminals never
-//!   forward them to the application, and those that do get zero visual
-//!   acknowledgment (no click wave, no idle click wake) plus a
-//!   full-frame redraw that erases freshly painted native selection
-//!   highlights where the terminal clears selection state on grid
-//!   updates;
+//! - modified mouse events (shift+click and every other modifier
+//!   combination on Down, plus the Drag/Up/Moved continuation of that
+//!   gesture) are the terminal's local selection bypass — most terminals
+//!   never forward them to the application, and those that do get zero
+//!   visual acknowledgment (hover glow frozen, no click wave, no idle
+//!   click wake) plus a full-frame redraw per event that erases freshly
+//!   painted native selection highlights where the terminal clears
+//!   selection state on grid updates, and keeps the grid churning under
+//!   the whole gesture so position-anchored selection copies capture
+//!   moving rain glyphs instead of the highlighted text;
 //! - pasted content is structurally discarded (the payload is never
 //!   read) — the arm only feeds the paste burst guard and the renderer
 //!   wake, keeping phosphor decay state coherent.
@@ -28,7 +31,7 @@ use crossterm::event::{Event, MouseEventKind};
 
 use super::activity::register_activity;
 use super::event_loop_ctx::LoopCtx;
-use super::input::is_modifier_click;
+use super::input::is_selection_bypass_event;
 
 /// Handle one non-key runtime event (mouse / paste / focus gained).
 ///
@@ -80,33 +83,48 @@ pub(super) fn handle_runtime_event(
             // `pause`) because the deceleration phase is also a
             // pause-related state where click effects should be
             // suppressed.
-            // Mouse position is still tracked (hover glow) and
-            // the event is still consumed (blocks drag-select).
-            ctx.cloud.set_mouse_position(m.column, m.row);
-            if is_modifier_click(&m) {
-                // NIGHT-improve-8: modified clicks (shift+click
-                // and any other modifier combination) are the
-                // terminal's native selection-bypass path.
-                // Where the terminal forwards such events, they
-                // get zero visual acknowledgment — no click
-                // wave, no idle click wake — plus an immediate
-                // full-frame redraw that erases the freshly
-                // painted native selection highlight in
-                // terminals that clear selection state when the
-                // grid content underneath updates.
+            //
+            // NIGHT-improve-8 follow-up: the bypass check runs BEFORE
+            // the hover-position update so a modified gesture gets
+            // zero visual acknowledgment — the hover glow must never
+            // track a selection attempt, including its drag phase
+            // (the pre-change order let the glow follow shift+drags).
+            if is_selection_bypass_event(&m) {
+                // Modified mouse events (shift+click and any other
+                // modifier combination, on Down / Drag / Up / Moved)
+                // are the terminal's native selection-bypass path.
+                // Where the terminal forwards such events, the WHOLE
+                // gesture — not just the anchor Down — gets zero
+                // visual acknowledgment: hover position untouched
+                // (glow frozen), no click wave, no click-wave wake.
+                // The full-frame redraw per event erases the freshly
+                // painted native selection highlight in terminals
+                // that clear selection state when the grid content
+                // underneath updates, and keeps the grid churning
+                // under the extending selection so position-anchored
+                // copies (xterm-style: copy reads CURRENT cell
+                // content) capture moving rain glyphs, not the text
+                // the user highlighted. Modified scroll stays on the
+                // plain path: the wheel is not a selection primitive.
                 ctx.cloud.force_draw_everything();
                 Some(activity_time)
-            } else if is_click && !ctx.cloud.is_paused_or_decelerating() {
-                ctx.cloud.set_mouse_click(m.column, m.row);
-                // Wake renderer immediately on idle→active click.
-                if was_idle {
-                    ctx.cloud.force_draw_everything();
-                    Some(activity_time)
+            } else {
+                // Plain path: mouse position is still tracked (hover
+                // glow) and the event is still consumed (blocks
+                // drag-select).
+                ctx.cloud.set_mouse_position(m.column, m.row);
+                if is_click && !ctx.cloud.is_paused_or_decelerating() {
+                    ctx.cloud.set_mouse_click(m.column, m.row);
+                    // Wake renderer immediately on idle→active click.
+                    if was_idle {
+                        ctx.cloud.force_draw_everything();
+                        Some(activity_time)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
-            } else {
-                None
             }
         }
         Event::FocusGained => {
