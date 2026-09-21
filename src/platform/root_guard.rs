@@ -216,7 +216,7 @@ mod tests {
         }
     }
 
-    /// Cross-platform compilability + no-panic pin. The live uid value
+    /// Cross-platform compatibility + no-panic pin. The live uid value
     /// is host-dependent (root CI containers exist), so only the
     /// callability is asserted — mirroring the platform/mod.rs test
     /// style for cfg-gated platform helpers.
