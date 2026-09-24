@@ -45,6 +45,18 @@ commit that repaired a test contract. The standing rule since then: any
 `.rs` change under `src/` or `test/` must trigger every workflow whose
 jobs compile that tree.
 
+Entry form policy (owner rule 2026-09-24, NIGHT-boost-1): a
+`paths:`/`paths-ignore:` entry that points inside a directory must be a
+directory glob (`scripts/**`, `src/**`, `docs/**`), never a hardcoded
+filename (`scripts/example.sh`). A filename entry silently rots the
+moment the file is renamed or deleted — the workflow stops triggering
+while the filter still looks alive, the same failure class as the
+2026-09-13 incident. Root-level entries (`Cargo.toml`, `deny.toml`,
+`*.sh`) carry no slash and are exempt: a root build file cannot be
+globbed more generally without matching unrelated files. Enforced by
+gate-keepers.sh check 16 (`scripts/check-ci-path-filters.py`), so a
+hardcoded filename fails the gate before it can reach `main`.
+
 ## Dependency version policy (owner decision 2026-08-30)
 
 Zero hardcoded dependency versions in `.github/*`. The rule is

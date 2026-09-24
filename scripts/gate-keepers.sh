@@ -48,6 +48,11 @@
 #       no emoji-class codepoints in ANY tracked text file, not just
 #       docs; strict detector scripts/emoji-audit.py, exit 1 on hits;
 #       fail classes mirror the RULES.md Output Glyph Policy blocks)
+#  16.  CI path-filter hygiene (2026-09-24 owner rule, NIGHT-boost-1 —
+#       workflow paths/paths-ignore entries that point inside a
+#       directory must be globs ('scripts/**'), never hardcoded
+#       filenames ('scripts/example.sh') that rot on rename;
+#       scripts/check-ci-path-filters.py, root-level files exempt)
 #
 # Exit codes:
 #   0 = all checks passed
@@ -529,6 +534,25 @@ if [ -f scripts/emoji-audit.py ] && command -v python3 >/dev/null 2>&1; then
 	fi
 else
 	warn "emoji-audit.py or python3 not found — skipping"
+fi
+
+# ── 16. CI Path-Filter Hygiene (glob-only, NIGHT-boost-1) ─────────────
+# Owner mandate (2026-09-24): CI path filters gate on directories, not
+# files. A `paths:` entry that names a specific file inside a directory
+# (`scripts/example.sh`) silently rots when the file is renamed — the
+# workflow stops triggering while the filter still looks alive. The
+# detector flags any slash-carrying entry without a glob metacharacter
+# in the paths/paths-ignore blocks of .github/workflows/*.yml;
+# root-level entries (Cargo.toml, deny.toml) are exempt.
+header "CI Path-Filter Hygiene (glob-only)"
+if [ -f scripts/check-ci-path-filters.py ] && command -v python3 >/dev/null 2>&1; then
+	if python3 scripts/check-ci-path-filters.py 2>&1; then
+		PASS=$((PASS + 1))
+	else
+		fail "ci-path-filters: hardcoded filename entries in workflow path filters (see scripts/check-ci-path-filters.py)"
+	fi
+else
+	warn "check-ci-path-filters.py or python3 not found — skipping"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

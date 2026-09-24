@@ -23,6 +23,11 @@
 #  13.  Language audit - pure-English rule on comments/strings/docs
 #  14.  Permissions    - tracked files 644, executables + dirs 755,
 #                       shebang parity (scripts/check-permissions.sh)
+#  15.  Emoji sweep    - no emoji-class codepoints in any tracked
+#                       text file (scripts/emoji-audit.py, hunt-48)
+#  16.  CI path-filter - workflow paths entries inside a directory
+#                       are globs, never hardcoded filenames
+#                       (scripts/check-ci-path-filters.py, boost-1)
 #
 # Every tool listed above is installed below - a check that silently skips
 # because its tool is missing is a check that does not exist (incident:
