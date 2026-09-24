@@ -449,6 +449,12 @@ pub struct Cloud {
     pub(crate) crt_vignette_candidates: Vec<(u16, u16, f32)>, // T1.1-real: hoisted scratch (was per-frame SmallVec)
     pub(crate) border_cross_candidates: Vec<(usize, u16, u16)>, // B-1: hoisted scratch (was per-frame Vec alloc in rain.rs monolith path)
     pub(crate) border_gradient_scratch: Vec<Option<Color>>, // Z-5: hoisted scratch (was per-frame Vec alloc in draw_message)
+    // Z-5 (NIGHT-perf-2): hoisted scratch for the BN-01/02 visible-border
+    // bit-set — the Dragon Hunt v3 fix replaced a per-frame HashSet
+    // allocation with a per-frame Vec<bool>, which still allocated every
+    // frame; the --bench-cosmetics harness measured exactly 1.0 allocs
+    // per frame from this site (plain bench: 0.009).
+    pub(crate) visible_border_scratch: Vec<bool>,
     pub(crate) bottom_corner_scratch: std::collections::HashSet<usize>, // Z-5: hoisted scratch (was per-frame HashSet alloc in draw_message)
     // NIGHT-perf-1: the six draw_message scratch buffers that were
     // still allocating per frame (pulse/halo factor + color arrays,
@@ -724,6 +730,7 @@ impl Cloud {
             crt_vignette_candidates: Vec::with_capacity(128),
             border_cross_candidates: Vec::with_capacity(128),
             border_gradient_scratch: Vec::with_capacity(64),
+            visible_border_scratch: Vec::with_capacity(64),
             bottom_corner_scratch: std::collections::HashSet::with_capacity(2),
             pulse_factor_scratch: Vec::with_capacity(64),
             pulse_color_scratch: Vec::with_capacity(64),

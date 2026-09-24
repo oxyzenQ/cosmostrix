@@ -184,6 +184,7 @@ pub(super) fn minimal_cloud_config() -> crate::app::CloudConfig {
         bench_io: false,
         bench_all: false,
         bench_scene: None,
+        bench_cosmetics: false,
         verbose: false,
         density_auto: true,
         base_density: 0.75,

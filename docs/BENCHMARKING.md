@@ -65,6 +65,21 @@ Benchmark mode measures the **critical path only**: the rain simulation plus the
 
 The `cosmetics_skipped` CONFIG line lists the gated set, and `power_dragon` / `crystal_dragon` / `msg_mode` / `no_effects` disclose the effective config state (all four also appear in `--json` output). None of these keys change benchmark numbers — they exist so you can verify your config took effect.
 
+### The cosmetics harness: `--benchmark --bench-cosmetics` (NIGHT-perf-2)
+
+The skip table above is the owner's Z-6 directive — default bench stays critical-path-only. But two of the skipped rows are real per-frame render work that interactive sessions pay every frame: the **message overlay** (`draw_message` + border-cross detection inside `rain_at`) and the **HUD block** (`refresh_colors` + `write_to_frame` pre-draw, plus the post-draw metric tick). `--bench-cosmetics` is the dedicated harness for exactly those paths:
+
+```bash
+cosmostrix --benchmark --bench-cosmetics                 # text report
+cosmostrix --benchmark --bench-cosmetics --json         # machine-readable
+cosmostrix --benchmark --bench-cosmetics --bench-duration 10 --json
+cosmostrix --benchmark --bench-cosmetics -m "hello" -mb # custom overlay config
+```
+
+How it measures: the run routes through the same silent measurement loop `--bench-all` uses, but clears the Z-6 `bench_mode` flag after `reset_bench` (the message overlay renders inside `rain_at`, so its cost lands in `avg_render_ms` and end-to-end in fps / dirty cells / alloc counters) and drives the production HUD block against a real `HudState` in the exact event-loop call order. The message start time is rewound past the intro lead + reveal so frame one already renders a fully revealed overlay — the harness measures the SUSTAINED cost, not the one-shot choreography. `hud_avg_ms` / `hud_max_ms` / `hud_frames` in the COMPONENT TIMING section (and the `component_timing` JSON object) report the HUD block's own cost; the accounting is disjoint (`sim + render + io + hud_pre = frame_time`, the post-draw tick is reported separately, mirroring the event loop's work/post-draw split).
+
+A/B protocol for a scene: run `--benchmark --json` (plain) vs `--benchmark --bench-cosmetics --json` at the same size + duration — the delta is the total cosmetics-path cost. The harness found and verified its first target during its own bring-up: the BN-01/02 visible-border `Vec<bool>` allocated once per frame (1.0006 allocs/frame vs the plain bench's 0.009); it is now a hoisted `visible_border_scratch` Cloud field (Z-5 pattern) and the zero-alloc state is pinned by a test (`test/bench/tests_bench_cosmetics.rs`).
+
 ### Which color pipeline the benchmark measures (chroma dragon audit)
 
 The Chroma Dragon engine is **active during `--benchmark`** whenever the resolved color mode is truecolor: the benchmark renders every cell through the same `is_chroma()` branches the interactive loop uses (OKLab palette, climate post-FX, halos, perceptual blend). Only Crystal Dragon *palette drift* is forced off for p99 determinism — the engine itself never is. The report's CONFIG block answers the question without reading source:

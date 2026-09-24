@@ -72,7 +72,12 @@ mod event_loop_setup;
 mod event_loop_sim_draw;
 mod event_loop_stats;
 mod final_state;
-mod hud;
+// HUD (heads-up display): the 25-line metrics overlay. `pub(crate)`
+// because the NIGHT-perf-2 bench-cosmetics harness (src/bench/)
+// constructs a HudState and drives the same per-frame block the
+// interactive loop drives, so the skipped path is measured with the
+// production call shape, not a re-implementation.
+pub(crate) mod hud;
 mod input;
 mod signal_handlers;
 mod watchdog;

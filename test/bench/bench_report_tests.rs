@@ -115,6 +115,9 @@ mod tests {
         // config grew from 15 to 25 fields (CONFIG enrichment for
         // color/charset parity with --verbose).
         // config fields: auto_color_drift removed, crystal_dragon added.
+        // NIGHT-perf-2: the cosmetics-harness metrics joined as ONE nested
+        // Default-able field (`cosmetics`) instead of five flat fields, so
+        // at-cap construction sites stay one-line.
         // The struct literal below is the real check — if this compiles,
         // all fields exist and have the correct types. Prefixed with `_`
         // because no runtime assertion is needed (the compiler is the test).
@@ -218,6 +221,10 @@ mod tests {
             second_half_fps: Some(12_850.0),
             fps_drift_percent: Some(1.15),
             bench_duration_secs: 5,
+            // NIGHT-perf-2: the cosmetics-harness metrics joined the
+            // struct as one nested field (Default-able so premium's
+            // at-cap literal stays a single line).
+            cosmetics: Default::default(),
         };
         // Basic sanity — if this compiles, all fields exist and have
         // the correct types. The struct literal above is the real check.

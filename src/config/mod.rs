@@ -33,47 +33,12 @@ pub mod live_config_state;
 
 use std::io::IsTerminal;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use clap::Parser;
 
 use crate::intro_style::IntroType;
 use crate::msg_fill_style::MsgFillStyle;
 use crate::runtime::MonolithSize;
-
-/// v50-beta.3: clap value_parser for boolean CLI flags that MUST receive
-/// an explicit `true`/`false` value (no bare-flag toggle). This prevents
-/// the silent-ignore class of bugs where a user types `--crystal-dragon`
-/// expecting an error or a toggle, but clap quietly sets the bool to true.
-///
-/// Accepted values (case-insensitive): `true`, `false`, `1`, `0`, `yes`,
-/// `no`, `on`, `off`. Any other input → clap error.
-///
-/// Used by: `--crystal-dragon`, `--power-dragon`, `--msg-mode`.
-fn parse_true_false(input: &str) -> Result<bool, String> {
-    match input.to_ascii_lowercase().as_str() {
-        "true" | "1" | "yes" | "on" => Ok(true),
-        "false" | "0" | "no" | "off" => Ok(false),
-        other => {
-            // v80.0.0-alpha.2 (owner typo `--crystal-dragon 10`): hint the
-            // -secs twin when a NUMBER lands on a bool flag.
-            let hint = if other.parse::<f64>().is_ok() {
-                " — numeric values are not booleans; for seconds use --crystal-dragon-secs (e.g. --crystal-dragon-secs 10)"
-            } else {
-                ""
-            };
-            Err(format!(
-                "invalid boolean value '{other}' (expected: true|false|1|0|yes|no|on|off){hint}"
-            ))
-        }
-    }
-}
-
-/// Test-only accessor for the `parse_true_false` value_parser (pub(crate) wrapper; tests cannot reach the private fn directly).
-#[cfg(test)]
-pub(crate) fn test_parse_true_false(input: &str) -> Result<bool, String> {
-    parse_true_false(input)
-}
 
 #[must_use]
 pub(crate) fn color_enabled_stdout() -> bool {
@@ -89,64 +54,16 @@ pub(crate) fn color_enabled_stdout() -> bool {
 // v80.0.0-beta.2 fps-intent tracker (extracted to fps_intent.rs for the LOC cap). Re-exported for the call sites.
 pub(crate) use fps_intent::{fps_explicit_source, record_fps_explicit};
 
-// Enums
-
-#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ColorBg {
-    #[value(name = "black")]
-    Black,
-    // Both "default-background" (kebab-case, canonical CLI form) and
-    // "default_background" (snake_case) are accepted by config.toml
-    // parsing (configfile.rs, config_apply.rs, profile.rs, live_config.rs,
-    // testconf.rs) via explicit match arms. The CLI exposes only the
-    // canonical kebab-case name to avoid duplicate entries in error output.
-    #[value(name = "default-background")]
-    DefaultBackground,
-}
-
-/// Glitch intensity presets. Provides a grouped interface over individual
-/// glitch tuning parameters (glitchpct, glitch-ms, shortpct, rippct).
-#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GlitchLevel {
-    #[value(name = "none")]
-    None,
-    #[value(name = "subtle")]
-    Subtle,
-    #[value(name = "default")]
-    Default,
-    #[value(name = "intense")]
-    Intense,
-}
-
-// U16Range
-
-#[derive(Clone, Copy, Debug)]
-pub struct U16Range {
-    pub low: u16,
-    pub high: u16,
-}
-
-impl FromStr for U16Range {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (a, b) = s
-            .split_once(',')
-            .ok_or_else(|| "expected: NUM1,NUM2".to_string())?;
-        let low: u16 = a
-            .trim()
-            .parse()
-            .map_err(|_| "invalid low value".to_string())?;
-        let high: u16 = b
-            .trim()
-            .parse()
-            .map_err(|_| "invalid high value".to_string())?;
-        if low == 0 || high == 0 || low > high {
-            return Err("range must be >0 and low <= high (min allowed value is 1)".to_string());
-        }
-        Ok(Self { low, high })
-    }
-}
+// NIGHT-perf-2 LOC refactor (the fps_intent.rs precedent): the CLI value
+// types (ColorBg, GlitchLevel, U16Range) + the explicit-bool value_parser
+// moved to cli_value_types.rs to keep mod.rs under the 800-LOC cap after
+// --bench-cosmetics joined Args. Pure code motion; re-exported so every
+// existing `crate::config::X` path resolves unchanged.
+mod cli_value_types;
+pub(crate) use cli_value_types::parse_true_false;
+#[cfg(test)]
+pub(crate) use cli_value_types::test_parse_true_false;
+pub use cli_value_types::{ColorBg, GlitchLevel, U16Range};
 
 // Args — curated two-tier help design
 //
@@ -499,6 +416,27 @@ pub struct Args {
                 fallback'd to the default lean path."
     )]
     pub bench_scene: Option<String>,
+
+    /// NIGHT-perf-2: dedicated benchmark harness for the render paths the
+    /// Z-6 bench-mode contract deliberately skips (message overlay
+    /// draw_message + border-cross detection, plus the per-frame HUD
+    /// refresh_colors/write_to_frame/metric-tick block). Opt-in: use with
+    /// --benchmark. Default bench stays critical-path-only (owner
+    /// directive, Z-6); this flag exists so the skipped paths get their
+    /// own A/B-able 10s measurement instead of staying invisible to
+    /// --benchmark forever.
+    #[arg(
+        long = "bench-cosmetics",
+        help_heading = "DIAGNOSTICS",
+        display_order = 119,
+        requires = "benchmark",
+        help = "Benchmark the bench-skipped cosmetics paths: message overlay \
+                + HUD write into the measured frame (use with --benchmark). \
+                Measures what Z-6 bench mode deliberately skips; pair with \
+                --message/--msg-fill-style/--message-border to pick the \
+                overlay configuration."
+    )]
+    pub bench_cosmetics: bool,
 
     // v30 simplify: --info skip field REMOVED. Was a v17 ghost (CLI flag
     // deleted in v17, merged into --doctor). No consumer ever read this.

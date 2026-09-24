@@ -110,6 +110,11 @@ pub struct CloudConfig {
     /// SGR + BOLT bold escape) so the BOLT-backed production path is
     /// measurable. Requires --bench-io.
     pub bench_scene: Option<String>,
+    /// --bench-cosmetics: NIGHT-perf-2 harness flag — re-enables the
+    /// message overlay + per-frame HUD calls inside the premium bench
+    /// loop so the Z-6-skipped paths become measurable. Requires
+    /// --benchmark (clap `requires` enforces it).
+    pub bench_cosmetics: bool,
     /// --verbose flag: print diagnostic info to stderr.
     pub verbose: bool,
     pub density_auto: bool,
@@ -558,6 +563,7 @@ impl CloudConfig {
             bench_io: false,
             bench_all: false,
             bench_scene: None,
+            bench_cosmetics: false,
             verbose: false,
             density_auto: self.density_auto,
             base_density: self.base_density,

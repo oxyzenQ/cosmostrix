@@ -265,4 +265,42 @@ pub(crate) struct BenchReportData {
     /// Effective benchmark duration in seconds (may differ from default 5s
     /// when --bench-duration N is supplied).
     pub bench_duration_secs: u64,
+
+    // NIGHT-perf-2: the cosmetics-harness metrics. Default (all-zero,
+    // mode=false) for every non-cosmetics run — premium's struct literal
+    // uses Default::default() for this field, which keeps that file at
+    // its LOC cap (one line, no field list).
+    pub cosmetics: CosmeticsReport,
+}
+
+/// NIGHT-perf-2: metrics for the `--bench-cosmetics` harness — the
+/// dedicated measurement of the render paths the Z-6 bench-mode contract
+/// deliberately skips (message overlay + per-frame HUD block).
+///
+/// `hud_avg_ms`/`hud_max_ms` cover BOTH HUD blocks the interactive loop
+/// pays per frame: the pre-draw block (refresh_colors + write_to_frame,
+/// event_loop_sim_draw order) and the post-draw metric tick
+/// (push_frame_time + RSS/CPU sampling + update_metrics +
+/// set_dirty_cell_stats, event_loop_post_draw order). The message
+/// overlay's own cost is deliberately NOT folded into these — it renders
+/// inside `cloud.rain_at()`, so it lands in `avg_render_ms` where the
+/// A/B against a plain bench run shows it end-to-end (fps, dirty cells,
+/// alloc counters).
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct CosmeticsReport {
+    /// True when this run measured with the cosmetics harness
+    /// (`--benchmark --bench-cosmetics`).
+    pub mode: bool,
+    /// True when the message overlay was actually active during the run
+    /// (steady-state: start time rewound past intro lead + reveal).
+    pub message_active: bool,
+    /// Average combined HUD cost per measured frame (ms). 0.0 when the
+    /// harness did not run.
+    pub hud_avg_ms: f64,
+    /// Worst single-frame combined HUD cost (ms). 0.0 when the harness
+    /// did not run.
+    pub hud_max_ms: f64,
+    /// Number of frames the HUD block ran for. 0 when the harness did
+    /// not run.
+    pub hud_frames: u64,
 }

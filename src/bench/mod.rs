@@ -32,6 +32,7 @@
 pub mod bench_baseline;
 pub mod bench_comp;
 pub mod bench_config_enrichment;
+pub mod bench_cosmetics;
 pub mod bench_cpu;
 pub mod bench_energy;
 pub mod bench_helpers;
@@ -55,6 +56,9 @@ mod peak_fps;
 mod premium;
 mod run_bench;
 mod silent;
+#[cfg(test)]
+#[path = "../../test/bench/tests_bench_cosmetics.rs"]
+pub mod tests_bench_cosmetics;
 
 use crate::bench_report::BenchReportData;
 use crate::CloudConfig;

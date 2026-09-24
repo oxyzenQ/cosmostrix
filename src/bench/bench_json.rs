@@ -172,7 +172,9 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         // of a run. Values mirror the text report exactly:
         //   power_dragon / crystal_dragon — config state (crystal drift is
         //     forced OFF in bench for determinism; see chroma_in_benchmark)
-        //   msg_mode — message overlay config (messages never render in bench)
+        //   msg_mode — message overlay config (rendered only by the
+        //     NIGHT-perf-2 --bench-cosmetics harness; skipped by the
+        //     default Z-6 critical-path bench)
         //   no_effects — --no-effects state, inverted (true = effects
         //     OFF). Auto-enabled in bench mode. Particles are input-driven,
         //     so this never changes bench numbers; transparency only.
@@ -256,6 +258,15 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         o.push_kv("max_sim_ms", data.max_sim_ms);
         o.push_kv("max_render_ms", data.max_render_ms);
         o.push_kv("max_io_ms", data.max_io_ms);
+        // NIGHT-perf-2 cosmetics harness fields (schema addition per the
+        // stability contract: new fields added, none renamed/removed).
+        // Always emitted — 0.0/false on every non-cosmetics run so the
+        // schema is uniform across modes.
+        o.push_kv("hud_avg_ms", data.cosmetics.hud_avg_ms);
+        o.push_kv("hud_max_ms", data.cosmetics.hud_max_ms);
+        o.push_kv("hud_frames", data.cosmetics.hud_frames);
+        o.push_kv("cosmetics_mode", data.cosmetics.mode);
+        o.push_kv("message_active", data.cosmetics.message_active);
     });
 
     // ── cell_efficiency (P3: DeepSeek metrics) ──

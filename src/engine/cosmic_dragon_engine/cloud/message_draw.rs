@@ -121,12 +121,22 @@ impl super::Cloud {
         // O((W+H)×N) `build_border_order` call + the per-frame HashSet
         // allocation with a Vec<bool> bit-set lookup.
         let border_order = &self.border_order;
-        let mut visible_border: Vec<bool> = vec![false; self.message.len()];
+        // Z-5 (NIGHT-perf-2): the bit-set itself is now a hoisted Cloud
+        // scratch field — the previous `vec![false; message.len()]`
+        // allocated one Vec per frame (the last remaining per-frame heap
+        // allocation in draw_message; found by the --bench-cosmetics
+        // harness measuring exactly 1.0 allocs/frame against the plain
+        // bench's 0.009). clear()+resize preserves the allocation; the
+        // resize is a no-op whenever the message length is unchanged.
+        self.visible_border_scratch.clear();
+        self.visible_border_scratch
+            .resize(self.message.len(), false);
         for &idx in border_order.iter().take(border_show) {
-            if idx < visible_border.len() {
-                visible_border[idx] = true;
+            if idx < self.visible_border_scratch.len() {
+                self.visible_border_scratch[idx] = true;
             }
         }
+        let visible_border = &self.visible_border_scratch;
 
         // BC-02 (border chroma gradient): precompute per-cell gradient color
         // for visible border cells. Maps clockwise border position i to

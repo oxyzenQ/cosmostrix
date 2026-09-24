@@ -52,6 +52,12 @@ pub(crate) fn dispatch_bench(
 
     if args.benchmark {
         crate::bench_helpers::warn_bench_noop_flags(args, fps_user_set);
+        // NIGHT-perf-2: the cosmetics harness routes through the silent
+        // measurement loop (bench_cosmetics::run_cosmetics_benchmark);
+        // the plain premium loop stays the default Z-6 critical-path run.
+        if cloud_cfg.bench_cosmetics {
+            return Some(crate::bench_cosmetics::run_cosmetics_benchmark(cloud_cfg));
+        }
         return Some(bench::run_premium_benchmark(cloud_cfg));
     }
 

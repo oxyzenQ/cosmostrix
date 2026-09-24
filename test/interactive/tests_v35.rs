@@ -99,6 +99,7 @@ mod cases_v35 {
             bench_io: false,
             bench_all: false,
             bench_scene: None,
+            bench_cosmetics: false,
             screen_size: None,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
             json: false,

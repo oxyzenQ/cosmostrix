@@ -8,7 +8,7 @@
 //! with live progress feedback and Report-engine enhanced metrics
 //! output. Re-exported from `bench/mod.rs` via `pub(crate) use`.
 
-use crate::output::{eprintln_safe, println_safe};
+use crate::output::eprintln_safe;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
@@ -747,53 +747,12 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         second_half_fps,
         fps_drift_percent,
         bench_duration_secs,
+        cosmetics: Default::default(), // NIGHT-perf-2: harness runs via the silent path, never here
     };
-    // BL-02 (Dragon Hunt v3): dedup — hoist json_opt above the json/text
-    // branch so save/compare baseline logic runs once (was duplicated
-    // verbatim in both arms).
-    let json_opt: Option<String> =
-        if cfg.json || cfg.save_baseline.is_some() || cfg.compare_baseline.is_some() {
-            Some(crate::bench_json::build_json_string(&report_data))
-        } else {
-            None
-        };
-
-    if cfg.json {
-        // Print JSON to stdout (only in --json mode).
-        if let Some(ref json) = json_opt {
-            println_safe!("{json}");
-        }
-    } else {
-        crate::bench_report::build_premium_report(&report_data);
-    }
-
-    // Save baseline if requested (v17: path whitelist enforced).
-    // For text mode, the JSON was generated above so users don't have to
-    // pass --json just to save a baseline.
-    if let (Some(path), Some(json)) = (cfg.save_baseline.as_ref(), json_opt.as_ref()) {
-        if !crate::is_safe_path(path) {
-            eprintln_safe!(
-                "error: --save-baseline '{path}' is outside allowed directories\n  \
-                 Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
-            );
-        } else {
-            match crate::bench_baseline::save_baseline(path, json) {
-                Ok(()) => eprintln_safe!("[baseline] saved to {path}"),
-                Err(e) => eprintln_safe!("{e}"),
-            }
-        }
-    }
-
-    // Compare baseline if requested (v17: path whitelist enforced).
-    if let (Some(path), Some(json)) = (cfg.compare_baseline.as_ref(), json_opt.as_ref()) {
-        if !crate::is_safe_path(path) {
-            eprintln_safe!(
-                "error: --compare-baseline '{path}' is outside allowed directories\n  \
-                 Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
-            );
-        } else if let Err(e) = crate::bench_baseline::compare_with_baseline(path, json) {
-            eprintln_safe!("{e}");
-        }
-    }
+    // NIGHT-perf-2: report emission (json/text + baseline save/compare)
+    // extracted verbatim to bench_cosmetics::emit_report_output so the
+    // cosmetics harness shares the exact same emission path; premium.rs
+    // was at its 800-LOC cap and this is a net code-motion out.
+    crate::bench_cosmetics::emit_report_output(cfg, &report_data);
     Ok(())
 }

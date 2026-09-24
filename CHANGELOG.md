@@ -23,6 +23,77 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### perf: NIGHT-perf-2 - dedicated bench harness for the Z-6-skipped paths: --bench-cosmetics measures the message overlay + per-frame HUD block; bring-up found and killed the last per-frame heap alloc in draw_message (visible_border Vec)
+
+- **Change** (owner-approved 2026-09-24): the paths --benchmark skips
+  by design (Z-6, critical-path-only) are now measurable with a
+  dedicated harness: `--benchmark --bench-cosmetics`. The run routes
+  through the same silent measurement loop --bench-all uses, clears
+  bench_mode after reset_bench (the message overlay renders inside
+  rain_at, so its cost lands in avg_render_ms and end-to-end in fps /
+  dirty cells / alloc counters), and drives the production HUD block
+  against a real HudState in the exact event-loop call order
+  (refresh_colors -> write_to_frame pre-draw; push_frame_time,
+  RSS/CPU sampling, update_metrics, set_dirty_cell_stats post-draw
+  tick). The message start time is rewound past MESSAGE_INTRO_LEAD +
+  the reveal so frame one renders a fully revealed overlay - the
+  harness measures the SUSTAINED cost, not the one-shot choreography.
+  Default bench is untouched: the plain premium loop, --bench-all and
+  --bench-frames never measure cosmetics (Z-6 contract intact; the
+  spawn.rs comment records the exception).
+- **Fix found by the harness itself**: during bring-up it measured
+  exactly 1.0006 allocs/frame in cosmetics mode vs the plain bench's
+  0.009 - the BN-01/02 visible-border bit-set
+  (`vec![false; message.len()]` in draw_message) allocated one Vec per
+  frame; the Dragon Hunt v3 fix had replaced a per-frame HashSet with
+  a per-frame Vec. Hoisted as `visible_border_scratch` (Z-5
+  clear()+resize pattern, sibling of border_gradient_scratch);
+  post-fix measurement: 0.0006 allocs/frame. The zero-alloc state is
+  pinned by a test so the class cannot silently return.
+- **Reporting**: COMPONENT TIMING gains avg_hud_ms / max_hud_ms /
+  hud_frames / message_active / hud_meaning / cosmetics_mode when the
+  harness runs; the component_timing JSON object gains hud_avg_ms,
+  hud_max_ms, hud_frames, cosmetics_mode, message_active (uniform
+  schema - always emitted, zero/false when the harness did not run,
+  per the JSON stability contract's add-only rule). The accounting is
+  disjoint: sim + render + io + hud_pre = frame_time; the post-draw
+  tick is reported separately (mirrors the event loop's work/post-draw
+  split). Config section carries the new flag; --help groups it under
+  DIAGNOSTICS; clap `requires = "benchmark"` fails fast on the flag
+  alone; the bench noop-warn matrix covers the precedence shadows
+  (--bench-all / --bench-frames win dispatch).
+- **LOC refactor en route** (the fps_intent.rs precedent):
+  config/mod.rs sat at exactly the 800-line cap, so the CLI value
+  types (ColorBg, GlitchLevel, U16Range) + the explicit-bool
+  parse_true_false value_parser moved verbatim to
+  config/cli_value_types.rs with full re-exports (every existing
+  `crate::config::X` path resolves unchanged); premium.rs's report
+  emission (json/text + baseline save/compare) moved verbatim to
+  bench_cosmetics::emit_report_output so the harness and the premium
+  runner share one emission path (premium.rs 799 -> 758).
+- **Tests**: 3 new tests in test/bench/tests_bench_cosmetics.rs -
+  the clap requires-wiring, the harness measurement contract (mode,
+  message_active, hud_frames == total_frames, hud timings positive,
+  the zero-alloc tripwire < 1.0 allocs/frame, JSON field emission),
+  and the idle-fields contract for plain runs (default behavior
+  unchanged). 14 test-side CloudConfig literals gained the
+  bench_cosmetics field; the BenchReportData compile-check literal
+  gained the cosmetics field.
+- **Docs**: docs/BENCHMARKING.md - "The cosmetics harness" section
+  (usage, what is measured, the disjoint accounting, the A/B
+  protocol, the found-and-fixed allocation story); the Z-6 spawn.rs
+  comment notes the harness exception; hud module is pub(crate) so
+  the bench can drive the production HudState (not a re-implementation).
+- **Verification**: fmt + clippy --all-targets -D warnings clean;
+  targeted suites green (tests_bench_cosmetics 3, msg_fill 135, hud
+  84, message 58, bench_report 6, glitch 27, color_bg 9, clap 13,
+  parse_true_false, u16); LOC guards OK (config/mod.rs 740,
+  bench files all under cap); docs-audit + stale-hunt clean; local
+  smoke runs: message_active true, hud timings populated, allocs/frame
+  0.0006 (was 1.0006 pre-fix). The 10s release-profile A/B
+  (plain vs cosmetics, matrix scene) runs post-commit per protocol and
+  is recorded in benchmark/HIST_BENCH.md.
+
 ### boost: NIGHT-boost-6 — cross-doc stale-data sweep: 23 flat-path citations repointed at the post-reorg script homes, the half-stale NIGHT-lts-1 debt record made truthful, HUD.md post-NIGHT-perf-1 mechanism drift repaired
 
 - **Change**: owner mandate (2026-09-24) — stale/outdated data and

@@ -216,6 +216,19 @@ fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static 
     if args.bench_all && args.benchmark {
         warns.push("--benchmark ignored (--bench-all takes precedence)");
     }
+    if args.bench_all && args.benchmark && args.bench_cosmetics {
+        // clap's `requires = "benchmark"` already rejects
+        // --bench-cosmetics without --benchmark; this covers the
+        // precedence shadow: --bench-all wins dispatch, so the
+        // cosmetics harness never runs in that combination.
+        warns.push("--bench-cosmetics ignored (--bench-all takes precedence)");
+    }
+    if args.bench_frames.is_some() && args.benchmark && args.bench_cosmetics {
+        warns.push(
+            "--bench-cosmetics ignored (--bench-frames is the legacy N-frame \
+             path; the harness runs only in --benchmark mode)",
+        );
+    }
     if args.bench_all && args.bench_frames.is_some() {
         warns.push("--bench-frames ignored (--bench-all takes precedence)");
     }

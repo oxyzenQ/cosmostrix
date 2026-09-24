@@ -55,7 +55,11 @@ impl Cloud {
         self.neural_rain.fast_forward_genesis();
         // Z-6: mark benchmark mode — rain_at skips message cosmetics
         // (draw_message + border-cross detection). Owner directive: bench
-        // mode measures critical path only (rain + 3 dragons), not cosmetics.
+        // mode measures critical path only (rain + 3 dragons), not
+        // cosmetics. NIGHT-perf-2 exception: the --bench-cosmetics
+        // harness clears this flag AFTER reset_bench so the overlay
+        // path gets its own dedicated measurement; every default bench
+        // run still skips it.
         self.bench_mode = true;
     }
 

@@ -42,7 +42,7 @@ pub(crate) use crate::bench_meta::{ACTIVE_FRAME_RATIO_MEANING, AVG_DIRTY_CELL_RA
 // v50.0.0-beta.7 LOC refactor: BenchReportData struct extracted to
 // bench_report_data.rs to keep this file under the 800-LOC hard cap.
 mod bench_report_data;
-pub(crate) use bench_report_data::BenchReportData;
+pub(crate) use bench_report_data::{BenchReportData, CosmeticsReport};
 
 // ── Report builder ───────────────────────────────────────────────────────────
 
@@ -540,6 +540,30 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             s.field(
                 "io_share_percent",
                 &format!("{:.2}", data.avg_io_ms / total_avg * 100.0),
+            );
+        }
+        // NIGHT-perf-2: the cosmetics-harness fields. hud_pre ran inside
+        // the work window (subtracted from the io residual above), the
+        // post-draw metric tick ran after it — avg + max cover both.
+        if data.cosmetics.mode {
+            s.field("avg_hud_ms", &format!("{:.4}", data.cosmetics.hud_avg_ms));
+            s.field("max_hud_ms", &format!("{:.4}", data.cosmetics.hud_max_ms));
+            s.field("hud_frames", &format!("{}", data.cosmetics.hud_frames));
+            s.field(
+                "message_active",
+                if data.cosmetics.message_active {
+                    "yes"
+                } else {
+                    "no"
+                },
+            );
+            s.field(
+                "hud_meaning",
+                "refresh_colors + write_to_frame (pre-draw) + push_frame_time + RSS/CPU sampling + update_metrics + set_dirty_cell_stats (post-draw tick); sim + render + io + hud_pre = frame_time",
+            );
+            s.field(
+                "cosmetics_mode",
+                "bench-cosmetics harness: Z-6-skipped paths measured (default bench stays critical-path-only)",
             );
         }
     }

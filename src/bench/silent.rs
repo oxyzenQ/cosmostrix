@@ -13,12 +13,14 @@ use std::time::{Duration, Instant};
 
 use crate::bench_comp::ComponentTimer;
 use crate::cinematic::dirty_threshold_cells;
+use crate::cloud::Cloud;
 use crate::constants::*;
 use crate::frame::Frame;
+use crate::interactive::hud::HudState;
 use crate::theme::canonical_name_for_scheme;
 use crate::{
-    bench_helpers::resolve_bench_duration, bench_report::BenchReportData, effective_density,
-    CloudConfig,
+    bench_helpers::resolve_bench_duration, bench_report::BenchReportData,
+    bench_report::CosmeticsReport, effective_density, CloudConfig,
 };
 
 use super::premium::FRAME_TIME_SAMPLES;
@@ -51,6 +53,43 @@ pub(crate) fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result
                                   // Climate drift (luminance/saturation/hue modulation) still runs
                                   // because it is deterministic (fixed RNG seed) and has no
                                   // rebuild cost.
+
+    // NIGHT-perf-2 (owner-approved 2026-09-24): the dedicated cosmetics
+    // harness for the paths the Z-6 bench-mode contract skips. Default
+    // runs stay critical-path-only (owner directive, Z-6 in spawn.rs);
+    // --bench-cosmetics opts this one run into measuring exactly the
+    // interactive-only work:
+    //   1. the message overlay — rain_at skips draw_message + border-cross
+    //      detection while bench_mode is set, so the flag is cleared
+    //      AFTER reset_bench armed it;
+    //   2. the per-frame HUD block — the same call shape and order the
+    //      event loop pays (pre-draw in event_loop_sim_draw, metric tick
+    //      in event_loop_post_draw), driven against a real HudState so
+    //      the harness measures the production code, not a re-implementation.
+    // Message steady state: the start time is rewound past
+    // MESSAGE_INTRO_LEAD + the longest reveal phase so the first warmup
+    // frame already renders a fully-revealed overlay — the harness
+    // measures the SUSTAINED overlay cost, not the one-shot choreography.
+    let cosmetics = cfg.bench_cosmetics;
+    let mut hud = HudState::new();
+    hud.set_target_fps(cfg.target_fps);
+    let mut hud_sum_ms = 0.0f64;
+    let mut hud_max_ms = 0.0f64;
+    if cosmetics {
+        cloud.bench_mode = false;
+        cloud.set_message_border(cfg.message_border);
+        cloud.set_msg_fill_style(cfg.msg_fill_style);
+        // cfg.message is None in bench mode unless -m was passed explicitly
+        // (build_cloud_cfg drops only the DEFAULT fallback under bench);
+        // fall back to the production default so the harness always
+        // exercises the overlay.
+        let text = cfg
+            .message
+            .clone()
+            .unwrap_or_else(crate::types::constants::default_message_text);
+        cloud.set_message(&text);
+        cloud.message_start_time = Some(Instant::now() - Duration::from_secs(60));
+    }
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
     let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
@@ -85,6 +124,9 @@ pub(crate) fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result
     while Instant::now() < warmup_end {
         sim_now += target_period;
         cloud.rain_at(&mut frame, sim_now);
+        if cosmetics {
+            hud_pre_draw(&mut hud, &cloud, &mut frame);
+        }
         if let Some(ref mut io) = io_writer {
             if bench_scene_production {
                 io.write_frame_production(&frame);
@@ -93,6 +135,19 @@ pub(crate) fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result
             }
         }
         frame.clear_dirty();
+    }
+
+    // Arm the 1 Hz HUD metric tick (samplers + first recompute) once
+    // before the measurement window so the first measured frame does not
+    // pay the one-time tick cost as a fake hud_max spike.
+    if cosmetics {
+        hud_post_draw(
+            &mut hud,
+            &cloud,
+            0.0,
+            0,
+            ((w as usize) * (h as usize)) as u64,
+        );
     }
 
     // Baseline snapshots (scope = measurement phase only)
@@ -122,6 +177,16 @@ pub(crate) fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result
         let frame_start = Instant::now();
         cloud.rain_at(&mut frame, sim_now);
 
+        // NIGHT-perf-2: the HUD pre-draw block, event_loop_sim_draw order
+        // (refresh_colors BEFORE write_to_frame so this frame's HUD cells
+        // read fresh colors). Timed so hud_avg/hud_max report the real cost.
+        let mut hud_pre_ms = 0.0f64;
+        if cosmetics {
+            let hud_t = Instant::now();
+            hud_pre_draw(&mut hud, &cloud, &mut frame);
+            hud_pre_ms = hud_t.elapsed().as_secs_f64() * 1000.0;
+        }
+
         let sim_ms = cloud.last_sim_ms();
         let render_ms = cloud.last_render_ms();
 
@@ -149,7 +214,33 @@ pub(crate) fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result
         frame.clear_dirty();
 
         let frame_time_ms = frame_start.elapsed().as_secs_f64() * 1000.0;
-        let io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
+
+        // NIGHT-perf-2: the HUD post-draw metric tick, event_loop_post_draw
+        // order. Runs AFTER the frame_time window exactly like the event
+        // loop's work_s -> post_draw split, so frame_time_ms keeps its
+        // meaning (the work window) and the tick is reported separately
+        // in hud_avg_ms/hud_max_ms.
+        if cosmetics {
+            let hud_t = Instant::now();
+            hud_post_draw(
+                &mut hud,
+                &cloud,
+                frame_time_ms,
+                dirty_count as u64,
+                total_cells as u64,
+            );
+            let hud_post_ms = hud_t.elapsed().as_secs_f64() * 1000.0;
+            let combined = hud_pre_ms + hud_post_ms;
+            hud_sum_ms += combined;
+            if combined > hud_max_ms {
+                hud_max_ms = combined;
+            }
+        }
+
+        // hud_pre ran INSIDE the work window, so subtract it from the
+        // residual to keep the component split disjoint in cosmetics
+        // mode: sim + render + io + hud = frame_time_ms.
+        let io_ms = (frame_time_ms - sim_ms - render_ms - hud_pre_ms).max(0.0);
         components.record(sim_ms, render_ms, io_ms);
 
         if ft_index < FRAME_TIME_SAMPLES {
@@ -342,7 +433,53 @@ pub(crate) fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result
         second_half_fps: None,
         fps_drift_percent: None,
         bench_duration_secs,
+        cosmetics: CosmeticsReport {
+            mode: cosmetics,
+            message_active: cosmetics && cloud.message_text.is_some(),
+            hud_avg_ms: if cosmetics && total_frames > 0 {
+                hud_sum_ms / total_frames as f64
+            } else {
+                0.0
+            },
+            hud_max_ms: if cosmetics { hud_max_ms } else { 0.0 },
+            hud_frames: if cosmetics { total_frames } else { 0 },
+        },
     };
 
     Ok(report_data)
+}
+
+// ── NIGHT-perf-2 cosmetics helpers ──────────────────────────────────────────
+// The two HUD blocks the interactive loop pays per frame, extracted so
+// the harness drives the production call shape (and order) instead of a
+// re-implementation. Kept private to this file: they exist to mirror
+// event_loop_sim_draw.rs + event_loop_post_draw.rs — if those call
+// shapes change, these must change with them (the tests pin the order
+// by asserting the report fields both blocks feed).
+
+/// The pre-draw HUD block: refresh_colors then write_to_frame, exactly
+/// the event_loop_sim_draw.rs order. Must run before the frame's dirty
+/// check so the HUD cells are part of the same frame flush.
+#[inline]
+fn hud_pre_draw(hud: &mut HudState, cloud: &Cloud, frame: &mut Frame) {
+    hud.refresh_colors(cloud.hud_colors(), cloud.palette_gen);
+    hud.write_to_frame(frame, cloud.cols, cloud.palette.bg);
+}
+
+/// The post-draw HUD metric tick: push_frame_time, RSS/CPU sampling,
+/// update_metrics (internally 1 Hz gated), set_dirty_cell_stats —
+/// exactly the event_loop_post_draw.rs order.
+#[inline]
+fn hud_post_draw(
+    hud: &mut HudState,
+    cloud: &Cloud,
+    frame_time_ms: f64,
+    dirty_count: u64,
+    total_cells: u64,
+) {
+    hud.push_frame_time(frame_time_ms);
+    hud.maybe_sample_rss();
+    hud.maybe_sample_cpu();
+    hud.update_metrics(cloud.hud_colors());
+    hud.set_dirty_cell_stats(dirty_count, total_cells);
 }

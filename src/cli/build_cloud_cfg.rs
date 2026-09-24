@@ -211,6 +211,7 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         bench_io: args.bench_io,
         bench_all: args.bench_all,
         bench_scene: args.bench_scene.clone(),
+        bench_cosmetics: args.bench_cosmetics,
         verbose: args.verbose,
         density_auto,
         base_density,
