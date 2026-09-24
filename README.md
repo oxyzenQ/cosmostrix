@@ -230,7 +230,7 @@ Every archive ships three checksums (classical SHA-512 plus quantum-resistant BL
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v100.0.3"
+TAG="v100.0.4"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
