@@ -10,6 +10,38 @@ and whether the test is measuring headless simulation or real terminal I/O.
 Use benchmark output to compare builds on the same machine, not as a portable
 promise.
 
+## NIGHT-boost session A/B (2026-09-24, dev profile, 10s, 120x40)
+
+Regression gate for the three NIGHT-boost commits (glob-only CI filter
+gate, --help green examples, --verbose telemetry implication). All three
+changes live in startup/exit paths (CI scripts, help text, config
+building, verbose printing); the render hot loop was untouched, and the
+A/B confirms it. Before = pre-session 5e3a56d, after = final HEAD with
+all three boosts compiled in; both dev-profile debug builds on the same
+container (Xeon, smt off), `--benchmark --bench-duration 10
+--screen-size 120x40 --json` (dry, lean), single run each.
+
+| metric | before | after | delta |
+|--------|--------|-------|-------|
+| avg_fps | 3984.26 | 3983.27 | -0.02% |
+| peak_fps | 5225.26 | 5238.98 | +0.26% |
+| render_ns_per_cell | 726.38 | 729.79 | +0.47% |
+| total_ns_per_cell | 1369.31 | 1370.86 | +0.11% |
+| dirty_glyphs_per_second | 730,295 | 729,471 | -0.11% |
+| ansi_bytes_per_second | 13.88M | 13.86M | -0.11% |
+| total_drawn_cells | 7,303,028 | 7,294,765 | -0.11% |
+| frame_entropy_bits | 4.483 | 4.478 | -0.09% |
+| density_gini | 0.8532 | 0.8537 | +0.06% |
+| color_transition_delta_avg | 109.88 | 110.79 | +0.83% |
+| alloc_calls_per_frame | 0.0142 | 0.0142 | +0.03% |
+| drift fps first/second half | 3972/3996 | 3970/3997 | -0.06%/+0.01% |
+
+Verdict: PASS — every delta inside the +/-1% noise band, no metric near
+the 5% regression threshold. The boosts are performance-neutral on the
+render path, as designed (config/verbose/help changes resolve before or
+after the loop; the per-frame perf-accounting adds a handful of integer
+adds that do not register above noise).
+
 ## Fresh Results (v50 nightly.1, pro-linux-v4, 2026-08-17)
 
 | Screen  | avg_fps  | p95 (ms) | p99 (ms) | max (ms) | dirty cells/frame | stability |
