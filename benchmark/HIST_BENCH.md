@@ -10,6 +10,55 @@ and whether the test is measuring headless simulation or real terminal I/O.
 Use benchmark output to compare builds on the same machine, not as a portable
 promise.
 
+## NIGHT-perf-1 A/B (2026-09-24, dev profile, 10s, 120x40)
+
+Regression gate for the NIGHT-perf-1 depth performance audit (message-overlay
+zero-alloc scratch buffers, HUD compare-first setters + palette_gen gradient
+gate, phase-predictor wall-clock FFI skip, head-bloom LUT, per-line
+rain-shadow LUT, HUD row-width hoist). The benchmark deliberately cannot see
+the primary targets: bench mode skips the message overlay and never draws the
+HUD, so the six message-frame allocations and the HUD identity/gradient work
+simply do not execute. What the bench DOES exercise is the shared render/sim
+path touched by the head-bloom LUT, the rain-shadow LUT and the FFI skip.
+Before = f4ceb99 (parent, pre-NIGHT-perf-1), after = 55e7977 (HEAD); both
+dev-profile debug builds, same container (Xeon, smt off), same command as the
+boost session A/B (`--benchmark --bench-duration 10 --screen-size 120x40
+--json`, dry, lean). Matrix got two runs per side (the first pair showed
+avg_fps -1.46%, above the +/-1% noise band and far below the 5% threshold;
+the second pair inverted to +3.6%, and before's own run-to-run spread was
+~5%, so single-run container noise is the explanation — the table below
+carries the two-run averages). Monolith: single run each.
+
+| metric | matrix before | matrix after | delta | monolith before | monolith after | delta |
+|--------|---------------|--------------|-------|-----------------|----------------|-------|
+| avg_fps | 676.94 | 683.90 | +1.03% | 7000.25 | 6977.73 | -0.32% |
+| peak_fps | 868.51 | 903.28 | +4.00% | 8776.09 | 8977.79 | +2.30% |
+| render_ns_per_cell | 748.83 | 737.15 | -1.56% | 694.78 | 699.60 | +0.69% |
+| total_ns_per_cell | 1200.30 | 1195.09 | -0.43% | 1332.83 | 1339.06 | +0.47% |
+| avg_sim_ms | 0.5373 | 0.5411 | +0.70% | 0.0652 | 0.0653 | +0.21% |
+| avg_render_ms | 0.9222 | 0.9019 | -2.20% | 0.0745 | 0.0749 | +0.55% |
+| dirty_cells_per_frame | 1231.3 | 1223.5 | -0.63% | 107.2 | 107.0 | -0.14% |
+| dirty_glyphs_per_second | 833,258 | 836,759 | +0.42% | 750,281 | 746,791 | -0.47% |
+| ansi_bytes_per_second | 15.83M | 15.90M | +0.42% | 14.26M | 14.19M | -0.47% |
+| total_drawn_cells | 8,333,317 | 8,368,166 | +0.42% | 7,502,862 | 7,467,984 | -0.46% |
+| alloc_calls_per_frame | 0.0832 | 0.0823 | -1.08% | 0.0081 | 0.0081 | +0.32% |
+| frame_entropy_bits | 5.835 | 5.831 | -0.06% | 3.919 | 3.924 | +0.14% |
+| density_gini | 0.6267 | 0.6270 | +0.05% | 0.8948 | 0.8944 | -0.05% |
+| color_transition_delta_avg | 44.65 | 44.16 | -1.10% | 0.00 | 0.00 | n/a |
+
+Verdict: PASS — no metric near the 5% regression threshold on either scene;
+visual-objective metrics are stable (entropy and density-gini within
++/-0.15% on both scenes, color-transition average within 1.1% on matrix), so
+the LUT replacements (head-bloom, rain-shadow) are visually equivalent as
+pinned by their unit tests. The bench-path deltas are noise on this shared
+container; the actual NIGHT-perf-1 wins (message-frame zero-alloc after the
+first frame, per-frame HUD String allocations, the 25-stop gradient recompute,
+the wall-clock FFI) live in paths the benchmark skips by design — they are
+covered by the 6 equivalence/regression tests instead. This entry restores
+the A/B record: the original post-commit run was executed before a session
+reset and its HIST_BENCH entry was lost, so these numbers are fresh re-runs
+of the identical protocol on the identical commit pair.
+
 ## NIGHT-boost session A/B (2026-09-24, dev profile, 10s, 120x40)
 
 Regression gate for the three NIGHT-boost commits (glob-only CI filter
