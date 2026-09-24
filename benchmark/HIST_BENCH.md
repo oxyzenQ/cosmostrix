@@ -10,6 +10,52 @@ and whether the test is measuring headless simulation or real terminal I/O.
 Use benchmark output to compare builds on the same machine, not as a portable
 promise.
 
+## NIGHT-perf-2 A/B — cosmetics harness first measurement (2026-09-24, release profile, 10s, 120x40)
+
+First measurement of the paths --benchmark skips by design (Z-6), via the
+new `--benchmark --bench-cosmetics` harness (commit 3640171): the message
+overlay renders inside rain_at (bench_mode cleared after reset_bench; start
+time rewound past the intro lead so the overlay is fully revealed from
+frame one) and the production HUD block runs in the event-loop call order
+against a real HudState. This A/B is a mode pair, not a commit pair: A =
+plain `--benchmark`, B = `--benchmark --bench-cosmetics`, both at
+3640171, release profile, same container (Xeon, smt off), two 10s runs per
+side per scene, table carries the 2-run averages. The B side also carries
+the harness's own bring-up fix: the BN-01/02 visible-border Vec (one heap
+alloc per frame) hoisted to `visible_border_scratch` before these runs.
+
+| metric | matrix A plain | matrix B cosmetics | delta | monolith A plain | monolith B cosmetics | delta |
+|--------|----------------|--------------------|-------|------------------|----------------------|-------|
+| avg_fps | 12816.73 | 12393.62 | -3.30% | 50667.70 | 43365.86 | -14.41% |
+| avg_render_ms | 0.0353 | 0.0377 | +6.82% | 0.0035 | 0.0063 | +80.33% |
+| avg_sim_ms | 0.0404 | 0.0405 | +0.17% | 0.0156 | 0.0158 | +1.18% |
+| avg_io_ms | 0.0021 | 0.0024 | +11.24% | 0.0004 | 0.0007 | +92.89% |
+| hud_avg_ms | 0.0000 | 0.0001 | (new) | 0.0000 | 0.0001 | (new) |
+| hud_max_ms | 0.0000 | 0.0648 | (new) | 0.0000 | 0.0664 | (new) |
+| dirty_cells_per_frame | 1083.6 | 1207.0 | +11.39% | 107.1 | 262.5 | +145.16% |
+| alloc_calls_per_frame | 0.0044 | 0.0001 | -97.4% | 0.0011 | 0.0000 | -97.1% |
+
+Reading: the cosmetics paths cost -3.3% end-to-end fps on matrix and -14.4%
+on monolith at 120x40. Almost all of it is the message overlay: +2.4 µs
+absolute render per frame on both scenes (the same border-box +
+glyph-reveal work; monolith's tiny 3.5 µs plain frame makes the same
+absolute cost look like +80%) plus the dirty-cell expansion the overlay
+cells add (matrix 1084 -> 1207; monolith's sparse 107 -> 262 baseline
+triples under the fixed overlay box). The HUD block is effectively free in
+steady state — hud_avg_ms 0.1 µs/frame (the NIGHT-perf-1 palette_gen gate +
+compare-first setters at work), with the 1 Hz metric tick visible as
+hud_max_ms ~0.065 ms once per second. Zero-alloc confirmed in the release
+profile: 0.0001 allocs/frame on the cosmetics side (1 Hz tick transients
+only); the plain side's 0.0044 is its own baseline noise, not a cosmetics
+effect. The io_ms deltas are the HUD pre-draw block + the residual re-shuffle
+of the disjoint accounting (sim + render + io + hud_pre = frame_time).
+
+Verdict: RECORD (baseline established) — the previously unmeasured paths
+now have numbers and an A/B protocol; the harness's first catch (the
+per-frame visible-border Vec, 1.0006 allocs/frame at bring-up, dev profile)
+is fixed and pinned by test. No regression against the plain bench: A-side
+numbers match the standing per-scene baselines within container noise.
+
 ## NIGHT-perf-1 A/B (2026-09-24, dev profile, 10s, 120x40)
 
 Regression gate for the NIGHT-perf-1 depth performance audit (message-overlay
