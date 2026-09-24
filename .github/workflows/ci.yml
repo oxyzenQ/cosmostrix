@@ -153,8 +153,19 @@ jobs:
       - name: Tests (MSRV compile + invariant lock-suite smoke)
         run: cargo test --all --locked lock_
 
+  # NIGHT-boost-5 (owner mandate 2026-09-24): the display name points
+  # at the canonical local verification entry point, ./scripts/build.sh
+  # check-all -q — green here means the tree compiles clean under
+  # -D warnings, the same contract check-all -q verifies locally, so
+  # the Actions UI names the local command that reproduces the gate.
+  # Born as "Test + Build (debug)"; tests moved to test_partitions
+  # (NIGHT-perf-2) and the compound name stopped matching what the job
+  # does. The job id stays `build_test` so the six downstream
+  # `needs: build_test` references are untouched; note that required
+  # status checks key on the display name, so any branch-protection
+  # rule pinned to the old name needs a one-time update.
   build_test:
-    name: Cosmic Dragon Guard - Build (debug)
+    name: Cosmic Dragon Guard - build.sh -q
     runs-on: ubuntu-24.04
     needs: [security, msrv]
     timeout-minutes: 30

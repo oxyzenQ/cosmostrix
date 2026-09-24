@@ -17,6 +17,11 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
 
+Job naming: the ci.yml keystone job (id `build_test`, the strict debug
+build gate every downstream job depends on) is displayed as
+"build.sh -q" after the local command it mirrors,
+`./scripts/build.sh check-all -q` (NIGHT-boost-5, 2026-09-24).
+
 ## Path filters (what triggers a CI run)
 
 The path-filtered workflows (`ci.yml`, `codeql.yml`, `gitbot-audit.yml`,

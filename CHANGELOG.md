@@ -23,6 +23,28 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### ci: NIGHT-boost-5 — the build_test keystone job is displayed as "build.sh -q", the local command it mirrors
+
+- **Change**: owner mandate (2026-09-24) — the ci.yml job id
+  `build_test` (born "Test + Build (debug)"; tests moved to
+  test_partitions in NIGHT-perf-2, leaving the compound name stale)
+  is now displayed as "Cosmic Dragon Guard - build.sh -q" so the
+  Actions UI names the canonical local verification entry point:
+  green on this job means the tree compiles clean under
+  `-D warnings`, the same contract `./scripts/build.sh check-all -q`
+  verifies locally. The job id is unchanged — the six downstream
+  `needs: build_test` references are untouched. Caveat recorded in
+  the ci.yml comment and below: required status checks key on the
+  display name, so any branch-protection rule pinned to the old
+  "Build (debug)" name needs a one-time update.
+- **Verification**: pure display-name change — job graph, steps,
+  commands and triggers byte-identical (yaml structure diff-checked:
+  only the `name:` line and its comment block changed). No other
+  job, workflow, doc table, script or test references the old
+  display name (repo-wide grep; CHANGELOG history entries are a
+  historical record and stay). docs/workflow/ABOUT_CI.md documents
+  the naming in one place.
+
 ### cli: NIGHT-boost-3 — --verbose implies the full session telemetry (exit performance report); one flag, complete debugging instrument
 
 - **Change**: owner mandate (2026-09-24) — `-v/--verbose` is critical
