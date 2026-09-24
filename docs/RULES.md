@@ -7,6 +7,10 @@ All Rust source files under `src/` must stay **under 800 gross lines** (hard lim
 
 **Scope**: `src/**/*.rs`, `build.rs`, `*.toml`, `.cargo/config.toml`, `rust-toolchain.toml`, `*.sh`, `scripts/*.sh`, `benchmark/*.sh`, `.github/workflows/*.yml`, `.github/FUNDING.yml`. **Excluded**: `*.md`, `docs/**/*.md`, `*.txt`, assets, images, videos, `Cargo.lock`, `target/`, `.git/`.
 
+## Scripts file size
+
+All shell and Python scripts under `scripts/` (any depth — subdirectories such as `scripts/depthbore/` included) must stay **at or below 1000 gross lines** (hard limit, enforced by `scripts/check-scripts-loc.sh`, wired into `gate-keepers.sh` as check 17 and `build.sh check-all`). A script that legitimately cannot be split self-declares with a `# LOC_EXEMPT: <one-line justification>` marker comment — tracked migration debt, the same semantics as the Rust `// LOC_EXEMPT:` mechanism (see `src/RULES_LOC.md`). Removing the marker re-enforces the cap on that script; no guard-side list edits are ever needed.
+
 ## Module organization
 
 Prefer splitting modules by responsibility over allowing large files. `main.rs` should remain bootstrap and wiring only (target 100–300 LOC long-term). `cli.rs` may be larger if it contains mostly Clap command definitions, but must stay under 800 LOC (hard limit). Module directories (e.g. `src/engine/cosmic_dragon_engine/cloud/`, `src/interactive/`) use `mod.rs` as the public entry point and split implementation into focused submodules (soft target 500 LOC per file). Tests are colocated with their module in dedicated `tests/` subdirectories.
@@ -17,6 +21,7 @@ Behavior-preserving refactors must pass the full validation suite:
 
 ```bash
 scripts/check-rs-loc.sh
+scripts/check-scripts-loc.sh
 scripts/check-headers.sh
 cargo fmt --all
 cargo test --all --locked

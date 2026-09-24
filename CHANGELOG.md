@@ -23,6 +23,50 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### lts: NIGHT-lts-1 — scripts 1K LOC hard limit: gate-keepers check 17 + check-all wiring; gatekeeper LOC-guard silent-death fix
+
+- **Change**: owner mandate (2026-09-24) — every shell and Python
+  script under `scripts/` (recursive, subdirectories included) is now
+  capped at 1000 gross lines by `scripts/check-scripts-loc.sh`, a
+  faithful mirror of `scripts/check-rs-loc.sh` (the Rust 800 cap):
+  same `wc -l` gross-line counting, same self-declaring exemption
+  marker (`# LOC_EXEMPT:`, the shell/Python comment form of
+  `// LOC_EXEMPT:`), same fail / OK-with-debt exit semantics, and the
+  same no-hardcoded-file-list design (new subdirectories inherit the
+  cap automatically). Wired as gate-keepers.sh check 17 and as
+  `run_scripts_loc_check` in `build.sh check-all` (after
+  `run_loc_check`), so both CI guard paths (cosmic-dragon-guard and
+  the build.sh -q keystone) enforce it. Policy stated once in
+  docs/RULES.md "Scripts file size".
+- **Fix**: check 8 (Rust LOC guard) carried a latent silent-death
+  bug since NIGHT-enhanced-hunt-F — the bare top-level
+  `LOC_OUTPUT=$(bash scripts/check-rs-loc.sh 2>&1)` capture under
+  `set -euo pipefail` let errexit kill the gatekeeper the moment the
+  check failed, so the else-branch that was supposed to surface the
+  full per-file output was dead code and the COMMIT BLOCKED summary
+  never printed. Verified with a minimal errexit reproducer before
+  fixing. The capture now sits in the if-test position (errexit-exempt
+  by POSIX rule), so a real violation prints the VIOLATES lines and
+  the FAIL summary before the exit. Check 17 uses the same safe
+  pattern from birth. (build.sh's quiet-mode captures are unaffected:
+  its check functions are invoked as `func || ((failed++))`, which
+  suppresses errexit inside the function body — verified by the same
+  reproducer.)
+- **Debt**: two scripts exceed the cap today and self-declare:
+  `scripts/build.sh` (2140 lines — single-entry orchestrator; the
+  dispatch and per-command functions are cohesive, a split is a
+  standalone risk-balanced task) and
+  `scripts/depthbore/depthbore.py` (1513 lines — self-contained
+  LTS depth-bore probe file). Both markers carry their justification
+  in place; the debt is visible in every guard run.
+- **Verification**: clean tree passes with 2 exemptions listed
+  (35 scripts scanned); a synthetic 1001-line script without a marker
+  fails with the named file and exit 1, and passes once the marker is
+  added (both paths tested, then the synthetic file removed);
+  bash -n / shellcheck / shfmt clean on the new script and both
+  patched scripts; full gate-keepers run green including the new
+  check 17 (17/17 with tools present).
+
 ### docs: NIGHT-docs-1 — tell once, don't double: README + docs dedup, and the disclaimer gate now catches duplicates
 
 - **Change**: owner mandate (2026-09-24) — the same data is no

@@ -4,6 +4,7 @@
 #
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# LOC_EXEMPT: single-entry orchestrator (dispatch + build/check/pgo/miri/version-sync commands); a split is a standalone risk-balanced task, tracked as migration debt by scripts/check-scripts-loc.sh (NIGHT-lts-1).
 #
 # ─────────────────────────────────────────────────────────────────────────────
 # PLATFORM: UNIX-only (Linux, macOS, BSD).
@@ -563,6 +564,39 @@ run_loc_check() {
 	fi
 }
 
+run_scripts_loc_check() {
+	log_step "Checking scripts file sizes (1K LOC cap)..."
+
+	if [ ! -x "scripts/check-scripts-loc.sh" ]; then
+		log_warning "scripts/check-scripts-loc.sh not found or not executable (skipping)"
+		return 0
+	fi
+
+	local sloc_output
+	if [ ${QUIET_CHECK} -eq 1 ]; then
+		sloc_output=$(bash scripts/check-scripts-loc.sh 2>&1)
+		local rc=$?
+		# Same quiet-mode surface as run_loc_check above: only the
+		# per-file VIOLATES lines, the trailing FAIL block and hard
+		# errors surface; the exempt-debt summary lines are
+		# success-path information and stay hidden.
+		echo "$sloc_output" | grep -E '(VIOLATES|^FAIL:|ERROR)' || true
+		if [ $rc -eq 0 ]; then
+			log_success_quietable "Scripts LOC check passed"
+		else
+			log_error "Scripts LOC check failed"
+		fi
+		return $rc
+	else
+		if bash scripts/check-scripts-loc.sh; then
+			log_success "Scripts LOC check passed"
+		else
+			log_error "Scripts LOC check failed"
+			return 1
+		fi
+	fi
+}
+
 run_header_check() {
 	log_step "Checking SPDX license headers..."
 
@@ -772,6 +806,7 @@ run_comprehensive_check() {
 	check_rust_toolchain || ((failed++))
 	run_fmt_check || ((failed++))
 	run_loc_check || ((failed++))
+	run_scripts_loc_check || ((failed++))
 	run_header_check || ((failed++))
 	run_version_anti_pattern_check || ((failed++))
 	run_symbol_only_output_check || ((failed++))

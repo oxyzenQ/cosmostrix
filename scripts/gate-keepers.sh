@@ -53,6 +53,10 @@
 #       directory must be globs ('scripts/**'), never hardcoded
 #       filenames ('scripts/example.sh') that rot on rename;
 #       scripts/check-ci-path-filters.py, root-level files exempt)
+#  17.  Scripts LOC guard (2026-09-24 owner rule, NIGHT-lts-1 — every
+#       .sh/.py under scripts/ at any depth stays at or below 1000
+#       gross lines; scripts/check-scripts-loc.sh mirrors check 8's
+#       marker-exemption semantics for shell and Python)
 #
 # Exit codes:
 #   0 = all checks passed
@@ -390,9 +394,15 @@ fi
 # contributor sees the VIOLATES lines AND the FAIL summary block.
 header "LOC Guard"
 if [ -f scripts/check-rs-loc.sh ]; then
-	LOC_OUTPUT=$(bash scripts/check-rs-loc.sh 2>&1)
-	LOC_RC=$?
-	if [ "$LOC_RC" -eq 0 ]; then
+	# NIGHT-lts-1 fix: the previous bare `LOC_OUTPUT=$(...)` capture
+	# at top level under `set -euo pipefail` let errexit kill the
+	# gatekeeper silently on a violation - the else-branch below (the
+	# NIGHT-enhanced-hunt-F full-output surface) was dead code and the
+	# COMMIT BLOCKED summary never printed. Capturing inside the if
+	# test position exempts the assignment from errexit, so a real
+	# violation now prints the per-file VIOLATES lines and the FAIL
+	# summary before the exit.
+	if LOC_OUTPUT=$(bash scripts/check-rs-loc.sh 2>&1); then
 		info "LOC guard: all .rs files ≤800 lines"
 		PASS=$((PASS + 1))
 	else
@@ -553,6 +563,26 @@ if [ -f scripts/check-ci-path-filters.py ] && command -v python3 >/dev/null 2>&1
 	fi
 else
 	warn "check-ci-path-filters.py or python3 not found — skipping"
+fi
+
+# ── 17. Scripts LOC Guard (1000-line hard cap, NIGHT-lts-1) ─────────────
+# Owner rule (2026-09-24): every shell and Python script under
+# scripts/ (recursive - subdirectories included) stays at or below
+# 1000 gross lines. Mirrors the Rust 800 cap of check 8: wc -l
+# gross counting, # LOC_EXEMPT: marker exemptions as tracked debt,
+# exit 1 on non-exempt violations. Capture-in-if pattern so a
+# violation surfaces the full per-file output before the exit.
+header "Scripts LOC Guard"
+if [ -f scripts/check-scripts-loc.sh ]; then
+	if SLOC_OUTPUT=$(bash scripts/check-scripts-loc.sh 2>&1); then
+		info "scripts LOC guard: all script files ≤1000 lines"
+		PASS=$((PASS + 1))
+	else
+		echo "$SLOC_OUTPUT"
+		fail "scripts LOC guard: some scripts exceed 1000 lines without a # LOC_EXEMPT: marker"
+	fi
+else
+	warn "check-scripts-loc.sh not found — skipping"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────
