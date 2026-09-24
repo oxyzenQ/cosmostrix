@@ -23,6 +23,37 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### build: NIGHT-boost-4 — max-muscle job calculation: every build uses 100% of detected cores
+
+- **Change**: owner mandate (2026-09-24) — `calculate_jobs()` in
+  `scripts/build.sh` now returns all detected cores (4-core machine =
+  4 parallel jobs), dropping the former 75%-of-cores / max-8
+  "heat control" throttle that silently under-used both CI runners
+  and workstations. The throttle was the single remaining core cap
+  in the project: every CI job that compiles already runs at full
+  core count (the seven ci.yml/release.yml build jobs set
+  `--jobs` from `getconf _NPROCESSORS_ONLN`/`nproc`/`sysctl
+  hw.ncpu`, the FreeBSD job from `hw.ncpu`, and cargo's own default
+  — used by test_partitions, fmt_clippy, msrv, crates-io publish
+  and CodeQL autobuild — is all logical CPUs). The build.sh path
+  was the exception: it throttled the miri.yml workflow (build.sh
+  miri) and the release.yml PGO nitro job (build.sh pgo), the most
+  compute-heavy builds, to 75%/8. A machine that needs a thermal or
+  load cap sets `COSMOSTRIX_JOBS` explicitly (the override is
+  unchanged and remains documented). Bonus fix while verifying: the
+  header comment always claimed `sysctl -n hw.logicalcpu` was used
+  on macOS when `nproc` is absent, but the code never implemented
+  the fallback — it does now, so local macOS builds detect real
+  core counts instead of assuming 4.
+- **Verification**: `calculate_jobs()` extracted and executed on a
+  2-core host returns 2 (the old arithmetic returned 1); bash -n,
+  shellcheck, shfmt -d all clean; `--jobs`/`CARGO_BUILD_JOBS`/
+  `COSMOSTRIX_JOBS` grep across scripts/, pgo-runner/ and build.rs
+  confirms no other core cap exists. Help text updated
+  ("default: all detected cores"). No binary output change:
+  parallelism affects build wall-time only, the compiled binary is
+  identical, so the visual/perf A/B benchmark is not applicable.
+
 ### ci: NIGHT-boost-5 — the build_test keystone job is displayed as "build.sh -q", the local command it mirrors
 
 - **Change**: owner mandate (2026-09-24) — the ci.yml job id

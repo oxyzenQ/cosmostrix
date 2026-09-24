@@ -43,13 +43,19 @@ default_target() {
 readonly TARGET="${COSMOSTRIX_TARGET:-$(default_target)}"
 export RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
 
-# Intelligent job calculation: 75% of cores, min 1, max 8 for heat control
+# Max-muscle job calculation: 100% of detected cores, min 1.
+# NIGHT-boost-4 (owner mandate 2026-09-24): every build - local and CI -
+# uses all cores of the machine it runs on (4 detected cores = 4 parallel
+# jobs; no artificial ceiling). The former 75%-of-cores / max-8 throttle
+# ("heat control") silently under-used CI runners and workstations alike;
+# a machine that needs a thermal or load cap sets COSMOSTRIX_JOBS
+# explicitly. Core detection honors the documented macOS path
+# (sysctl -n hw.logicalcpu when nproc is absent), which the previous
+# implementation claimed in the header but never executed.
 calculate_jobs() {
 	local cores
-	cores=$(nproc 2>/dev/null || echo 4)
-	local jobs=$((cores * 3 / 4))
-	jobs=$((jobs < 1 ? 1 : jobs))
-	jobs=$((jobs > 8 ? 8 : jobs))
+	cores=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
+	local jobs=$((cores < 1 ? 1 : cores))
 	echo "$jobs"
 }
 
@@ -913,7 +919,7 @@ OPTIONS:
 		    are surfaced. Use in CI and fast local re-checks.
 
 ENVIRONMENT:
-    COSMOSTRIX_JOBS             Override CPU core limit (default: 75% of cores, max 8)
+    COSMOSTRIX_JOBS             Override CPU core limit (default: all detected cores)
     COSMOSTRIX_TARGET           Override build target (default: rustc host target)
     COSMOSTRIX_TARGET_CPU       Override -C target-cpu for the FINAL PGO binary
                                 (default: native, or auto-detected when --auto is passed).
