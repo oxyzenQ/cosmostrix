@@ -9,7 +9,20 @@
 > README flag audit + docs-audit truth-column refresh), NIGHT-cleanup-1
 > (2026-09-20, dead-script sweep — 27 one-off harnesses removed),
 > NIGHT-cleanup-2 (2026-09-20, engine lock-protocol retirement),
-> NIGHT-hunt-5 (2026-09-20, this pass).
+> NIGHT-hunt-5 (2026-09-20, this pass), NIGHT-boost-6 (2026-09-24,
+> post-reorg flat-path citation sweep + NIGHT-perf-1 HUD.md drift).
+>
+> **NIGHT-boost-6 outcome** — 23 flat `scripts/*.sh|py` citations in
+> the live corpus repointed at the post-reorg homes (8 docs-audit
+> flags + 6 manual-sweep finds the history-context exemption had
+> accidentally absorbed + wrapped re-frames); the NIGHT-lts-1 debt
+> record corrected to the one live LOC_EXEMPT (depthbore.py); HUD.md
+> palette-refresh section rewritten to the `palette_gen` gate reality.
+> Standing note for future auditors: the docs-audit
+> history-context exemption has a false-negative class — a tool
+> citation sitting near history words about a DIFFERENT subject
+> passes; the belt-and-suspenders move is the manual
+> `scripts/X.sh|py` existence sweep over the live corpus.
 >
 > **NIGHT-hunt-5 outcome** — fixed in this pass:
 >

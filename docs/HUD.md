@@ -307,7 +307,8 @@ HUD is visible.
 
 **Why the text never changes:** the SHA is baked into the binary at
 compile time. The line is set once in `HudState::new()` and only its
-color is refreshed by `refresh_colors` every frame (it occupies a
+color is refreshed by `refresh_colors` whenever the palette generation
+changes (it occupies a
 head-band stop at row 22 — the bright footer region — because the
 build identity is the most definitive info the owner reads to verify
 which commit is running).
@@ -561,9 +562,12 @@ the same blend helper the rain droplets use. When `bg` is `None`
 ### Instant palette refresh (no delay on runtime changes)
 
 Color refresh is split out of the 1 Hz metric tick — `HudState::refresh_colors`
-runs every frame (cheap: 4 `brighten_color` calls ≈ 2 µs) so a runtime
-palette change is reflected on the very next frame, with no perceptible
-delay. The 1 Hz rate limit only governs text reformatting (p99 sort,
+is invoked every frame but (NIGHT-perf-1) early-returns unless
+`Cloud::palette_gen` changed, the single counter every palette mutation
+(color key, live reload, ambient drift) funnels through. Steady frames
+pay one integer compare; a runtime palette change still recomputes the
+24-stop gradient and is reflected on the very next frame, with no
+perceptible delay. The 1 Hz rate limit only governs text reformatting (p99 sort,
 `format!` calls, RSS string) — that's what causes the numbers to update
 once per second, but the COLORS track the rain immediately.
 

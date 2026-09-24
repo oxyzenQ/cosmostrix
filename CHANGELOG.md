@@ -23,6 +23,56 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### boost: NIGHT-boost-6 — cross-doc stale-data sweep: 23 flat-path citations repointed at the post-reorg script homes, the half-stale NIGHT-lts-1 debt record made truthful, HUD.md post-NIGHT-perf-1 mechanism drift repaired
+
+- **Change**: owner mandate (2026-09-24) — stale/outdated data and
+  info across cross docs and commented code removed or repointed.
+  The scripts reorganization (flat `scripts/*.sh|py` → `gates/`,
+  `audit/`, `build/`, `bench/`, `harness/`, `release/`, `setup/`) and
+  the NIGHT-lts-2 build.sh split left citations behind: docs-audit
+  flagged 8 (7 in the Unreleased CHANGELOG body + the
+  `scripts/run_scaling_benchmarks.py` ref in benchmark/HIST_BENCH.md,
+  now `scripts/bench/`), and a manual existence sweep over every
+  `scripts/X.sh|py` mention in the live corpus caught 6 more that the
+  audit's history-context exemption had accidentally absorbed (the
+  words "Removed"/"removal" in nearby prose about a different subject
+  exempted run-it citations: `scripts/inject-disclaimer.sh` x2,
+  `scripts/check-ci-path-filters.py`, `scripts/generate-release-notes.sh`
+  x2, `scripts/visual-mode-audit.py` — all repointed at their current
+  homes). In total 23 flat-path mentions were repointed or
+  deliberately history-framed.
+- **Stale-info repairs beyond paths**: the NIGHT-lts-1 debt record
+  claimed "two scripts exceed the cap today" — half-stale since
+  NIGHT-lts-2 paid the build.sh half; it now records the split as
+  paid and names depthbore.py (1514 lines) as the one live LOC_EXEMPT.
+  The NIGHT-boost-4 `calculate_jobs()` citation now carries both homes
+  ("previously in the flat scripts/build.sh, since the NIGHT-lts-2
+  split in scripts/build/lib/common.sh"). docs/HUD.md carried
+  post-NIGHT-perf-1 mechanism drift: the "Instant palette refresh"
+  section still quoted the pre-chroma "4 brighten_color calls ≈ 2 µs"
+  cost and an unconditional "runs every frame" recompute; it now
+  documents the `Cloud::palette_gen` early-return gate (steady frames
+  pay one integer compare) and the cid: line description says the
+  color refreshes when the palette generation changes.
+- **Commented-code verification**: stale-hunt over src/ + test/
+  reports 0 stale flags/paths/modules (the 223 duplicate-comment
+  groups are the intentional mirror-test narration); .sh/.py comment
+  surfaces hold only usage examples; no old flat paths anywhere in
+  scripts/, workflows, or pgo-runner comments.
+- **Kept by design (adjudicated)**: the section-2 intentional-history
+  register is untouched (ENDURANCE/RELEASE_GUARD/RULES/
+  THREE_DRAGON_ENGINES removed-script mentions, the
+  never-committed `ab_compare_nr7_dna.py` record, the
+  illustrative `scripts/example*.sh` names, and the two
+  deliberately history-framed then-flat `scripts/build.sh`
+  mentions this pass added).
+- **Verification**: `python3 scripts/audit/docs-audit.py` — all four
+  sections clean over the 56-file live corpus; a scratch existence
+  sweep over every `scripts/X.sh|py` mention in the live corpus now
+  resolves everything except the adjudicated history register;
+  stale-hunt 0; markdownlint clean on both touched files. Docs-only
+  change — no benchmark run (owner rule).
+
 ### refactor: NIGHT-lts-2 — build.sh de-monolithed: the 2187-line single-entry orchestrator split into 7 sourced lib/ modules; the NIGHT-lts-1 LOC_EXEMPT debt is paid
 
 - **Change**: owner-approved follow-up to the scripts LOC hard limit
@@ -290,8 +340,9 @@ tripwire note in the pre-v13 archive).
 
 - **Change**: owner mandate (2026-09-24) — every shell and Python
   script under `scripts/` (recursive, subdirectories included) is now
-  capped at 1000 gross lines by `scripts/check-scripts-loc.sh`, a
-  faithful mirror of `scripts/check-rs-loc.sh` (the Rust 800 cap):
+  capped at 1000 gross lines by
+  `scripts/gates/check-scripts-loc.sh`, a faithful mirror of
+  `scripts/gates/check-rs-loc.sh` (the Rust 800 cap):
   same `wc -l` gross-line counting, same self-declaring exemption
   marker (`# LOC_EXEMPT:`, the shell/Python comment form of
   `// LOC_EXEMPT:`), same fail / OK-with-debt exit semantics, and the
@@ -303,7 +354,8 @@ tripwire note in the pre-v13 archive).
   docs/RULES.md "Scripts file size".
 - **Fix**: check 8 (Rust LOC guard) carried a latent silent-death
   bug since NIGHT-enhanced-hunt-F — the bare top-level
-  `LOC_OUTPUT=$(bash scripts/check-rs-loc.sh 2>&1)` capture under
+  `LOC_OUTPUT=$(bash scripts/gates/check-rs-loc.sh 2>&1)`
+  capture under
   `set -euo pipefail` let errexit kill the gatekeeper the moment the
   check failed, so the else-branch that was supposed to surface the
   full per-file output was dead code and the COMMIT BLOCKED summary
@@ -315,13 +367,15 @@ tripwire note in the pre-v13 archive).
   its check functions are invoked as `func || ((failed++))`, which
   suppresses errexit inside the function body — verified by the same
   reproducer.)
-- **Debt**: two scripts exceed the cap today and self-declare:
-  `scripts/build.sh` (2140 lines — single-entry orchestrator; the
-  dispatch and per-command functions are cohesive, a split is a
-  standalone risk-balanced task) and
-  `scripts/depthbore/depthbore.py` (1513 lines — self-contained
-  LTS depth-bore probe file). Both markers carry their justification
-  in place; the debt is visible in every guard run.
+- **Debt**: two scripts exceeded the cap at the time and
+  self-declared: the then-flat `scripts/build.sh` (2140 lines —
+  single-entry orchestrator; the tracked split landed later the
+  same day as NIGHT-lts-2: a 282-line entry + seven
+  `scripts/build/lib/` modules, marker removed, debt paid) and
+  `scripts/depthbore/depthbore.py` (1513 lines then, 1514 today —
+  self-contained LTS depth-bore probe file, still the one live
+  LOC_EXEMPT). The depthbore marker carries its justification in
+  place; the remaining debt is visible in every guard run.
 - **Verification**: clean tree passes with 2 exemptions listed
   (35 scripts scanned); a synthetic 1001-line script without a marker
   fails with the named file and exit 1, and passes once the marker is
@@ -357,7 +411,7 @@ tripwire note in the pre-v13 archive).
   TWICE — a stray hand-pasted unmarked copy above the injected
   marker. The injector's --check verified marker presence, not
   uniqueness, so the duplicate survived every gate. Removed, and
-  scripts/inject-disclaimer.sh hardened: it now counts the
+  scripts/gates/inject-disclaimer.sh hardened: it now counts the
   "Documentation Disclaimer" header line per file (exactly one
   required, marker-adjacent or not) and fails with a named-file
   DUPLICATE error in both check and inject mode — the failure class
@@ -379,8 +433,10 @@ tripwire note in the pre-v13 archive).
 
 ### build: NIGHT-boost-4 — max-muscle job calculation: every build uses 100% of detected cores
 
-- **Change**: owner mandate (2026-09-24) — `calculate_jobs()` in
-  `scripts/build.sh` now returns all detected cores (4-core machine =
+- **Change**: owner mandate (2026-09-24) — `calculate_jobs()`
+  (previously in the flat `scripts/build.sh`, since the NIGHT-lts-2
+  split in `scripts/build/lib/common.sh`) returns all detected
+  cores (4-core machine =
   4 parallel jobs), dropping the former 75%-of-cores / max-8
   "heat control" throttle that silently under-used both CI runners
   and workstations. The throttle was the single remaining core cap
@@ -416,8 +472,9 @@ tripwire note in the pre-v13 archive).
   is now displayed as "Cosmic Dragon Guard - build.sh -q" so the
   Actions UI names the canonical local verification entry point:
   green on this job means the tree compiles clean under
-  `-D warnings`, the same contract `./scripts/build.sh check-all -q`
-  verifies locally. The job id is unchanged — the six downstream
+  `-D warnings`, the same contract
+  `./scripts/build/build.sh check-all -q` verifies locally. The job
+  id is unchanged — the six downstream
   `needs: build_test` references are untouched. Caveat recorded in
   the ci.yml comment and below: required status checks key on the
   display name, so any branch-protection rule pinned to the old
@@ -516,7 +573,7 @@ tripwire note in the pre-v13 archive).
   incident class). Full-repo audit found zero existing violations
   (every entry across the 9 workflows is glob-form or an exempt
   root-level build file), so the mandate is codified as a permanent
-  gate: new `scripts/check-ci-path-filters.py` (indentation-aware
+  gate: new `scripts/gates/check-ci-path-filters.py` (indentation-aware
   block scanner, root-level entries exempt), wired as gate-keepers
   check 16. The `cosmic-dragon-guard.yml` check inventory comment was
   synced (check 15, the emoji sweep, was stale-missing) and the policy
@@ -635,8 +692,8 @@ tripwire note in the pre-v13 archive).
   repaired the two live-corpus broken refs docs-audit flagged in
   CHANGELOG.md (historical moved-doc citations re-framed from "still
   pointed at" to "previously pointed at" so the history marker
-  parses). Verification: scripts/docs-audit.py fully green post-edit
-  (0 broken refs, 0 stale paths, 0 stale counts, 0 duplicate
+  parses). Verification: scripts/audit/docs-audit.py fully green
+  post-edit (0 broken refs, 0 stale paths, 0 stale counts, 0 duplicate
   candidates); README metadata guards (canonical tagline, TAG=
   current-release install example, --list-colors pointer, demo
   assets) all preserved. Docs-only change — no benchmark run (owner
@@ -867,7 +924,7 @@ tripwire note in the pre-v13 archive).
   previously pointed at `docs/research/PLATFORM_EXPANSION_IOS_WIN_ARM64.md`
   — both live under `docs/archive/` since the docs restructure; paths
   updated.
-  `scripts/visual-mode-audit.py`: the constants-mirror comment named
+  `scripts/audit/visual-mode-audit.py`: the constants-mirror comment named
   `src/central_control_rains.rs` (a file that no longer exists — it is a
   module directory); now names the real homes (`atmosphere.rs` for
   `CRT_VIGNETTE_*`, `mod.rs` for `EDGE_FADE_*`).
@@ -907,28 +964,31 @@ tripwire note in the pre-v13 archive).
   superseded "backward compat, keep until" state — rewritten to describe
   the live mechanism (release.yml posts the event after a release
   publishes).
-- **Tooling** (`scripts/docs-audit.py`): truth notes refreshed (2952
-  `#[test]` fns = 2418 in `test/` + 534 in `src/`; was 2947), the corpus
+- **Tooling** (`scripts/audit/docs-audit.py`): truth notes
+  refreshed (2952 `#[test]` fns = 2418 in `test/` + 534 in `src/`;
+  was 2947), the corpus
   rules encoded (historical snapshots excluded per
   `docs/FUTURE_BACKLOG.md` section 1), and sections 1-3 gained
   negation/history context awareness (line window + enclosing-section
-  markers, the same philosophy `scripts/stale-hunt.py` applies to Rust
-  comments) so intentional-history records are no longer tool noise.
+  markers, the same philosophy `scripts/audit/stale-hunt.py` applies
+  to Rust comments) so intentional-history records are no longer
+  tool noise.
   `docs/FUTURE_BACKLOG.md` rewritten as the standing ledger: corpus
   rules, the intentional-history register, and current counts.
-- **Verification**: `python3 scripts/docs-audit.py` — all four sections
-  clean over the 55-file live corpus, and a scratch-file self-test
+- **Verification**: `python3 scripts/audit/docs-audit.py` — all
+  four sections clean over the 55-file live corpus, and a
+  scratch-file self-test
   proved both directions (an unframed stale ref is flagged;
   removal/move/example-framed refs are exempt); `python3
-  scripts/stale-hunt.py` — 0 stale flags/paths/modules (the 223
+  scripts/audit/stale-hunt.py` — 0 stale flags/paths/modules (the 223
   duplicate-comment groups are the heuristic mirror-test narration
-  pattern, unchanged); `bash scripts/inject-disclaimer.sh --check` —
-  212/212 files carry the marker; ruff + rustfmt clean; gate-keepers
+  pattern, unchanged); `bash scripts/gates/inject-disclaimer.sh
+  --check` — 212/212 files carry the marker; ruff + rustfmt clean; gate-keepers
   all green.
 
 ### fix: the release-note commit classifier never fired — case-sensitive prefix vs the capitalized history
 
-- **Change** (scripts/generate-release-notes.sh): every classifier stage
+- **Change** (scripts/release/generate-release-notes.sh): every classifier stage
   (`grep -qE '^internal research:...'` detection, verb extraction sed,
   `scan_text` prefix stripper, and the display-text prefix stripper) matched
   the prefix lowercase-only, while the entire commit history writes
@@ -951,7 +1011,7 @@ tripwire note in the pre-v13 archive).
 
 ### fix: the release-note GPG example shipped wrong asset names — missing `v` prefix + spurious `-gnu` (caught in the published v100.0.1 body)
 
-- **Change** (scripts/generate-release-notes.sh): the verification example in the
+- **Change** (scripts/release/generate-release-notes.sh): the verification example in the
   generated release body read `gpg --verify cosmostrix-${TAG#v}-linux-amd64-v3-gnu.tar.gz.asc`
   — two wrongs on one line, first shipped in the v100.0.1 release (this script's
   debut release; every note before v100.0.1 was generated by the old inline
@@ -1006,8 +1066,9 @@ tripwire note in the pre-v13 archive).
   tests; the crate has zero compiled doc tests today (all fenced doc
   blocks are `text`/`ignore`). The ci.yml job comment states that a
   compiled doc test must come with a `cargo test --doc` step.
-- **Local story documented** (CONTRIBUTING.md): scripts/build.sh
-  already auto-detects `cargo-nextest` on PATH (`NEXTEST_AVAILABLE`)
+- **Local story documented** (CONTRIBUTING.md):
+  `scripts/build/build.sh` already auto-detects `cargo-nextest` on
+  PATH (`NEXTEST_AVAILABLE`)
   and prefers it over plain `cargo test` — a one-time
   `cargo install cargo-nextest --locked` upgrades every local
   build.sh/check-all test run with zero workflow change.
@@ -1230,7 +1291,7 @@ tripwire note in the pre-v13 archive).
 - **Root cause**: the NIGHT-hunt-2 vcs-info parser tests and the
   NIGHT-hunt-3 epoch-constant/sub-minute suite grew `build.rs` to
   939 lines, past the 800-line hard cap enforced by
-  `scripts/check-rs-loc.sh` — leaving `build.sh check-all` and
+  `scripts/gates/check-rs-loc.sh` — leaving `build.sh check-all` and
   gate-keepers RED at the LOC stage ever since (the prior session
   verified its edits via targeted runs, not the full gate).
 - **Fix**: the house-sanctioned self-declaring marker
@@ -1260,7 +1321,7 @@ tripwire note in the pre-v13 archive).
   across live docs, and duplicate-comment analysis in production
   code.
 - **Fix 1 — the audit tool's own false positives**:
-  `scripts/stale-hunt.py` reported 5 stale CLI flags, all
+  `scripts/audit/stale-hunt.py` reported 5 stale CLI flags, all
   `--test-threads` — the cargo/libtest harness flag referenced by
   the test-parallelism audit comments (2026-09-14, the 32-thread
   stress methodology). It belongs to the runner, not the cosmostrix
@@ -1303,8 +1364,9 @@ tripwire note in the pre-v13 archive).
   architecture — de-duplicating them would need shared types
   (an architecture change) or doc removal, both worse than the
   duplication.
-- **Verification**: `scripts/stale-hunt.py` 0 stale flags/paths/
-  modules (505 .rs files scanned); `scripts/docs-audit.py` section-1
+- **Verification**: `scripts/audit/stale-hunt.py` 0 stale
+  flags/paths/modules (505 .rs files scanned);
+  `scripts/audit/docs-audit.py` section-1
   findings reduced to adjudicated classes only; markdownlint,
   codespell, and shellcheck clean on every touched file.
 - **Scope**: 1 script (stale-hunt.py), 3 docs (PGO_AB report,
