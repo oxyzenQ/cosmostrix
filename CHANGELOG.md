@@ -23,6 +23,72 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### refactor: NIGHT-lts-2 — build.sh de-monolithed: the 2187-line single-entry orchestrator split into 7 sourced lib/ modules; the NIGHT-lts-1 LOC_EXEMPT debt is paid
+
+- **Change**: owner-approved follow-up to the scripts LOC hard limit
+  (NIGHT-lts-1 tracked the split as "a standalone risk-balanced task"
+  in build.sh's LOC_EXEMPT marker). `scripts/build/build.sh` was 2187
+  gross lines — 2.2x the 1000-line cap — carrying dispatch, arg
+  parsing, logging, the build commands, every check command, the help
+  text, version-sync, Miri and the full PGO pipeline in one file. It
+  is now a 282-line entry (header, `set -euo pipefail`, SCRIPT_DIR
+  resolution, the seven `source` lines, option-state init + arg-parse
+  loop, `main()` dispatch) plus seven function-library modules under
+  `scripts/build/lib/`: `common.sh` (logging, colors + QUIET_CHECK
+  gate, toolchain check, build-cache detection, hardened RUSTFLAGS,
+  shared readonly config), `builds.sh` (debug/release/release-debug
+  builds, update, clean, stats, bench, verify-release),
+  `quality.sh` (fmt, clippy, tests, cross-platform, every gate-check,
+  check-all/quick aggregates), `help.sh`, `version-sync.sh`,
+  `miri.sh` (stamp contract, status banner, nightly runner) and
+  `pgo.sh` (the 3-stage instrument/train/optimize pipeline). The
+  LOC_EXEMPT marker is removed — check-scripts-loc now enforces the
+  cap on build.sh like every other script; the debt is closed, no
+  guard-side list edits were needed (the marker travelled with the
+  file, as designed).
+- **Risk control (behavior-identical split)**: the split was performed
+  mechanically, not hand-copied — every function body is a byte
+  identical line-range move from the former monolith, verified by a
+  reconstruction check (coverage, contiguity, quote-site count,
+  directive count). Two inert transformations are the only content
+  changes inside moved bodies: 16 unquoted `${QUIET_CHECK}` reads in
+  the check family are now quoted (arithmetic-context quoting is
+  behavior-identical; it restores the zero-findings shellcheck state
+  the single file had because the assignment lived in the same
+  translation unit), and 11 `# shellcheck disable=SC2034` directives
+  with per-site justifications document the cross-file state contract
+  (8 option vars assigned in the entry and read by lib/pgo.sh +
+  lib/miri.sh + lib/common.sh; PROJECT_NAME and NEXTEST_AVAILABLE in
+  lib/common.sh read by other modules), plus one file-level SC1091
+  disable in the entry (lib modules are analyzed standalone by
+  design). Sourcing happens before option parsing; lib files contain
+  only function definitions and static readonly constants, so
+  execution semantics are unchanged (definitions are inert; the only
+  top-level code still runs in the entry, in the original order).
+- **Verification**: functional A/B against the pre-split script on
+  identical commit + machine — `help`, `version-sync`, `stats`, the
+  unknown-command and extra-argument error paths, `--filter` without
+  argument, `--quiet` gating, and the full `check` command (fmt +
+  clippy, cargo output) are byte-identical modulo cargo timing lines;
+  invoked from a non-project CWD both variants reject identically.
+  bash -n, shellcheck 0.10.0 (zero findings, matching the monolith's
+  zero-findings state) and shfmt v3.12.0 -d (no diff) pass on the
+  entry and all seven modules — the same shell triad the
+  cosmic-dragon-guard CI job runs. gate-keepers 17/17 with shellcheck
+  and shfmt installed locally (previous runs skipped them as
+  missing): scripts LOC guard now passes with NO exemption on file.
+  `check-all -q` hit the 2-minute local budget during the cold
+  test-profile compile and was killed per protocol; tests,
+  cross-platform checks and audit remain CI's job. No benchmark run:
+  the change touches build tooling only — the shipped engine binary
+  compiles from identical Rust sources, so a bench A/B would compare
+  the same binary against itself.
+- **References**: `scripts/README.md` build/ row now documents the
+  lib/ modules (single canonical layout reference); every doc that
+  names build.sh commands (`docs/MAINTENANCE.md`, `docs/RULES.md`
+  validation block, CI workflows, pgo-runner) is unchanged because
+  the entry point path and the full command surface are identical.
+
 ### perf: NIGHT-perf-1 — depth performance audit: message-overlay zero-alloc (6 scratch buffers), HUD per-frame work gates (palette_gen + compare-first setters), phase-predictor FFI skip, head-bloom LUT, per-line rain-shadow LUT
 
 - **Message overlay: 6 per-frame heap allocations hoisted** —

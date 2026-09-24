@@ -11,7 +11,7 @@ UNIX-only — Linux, macOS, BSD).
 
 | Directory | Purpose | Scripts |
 |---|---|---|
-| `build/` | Build pipeline: the orchestrator entry point, the strict CI cargo wrapper, and the Android NDK resolver | `build.sh`, `ci-strict-build.sh`, `resolve-latest-ndk.py` |
+| `build/` | Build pipeline: the orchestrator entry point (which sources the `lib/` modules: common, builds, quality, help, version-sync, miri, pgo — the NIGHT-lts-2 split of the former monolith), the strict CI cargo wrapper, and the Android NDK resolver | `build.sh` + `lib/*.sh`, `ci-strict-build.sh`, `resolve-latest-ndk.py` |
 | `gates/` | Quality gates: the pre-commit gatekeeper and every `check-*` guard plus the disclaimer injector it invokes | `gate-keepers.sh`, `check-headers.sh`, `check-permissions.sh`, `check-rs-loc.sh`, `check-scripts-loc.sh`, `check-symbol-only-output.sh`, `check-version-anti-patterns.sh`, `check-rust-version-sync.sh`, `check-ci-path-filters.py`, `check-comment-style.py`, `inject-disclaimer.sh` |
 | `release/` | Version and release flow: version bumping (project and Rust toolchain), release-notes generation, release-build verification | `version-to.sh`, `rust-version-to.sh`, `bump-rust-to.sh`, `generate-release-notes.sh`, `verify-release-build.sh` |
 | `audit/` | One-shot corpus audits: docs truth audit, stale-comment hunt, language audit, emoji sweep, visual-mode audit | `docs-audit.py`, `stale-hunt.py`, `language_audit.py`, `emoji-audit.py`, `visual-mode-audit.py` |
