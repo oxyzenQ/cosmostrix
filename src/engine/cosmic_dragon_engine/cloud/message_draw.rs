@@ -36,7 +36,9 @@ use crate::msg_fill_style::{self as mfs, MsgFillStyle};
 use crate::runtime::{BoldMode, ColorMode};
 
 use super::palette_blend::interpolate_palette_color;
-use super::BorderPulse;
+// NIGHT-perf-1: `BorderPulse` import removed — the type now flows from
+// the Cloud scratch field declarations instead of a local type
+// annotation.
 
 impl super::Cloud {
     pub(crate) fn draw_message(&mut self, frame: &mut Frame, now: Instant) {
@@ -256,15 +258,41 @@ impl super::Cloud {
         let halo_lifetime_ms = crate::chroma_dragon_engine::tuning::BORDER_TOUCH_HALO_LIFETIME_MS;
         let halo_max = crate::chroma_dragon_engine::tuning::BORDER_TOUCH_HALO_MAX;
 
-        let mut pulse_factor: Vec<f32> = vec![0.0; self.message.len()];
-        let mut pulse_color: Vec<(u8, u8, u8)> = vec![(0, 0, 0); self.message.len()];
-        let mut halo_factor: Vec<f32> = vec![0.0; self.cols as usize];
-        let mut halo_color: Vec<(u8, u8, u8)> = vec![(0, 0, 0); self.cols as usize];
+        // NIGHT-perf-1: the four envelope arrays were fresh `vec![]`
+        // allocations every frame while a message is displayed (~4
+        // malloc/free pairs + TraceAlloc atomics per frame, invisible to
+        // --benchmark because bench mode skips draw_message). Hoisted to
+        // Cloud scratch fields with the same clear()+resize contract as
+        // border_gradient_scratch above — zero alloc after the first
+        // message frame. resize() is a no-op when the message length is
+        // unchanged; it zero-fills new slots exactly like vec![0.0; n]
+        // did (0.0 and (0,0,0) are Copy, so fill semantics match).
+        self.pulse_factor_scratch.clear();
+        self.pulse_factor_scratch.resize(self.message.len(), 0.0);
+        self.pulse_color_scratch.clear();
+        self.pulse_color_scratch
+            .resize(self.message.len(), (0, 0, 0));
+        self.halo_factor_scratch.clear();
+        self.halo_factor_scratch.resize(self.cols as usize, 0.0);
+        self.halo_color_scratch.clear();
+        self.halo_color_scratch
+            .resize(self.cols as usize, (0, 0, 0));
+        // Split borrows: the loop below reads self.border_pulses while
+        // writing the arrays, so bind the arrays to locals first.
+        let pulse_factor = &mut self.pulse_factor_scratch;
+        let pulse_color = &mut self.pulse_color_scratch;
+        let halo_factor = &mut self.halo_factor_scratch;
+        let halo_color = &mut self.halo_color_scratch;
 
         // Drain-and-rebuild: keep only pulses with at least one active
         // envelope (pulse OR halo). The kept entries go back into
         // self.border_pulses for the next frame's decay continuation.
-        let mut alive_pulses: Vec<BorderPulse> = Vec::with_capacity(self.border_pulses.len());
+        // NIGHT-perf-1: the drain target was a fresh
+        // Vec::with_capacity(self.border_pulses.len()) every frame — now
+        // the hoisted scratch, and a field swap returns the drained
+        // (empty, capacity-keeping) allocation to the scratch field:
+        // both Vecs keep their capacity across frames, zero alloc steady-state.
+        self.alive_pulses_scratch.clear();
         for p in self.border_pulses.drain(..) {
             let elapsed_ms = now.saturating_duration_since(p.birth).as_millis() as u32;
 
@@ -299,10 +327,14 @@ impl super::Cloud {
 
             // Keep the pulse alive if either envelope is still active.
             if pf > 0.0 || hf > 0.0 {
-                alive_pulses.push(p);
+                self.alive_pulses_scratch.push(p);
             }
         }
-        self.border_pulses = alive_pulses;
+        // Swap: survivors land in border_pulses; the drained, empty
+        // (but capacity-keeping) Vec returns to the scratch field.
+        // Both sides keep their allocations — the next frame's drain
+        // reuses them without touching the allocator.
+        std::mem::swap(&mut self.border_pulses, &mut self.alive_pulses_scratch);
 
         let mut content_idx = 0usize;
         // v80.0.0-beta.1 msg-fill-style: track the most recently revealed content
@@ -328,8 +360,15 @@ impl super::Cloud {
         // stagger window), typically < 5. The tuple carries (col, line,
         // glyph, factor, tint) — the tint is the scorch extension so a
         // future slide + scorch combo would tint the mid-slide glyph.
-        #[allow(clippy::type_complexity)]
-        let mut slide_cells: Vec<(u16, u16, char, f32, Option<(u8, u8, u8, f32)>)> = Vec::new();
+        // NIGHT-perf-1: hoisted to a Cloud scratch field (was a fresh
+        // Vec::new() per frame; capacity 8 covers the typical < 5 window
+        // and grows once if a wider stagger window ever appears). The
+        // element type is the named `SlideCell` alias (state.rs).
+        let mut slide_cells = {
+            let mut sc = std::mem::take(&mut self.slide_cells_scratch);
+            sc.clear();
+            sc
+        };
         for (idx, mc) in self.message.iter().enumerate() {
             // v80.0.0-alpha.1 (S-master-HUNT-3): positional border test — content is anything
             // the layout did not stamp as a border cell (user text chars of
@@ -489,7 +528,9 @@ impl super::Cloud {
         // on degenerate 1-row terminals). The slide_cells tuple now
         // carries the per-cell tint (scorch extension) so a future
         // slide + scorch combo would tint the mid-slide glyph too.
-        for (col, line, ch, factor, tint) in slide_cells {
+        // NIGHT-perf-1: drain (not move) so the allocation survives for
+        // the return-to-scratch below.
+        for (col, line, ch, factor, tint) in slide_cells.drain(..) {
             if line >= self.lines {
                 continue;
             }
@@ -520,6 +561,9 @@ impl super::Cloud {
                 },
             );
         }
+        // NIGHT-perf-1: return the drained (empty, capacity-keeping)
+        // slide buffer to its Cloud scratch field for the next frame.
+        self.slide_cells_scratch = slide_cells;
 
         // RAIN_BORDER_TOUCH_GLOW (Option D, halo above border): render a
         // single-row halo above the top border, modulated per-column by the

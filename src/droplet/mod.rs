@@ -53,10 +53,18 @@ use crate::constants::RAIN_SHADOW_LAYER_MULT;
 // (cloud/spawn.rs, droplet draw path). rain_shadow_factor + vignette_factor
 // are used by tests via `crate::droplet::*` — gate those with #[cfg(test)].
 pub(crate) use crate::brightness_factors::{crt_vignette_factor, viewport_edge_fade};
+// NIGHT-perf-1: the head-bloom gaussian LUT lives in draw.rs next to
+// its only user; re-exported here so the equivalence test can pin it
+// without opening the private draw submodule.
 #[cfg(test)]
 pub(crate) use crate::brightness_factors::{rain_shadow_factor, vignette_factor};
 #[cfg(test)]
 use crate::constants::VIGNETTE_LAYER_MULT;
+// NIGHT-perf-1: test-only re-export (see the equivalence test in
+// cloud/tests/tests_night_perf_1.rs) — release builds keep the LUT
+// private to the draw path.
+#[cfg(test)]
+pub(crate) use draw::HEAD_BLOOM_LUT;
 
 #[cfg(test)]
 pub(crate) fn compounded_brightness(

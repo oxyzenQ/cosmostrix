@@ -221,6 +221,13 @@ pub(crate) enum FrameMode {
 /// Live HUD overlay state.
 pub(crate) struct HudState {
     visible: bool,
+    /// NIGHT-perf-1: the Cloud palette generation last seen by
+    /// refresh_colors (None until the first refresh). The 25-stop
+    /// chroma gradient is recomputed only when the generation changes
+    /// — palette changes (keypress, live-reload, ambient drift) bump
+    /// Cloud::palette_gen; steady frames skip the ~25 interpolations
+    /// + HSV brightens entirely.
+    last_palette_gen: Option<u32>,
     /// Session start time for uptime display.
     session_start: Instant,
     /// Pause-freeze tracking (owner bug fix 2026-08-30): while paused,
@@ -616,6 +623,20 @@ impl HudState {
     /// `scn: example_1234_test_this_long` (33 chars) now renders in
     /// full instead of being cut to `scn: example_1234_t`.
     pub(crate) fn set_scene_name(&mut self, name: &str) {
+        // NIGHT-perf-1: this setter runs EVERY frame from update_hud_state,
+        // but the scene only changes on keypress/live-reload. The old
+        // clear()+char-by-char copy re-decoded + re-copied ~58 UTF-8
+        // chars per frame for nothing. Compare-first on the truncated
+        // forms (identical semantics to the stored truncated value):
+        // the copy now runs only on an actual change.
+        let truncated_eq = self
+            .scene_name
+            .chars()
+            .take(HUD_IDENTITY_VALUE_MAX_CHARS)
+            .eq(name.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS));
+        if truncated_eq {
+            return;
+        }
         self.scene_name.clear();
         self.scene_name
             .extend(name.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS));
@@ -645,6 +666,22 @@ impl HudState {
     /// `scn:`, surviving on `clr:` after this hunt fixed the scn side).
     /// The ` clr: ` prefix is 6 chars, so 6 + 58 = 64 ≤ HUD_MAX_WIDTH.
     pub(crate) fn set_custom_palette_name(&mut self, name: Option<&str>) {
+        // NIGHT-perf-1: with --colors-custom active this ran EVERY frame
+        // — a fresh String allocation + drop of the old Option<String>
+        // per frame (60 allocs/s for a value that changes ~never, even
+        // with the HUD hidden). Compare-first against the truncated
+        // forms: only an actual change allocates.
+        let new_truncated = name.map(|s| s.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS));
+        let unchanged = match (&self.custom_palette_name, new_truncated) {
+            (Some(cur), Some(new_chars)) => {
+                cur.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS).eq(new_chars)
+            }
+            (None, None) => true,
+            _ => false,
+        };
+        if unchanged {
+            return;
+        }
         self.custom_palette_name = name.map(|s| {
             let mut truncated = String::new();
             truncated.extend(s.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS));
@@ -665,6 +702,17 @@ impl HudState {
     /// (v80.0.0-alpha.1 doc-drift fix: comment said 22; the const is 24.)
     /// (NIGHT-hunter-20 doc-drift fix: const is now 64.)
     pub(crate) fn set_charset_preset(&mut self, preset: &str) {
+        // NIGHT-perf-1: same compare-first gate as set_scene_name — the
+        // charset preset only changes on `s`/`S` keypress, but the
+        // setter ran its clear+copy every frame.
+        let truncated_eq = self
+            .charset_preset
+            .chars()
+            .take(HUD_IDENTITY_VALUE_MAX_CHARS)
+            .eq(preset.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS));
+        if truncated_eq {
+            return;
+        }
         self.charset_preset.clear();
         self.charset_preset
             .extend(preset.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS));
@@ -900,10 +948,26 @@ impl HudState {
     /// while meeting the readability floor. Pure black falls back to a
     /// neutral grey RGB(120,120,120).
     #[inline]
-    pub(crate) fn refresh_colors(&mut self, palette_colors: &[crossterm::style::Color]) {
+    pub(crate) fn refresh_colors(
+        &mut self,
+        palette_colors: &[crossterm::style::Color],
+        palette_gen: u32,
+    ) {
         if !self.visible {
             return;
         }
+        // NIGHT-perf-1: the gradient only changes when the palette does.
+        // The historical code recomputed 25 interpolations + HSV
+        // brightens EVERY frame (~1-3 microseconds) for a palette that
+        // changes only on keypress / live-reload / ambient drift. The
+        // Cloud bumps palette_gen at its single choke point
+        // (apply_new_palette); skip the recompute when it is unchanged.
+        // None = first refresh after construction — always compute so
+        // the initial cached colors are correct.
+        if self.last_palette_gen == Some(palette_gen) {
+            return;
+        }
+        self.last_palette_gen = Some(palette_gen);
         // HD-01 (HUD chroma dragon integration): 24-stop sweep across the
         // active palette, mapping each of the 24 HUD rows to a distinct
         // palette stop. Row 0 (fps, top) → dim tail stop, row 23

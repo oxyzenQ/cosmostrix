@@ -34,6 +34,7 @@ mod tests_msg_fill_style;
 mod tests_msg_resize_hunter26;
 mod tests_murmuration;
 mod tests_neural;
+mod tests_night_perf_1;
 mod tests_phosphor;
 mod tests_phosphor_adaptive;
 mod tests_phosphor_sweep;
@@ -259,6 +260,7 @@ fn charset_wave_uses_old_rows_below_and_new_rows_above() {
         char_pool: &new_pool,
         previous_char_pool: &old_pool,
         edge_fade_lut: &[],
+        rain_shadow_lut: &[],
         vignette_lut: &[],
         vignette_lut_cols: 0,
         charset_wave_line: Some(3.0),
@@ -494,6 +496,7 @@ fn color_uses_previous_palette_below_wave_line() {
         char_pool: &['0', '1'],
         previous_char_pool: &[],
         edge_fade_lut: &[],
+        rain_shadow_lut: &[],
         vignette_lut: &[],
         vignette_lut_cols: 0,
         charset_wave_line: None,

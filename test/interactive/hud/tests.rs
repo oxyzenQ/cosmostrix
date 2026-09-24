@@ -292,7 +292,7 @@ fn refresh_colors_is_noop_when_invisible() {
         Color::Rgb { r: 0, g: 50, b: 0 },
         Color::Rgb { r: 0, g: 255, b: 0 },
     ];
-    h.refresh_colors(&palette);
+    h.refresh_colors(&palette, 0);
     let after_colors: Vec<_> = h.cached_lines.iter().map(|(c, _)| *c).collect();
     assert_eq!(
         initial_colors, after_colors,
@@ -321,7 +321,7 @@ fn refresh_colors_updates_colors_without_touching_text() {
         Color::Rgb { r: 0, g: 200, b: 0 }, // mid (n/2)
         Color::Rgb { r: 0, g: 255, b: 0 }, // head (last)
     ];
-    h.refresh_colors(&palette);
+    h.refresh_colors(&palette, 0);
     for (i, (color, text)) in h.cached_lines.iter().enumerate() {
         assert_eq!(
             text, "SENTINEL",
@@ -481,7 +481,7 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             b: 255,
         }, // idx 24 → row 24 (screensize, head)
     ];
-    h.refresh_colors(&palette);
+    h.refresh_colors(&palette, 0);
     // Top row (fps, idx 0) = palette[0] = RGB(0, 50, 0) brightened to RGB(0, 200, 0)
     assert_eq!(
         h.cached_lines[0].0,
@@ -552,7 +552,7 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
         Color::Rgb { r: 0, g: 50, b: 0 },
         Color::Rgb { r: 0, g: 255, b: 0 },
     ];
-    h.refresh_colors(&green_palette);
+    h.refresh_colors(&green_palette, 0);
     assert_eq!(
         h.cached_lines[24].0,
         Color::Rgb { r: 0, g: 255, b: 0 },
@@ -567,7 +567,7 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
             b: 0,
         },
     ];
-    h.refresh_colors(&amber_palette);
+    h.refresh_colors(&amber_palette, 1);
     assert_eq!(
         h.cached_lines[24].0,
         Color::Rgb {
@@ -708,7 +708,7 @@ fn refresh_colors_gradient_uses_twenty_five_distinct_stops() {
             b: 180,
         }, // idx 24 → row 24 (screensize, head)
     ];
-    h.refresh_colors(&palette);
+    h.refresh_colors(&palette, 0);
     // All palette entries have max channel >= TARGET_V(200), so brighten
     // returns each as-is. This isolates the gradient mapping test from
     // the brightening math (covered separately by brighten_color_* tests).

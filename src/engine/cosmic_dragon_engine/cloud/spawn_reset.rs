@@ -149,6 +149,17 @@ impl super::Cloud {
                 .push(crate::droplet::viewport_edge_fade(line, lines));
         }
 
+        // NIGHT-perf-1: per-line rain-shadow factors, same lifecycle as
+        // edge_fade_lut above. Droplet::draw previously recomputed the
+        // threshold (float multiply + cast) and the quadratic fade per
+        // CELL; now each line pays it exactly once per resize.
+        self.rain_shadow_lut.clear();
+        self.rain_shadow_lut.reserve(lines as usize);
+        for line in 0..lines {
+            self.rain_shadow_lut
+                .push(crate::brightness_factors::rain_shadow_factor(line, lines));
+        }
+
         // Pre-bake 2D vignette factor LUT (flat: `line * cols + col`).
         // Eliminates per-cell sqrt + smoothstep in Droplet::draw's hot path.
         // At 200×60 = 48 KiB, 105×64 ≈ 27 KiB — trivial memory cost.

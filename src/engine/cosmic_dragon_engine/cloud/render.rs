@@ -200,6 +200,10 @@ pub(crate) struct DrawCtx<'a> {
     /// Built once per terminal resize in Cloud::reset(); DrawCtx borrows it.
     /// Replaces per-cell `viewport_edge_fade(line, lines)` float division.
     pub edge_fade_lut: &'a [f32],
+    /// NIGHT-perf-1: per-line rain-shadow factors, built on resize
+    /// alongside edge_fade_lut. Replaces the per-cell
+    /// `rain_shadow_factor(line, lines)` call in Droplet::draw.
+    pub rain_shadow_lut: &'a [f32],
     /// Pre-baked 2D vignette factor LUT (flat: indexed as `line * cols + col`).
     /// Same values as `brightness_factors::vignette_factor()` but pre-computed.
     /// Built on resize; DrawCtx borrows the slice for the draw call duration.
@@ -353,6 +357,21 @@ impl DrawCtx<'_> {
         let idx = line as usize;
         if idx < self.edge_fade_lut.len() {
             self.edge_fade_lut[idx]
+        } else {
+            1.0
+        }
+    }
+
+    /// NIGHT-perf-1: lookup for the precomputed per-line rain-shadow
+    /// factor. Same sizing + fallback contract as edge_fade: the LUT
+    /// is rebuilt on every resize, callers pass line < lines, and the
+    /// 1.0 fallback matches rain_shadow_factor's lines==0 no-shadow
+    /// semantic.
+    #[inline]
+    pub(crate) fn rain_shadow(&self, line: u16) -> f32 {
+        let idx = line as usize;
+        if idx < self.rain_shadow_lut.len() {
+            self.rain_shadow_lut[idx]
         } else {
             1.0
         }

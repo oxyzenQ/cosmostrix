@@ -95,7 +95,12 @@ pub(crate) fn run_sim_and_draw(
     // Must run BEFORE write_to_frame so the colors used for THIS
     // frame's HUD cells are fresh — write_to_frame reads the Color
     // half of each cached_lines tuple.
-    hud_state.refresh_colors(cloud.hud_colors());
+    // NIGHT-perf-1: refresh_colors now takes the Cloud palette
+    // generation and skips the 25-stop recompute when the palette is
+    // unchanged — the historical every-frame recompute ran ~1-3
+    // microseconds for a palette that changes only on keypress /
+    // live-reload / ambient drift.
+    hud_state.refresh_colors(cloud.hud_colors(), cloud.palette_gen);
 
     // Write HUD into the frame buffer BEFORE term.draw() so it's
     // part of the same flush — eliminates fullscreen flicker.

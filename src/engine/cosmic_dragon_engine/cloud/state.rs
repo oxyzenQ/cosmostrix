@@ -130,6 +130,13 @@ pub(crate) struct MsgChr {
     pub(crate) is_border: bool,
 }
 
+/// NIGHT-perf-1: element type of `Cloud::slide_cells_scratch` — a
+/// mid-slide message glyph deferred to the second pass of
+/// `draw_message` (slide fill style). Carries (col, line, glyph,
+/// factor, scorch tint). Named so the Cloud field + the draw_message
+/// local stay in sync without a clippy type_complexity allow.
+pub(crate) type SlideCell = (u16, u16, char, f32, Option<(u8, u8, u8, f32)>);
+
 /// RAIN_BORDER_TOUCH_GLOW (Option C+D): an active touch pulse on a
 /// message-overlay border cell. Each entry records:
 /// - the `MsgChr` index in `Cloud::message` that was touched,

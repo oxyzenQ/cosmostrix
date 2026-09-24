@@ -111,7 +111,7 @@ use neural::NeuralRain;
 use physarum::PhysarumRain;
 use quasar::QuasarRain;
 use solar_flare::SolarFlareRain;
-use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
+use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle, SlideCell};
 use vortex::VortexRain;
 
 use flux::FluxRain;
@@ -132,6 +132,13 @@ pub struct Cloud {
     pub(crate) cols: u16,
 
     pub(crate) palette: Palette,
+    /// NIGHT-perf-1: monotonically bumped (wrapping) on every palette
+    /// replacement — the single choke point is `apply_new_palette`
+    /// (set_color_scheme, set_palette, live-reload rebuilds, ambient
+    /// drift and scene-runtime switches all funnel through it). The
+    /// HUD recomputes its 25-stop chroma gradient only when this value
+    /// changes instead of every frame.
+    pub(crate) palette_gen: u32,
     pub(crate) color_mode: ColorMode,
     /// cached `ColorPipeline::detect(color_mode)`.
     pub(crate) color_pipeline: ColorPipeline,
@@ -251,6 +258,12 @@ pub struct Cloud {
     pub(crate) color_map: Vec<u8>,
 
     pub(crate) edge_fade_lut: Vec<f32>,
+    /// NIGHT-perf-1: per-line rain-shadow factor LUT, built on resize
+    /// alongside edge_fade_lut. Replaces the per-cell
+    /// `rain_shadow_factor(line, lines)` call in Droplet::draw — the
+    /// function is line-only, so its threshold computation was pure
+    /// per-cell overhead.
+    pub(crate) rain_shadow_lut: Vec<f32>,
     /// Pre-baked 2D vignette factor LUT (flat: `line * cols + col`).
     /// Eliminates per-cell sqrt + smoothstep in Droplet::draw hot path.
     /// Rebuilt on resize alongside edge_fade_lut. ~27-48 KiB.
@@ -437,6 +450,17 @@ pub struct Cloud {
     pub(crate) border_cross_candidates: Vec<(usize, u16, u16)>, // B-1: hoisted scratch (was per-frame Vec alloc in rain.rs monolith path)
     pub(crate) border_gradient_scratch: Vec<Option<Color>>, // Z-5: hoisted scratch (was per-frame Vec alloc in draw_message)
     pub(crate) bottom_corner_scratch: std::collections::HashSet<usize>, // Z-5: hoisted scratch (was per-frame HashSet alloc in draw_message)
+    // NIGHT-perf-1: the six draw_message scratch buffers that were
+    // still allocating per frame (pulse/halo factor + color arrays,
+    // the alive-pulse drain target, and the slide-cell list). Same
+    // clear()+reuse contract as the Z-5 pair above: zero alloc after
+    // the first frame that displays a message.
+    pub(crate) pulse_factor_scratch: Vec<f32>,
+    pub(crate) pulse_color_scratch: Vec<(u8, u8, u8)>,
+    pub(crate) halo_factor_scratch: Vec<f32>,
+    pub(crate) halo_color_scratch: Vec<(u8, u8, u8)>,
+    pub(crate) alive_pulses_scratch: Vec<BorderPulse>,
+    pub(crate) slide_cells_scratch: Vec<SlideCell>,
 
     pub(crate) anomaly_zones: Vec<AnomalyZone>,
 
@@ -532,6 +556,7 @@ impl Cloud {
             lines: 25,
             cols: 80,
             palette: build_palette(color_scheme, color_mode, default_background),
+            palette_gen: 0,
             color_mode,
             color_pipeline: ColorPipeline::detect(color_mode),
             rain_style,
@@ -577,6 +602,7 @@ impl Cloud {
             glitch_map: BitVec::new(),
             color_map: Vec::new(),
             edge_fade_lut: Vec::new(),
+            rain_shadow_lut: Vec::new(),
             vignette_lut: Vec::new(),
             vignette_lut_dims: (0, 0),
             // Phase D: preallocated — rain_at resizes+fills per frame.
@@ -699,6 +725,12 @@ impl Cloud {
             border_cross_candidates: Vec::with_capacity(128),
             border_gradient_scratch: Vec::with_capacity(64),
             bottom_corner_scratch: std::collections::HashSet::with_capacity(2),
+            pulse_factor_scratch: Vec::with_capacity(64),
+            pulse_color_scratch: Vec::with_capacity(64),
+            halo_factor_scratch: Vec::with_capacity(64),
+            halo_color_scratch: Vec::with_capacity(64),
+            alive_pulses_scratch: Vec::new(),
+            slide_cells_scratch: Vec::with_capacity(8),
             last_phosphor_time: now,
             last_quantum_update_time: now,
             anomaly_zones: Vec::new(),

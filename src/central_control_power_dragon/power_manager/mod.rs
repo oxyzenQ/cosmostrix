@@ -285,11 +285,20 @@ impl PowerManager {
             .saturating_duration_since(self.last_input_time)
             .as_secs_f64()
             >= self.thresholds.idle_threshold_secs;
-        let predicted_idle = self
-            .phase_predictor
-            .predicts_active(local_secs_since_midnight())
-            .map(|active| !active)
-            .unwrap_or(false);
+        // NIGHT-perf-1: `local_secs_since_midnight()` is an FFI call
+        // (time(NULL) + localtime_r, ~100-300ns) that ran EVERY frame
+        // — yet `predicts_active` returns None until two phase
+        // transitions have been observed, i.e. most sessions never use
+        // the value. Gate on is_trained() first: the FFI now runs only
+        // once the prediction can actually fire.
+        let predicted_idle = if self.phase_predictor.is_trained() {
+            self.phase_predictor
+                .predicts_active(local_secs_since_midnight())
+                .map(|active| !active)
+                .unwrap_or(false)
+        } else {
+            false
+        };
         let is_idle = reactive_idle || predicted_idle;
 
         let now_active = !is_idle;

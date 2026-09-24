@@ -90,12 +90,24 @@ impl PhasePredictor {
         self.transitions_observed = self.transitions_observed.saturating_add(1);
     }
 
+    /// NIGHT-perf-1: whether the predictor has observed enough phase
+    /// transitions (>= 2) to produce a prediction at all. Lets the
+    /// per-frame caller skip the wall-clock FFI —
+    /// `local_secs_since_midnight()` does `time(NULL)` + a full
+    /// `localtime_r` conversion (~100-300ns of libc work) — on frames
+    /// where the answer would be `None` anyway, which is every frame
+    /// of most sessions (the predictor needs two observed transitions
+    /// before it ever predicts).
+    pub(crate) fn is_trained(&self) -> bool {
+        self.transitions_observed >= 2
+    }
+
     /// Predict whether the process should be in active mode.
     ///
     /// Returns `Some(true)` if active is predicted, `Some(false)` if idle is
     /// predicted, or `None` if insufficient data (< 2 transitions).
     pub(crate) fn predicts_active(&self, secs_since_midnight: f64) -> Option<bool> {
-        if self.transitions_observed < 2 {
+        if !self.is_trained() {
             return None;
         }
         let t = secs_since_midnight.rem_euclid(86400.0);

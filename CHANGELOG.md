@@ -23,6 +23,73 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### perf: NIGHT-perf-1 — depth performance audit: message-overlay zero-alloc (6 scratch buffers), HUD per-frame work gates (palette_gen + compare-first setters), phase-predictor FFI skip, head-bloom LUT, per-line rain-shadow LUT
+
+- **Message overlay: 6 per-frame heap allocations hoisted** —
+  `draw_message` allocated `pulse_factor`/`pulse_color` (message.len),
+  `halo_factor`/`halo_color` (cols), `alive_pulses`
+  (with_capacity) and `slide_cells` (Vec::new) EVERY frame while a
+  `-m` message was displayed — invisible to `--benchmark` because
+  bench mode skips the message path, so the bench's clean 0.0142
+  allocs/frame counter never saw them. All six are now Cloud scratch
+  fields with the established Z-5 clear()+reuse contract (the
+  pulse/halo arrays resize-in-place; the alive-pulse drain now swaps
+  two persistent Vecs; slide_cells is taken, drained, and returned).
+  Zero allocs per message frame after the first.
+- **HUD identity setters gated**: `set_custom_palette_name` allocated
+  and dropped a fresh String EVERY frame with `--colors-custom` active
+  (even HUD-hidden); `set_scene_name`/`set_charset_preset` re-copied
+  up to 58 UTF-8 chars per frame. All three now compare the truncated
+  forms first and only copy on an actual change (values change on
+  keypress / live-reload, not per frame).
+- **HUD chroma gradient: palette-generation counter** —
+  `refresh_colors` recomputed the 25-stop gradient (interpolations +
+  HSV brightens, ~1-3 microseconds) every visible frame. Cloud now
+  carries `palette_gen: u32`, bumped at the single palette choke
+  point `apply_new_palette` (set_color_scheme, set_palette,
+  live-reload rebuilds, ambient drift and scene-runtime switches all
+  funnel through it); the HUD recomputes only when the generation
+  changes. First refresh always computes (None sentinel).
+- **Phase-predictor wall-clock FFI gated**: `begin_frame` called
+  `local_secs_since_midnight()` (time(NULL) + localtime_r,
+  ~100-300ns) every frame, yet `predicts_active` returns None until
+  two phase transitions are observed — most sessions never use the
+  value. New `PhasePredictor::is_trained()` short-circuits the FFI
+  (and refactors `predicts_active`'s own guard onto the same
+  predicate).
+- **Head-bloom exp() replaced by a LUT** — the gaussian
+  `exp(-d^2/2sigma^2)` per bloom-eligible Middle cell is now a
+  LazyLock table over the fixed `1..HEAD_BLOOM_CELLS` range (same
+  pattern as TRAIL_EXP_LUT). Equivalence pinned by test.
+- **Rain-shadow per-cell call replaced by a per-line LUT** —
+  `rain_shadow_factor(line, lines)` recomputed its threshold (float
+  multiply + cast) and quadratic fade per CELL; the factors are
+  line-only, so `rain_shadow_lut: Vec<f32>` is built on resize in
+  Cloud::reset alongside edge_fade_lut and threaded through DrawCtx
+  (`ctx.rain_shadow(line)`), mirroring the edge-fade/vignette LUT
+  lifecycle. Equivalence pinned by test for every line.
+- **HUD row width: chars().count() hoisted** — the padding pass
+  re-scanned each row's full UTF-8 per frame; the write loop now
+  captures the written length as it goes (overflow-truncation case is
+  provably equivalent — the padding loop breaks at the same column).
+- **Deliberately NOT changed** (audit findings, LTS-first decisions):
+  the SGR cache hit/miss atomics stay AtomicU64 — they feed
+  `--perf-stats`, and Cell would trade a documented thread-safety
+  margin for ~1 microsecond; TraceAlloc stays always-on (exit-report
+  observability); the 500 microsecond frame-spin budget and the ~3
+  crossterm polls/frame remain (measured tradeoffs, documented); the
+  12x per-cell `is_chroma()` branch symmetry stays (branch-predictor
+  friendly, kept for audit symmetry).
+- **Verification**: 6 new regression tests pin every equivalence
+  (LUT values vs formulas, palette_gen bump contract, scratch
+  capacity reuse across draws, is_trained precondition) — full inline
+  suite 2974 passed / 0 failed; cargo fmt + clippy clean incl. the
+  x86_64-pc-windows-gnu cross-target (`-D warnings`); gate-keepers
+  21/21; build.sh check-all -q green in the 2-minute local budget
+  (cargo-audit left to CI — local install exceeded the energy
+  budget). Bench A/B (matrix + monolith, 10s) run post-commit per
+  protocol.
+
 ### lts: NIGHT-ultimate-1 — depth security/LTS audit: SIGCONT double-teardown (P0), adaptive watchdog threshold, screen-size clamp, signal-install surfacing, wedged-cleanup exit code
 
 - **P0 fix — SIGCONT reinit double-teardown**: on Ctrl+Z the suspend

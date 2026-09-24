@@ -140,6 +140,10 @@ impl Cloud {
 
         // Update the convenience palette reference
         self.palette = new_palette;
+        // NIGHT-perf-1: every palette replacement funnels through this
+        // method — bump the generation so the HUD refreshes its chroma
+        // gradient exactly once per actual change instead of every frame.
+        self.palette_gen = self.palette_gen.wrapping_add(1);
 
         // Regenerate color map for the new palette size
         self.fill_color_map();

@@ -28,6 +28,24 @@ use crate::palette;
 
 use std::time::Instant;
 
+/// NIGHT-perf-1: precomputed gaussian falloff for the head-bloom glow.
+/// `dist_from_head` spans the tiny fixed range `1..HEAD_BLOOM_CELLS`,
+/// so the per-cell `exp()` (a transcendental evaluated for every
+/// bloom-eligible Middle cell, ~20-40 cycles each) collapses to a table
+/// lookup — the same LUT pattern the trail shading already uses
+/// (`TRAIL_EXP_LUT` in the chroma shaders). Built once, lazily; values
+/// are pure functions of the (HEAD_BLOOM_SIGMA, HEAD_BLOOM_CELLS)
+/// constant pair, so they change only if those constants change.
+pub(crate) static HEAD_BLOOM_LUT: std::sync::LazyLock<[f32; HEAD_BLOOM_CELLS as usize]> =
+    std::sync::LazyLock::new(|| {
+        let mut lut = [0.0f32; HEAD_BLOOM_CELLS as usize];
+        for (d, slot) in lut.iter_mut().enumerate() {
+            let d = d as f32;
+            *slot = (-d * d / (2.0 * HEAD_BLOOM_SIGMA * HEAD_BLOOM_SIGMA)).exp();
+        }
+        lut
+    });
+
 impl super::Droplet {
     pub(crate) fn draw(
         &mut self,
@@ -205,8 +223,10 @@ impl super::Droplet {
                 if matches!(loc, CharLoc::Middle) {
                     let dist_from_head = self.head_put_line.saturating_sub(line);
                     if dist_from_head > 0 && dist_from_head < HEAD_BLOOM_CELLS {
-                        let d = dist_from_head as f32;
-                        let gaussian = (-d * d / (2.0 * HEAD_BLOOM_SIGMA * HEAD_BLOOM_SIGMA)).exp();
+                        // NIGHT-perf-1: LUT lookup replaces the per-cell
+                        // exp() — dist_from_head is bounded by the branch
+                        // condition, so the index is always in-bounds.
+                        let gaussian = HEAD_BLOOM_LUT[dist_from_head as usize];
                         let bloom = if is_new_generation {
                             HEAD_BLOOM_INTENSITY + TRANSITION_HEAD_GLOW_BOOST
                         } else {
@@ -570,7 +590,11 @@ impl super::Droplet {
                 // front-layer neon is NOT dimmed by the shadow — it stays at
                 // full fidelity across the entire screen height. Mid/back
                 // layers (mult=1.0) get the full shadow for depth.
-                let shadow_raw = crate::brightness_factors::rain_shadow_factor(line, ctx.lines);
+                // NIGHT-perf-1: per-line LUT lookup (built on resize in
+                // Cloud::reset alongside edge_fade_lut) — was a per-cell
+                // rain_shadow_factor(line, ctx.lines) call recomputing
+                // the threshold + quadratic fade for every cell.
+                let shadow_raw = ctx.rain_shadow(line);
                 let shadow = 1.0 - (1.0 - shadow_raw) * RAIN_SHADOW_LAYER_MULT[self.layer as usize];
                 // (chroma audit, A5): rain shadow brightness scale
                 // routes through chroma engine when active, legacy

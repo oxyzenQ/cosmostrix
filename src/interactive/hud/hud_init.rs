@@ -34,6 +34,9 @@ impl super::HudState {
         };
         Self {
             visible: false,
+            // NIGHT-perf-1: forces the first refresh_colors call to
+            // compute the gradient (see refresh_colors in mod.rs).
+            last_palette_gen: None,
             session_start: Instant::now(),
             // v80.0.0-beta.1 pause-freeze: metrics stop while paused (owner bug fix
             // 2026-08-30). See set_metrics_paused() in metrics.rs.
@@ -207,11 +210,20 @@ impl super::HudState {
                 continue;
             }
             // Write the text characters.
+            // NIGHT-perf-1: capture the written length during the
+            // existing iteration — the trailing `text.chars().count()`
+            // re-scanned the full UTF-8 string per row per frame
+            // (~25 rows × O(len) byte decoding for lengths that change
+            // at 1 Hz). When the text overflows the screen edge the
+            // enumerate loop breaks early; the padding loop below breaks
+            // at the same column, so a partial count is equivalent.
+            let mut text_len: u16 = 0;
             for (col_offset, ch) in text.chars().enumerate() {
                 let x = start_col + col_offset as u16;
                 if x >= cols {
                     break;
                 }
+                text_len = col_offset as u16 + 1;
                 let cell = crate::cell::Cell {
                     ch,
                     fg: Some(*color),
@@ -223,7 +235,6 @@ impl super::HudState {
             // Pad the rest of the line with spaces to the effective width
             // so the background covers the full HUD area consistently —
             // including any cells from a previously wider HUD footprint.
-            let text_len = text.chars().count() as u16;
             for col_offset in text_len..w {
                 let x = start_col + col_offset;
                 if x >= cols {
