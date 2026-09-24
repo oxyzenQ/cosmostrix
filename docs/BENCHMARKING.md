@@ -78,6 +78,8 @@ cosmostrix --benchmark --bench-cosmetics -m "hello" -mb # custom overlay config
 
 How it measures: the run routes through the same silent measurement loop `--bench-all` uses, but clears the Z-6 `bench_mode` flag after `reset_bench` (the message overlay renders inside `rain_at`, so its cost lands in `avg_render_ms` and end-to-end in fps / dirty cells / alloc counters) and drives the production HUD block against a real `HudState` in the exact event-loop call order. The message start time is rewound past the intro lead + reveal so frame one already renders a fully revealed overlay — the harness measures the SUSTAINED cost, not the one-shot choreography. `hud_avg_ms` / `hud_max_ms` / `hud_frames` in the COMPONENT TIMING section (and the `component_timing` JSON object) report the HUD block's own cost; the accounting is disjoint (`sim + render + io + hud_pre = frame_time`, the post-draw tick is reported separately, mirroring the event loop's work/post-draw split).
 
+Attribution note (the FreeBSD CI incident, fixed 2026-09-25): alloc counters are thread-attributed — `TraceAlloc` counts per thread, and the window snapshots read the measuring thread's own counters. The bench binary is single-threaded, so the numbers are process totals there, but `cargo test` runs every test in one process on parallel threads: with the former process-global counters, concurrent tests' allocations landed in whatever benchmark window was open, and the FreeBSD job (`cargo test --all`, libtest) measured 16.3 "allocs/frame" of pure cross-thread noise on the zero-alloc tripwire — while the cosmetics path itself allocated nothing. Linux CI never saw it because nextest isolates each test in its own process. The thread-attribution contract is pinned by tests (`src/diagnostics/alloc_trace.rs` unit tests + `cosmetics_tripwire_immune_to_concurrent_thread_allocations`).
+
 A/B protocol for a scene: run `--benchmark --json` (plain) vs `--benchmark --bench-cosmetics --json` at the same size + duration — the delta is the total cosmetics-path cost. The harness found and verified its first target during its own bring-up: the BN-01/02 visible-border `Vec<bool>` allocated once per frame (1.0006 allocs/frame vs the plain bench's 0.009); it is now a hoisted `visible_border_scratch` Cloud field (Z-5 pattern) and the zero-alloc state is pinned by a test (`test/bench/tests_bench_cosmetics.rs`).
 
 ### Which color pipeline the benchmark measures (chroma dragon audit)
@@ -535,7 +537,7 @@ post-fix points are the styles' true structure signatures.
 | `dirty_glyphs_per_second` | glyphs/sec | Changed cells per second — the work the diff engine actually emits. |
 | `peak_rss` | MiB | Peak resident set size. Steady growth across runs = possible leak. |
 | `avg_cpu_percent` | % | Process CPU%. ~99% = single-threaded, fully utilized. |
-| `alloc_calls_per_frame` | count | Fresh allocations per frame. Higher = leaking heap. v30 baseline: 3.00. |
+| `alloc_calls_per_frame` | count | Fresh allocations per frame, attributed to the bench thread (single-threaded bench: process totals). Higher = leaking heap. v30 baseline: 3.00. |
 | `heap_retained` | bytes | Bytes allocated and never freed. Non-zero = investigate. |
 | `energy_per_frame` | µJ | Energy per frame (Linux + RAPL only). Lower = more efficient. |
 | `IPC` | ratio | Instructions per cycle (Linux + perf_event_open). >2.0 = healthy; >3.0 = excellent. |

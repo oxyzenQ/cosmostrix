@@ -14,12 +14,17 @@
 //!   1 alloc/frame — the visible_border_scratch Z-5 fix (NIGHT-perf-2)
 //!   removed the last per-frame Vec allocation (measured 1.0006
 //!   allocs/frame before, 0.0006 after in the dev profile);
+//! - the tripwire's thread attribution: alloc counting is per-thread
+//!   (alloc_trace), so concurrent allocations on OTHER threads cannot
+//!   leak into the measurement — the FreeBSD CI incident pin;
 //! - non-cosmetics runs keep the new report fields idle (default
 //!   bench behavior is byte-for-byte unchanged — Z-6 untouched);
 //! - the JSON schema carries the new component_timing fields in
 //!   both modes (uniform schema per the stability contract).
 
-use std::sync::Mutex;
+use std::hint::black_box;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 use clap::Parser;
 
@@ -167,7 +172,9 @@ fn cosmetics_harness_measures_overlay_and_hud() {
     // The zero-alloc tripwire (Z-5 contract, now actually measurable):
     // pre-fix the BN-01/02 visible-border Vec allocated 1.0x per frame;
     // the 1 Hz HUD metric tick's transient format! allocs amortize to
-    // well under 1 per frame on any plausible frame rate.
+    // well under 1 per frame on any plausible frame rate. The counting
+    // is thread-attributed (alloc_trace), so this measures the cosmetics
+    // path's own allocations — see the FreeBSD CI incident test below.
     let allocs_per_frame = data
         .allocator
         .as_ref()
@@ -188,6 +195,79 @@ fn cosmetics_harness_measures_overlay_and_hud() {
     assert!(json.contains("\"hud_frames\""));
     assert!(json.contains("\"cosmetics_mode\":true"));
     assert!(json.contains("\"message_active\":true"));
+}
+
+/// The FreeBSD CI incident pin (2026-09-25): `cargo test` runs every
+/// test in ONE process on parallel threads, and the alloc counters
+/// used to be process-global — every concurrent test's allocations
+/// landed in whatever benchmark window was open, so the tripwire above
+/// measured 16.3 "allocs/frame" of pure cross-thread noise on the
+/// FreeBSD job (Linux CI never saw it: nextest isolates each test in
+/// its own process, and targeted local runs have no concurrent load).
+/// TraceAlloc counts per thread now; this test drives a deliberate
+/// cross-thread allocation storm through the whole window to prove the
+/// immunity — with the old global counters it fails by orders of
+/// magnitude.
+#[test]
+fn cosmetics_tripwire_immune_to_concurrent_thread_allocations() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let previous = std::env::var("COSMOSTRIX_BENCH_WARMUP_SECS").ok();
+    std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", "0");
+
+    // The noise thread: continuous allocation churn on another thread
+    // for the whole bench window. Even the weakest plausible machine
+    // produces tens of thousands of iterations per second — several
+    // orders of magnitude over the tripwire budget if the noise were
+    // (wrongly) attributed to the bench thread.
+    let stop = Arc::new(AtomicBool::new(false));
+    let noise_allocs = Arc::new(AtomicU64::new(0));
+    let stop_t = Arc::clone(&stop);
+    let noise_t = Arc::clone(&noise_allocs);
+    let noise = std::thread::spawn(move || {
+        let mut done = 0u64;
+        while !stop_t.load(Ordering::Relaxed) {
+            let v = vec![0u8; 4096];
+            black_box(&v);
+            done += 1;
+        }
+        noise_t.store(done, Ordering::Relaxed);
+    });
+
+    let cfg = make_bench_config(true);
+    let data = run_premium_benchmark_silent(&cfg).expect("cosmetics bench must run");
+
+    stop.store(true, Ordering::Relaxed);
+    noise.join().expect("noise thread must join");
+
+    if let Some(prev) = previous {
+        std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", prev);
+    } else {
+        std::env::remove_var("COSMOSTRIX_BENCH_WARMUP_SECS");
+    }
+
+    // The load must have been real, or the test would pass vacuously.
+    let child_allocs = noise_allocs.load(Ordering::Relaxed);
+    assert!(
+        child_allocs > 10_000,
+        "noise thread performed only {child_allocs} allocations — the load \
+         generator is too weak to pin the regression"
+    );
+
+    // The tripwire under deliberate cross-thread load: the bench
+    // thread's own count must stay at zero-alloc levels no matter how
+    // loudly other threads allocate.
+    let allocs_per_frame = data
+        .allocator
+        .as_ref()
+        .map(|m| m.alloc_calls_per_frame)
+        .unwrap_or(0.0);
+    assert!(
+        allocs_per_frame < 1.0,
+        "cross-thread allocations leaked into the cosmetics measurement \
+         (measured {allocs_per_frame:.4} allocs/frame while another thread \
+         performed {child_allocs} allocations — alloc counting must stay \
+         thread-attributed)"
+    );
 }
 
 #[test]

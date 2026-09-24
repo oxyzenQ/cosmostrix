@@ -23,6 +23,41 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### fix: NIGHT-perf-2 - thread-attributed alloc counting: the cosmetics zero-alloc tripwire measured process-global counters, so libtest's parallel shared-process execution attributed concurrent tests' allocations to the cosmetics path (FreeBSD CI: 16.3 allocs/frame of cross-thread noise)
+
+- **Root cause** (FreeBSD CI failure on the NIGHT-perf-2 harness commit,
+  2026-09-25): `cargo test --all` runs every test in ONE process on
+  parallel threads (libtest), while TraceAlloc counted with
+  process-global atomics. Any benchmark window open while other tests
+  ran absorbed their allocations: the FreeBSD job measured 16.3050
+  allocs/frame on `cosmetics_harness_measures_overlay_and_hud` and
+  failed the zero-alloc tripwire — the cosmetics path itself allocated
+  nothing (0.0006/frame measured in isolation). Linux CI never saw it
+  because nextest isolates each test in its own process, and targeted
+  local runs have no concurrent load; the full-suite parallel run was
+  never executed locally (check-all's 2-minute budget kills it before
+  the test phase). Reproduced deterministically: the full bin suite at
+  8 test threads measures 20.75 allocs/frame, at 16 threads 72.85.
+- **Fix**: TraceAlloc now counts per thread (const-initialized
+  thread-local `Cell<ThreadCounters>` - no lazy-init allocation, no
+  destructor, so the allocator never re-enters itself; wrapping
+  arithmetic keeps it panic-free under dev-profile overflow checks).
+  `AllocSnapshot::now()` reads the measuring thread's counters, so a
+  window delta covers exactly the allocations the measured code path
+  performed. The production bench binary is single-threaded, so its
+  numbers are unchanged byte for byte; under the test harness the
+  metrics finally measure the bench loop instead of the whole process.
+  The five statics' unsafe surface and the no-reentrancy/no-sync
+  argument are unchanged (SECURITY_AUDIT.md updated accordingly).
+- **Tests pin the contract**: `src/diagnostics/alloc_trace.rs` gains
+  unit tests (other-thread allocations must not move this thread's
+  snapshot; this thread's own allocations must be counted), and
+  `test/bench/tests_bench_cosmetics.rs` gains the incident pin:
+  a deliberate cross-thread allocation storm runs through the whole
+  bench window while the tripwire must still hold (< 1.0
+  allocs/frame). Post-fix, the full parallel suite passes at 8 and 16
+  test threads (2980 passed, 0 failed).
+
 ### perf: NIGHT-perf-2 - dedicated bench harness for the Z-6-skipped paths: --bench-cosmetics measures the message overlay + per-frame HUD block; bring-up found and killed the last per-frame heap alloc in draw_message (visible_border Vec)
 
 - **Change** (owner-approved 2026-09-24): the paths --benchmark skips
