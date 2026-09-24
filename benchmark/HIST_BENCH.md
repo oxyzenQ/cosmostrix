@@ -10,6 +10,52 @@ and whether the test is measuring headless simulation or real terminal I/O.
 Use benchmark output to compare builds on the same machine, not as a portable
 promise.
 
+## NIGHT-perf-2 fix A/B — thread-attributed alloc counting (2026-09-25, release profile, 10s, 120x40)
+
+Commit pair for the FreeBSD CI tripwire failure fix: A = 5fc002f
+(process-global atomic counters), B = 27c61f5 (per-thread
+const-init TLS counters — `TraceAlloc` counts on the calling thread,
+`AllocSnapshot::now()` reads the measuring thread's slot; see the
+alloc_trace.rs module docs for the incident). The bench binary is
+single-threaded, so B must reproduce A's numbers exactly on the
+allocator metrics; the pair also watches fps for hot-path overhead
+(the atomic fetch_add pair became a TLS read-modify-write per call).
+Same container (2 vCPU, Xeon, smt off), release profile, 10s, 120x40,
+scenes matrix + monolith, modes plain + cosmetics. matrix cosmetics
+carries 5 runs per side (one B-side run hit visible CPU contention:
+10969 fps vs the 12350-12413 cluster of the other four; medians are
+used there, matching the NIGHT-perf-1 noise-handling precedent), all
+other cells are 2-run medians.
+
+| metric | matrix plain | matrix cosmetics | monolith plain | monolith cosmetics |
+|--------|--------------|------------------|----------------|--------------------|
+| avg_fps | +0.60% | +0.01% | +0.45% | -0.25% |
+| avg_render_ms | -0.77% | -0.15% | -1.84% | -0.05% |
+| avg_sim_ms | -0.46% | -0.01% | -0.14% | +0.40% |
+| alloc_calls (A -> B) | 563 -> 563 | 14 -> 14 | 563 -> 563 | 14 -> 14 |
+| allocs_per_frame | -0.59% | -0.01% | -0.45% | +0.25% |
+
+Reading: every fps delta sits within ±0.6% — deep inside the container
+noise band, nothing near the 5% threshold, and the direction is mixed
+(both plain cells slightly positive, monolith cosmetics slightly
+negative), the signature of noise rather than overhead. The decisive
+number is alloc_calls: byte-identical totals on all four cells — the
+per-thread counters count exactly the same allocations the global
+counters counted on the single-threaded bench (563 calls in 10s plain
+= the 1 Hz CPU sampler's /proc Vec churn; 14 in cosmetics mode), so
+the report semantics are unchanged in production while the test
+harness gains immunity to cross-thread attribution (the FreeBSD CI
+failure: 16.3 allocs/frame of concurrent-test noise under libtest's
+shared-process parallelism).
+
+Verdict: PASS — no performance regression, exact allocator-metric
+equivalence on the production bench, and the tripwire now measures
+the cosmetics path instead of the process (pinned by
+`cosmetics_tripwire_immune_to_concurrent_thread_allocations` + the
+alloc_trace unit tests; post-fix the full parallel suite passes at 8
+and 16 test threads where it previously measured 20.75 / 72.85
+allocs/frame and failed).
+
 ## NIGHT-perf-2 A/B — cosmetics harness first measurement (2026-09-24, release profile, 10s, 120x40)
 
 First measurement of the paths --benchmark skips by design (Z-6), via the
