@@ -23,6 +23,53 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### docs: NIGHT-docs-1 — tell once, don't double: README + docs dedup, and the disclaimer gate now catches duplicates
+
+- **Change**: owner mandate (2026-09-24) — the same data is no
+  longer told twice. README.md: the paused-mode contract was told
+  three times (Smooth pause bullet, Runtime controls bullet, and
+  the Runtime Controls section) — the section is now the single
+  canonical telling and both feature bullets point to it; the
+  120×40 ~360-vs-4,800 (13× I/O) stat was told in both the Cosmic
+  Dragon section and the Architecture list — it stays in the Cosmic
+  Dragon section and the Architecture item points up; the
+  0.0/~1.1 allocs numbers were told in both Philosophy and the
+  Features bullet — Philosophy keeps them; the ~100K avg_fps
+  measured setup (2-vCPU cloud Xeon, pro-linux build, headless dry
+  I/O) was fully told in both Philosophy and Limitations — the full
+  provenance now lives once in Limitations and Philosophy cites the
+  figure with a pointer; Philosophy's "this is what makes the
+  cinematic effects affordable" tail (a restatement of the Cosmic
+  Dragon section's claim) and one of two consecutive
+  identical "Invariant tests lock the engine's contract" bullets
+  were dropped. docs/BENCHMARK_ADVANCED.md no longer inlines the
+  full /etc/tmpfiles.d/rapl.conf block — RAPL_ACCESS.md Method 2
+  is the single canonical copy (the pointer already existed; the
+  inlined config was the duplicate).
+- **Fix**: docs/LIVE_RELOAD_BEHAVIOR.md carried the disclaimer block
+  TWICE — a stray hand-pasted unmarked copy above the injected
+  marker. The injector's --check verified marker presence, not
+  uniqueness, so the duplicate survived every gate. Removed, and
+  scripts/inject-disclaimer.sh hardened: it now counts the
+  "Documentation Disclaimer" header line per file (exactly one
+  required, marker-adjacent or not) and fails with a named-file
+  DUPLICATE error in both check and inject mode — the failure class
+  cannot silently recur.
+- **Verification**: synthetic test — appending a second disclaimer
+  header to docs/FAQ.md fails the hardened injector with exit 1
+  ("DUPLICATE disclaimer (2 copies)") naming the file; clean tree
+  passes (214 .md files). bash -n / shellcheck / shfmt clean on the
+  patched injector. Sentence- and shingle-level duplicate sweeps
+  over the 55-file live corpus confirm no other cross-file or
+  within-file data duplication remains (per-record protocol
+  headers in BENCHMARKING.md, per-dependency table-cell values in
+  DEPENDENCY_AUDIT.md and per-issue closing refrains in
+  TERMINAL_COMPATIBILITY.md are structure, not data duplication).
+  README tripwires (tagline, install tag) untouched and green;
+  docs-audit.py 0/0/0/0; gate-keepers green. check-all -q killed
+  at the 2-minute local budget on the cold cache (fmt passed
+  before the kill; clippy/test left to CI per owner policy).
+
 ### build: NIGHT-boost-4 — max-muscle job calculation: every build uses 100% of detected cores
 
 - **Change**: owner mandate (2026-09-24) — `calculate_jobs()` in

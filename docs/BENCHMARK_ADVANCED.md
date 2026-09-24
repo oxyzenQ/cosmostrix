@@ -51,15 +51,7 @@ cat /sys/class/powercap/intel-rapl:0/energy_uj   # should print microjoules sinc
 cosmostrix --benchmark --screen-size 120x40 --bench-duration 10s
 ```
 
-**Permanent setup** (systemd tmpfiles — see [RAPL_ACCESS.md](RAPL_ACCESS.md) for the full procedure and alternative methods like `setcap`):
-
-```bash
-sudo tee /etc/tmpfiles.d/rapl.conf << 'EOF'
-f /sys/class/powercap/intel-rapl:0/energy_uj 0444 - - -
-f /sys/class/powercap/intel-rapl:0/intel-rapl:0:0/energy_uj 0444 - - -
-EOF
-sudo systemd-tmpfiles --create
-```
+**Permanent setup** (systemd tmpfiles): create the persistent `/etc/tmpfiles.d/rapl.conf` per [RAPL_ACCESS.md](RAPL_ACCESS.md) Method 2 — the canonical config block, the apply and verify steps, and alternative methods (`setcap`, udev) are documented once there.
 
 **Verification**: after setup, the ENERGY section should show `status: available (RAPL)` with `packages`, `total_energy` (J), `avg_power` (W), `energy_per_frame` (µJ), `energy_per_cell` (nJ).
 

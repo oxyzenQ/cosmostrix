@@ -19,7 +19,10 @@
 # on any specific number, file path, or symbol name.
 #
 # The disclaimer is idempotent: re-running this script will not add a
-# second copy if the marker is already present.
+# second copy if the marker is already present. Since NIGHT-docs-1
+# (2026-09-24) the script also FAILS on duplicate copies of the block
+# (a hand-pasted unmarked copy once survived every gate): exactly one
+# "Documentation Disclaimer" header line per file, marker or not.
 #
 # Usage:
 #   bash scripts/inject-disclaimer.sh          # inject into all .md files
@@ -96,6 +99,7 @@ NC='\033[0m'
 INJECTED=0
 SKIPPED=0
 MISSING=0
+DUPLICATES=0
 CHECKED=0
 
 # Process every git-tracked OR untracked-but-present .md file in the repo.
@@ -109,6 +113,20 @@ while IFS= read -r -d '' file; do
 	CHECKED=$((CHECKED + 1))
 
 	if grep -q "$MARKER" "$file"; then
+		# NIGHT-docs-1 (2026-09-24): marker presence alone is not health.
+		# A hand-pasted unmarked copy of the block above the marker
+		# survived every gate because this branch only looked for the
+		# marker. Count the block header line instead: exactly one
+		# copy per file, marker-adjacent or not.
+		# Count the FULL canonical header line (leading 2 spaces + em-dash),
+		# not the bare phrase: prose may legitimately mention "Documentation
+		# Disclaimer" in quotes (the NIGHT-docs-1 changelog entry does).
+		HEADERS=$(grep -cF "  Documentation Disclaimer — read before relying on any data point." "$file" 2>/dev/null || true)
+		if [[ "${HEADERS:-0}" -gt 1 ]]; then
+			echo -e "${RED}DUPLICATE disclaimer (${HEADERS} copies): ${file}${NC}"
+			DUPLICATES=$((DUPLICATES + 1))
+			continue
+		fi
 		SKIPPED=$((SKIPPED + 1))
 		continue
 	fi
@@ -135,6 +153,12 @@ done < <(
 			printf '%s\0' "${REPO_ROOT}/${line}"
 		done
 )
+
+if ((DUPLICATES > 0)); then
+	echo -e "${RED}FAIL: $DUPLICATES of $CHECKED .md files carry DUPLICATE disclaimer blocks${NC}"
+	echo "Fix: delete every copy except the marker-adjacent one (bash scripts/inject-disclaimer.sh --check)"
+	exit 1
+fi
 
 if $CHECK_MODE; then
 	if [[ "$MISSING" -eq 0 ]]; then
