@@ -28,6 +28,34 @@ pub(crate) fn clear_mouse_capture_flag() {
 pub(crate) static FRAME_COUNTER: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
 
+/// NIGHT-ultimate-1: adaptive stuck-loop threshold, in seconds.
+///
+/// The historical fixed 1s threshold had zero margin against the
+/// slowest LEGAL frame cadence: `--fps 1` produces a 1.0s frame period
+/// (the power manager floors effective fps at 1.0), so one slightly
+/// overshot sleep — exactly the condition drain-backoff models — made
+/// two consecutive 1s samples read the same FRAME_COUNTER and the
+/// watchdog killed a perfectly healthy session.
+///
+/// The threshold now scales with the user's target fps: at least 3x
+/// the longest legitimate inter-frame gap (ceil(3 / fps)), floored at
+/// WATCHDOG_INTERVAL_SECS so fast sessions keep the historical 1s
+/// detection latency. `--fps 1` → 3s, `--fps 2` → 2s, `--fps >= 3` →
+/// 1s. Updated by the power manager whenever the target changes
+/// (startup + live reload); pause mode's 250ms cadence stays safely
+/// under every threshold value.
+pub(crate) static WATCHDOG_STUCK_THRESHOLD_SECS: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(WATCHDOG_INTERVAL_SECS);
+
+/// NIGHT-ultimate-1: recompute the stuck-loop threshold from a target
+/// fps. Called by `PowerManager::new` + `PowerManager::set_target_fps`
+/// so live-reloading `fps` also retunes the watchdog.
+pub(crate) fn note_target_fps(fps: f64) {
+    let fps = fps.max(1.0);
+    let threshold = ((3.0 / fps).ceil() as u64).max(WATCHDOG_INTERVAL_SECS);
+    WATCHDOG_STUCK_THRESHOLD_SECS.store(threshold, Ordering::Release);
+}
+
 /// Global shutdown flag. Set to `true` when the main loop exits so the
 /// watchdog thread can terminate instead of running forever.
 pub(super) static SHUTDOWN: std::sync::atomic::AtomicBool =
@@ -66,6 +94,11 @@ pub(super) fn spawn_watchdog() {
     // can take several seconds before the rain main loop starts).
     let mut armed: bool = false;
     let mut last_counter: u64 = 0;
+    // NIGHT-ultimate-1: wall-clock anchor of the last observed frame
+    // progress. The stuck check compares against the adaptive
+    // WATCHDOG_STUCK_THRESHOLD_SECS instead of assuming one sample
+    // interval without progress means "stuck" (false-kills --fps 1).
+    let mut last_progress: std::time::Instant = std::time::Instant::now();
     // Capture stdout's terminal status at watchdog spawn time. The
     // dead-PTY probe only fires if stdout WAS a terminal at startup but
     // is NO LONGER one — this avoids false positives when stdout was
@@ -137,40 +170,52 @@ pub(super) fn spawn_watchdog() {
             if current > 0 {
                 armed = true;
                 last_counter = current;
+                last_progress = std::time::Instant::now();
             }
             continue;
         }
-        if current == last_counter {
-            // Main loop has not advanced the frame counter in
-            // `WATCHDOG_INTERVAL_SECS` seconds. With the current value of
-            // 1s, this means 1s of zero progress — the main loop is
-            // definitely stuck (max legitimate frame period is 250ms in
-            // pause mode, so 1s = 4 missed frames).
-            //
-            // The most common cause is crossterm 0.29's mio source
-            // spinning forever inside `read()` on a dead PTY: EIO and EOF
-            // don't break the inner loop (only WouldBlock/Interrupted do),
-            // so once the user force-closes the terminal, the main thread
-            // is trapped inside `crossterm::event::read()` and never
-            // returns to check `GRACEFUL_SHUTDOWN`. The watchdog is the
-            // only escape — restore the terminal and force-exit.
-            //
-            // NIGHT-termux-hang: "stuck" also covers the jammed-PTY case
-            // (Termux screen lock: the PTY reader stops draining, the
-            // frame flush blocks in write()). The old exit path could
-            // block on its own restore write into that same full PTY,
-            // wedging the watchdog — the owner's unkillable process
-            // (`pkill` dead, only `kill -9` worked). The nonblocking
-            // force-exit guarantees the process dies here.
-            crate::terminal::force_exit_terminal_restored(
-                1,
-                &format!(
-                    "[watchdog] main loop stuck for {}s — restoring terminal and exiting\n",
-                    WATCHDOG_INTERVAL_SECS
-                ),
-            );
+        if current != last_counter {
+            // Progress observed — reset the stuck clock.
+            last_counter = current;
+            last_progress = std::time::Instant::now();
+            continue;
         }
-        last_counter = current;
+        // No progress since the last sample. This alone is NOT proof of
+        // a stuck loop: NIGHT-ultimate-1, `--fps 1` has a legal 1.0s
+        // frame period (power manager floors effective fps at 1.0), so
+        // the kill threshold is adaptive — ceil(3 / target_fps)
+        // seconds, min 1s (see WATCHDOG_STUCK_THRESHOLD_SECS). Only a
+        // gap that no legitimate cadence can explain fires the exit.
+        let threshold_secs = WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire);
+        if last_progress.elapsed().as_secs() < threshold_secs {
+            continue;
+        }
+        // Main loop has not advanced the frame counter in
+        // `threshold_secs` seconds — far beyond any legal frame period
+        // (pause mode renders at 250ms; --fps 1 at 1.0s) — the main
+        // loop is definitely stuck.
+        //
+        // The most common cause is crossterm 0.29's mio source
+        // spinning forever inside `read()` on a dead PTY: EIO and EOF
+        // don't break the inner loop (only WouldBlock/Interrupted do),
+        // so once the user force-closes the terminal, the main thread
+        // is trapped inside `crossterm::event::read()` and never
+        // returns to check `GRACEFUL_SHUTDOWN`. The watchdog is the
+        // only escape — restore the terminal and force-exit.
+        //
+        // NIGHT-termux-hang: "stuck" also covers the jammed-PTY case
+        // (Termux screen lock: the PTY reader stops draining, the
+        // frame flush blocks in write()). The old exit path could
+        // block on its own restore write into that same full PTY,
+        // wedging the watchdog — the owner's unkillable process
+        // (`pkill` dead, only `kill -9` worked). The nonblocking
+        // force-exit guarantees the process dies here.
+        crate::terminal::force_exit_terminal_restored(
+            1,
+            &format!(
+                "[watchdog] main loop stuck for {threshold_secs}s — restoring terminal and exiting\n"
+            ),
+        );
     });
 }
 
@@ -270,5 +315,35 @@ mod night_hunter_6_tests {
         // Symbol-only output rule: pure ASCII in anything the binary
         // prints.
         assert!(STDOUT_NOT_TTY_WARNING.is_ascii());
+    }
+
+    /// NIGHT-ultimate-1: the stuck-loop threshold must scale with the
+    /// target fps so the slowest LEGAL cadence (--fps 1 → 1.0s frame
+    /// period, floored by the power manager) can never trip the 1s
+    /// sampler: ceil(3/fps) seconds, minimum 1s.
+    #[test]
+    fn stuck_threshold_scales_with_target_fps() {
+        // Fast sessions keep the historical 1s detection latency.
+        note_target_fps(60.0);
+        assert_eq!(WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire), 1);
+        note_target_fps(3.0);
+        assert_eq!(WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire), 1);
+        note_target_fps(240.0);
+        assert_eq!(WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire), 1);
+        // The --fps 1 corner: 3s margin over the 1.0s legal period.
+        note_target_fps(1.0);
+        assert_eq!(WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire), 3);
+        note_target_fps(2.0);
+        assert_eq!(WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire), 2);
+        note_target_fps(1.5);
+        assert_eq!(WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire), 2);
+        // Degenerate inputs clamp to the 1.0 floor exactly like
+        // PowerManager::set_target_fps (fps.max(1.0)).
+        note_target_fps(0.0);
+        assert_eq!(WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire), 3);
+        note_target_fps(f64::NAN);
+        assert_eq!(WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire), 3);
+        // Restore the default for any test that runs after this one.
+        note_target_fps(60.0);
     }
 }

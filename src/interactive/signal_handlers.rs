@@ -18,6 +18,10 @@
 
 #[cfg(windows)]
 use crate::output::eprintln_safe;
+// NIGHT-ultimate-1: the Unix install-failure warnings use the same
+// never-panic stderr macro as the Windows handler.
+#[cfg(unix)]
+use crate::output::eprintln_safe;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -57,45 +61,63 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
     // SIGINT is intentionally ignored so the user's terminal Ctrl+C
     // muscle memory doesn't accidentally quit the cinematic experience.
     let se = signal_exit.clone();
-    if let Ok(mut signals) = Signals::new([SIGTERM, SIGHUP, SIGQUIT]) {
-        std::thread::spawn(move || {
-            if let Some(_sig) = signals.forever().next() {
-                GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
-                se.store(true, Ordering::Release);
-                // Wait for main loop to notice and clean up.
-                // Bounded: max 30 iterations × 100ms = 3s (matches the
-                // 2s watchdog threshold + 1s grace). The old 20s bound
-                // was calibrated to the old 20s watchdog — now that the
-                // watchdog fires at 2s, holding the signal thread for
-                // 20s would leave a zombie thread around long after the
-                // process should have exited. 3s gives the main loop
-                // ample time to observe GRACEFUL_SHUTDOWN and run
-                // Terminal::drop before the watchdog force-exits.
-                for _ in 0..30 {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    if SHUTDOWN.load(Ordering::Acquire) {
-                        break;
+    match Signals::new([SIGTERM, SIGHUP, SIGQUIT]) {
+        Ok(mut signals) => {
+            std::thread::spawn(move || {
+                if let Some(_sig) = signals.forever().next() {
+                    GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
+                    se.store(true, Ordering::Release);
+                    // Wait for main loop to notice and clean up.
+                    // Bounded: max 30 iterations × 100ms = 3s (matches the
+                    // 2s watchdog threshold + 1s grace). The old 20s bound
+                    // was calibrated to the old 20s watchdog — now that the
+                    // watchdog fires at 2s, holding the signal thread for
+                    // 20s would leave a zombie thread around long after the
+                    // process should have exited. 3s gives the main loop
+                    // ample time to observe GRACEFUL_SHUTDOWN and run
+                    // Terminal::drop before the watchdog force-exits.
+                    for _ in 0..30 {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        if SHUTDOWN.load(Ordering::Acquire) {
+                            break;
+                        }
+                    }
+                    // NIGHT-termux-hang (Termux screen lock): never quietly
+                    // give up. The old thread simply ended here when the
+                    // grace window elapsed, leaving the process alive with
+                    // no one left to enforce the exit — a main loop blocked
+                    // on a full PTY (Android locks the screen, Termux stops
+                    // draining the PTY) then survived SIGTERM entirely: the
+                    // owner's `pkill -f cosmostrix` no-op that only
+                    // `kill -9` could end. The nonblocking force-exit makes
+                    // SIGTERM lethal within its 3s grace window on every
+                    // path, including the intro (where the watchdog's
+                    // frame-stuck arm is still disarmed).
+                    if !SHUTDOWN.load(Ordering::Acquire) {
+                        crate::terminal::force_exit_terminal_restored(
+                            143, // 128 + SIGTERM, the shell's convention
+                            "[signal] graceful shutdown did not complete in 3s — force exiting\n",
+                        );
                     }
                 }
-                // NIGHT-termux-hang (Termux screen lock): never quietly
-                // give up. The old thread simply ended here when the
-                // grace window elapsed, leaving the process alive with
-                // no one left to enforce the exit — a main loop blocked
-                // on a full PTY (Android locks the screen, Termux stops
-                // draining the PTY) then survived SIGTERM entirely: the
-                // owner's `pkill -f cosmostrix` no-op that only
-                // `kill -9` could end. The nonblocking force-exit makes
-                // SIGTERM lethal within its 3s grace window on every
-                // path, including the intro (where the watchdog's
-                // frame-stuck arm is still disarmed).
-                if !SHUTDOWN.load(Ordering::Acquire) {
-                    crate::terminal::force_exit_terminal_restored(
-                        143, // 128 + SIGTERM, the shell's convention
-                        "[signal] graceful shutdown did not complete in 3s — force exiting\n",
-                    );
-                }
-            }
-        });
+            });
+        }
+        // NIGHT-ultimate-1: a failed signal-source install silently
+        // degraded the whole session — no graceful SIGTERM cleanup.
+        // fd exhaustion / seccomp / RLIMIT are the realistic causes.
+        // Surface it twice: immediately on stderr (this runs BEFORE
+        // Terminal::with_signal_exit enters the alt screen, so stderr
+        // is still the user's normal stream) and via the AB-10 warning
+        // buffer (drained post-exit). The fork guard + watchdog
+        // backstops remain active either way, and the independent
+        // SIGTSTP/SIGCONT install below still runs.
+        Err(e) => {
+            let note = format!(
+                "[signal] graceful signal handler install failed ({e}) — SIGTERM cleanup degraded; watchdog backstop remains active"
+            );
+            eprintln_safe!("{note}");
+            crate::config::live_config_state::push_runtime_warning(&note);
+        }
     }
 
     // SIGTSTP/SIGCONT → suspend/resume
@@ -130,6 +152,16 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
                 }
             }
         });
+    } else {
+        // NIGHT-ultimate-1: same silent-degradation surface as the
+        // graceful-signal source above — without this source there is
+        // no suspend-restore and no SIGCONT reinit, so Ctrl+Z leaves
+        // raw mode + alt screen + hidden cursor active in the user's
+        // shell for the whole suspend window. Warn pre-alt-screen and
+        // buffer for the post-exit drain.
+        let note = "[signal] suspend/resume handler install failed — Ctrl+Z will leave the terminal in raw mode while suspended; avoid Ctrl+Z or use `reset` after resume".to_string();
+        eprintln_safe!("{note}");
+        crate::config::live_config_state::push_runtime_warning(&note);
     }
 
     spawn_watchdog();

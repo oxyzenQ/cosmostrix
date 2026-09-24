@@ -602,6 +602,16 @@ impl Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
+        // NIGHT-ultimate-1: a terminal neutralized by
+        // `mark_externally_restored()` (SIGCONT reinit path) has nothing
+        // to clean up and nothing to guard — skip the shutdown-guard
+        // thread spawn entirely so each suspend/resume cycle does not
+        // leak a 2s sleeper thread against an already-neutral struct.
+        if self.cleaned_up {
+            self.shutdown_complete
+                .store(true, std::sync::atomic::Ordering::Release);
+            return;
+        }
         // Spawn a force-exit timer in case flush blocks.
         // The flag is set to `true` after flush completes; if the watchdog
         // sees the flag it skips `process::exit`, allowing normal shutdown
@@ -615,7 +625,21 @@ impl Drop for Terminal {
             .spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(SHUTDOWN_TIMEOUT_SECS));
                 if !done.load(std::sync::atomic::Ordering::Acquire) {
-                    std::process::exit(0);
+                    // NIGHT-ultimate-1: this guard fires only when cleanup
+                    // is WEDGED past the 2s budget — an abnormal
+                    // termination by construction. The historical
+                    // `exit(0)` lied to monitoring scripts (wedged
+                    // shutdown reported as success). Preserve the more
+                    // specific live-reload fatal code (2) when set;
+                    // otherwise exit 1 so automation never mistakes a
+                    // wedged shutdown for a clean one.
+                    let live_reload_code = crate::live_config::LIVE_RELOAD_EXIT_CODE
+                        .load(std::sync::atomic::Ordering::Acquire);
+                    std::process::exit(if live_reload_code != 0 {
+                        i32::from(live_reload_code)
+                    } else {
+                        1
+                    });
                 }
             });
 

@@ -265,6 +265,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
         let mut pending_resize: Option<(u16, u16)> = None;
         if crate::platform::swap_term_reinit(&term_reinit) {
+            // NIGHT-ultimate-1: the OLD terminal was already restored
+            // externally by the SIGTSTP suspend handler (raw-fd
+            // TERMINAL_RESTORE_SEQUENCE). Neutralize it BEFORE the
+            // reassignment: Rust drops the overwritten value only after
+            // the RHS succeeds, so the old Terminal's Drop would
+            // otherwise run AFTER this fresh terminal entered raw mode +
+            // alt screen and emit LeaveAlternateScreen +
+            // disable_raw_mode — undoing the init (rain lands on the
+            // MAIN screen, keys echo in cooked mode).
+            ctx.term.mark_externally_restored();
             ctx.term = Terminal::with_signal_exit(signal_exit.clone())?;
             // v17: always re-enable mouse reporting after SIGCONT (see
             // startup comment for rationale — block copy in all modes).

@@ -263,8 +263,17 @@ pub(crate) fn collect_profiles(cfg: &HashMap<String, String>) -> BTreeMap<String
         if !is_profile_config_key(key) {
             continue;
         }
-        let (_, rest) = key.split_once('.').expect("profile key has prefix");
-        let (name, field) = rest.rsplit_once('.').expect("profile key has field");
+        // NIGHT-ultimate-1: the historical `.expect("profile key has
+        // prefix")` is guarded today only because is_profile_config_key
+        // performs the same split — but a future guard refactor would
+        // turn a config-file key straight into a live-reload-path panic.
+        // let-else keeps malformed keys a skip, never a crash.
+        let Some((_, rest)) = key.split_once('.') else {
+            continue;
+        };
+        let Some((name, field)) = rest.rsplit_once('.') else {
+            continue;
+        };
         let profile = profiles
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
@@ -448,8 +457,14 @@ pub(crate) fn collect_custom_scenes(
         if !is_scene_custom_config_key(key) {
             continue;
         }
-        let (_, rest) = key.split_once('.').expect("scene-custom key has prefix");
-        let (name, field) = rest.rsplit_once('.').expect("scene-custom key has field");
+        // NIGHT-ultimate-1: same let-else hardening as collect_profiles
+        // — malformed keys skip instead of panicking the live-reload path.
+        let Some((_, rest)) = key.split_once('.') else {
+            continue;
+        };
+        let Some((name, field)) = rest.rsplit_once('.') else {
+            continue;
+        };
         // v50.0.0-beta.6 LTS: skip oversized names early (before
         // to_ascii_lowercase allocates). 64 chars is generous.
         if name.len() > SCENE_CUSTOM_MAX_NAME_LEN {

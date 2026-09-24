@@ -13,11 +13,15 @@ use crate::cloud::Cloud;
 ///
 /// Non-blocking check for config events. On Ok(cfg_map): stores in
 /// pending_config for rebuild next frame. On Err(msg): sets
-/// LIVE_RELOAD_EXIT_CODE=2 + LIVE_RELOAD_ERROR, stops rain (caller
-/// breaks the loop).
+/// LIVE_RELOAD_EXIT_CODE=2 + LIVE_RELOAD_ERROR, stops rain.
 ///
-/// Returns `false` when a validation error was received (caller should
-/// break the rain loop). Returns `true` to continue.
+/// Returns `false` when a validation error was received (caller
+/// should break the rain loop immediately). Returns `true` to
+/// continue. (NIGHT-ultimate-1: the v50 extraction left this function
+/// returning `true` unconditionally while the doc + the caller's
+/// `if !drain { break; }` expected `false` — the rain still stopped
+/// via `cloud.raining = false`, but the loop rendered one extra
+/// frame first. The contract and the code now agree.)
 pub(crate) fn drain_config_events(
     config_rx: &Option<mpsc::Receiver<Result<HashMap<String, String>, String>>>,
     pending_config: &mut Option<HashMap<String, String>>,
@@ -46,7 +50,10 @@ pub(crate) fn drain_config_events(
                     crate::live_config::LIVE_RELOAD_EXIT_CODE
                         .store(2, std::sync::atomic::Ordering::Release);
                     cloud.raining = false;
-                    break;
+                    // NIGHT-ultimate-1: honor the documented contract —
+                    // the caller breaks immediately instead of rendering
+                    // one more frame after a fatal validation error.
+                    return false;
                 }
             }
         }

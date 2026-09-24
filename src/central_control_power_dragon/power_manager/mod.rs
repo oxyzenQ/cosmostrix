@@ -159,6 +159,11 @@ impl PowerManager {
     /// `last_input_time` were `Instant::now()` at first read).
     #[must_use]
     pub(crate) fn new(base_target_fps: f64, now: Instant) -> Self {
+        // NIGHT-ultimate-1: retune the watchdog's stuck-loop threshold
+        // to match this target fps (ceil(3/fps) seconds, min 1s) so a
+        // legal slow cadence (--fps 1 = 1.0s frame period) can never be
+        // misread as a stuck main loop by the 1s sampler.
+        crate::interactive::note_target_fps(base_target_fps);
         Self {
             thresholds: PowerThresholds::defaults(),
             perf_pressure: 0.0,
@@ -213,6 +218,9 @@ impl PowerManager {
     /// `effective_fps()` call will use the new base.
     pub(crate) fn set_target_fps(&mut self, fps: f64) {
         self.base_target_fps = fps.max(1.0);
+        // NIGHT-ultimate-1: keep the watchdog threshold in lockstep with
+        // live-reloaded fps values (same formula as `new`).
+        crate::interactive::note_target_fps(self.base_target_fps);
     }
 
     /// Thermal guard input (feature #13). 0.0 = cool, 1.0 = thermal

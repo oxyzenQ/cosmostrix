@@ -252,7 +252,16 @@ pub(crate) fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
             ));
             continue;
         }
-        let event = event_result.as_ref().expect("checked is_err above");
+        // NIGHT-ultimate-1: the historical `.expect("checked is_err
+        // above")` was safe only because the Err arm above `continue`d —
+        // a future refactor of that arm would have turned this into a
+        // watcher-thread panic. A let-else keeps the invariant local and
+        // panic-free on every path, while borrowing (not moving) the
+        // event — handle_notify_event below still consumes the owned
+        // value.
+        let Ok(event) = event_result.as_ref() else {
+            continue;
+        };
         lr_trace!(
             "event loop received event: kind={:?} paths={:?}",
             event.kind,

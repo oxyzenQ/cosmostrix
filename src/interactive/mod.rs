@@ -150,6 +150,10 @@ pub(crate) use event_loop::run_interactive;
 // re-exported at the facade so the submodules stay private.
 pub(crate) use input::is_unmodified_or_shift;
 pub(crate) use watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN};
+// NIGHT-ultimate-1: retunes the watchdog's adaptive stuck-loop threshold
+// from the power manager (startup + live-reloaded fps) so a legal slow
+// cadence (--fps 1) is never misread as a stuck main loop.
+pub(crate) use watchdog::note_target_fps;
 // `clear_mouse_capture_flag` is called cross-platform (terminal.rs:508).
 // `request_graceful_shutdown` is only called from the Unix `recover_to_tty`
 // path (terminal.rs:425) — gate the re-export so Windows doesn't warn.

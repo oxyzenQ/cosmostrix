@@ -29,6 +29,10 @@ use super::super::{effective_density, CloudConfig};
 use super::watchdog::MOUSE_CAPTURE_ACTIVE;
 use crate::cloud::Cloud;
 use crate::platform::TermReinit;
+// NIGHT-ultimate-1: fixed --screen-size clamping (see setup body).
+use crate::constants::{
+    MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
+};
 
 /// Terminal + cloud + frame triple returned by [`setup_terminal_cloud_frame`].
 pub(crate) struct LoopSetup {
@@ -67,7 +71,19 @@ pub(crate) fn setup_terminal_cloud_frame(cfg: &CloudConfig) -> std::io::Result<L
         MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
     }
     let (w, h) = if let Some(fixed) = fixed_size {
-        fixed
+        // NIGHT-ultimate-1: --screen-size accepts the full u16 span at
+        // parse time (up to 65535x65535) and the CLI docs promise a
+        // runtime clamp to the interactive-mode ceiling. Frame::new and
+        // Cloud::reset clamp their own buffers, but the raw (w, h) also
+        // flows into ctx dims, effective_density() and the HUD
+        // screen-size readout — clamp ONCE here (mirroring
+        // Terminal::size()) so every consumer sees the same geometry
+        // the renderer actually uses, instead of a HUD claiming
+        // 5000x3000 behind a 1024x500 grid.
+        (
+            fixed.0.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS),
+            fixed.1.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES),
+        )
     } else {
         term.size()?
     };

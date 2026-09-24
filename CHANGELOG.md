@@ -23,6 +23,77 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### lts: NIGHT-ultimate-1 — depth security/LTS audit: SIGCONT double-teardown (P0), adaptive watchdog threshold, screen-size clamp, signal-install surfacing, wedged-cleanup exit code
+
+- **P0 fix — SIGCONT reinit double-teardown**: on Ctrl+Z the suspend
+  handler restores the terminal via raw-fd writes (bypassing the
+  `Terminal` struct's flags), and on `fg` the event loop assigned a
+  fresh `Terminal` into `ctx.term`. Rust drops the overwritten value
+  only AFTER the assignment's RHS succeeds, so the old value's
+  `Drop` ran after the replacement had already entered raw mode +
+  alt screen — and its `cleanup_terminal()` emitted
+  LeaveAlternateScreen + disable_raw_mode + cursor Show, silently
+  undoing the reinit. Post-Ctrl+Z/fg sessions rendered on the MAIN
+  screen in cooked mode (echoed keys, shell overwritten). Fixed with
+  `Terminal::mark_externally_restored()` (flips every enable-flag +
+  `cleaned_up` to mirror the external restore) called before the
+  reassignment; `Drop` now also skips the shutdown-guard thread spawn
+  for an already-neutralized value (no 2s sleeper thread leaked per
+  suspend/resume cycle). docs/TERMINAL_LIFECYCLE_MATRIX.md sections
+  5/6 still documented the pre-NIGHT-termux-hang design ("no custom
+  SIGTSTP handler", "no restoration needed") — rewritten to match
+  the handler + reinit flow that actually ships.
+- **Watchdog false-kill at --fps 1**: the stuck-loop check killed the
+  session after one 1s sample without frame progress, but `--fps 1`
+  is a legal cadence with a 1.0s frame period (power manager floors
+  effective fps at 1.0) — zero margin. The threshold is now adaptive:
+  ceil(3 / target_fps) seconds, min 1s (fast sessions keep the 1s
+  detection latency; --fps 1 gets 3s), retuned by
+  `PowerManager::new` + `set_target_fps` so live-reloaded fps values
+  stay in lockstep (`note_target_fps` re-exported at the interactive
+  facade; unit test pins the formula incl. NaN/0 clamping).
+- **--screen-size clamp**: the parse range spans u16 (up to
+  65535x65535) and Frame/Cloud clamp their own buffers, but the raw
+  (w, h) flowed unclamped into ctx dims, `effective_density()`, and
+  the HUD readout — the HUD reported 5000x3000 behind a 1024x500
+  grid. Clamped once at setup, mirroring `Terminal::size()`.
+- **Signal-install failures surfaced**: both `Signals::new` failures
+  (graceful SIGTERM/SIGHUP/SIGQUIT source, SIGTSTP/SIGCONT source)
+  were silently swallowed — the session degraded to default-kill
+  SIGTERM and Ctrl+Z-without-restore with no diagnostic. Both now
+  emit a pre-alt-screen stderr warning + an AB-10 buffered runtime
+  warning (drained post-exit); the watchdog/fork-guard backstops and
+  the independent second source are unaffected.
+- **Wedged-cleanup exit code**: the shutdown-guard thread in
+  `Terminal::drop` force-exited with 0 after the 2s budget — telling
+  monitoring scripts a wedged cleanup was success. It now preserves
+  the live-reload fatal code (2) when set and exits 1 otherwise (any
+  guard firing is abnormal termination by construction).
+- **P2 hardening (all verified)**: build.rs `normalize_short_sha`
+  byte-sliced before the hex check — a multi-byte-UTF-8 `GITHUB_SHA`
+  panicked the build script at a non-char-boundary; now `get(..n)`
+  falls through like any non-hex value. Two
+  `scene_custom` `.expect()`s on `split_once`/`rsplit_once` (guarded
+  today only by parallel guards in `is_*_config_key`) and the
+  live-reload watcher's `.expect("checked is_err above")` replaced
+  with let-else/match so no future refactor can turn them into
+  config-file-triggerable panics. `drain_config_events` returned
+  `true` unconditionally while its doc + caller expected `false` on
+  validation-fatal — the code now honors the contract and breaks the
+  loop immediately instead of rendering one extra frame. The
+  full-redraw loop gained the O(1) `debug_assert!` (last-frame dims
+  match frame dims) that the diff path already had.
+  SECURITY_AUDIT.md section 3 gained the symlink-scope note (lexical
+  whitelist by design; planting a symlink inside the user's own
+  config dir already implies stronger primitives).
+- **Verification**: full inline suite 2968 passed / 0 failed (incl.
+  the new threshold test); cargo fmt + clippy clean; gate-keepers
+  21/21 green; `build.sh check-all -q` green inside the 2-minute
+  local budget. The SIGCONT fix is language-semantics-verified (drop
+  ordering) + guard-rail-verified via the cleaned_up early-return;
+  interactive Ctrl+Z/fg smoke on a real terminal remains with the
+  owner's environment.
+
 ### refactor: NIGHT-refactor-1 — scripts/ de-flattened: every script now lives in a category directory (build/gates/release/audit/bench/harness/setup)
 
 - **Change**: owner mandate (2026-09-24) — the 34 flat scripts under

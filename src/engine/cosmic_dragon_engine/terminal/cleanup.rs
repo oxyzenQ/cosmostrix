@@ -17,6 +17,39 @@ use crossterm::terminal as crossterm_terminal;
 use crossterm::ExecutableCommand as _;
 
 impl super::Terminal {
+    /// NIGHT-ultimate-1: neutralize this Terminal after an EXTERNAL
+    /// restore.
+    ///
+    /// The SIGCONT reinit path replaces `ctx.term` with a fresh
+    /// `Terminal`. Rust evaluates an assignment's RHS before dropping
+    /// the overwritten value, so the old Terminal's `Drop` runs AFTER
+    /// the replacement has already enabled raw mode + alt screen. The
+    /// old struct's enable-flags are still `true` (the SIGTSTP handler
+    /// restored the terminal via raw-fd writes, bypassing the struct),
+    /// so the old Drop's `cleanup_terminal()` would emit
+    /// LeaveAlternateScreen + disable_raw_mode + cursor Show and undo
+    /// the fresh terminal's init — leaving the session rendering on
+    /// the MAIN screen in cooked mode (echoed keys, shell overwritten).
+    ///
+    /// The suspend handler already physically restored everything
+    /// (TERMINAL_RESTORE_SEQUENCE: mouse off, bracketed-paste off,
+    /// kitty pop, 1049l, sync end, cursor show, SGR reset, wrap on,
+    /// raw off), so this method only flips the bookkeeping flags:
+    /// every enable-flag false + `cleaned_up = true`, making the
+    /// subsequent Drop a no-op (it also skips the shutdown-guard
+    /// thread spawn — see `Drop` in `terminal/mod.rs`).
+    pub(crate) fn mark_externally_restored(&mut self) {
+        self.cleaned_up = true;
+        self.mouse_capture_enabled = false;
+        self.focus_change_enabled = false;
+        self.bracketed_paste_enabled = false;
+        self.kitty_keyboard_enabled = false;
+        self.raw_mode_enabled = false;
+        self.alternate_screen_enabled = false;
+        self.cursor_hidden = false;
+        self.line_wrap_disabled = false;
+    }
+
     pub(super) fn cleanup_terminal(&mut self) {
         if self.cleaned_up {
             return;

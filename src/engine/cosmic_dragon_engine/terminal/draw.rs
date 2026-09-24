@@ -182,6 +182,17 @@ impl Terminal {
             }
 
             let width_usize = frame.width as usize;
+            // NIGHT-ultimate-1: the diff path debug-asserts the largest
+            // dirty index (below); the full-redraw path indexes
+            // `last.cells[idx]` per cell with only an invariant comment.
+            // Promote that invariant to a debug_assert so debug builds
+            // catch a resize that reallocates `frame` without
+            // reallocating `last` (the same class of drift the diff-path
+            // assert guards). O(1), elided in release.
+            debug_assert!(
+                last.cells.len() == width_usize * frame.height as usize,
+                "last_frame dims must match frame dims — resize reallocates both"
+            );
             for y in 0..frame.height {
                 row_buf.clear();
                 // HUNT-27: defer MoveTo until the first changed cell.

@@ -88,22 +88,48 @@ restoration via `tcsetattr()` is still attempted.
 
 ### 5. SIGTSTP / Ctrl-Z Suspend
 
-SIGTSTP suspends the process. cosmostrix does not install a custom
-SIGTSTP handler, so the OS default behavior applies: the process is
-suspended and the shell regains control. The terminal remains in raw
-mode with the alternate screen active while the process is suspended.
-No cleanup runs at suspend time. This is a known limitation — the
-terminal state is deferred until SIGCONT.
+cosmostrix installs a custom SIGTSTP handler (the
+`signal_hook` SIGTSTP/SIGCONT source in
+`src/interactive/signal_handlers.rs`, added with the NIGHT-termux-hang
+work). On SIGTSTP the handler runs a **nonblocking best-effort
+restore** (`restore_terminal_best_effort_nonblocking`): raw mode off,
+mouse capture off, bracketed-paste/kitty pop, alternate screen left
+(`1049l`), sync-end, cursor shown, SGR reset — all via raw-fd writes
+under a temporary `O_NONBLOCK` so a jammed PTY can never wedge the
+handler before it reaches `raise(SIGSTOP)`. Dropped restore bytes are
+safe by design: the SIGCONT resume path re-initializes the terminal
+and repaints the full frame. The handler then flags `TermReinit`
+before suspending, so the main loop knows a reinit is pending.
+
+If the SIGTSTP/SIGCONT signal source fails to install (fd exhaustion,
+seccomp), the session degrades to the pre-handler behavior described
+in the historical note below — cosmostrix surfaces a pre-alt-screen
+warning + a post-exit runtime warning when this happens
+(NIGHT-ultimate-1), and Ctrl+Z should be avoided in that state.
 
 ### 6. SIGCONT Resume
 
-When the process is resumed (via `fg` or `kill -CONT`), the main loop
-continues from where it left off. The terminal is already in the state
-it was in when suspended (alternate screen, raw mode). No additional
-restoration is needed because cosmostrix never released the terminal.
-If the terminal was externally modified while suspended (e.g. another
-program wrote to the TTY), the display may be corrupted — this is an
-inherent limitation of suspend/resume.
+On resume (`fg` or `kill -CONT`) the handler flags `TermReinit` again,
+and at the top of the next main-loop iteration the event loop performs
+a full terminal reinit: the OLD `Terminal` value is neutralized via
+`mark_externally_restored()` (its enable-flags no longer describe the
+physical terminal — the suspend handler restored it externally), a
+fresh `Terminal` is constructed (raw mode + alt screen + cursor hide),
+mouse capture is re-enabled, the size is re-read, and the cloud forces
+a full repaint.
+
+NIGHT-ultimate-1 audit note: the reinit previously assigned the fresh
+`Terminal` directly into `ctx.term`. Because Rust drops the
+overwritten value only *after* the assignment's RHS succeeds, the old
+`Terminal::drop` ran after the replacement had already entered raw
+mode + alt screen — its cleanup emitted `LeaveAlternateScreen` +
+`disable_raw_mode` and silently undid the reinit, leaving the session
+rendering on the MAIN screen with echoed, cooked-mode keys. The
+`mark_externally_restored()` call before the reassignment closes this
+double-teardown; the guard thread spawn is also skipped for the
+already-neutralized old value. If the terminal was externally modified
+while suspended (e.g. another program wrote to the TTY), the forced
+full repaint on reinit covers it.
 
 ### 7. SIGKILL / `kill -9`
 

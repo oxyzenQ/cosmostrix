@@ -547,7 +547,11 @@ fn normalize_short_sha(v: &str) -> Option<String> {
         return None;
     }
     let n = v.len().min(7);
-    let short = &v[..n];
+    // NIGHT-ultimate-1: `&v[..n]` panicked the build script when the
+    // env var carried multi-byte UTF-8 (the byte index landed mid-char).
+    // `get(..n)` returns None on a non-char-boundary instead, falling
+    // through to the next resolution step exactly like a non-hex value.
+    let short = v.get(..n)?;
     if short.chars().all(|c| c.is_ascii_hexdigit()) {
         Some(short.to_ascii_lowercase())
     } else {
