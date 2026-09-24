@@ -412,7 +412,8 @@ DIAGNOSTICS
       --save-baseline <path>   Save benchmark JSON for later comparison
       --compare-baseline <p>   Compare against saved baseline (flags >5% FPS regressions)
       --reset-terminal         Emergency terminal recovery (5-layer)
-  -v, --verbose                Print diagnostic info to stderr
+  -v, --verbose                Print diagnostic info to stderr; implies the exit
+                               performance report (interactive)
 
 DISCOVERY
       --list-colors            Show color theme names
@@ -435,7 +436,8 @@ ADVANCED (stable, supported; intentionally not in clap's auto-list — documente
   -g, --glitch-ms <LOW,HIGH>  Glitch duration range in ms (min 1, max 5000; default 300,400)
   -l, --linger-ms <LOW,HIGH>  Linger time range in ms (min 1, max 60000; default 1,3000)
       --duration <seconds>     Interactive auto-exit after N seconds
-      --perf-stats            Print performance statistics summary on exit (interactive)
+      --perf-stats            Print performance statistics summary on exit (interactive;
+                               implied by --verbose)
       --bench-frames <N>       Headless benchmark for exactly N frames (dispatch precedence:
                                --bench-all > --benchmark > --bench-frames)
 ```

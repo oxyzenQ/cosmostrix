@@ -23,6 +23,45 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### cli: NIGHT-boost-3 — --verbose implies the full session telemetry (exit performance report); one flag, complete debugging instrument
+
+- **Change**: owner mandate (2026-09-24) — `-v/--verbose` is critical
+  infrastructure for matrix-rain debugging, not a config dump: one
+  flag now covers the complete debugging arc — config at startup
+  (the existing dump), behavior during the run (the verbose-gated
+  self-heal diagnostics), and telemetry at exit. New
+  `build_cloud_cfg::effective_perf_stats` resolves the flag:
+  `--verbose` implies the per-frame performance accounting (drawn/idle
+  frames, dirty cells, work time, pressure, utilization) AND the exit
+  PERFORMANCE REPORT (timing, frames, motion/dirty-cell stats,
+  backpressure, terminal encoding stats) that `--perf-stats` prints.
+  Benchmark mode is excluded — it emits its own comprehensive report
+  and would only double-report (`bench_helpers` warns on the explicit
+  flag for the same reason). The most valuable debugging artifact a
+  verbose session produces — what the engine actually DID, not just
+  what it was configured to do — was previously buried behind a
+  second, hidden flag.
+- **Disclosure**: the startup dump gains a `perf_report:` line in the
+  Config section (before `commit:`) stating the resolved state and
+  its provenance — "enabled (implied by --verbose; full session
+  telemetry at exit)" / "enabled (--perf-stats; ...)" / "disabled
+  (benchmark mode emits its own report)" — computed from the same
+  inputs as the resolution so the label and the behavior cannot drift
+  apart. clap's `-v` help string, the --help manual (-v section +
+  --perf-stats section), and the README flag table now document the
+  implication from both ends.
+- **Verification**: 7 new tests — 6 truth-table rows pinning every
+  arm of `effective_perf_stats` (explicit alone, verbose interactive,
+  verbose bench, explicit bench, neither, both) and 1 help-text
+  tripwire asserting both manual sections disclose the contract.
+  Full suite 2967 passing. End-to-end pty runs of the real binary:
+  `-v --duration 2` shows the disclosure line + the final FPS line +
+  the full PERFORMANCE REPORT; `--perf-stats` alone reports without
+  the verbose dump; `-v --benchmark` prints the bench report with
+  zero interactive reports and the honest "disabled" disclosure; a
+  plain run prints neither. fmt / clippy `-D warnings` /
+  build.sh check-all -q / gate-keepers 14/14 green.
+
 ### cli: NIGHT-boost-2 — --help example lines render bold Matrix green; `#` annotations moved above their example
 
 - **Change**: owner mandate (2026-09-24) — the `--help` reference

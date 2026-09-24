@@ -102,6 +102,15 @@ pub(crate) struct VerboseCtx<'a> {
     /// `ambient_snapback_secs` — the printed value must be the value
     /// the engine will actually use (CLI > config > default).
     pub crystal_dragon_secs: Option<f64>,
+    /// NIGHT-boost-3 (2026-09-24): disclosure label for the exit
+    /// performance report. `--verbose` implies the full session
+    /// telemetry (per-frame accounting + the exit report) in
+    /// interactive mode, so the startup dump must SAY so — the user
+    /// needs to know the exit will carry a PERFORMANCE REPORT block
+    /// and why. Computed by the caller (startup_verbose.rs) from the
+    /// same inputs as `build_cloud_cfg::effective_perf_stats`, so the
+    /// label and the behavior cannot drift apart.
+    pub perf_report_label: &'static str,
 }
 
 /// Determine color provenance for verbose annotation.
@@ -184,6 +193,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         ambient_schedule,
         ambient_snapback_secs,
         crystal_dragon_secs,
+        perf_report_label,
     } = ctx;
 
     let color_source = resolve_color_source(
@@ -541,6 +551,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
                 .join(", ")
         ),
     );
+    output::eprintln_verbose("perf_report:", &format!(" {perf_report_label}"));
     output::eprintln_verbose("commit:", &format!(" {commit_sha}"));
 }
 

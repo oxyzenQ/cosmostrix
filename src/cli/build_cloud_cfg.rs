@@ -56,6 +56,23 @@ pub(crate) struct CfgInputs<'a> {
     pub cli_explicit: crate::app::CliExplicit,
 }
 
+/// NIGHT-boost-3 (2026-09-24): resolve the effective perf-stats flag.
+///
+/// `--verbose` implies the full session telemetry in interactive mode
+/// — the per-frame perf accounting (drawn/idle frames, dirty cells, work
+/// time, pressure, utilization) AND the exit performance report print
+/// with it. Rationale: the exit report is the single most valuable
+/// debugging artifact a verbose session can produce (what the engine
+/// actually DID, not just what it was configured to do), and requiring
+/// a second, hidden flag for it buried the instrument. Benchmark mode
+/// is excluded: it prints its own comprehensive report and would only
+/// double-report (bench_helpers warns on the explicit flag for the
+/// same reason).
+#[must_use]
+pub(crate) fn effective_perf_stats(explicit: bool, verbose: bool, bench_mode: bool) -> bool {
+    explicit || (verbose && !bench_mode)
+}
+
 /// Build the final `CloudConfig` from validated inputs.
 pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
     // Note: `args` is `&Args` (immutable). The original main.rs used
@@ -197,7 +214,7 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         verbose: args.verbose,
         density_auto,
         base_density,
-        perf_stats: args.perf_stats,
+        perf_stats: effective_perf_stats(args.perf_stats, args.verbose, bench_mode),
         screensaver: args.screensaver,
         intro: resolve_intro_type(args.intro, term_caps, bench_mode),
         intro_color: args.intro_color.clone(),
@@ -590,5 +607,49 @@ mod hunter18_intro_gate_tests {
             super::resolve_intro_type(None, &caps(false, false), true),
             IntroType::None
         );
+    }
+    // ── NIGHT-boost-3: effective_perf_stats truth table ─────────────────
+    //
+    // The --verbose implication is the critical-infra contract: one flag
+    // gives config (startup) + behavior (live diagnostics) + telemetry
+    // (exit report). Each row pins one arm of the truth table so a future
+    // refactor cannot silently drop an arm.
+
+    #[test]
+    fn perf_stats_explicit_flag_alone_enables() {
+        assert!(super::effective_perf_stats(true, false, false));
+    }
+
+    #[test]
+    fn perf_stats_verbose_implies_in_interactive_mode() {
+        assert!(
+            super::effective_perf_stats(false, true, false),
+            "--verbose must imply the session telemetry in interactive mode"
+        );
+    }
+
+    #[test]
+    fn perf_stats_verbose_does_not_imply_in_bench_mode() {
+        assert!(
+            !super::effective_perf_stats(false, true, true),
+            "benchmark mode emits its own report; the implication must not double-report"
+        );
+    }
+
+    #[test]
+    fn perf_stats_explicit_flag_survives_bench_mode() {
+        // An explicit --perf-stats in bench mode still lands in the config
+        // (bench_helpers warns about the redundancy; the flag is honored).
+        assert!(super::effective_perf_stats(true, false, true));
+    }
+
+    #[test]
+    fn perf_stats_neither_flag_is_off() {
+        assert!(!super::effective_perf_stats(false, false, false));
+    }
+
+    #[test]
+    fn perf_stats_both_flags_is_on() {
+        assert!(super::effective_perf_stats(true, true, false));
     }
 }

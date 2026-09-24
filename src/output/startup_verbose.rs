@@ -137,6 +137,20 @@ pub(crate) fn run_verbose_startup(vi: VerboseInputs<'_>) {
     // main(), and main.rs validated the range before this point), so this
     // IS the value the engine will use — no re-reading the file needed.
     let verbose_crystal_dragon_secs = args.crystal_dragon_secs;
+    // NIGHT-boost-3: disclose the exit performance-report state. The
+    // label mirrors build_cloud_cfg::effective_perf_stats exactly (same
+    // inputs, same truth table) so the disclosure can never claim a
+    // different behavior than the one the engine runs. Explicit
+    // --perf-stats and the --verbose implication are both disclosed;
+    // benchmark mode reports disabled because the bench report is the
+    // comprehensive one.
+    let verbose_perf_report_label = if bench_mode {
+        "disabled (benchmark mode emits its own report)"
+    } else if args.perf_stats {
+        "enabled (--perf-stats; full session telemetry at exit)"
+    } else {
+        "enabled (implied by --verbose; full session telemetry at exit)"
+    };
     crate::output::verbose::print_verbose(&crate::output::verbose::VerboseCtx {
         version: env!("CARGO_PKG_VERSION"),
         scene_name: args.scene.as_deref(),
@@ -205,5 +219,6 @@ pub(crate) fn run_verbose_startup(vi: VerboseInputs<'_>) {
         ambient_schedule: &verbose_ambient_schedule,
         ambient_snapback_secs: verbose_ambient_snapback_secs,
         crystal_dragon_secs: verbose_crystal_dragon_secs,
+        perf_report_label: verbose_perf_report_label,
     });
 }

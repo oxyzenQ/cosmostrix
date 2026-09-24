@@ -621,6 +621,13 @@ DIAGNOSTICS:
       async_mode, intro_color) discloses a `value (was startup_value)`
       line, so heavy mid-run editing shows every change from the
       startup baseline.
+      NIGHT-boost-3: in interactive mode -v also implies the full
+      session telemetry — the per-frame performance accounting and the
+      exit PERFORMANCE REPORT that --perf-stats prints (timing, frames,
+      motion/dirty-cell stats, backpressure, terminal encoding stats),
+      so one flag is the complete debugging instrument: config at
+      startup, behavior during the run, telemetry at exit. Benchmark
+      mode is excluded (the bench report is the comprehensive one).
 
 DISCOVERY:
   --list-colors         Show color theme names.
@@ -668,6 +675,8 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       Print performance statistics summary on exit (interactive mode).
       In --benchmark mode the BenchReportData is always emitted; this
       flag is for interactive runs that want a final perf summary.
+      NIGHT-boost-3: implied by --verbose in interactive mode — pass it
+      explicitly only for a non-verbose, telemetry-only run.
 
   BENCH (advanced):
   --bench-frames <N>
@@ -756,6 +765,23 @@ mod example_layout_tests {
                 );
             }
         }
+    }
+
+    /// NIGHT-boost-3: the -v section must disclose the session
+    /// telemetry implication (one flag = config + behavior + telemetry)
+    /// and the --perf-stats section must point out it is implied by
+    /// --verbose — the two sections document the same contract from
+    /// both ends.
+    #[test]
+    fn verbose_section_discloses_perf_report_implication() {
+        assert!(
+            super::HELP_TEXT.contains("NIGHT-boost-3: in interactive mode -v also implies"),
+            "the -v section must disclose the exit PERFORMANCE REPORT implication"
+        );
+        assert!(
+            super::HELP_TEXT.contains("implied by --verbose in interactive mode"),
+            "the --perf-stats section must disclose the -v implication"
+        );
     }
 
     /// The moved annotations must sit directly above their example

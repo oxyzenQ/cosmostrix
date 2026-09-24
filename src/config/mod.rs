@@ -586,7 +586,7 @@ pub struct Args {
         short = 'v',
         help_heading = "DIAGNOSTICS",
         display_order = 130,
-        help = "Print diagnostic info to stderr (for debugging)"
+        help = "Print diagnostic info + session telemetry to stderr (debugging)"
     )]
     pub verbose: bool,
 
