@@ -8,29 +8,37 @@
 //! single-tier help surface. The file name is kept as `help_detail.rs`
 //! for git-blame continuity; the public function is `print_help()`.
 
-pub(crate) fn print_help() {
-    let text = "USAGE:
+/// The full --help reference manual as a single constant.
+///
+/// Module-level (not a print_help local) so the NIGHT-boost-2 hygiene
+/// tests below can assert on its layout directly: `#` annotations sit
+/// ABOVE their example line, never as right-side comments.
+pub(crate) const HELP_TEXT: &str = "USAGE:
   cosmostrix [OPTIONS]
 
 COMMON OPTIONS:
   -c, --color <name>
       Color theme or custom palette name. See --list-colors.
       cosmostrix --color rainbow
-      cosmostrix -c cyberpunk_2077   # custom palette from config
+      # custom palette from config
+      cosmostrix -c cyberpunk_2077
 
   --color-tune <key=value[,key=value]>
       Tune theme colors. Accepted keys: sat/saturation, bright/brightness,
       head, body, tail. Range 0.0-3.0 (1.0 = no change).
       cosmostrix --color-tune sat=1.5,bright=0.9
-      cosmostrix --color-tune sat=0.0           # grayscale
-      cosmostrix --color-tune head=1.5,tail=0.5 # bright head, dim tail
+      # grayscale
+      cosmostrix --color-tune sat=0.0
+      # bright head, dim tail
+      cosmostrix --color-tune head=1.5,tail=0.5
       Also configurable in config.toml via [color.tune] section.
 
   -C, --charset [--charset-custom] <name>
       Character set. See --list-charsets for available sets.
       Accepts built-in presets or custom names from [charset-custom.<name>].
       cosmostrix --charset binary
-      cosmostrix -C cyberpunk_2077   # custom charset from config
+      # custom charset from config
+      cosmostrix -C cyberpunk_2077
 
       Custom charsets can be defined in config.toml under
       [charset-custom.<name>] and loaded by name. Custom names take
@@ -473,13 +481,19 @@ CONFIG:
       above, so following it verbatim works. --force overwrites.
 
       Examples (correct):
-        cosmostrix --dump-config                                   # view on TTY
-        cosmostrix --dump-config | less                            # pipe to pager
-        cosmostrix --dump-config ~/.config/cosmostrix/config.toml  # write to file
+        # view on TTY
+        cosmostrix --dump-config
+        # pipe to pager
+        cosmostrix --dump-config | less
+        # write to file
+        cosmostrix --dump-config ~/.config/cosmostrix/config.toml
       Examples (rejected):
-        cosmostrix --dump-config > /tmp/a.txt                      # blocked (shell redirect)
-        cosmostrix --dump-config ~/.config/cosmostrix/test.conf    # wrong extension
-        cosmostrix --dump-config /tmp/a.toml                       # outside whitelist
+        # blocked (shell redirect)
+        cosmostrix --dump-config > /tmp/a.txt
+        # wrong extension
+        cosmostrix --dump-config ~/.config/cosmostrix/test.conf
+        # outside whitelist
+        cosmostrix --dump-config /tmp/a.toml
 
       Config policy: invalid values print an error and exit (code 2).
       No silent fallback — strict validation.
@@ -698,10 +712,11 @@ RENDERING PHILOSOPHY:
   declaration and docs/PHILOSOPHY.md for the full rationale.
 ";
 
+pub(crate) fn print_help() {
     if crate::config::color_enabled_stdout() {
-        print!("{}", crate::config::colorize_help(text));
+        print!("{}", crate::config::colorize_help(HELP_TEXT));
     } else {
-        print!("{}", text);
+        print!("{}", HELP_TEXT);
     }
 }
 
@@ -720,5 +735,38 @@ mod honesty_tests {
             COLOR_ECOSYSTEM_TICK_SECS, 3.0,
             "help text says 3s tick but COLOR_ECOSYSTEM_TICK_SECS changed"
         );
+    }
+}
+
+// NIGHT-boost-2 (2026-09-24) layout contract: `#` annotations live
+// ABOVE their example CLI line, never as right-side comments. The old
+// right-side form misaligned at every terminal width (comments drifted
+// away from their command as soon as an example was longer than the
+// author's screen) and read as part of the command itself.
+#[cfg(test)]
+mod example_layout_tests {
+    /// No example CLI line may carry a right-side `#` comment.
+    #[test]
+    fn help_text_has_no_right_side_hash_comments() {
+        for line in super::HELP_TEXT.lines() {
+            if line.trim_start().starts_with("cosmostrix") {
+                assert!(
+                    !line.contains('#'),
+                    "right-side `#` comment on example line (annotations belong ABOVE): {line}"
+                );
+            }
+        }
+    }
+
+    /// The moved annotations must sit directly above their example
+    /// line — content preserved, position changed. Spot-checks one
+    /// 6-space COMMON OPTIONS pair and one 8-space --dump-config pair.
+    #[test]
+    fn annotations_sit_directly_above_their_examples() {
+        assert!(super::HELP_TEXT
+            .contains("      # custom palette from config\n      cosmostrix -c cyberpunk_2077"));
+        assert!(super::HELP_TEXT.contains(
+            "        # blocked (shell redirect)\n        cosmostrix --dump-config > /tmp/a.txt"
+        ));
     }
 }

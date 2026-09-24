@@ -23,6 +23,63 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### cli: NIGHT-boost-2 — --help example lines render bold Matrix green; `#` annotations moved above their example
+
+- **Change**: owner mandate (2026-09-24) — the `--help` reference
+  manual's example usage CLI lines (every indented `cosmostrix ...`
+  invocation: the USAGE line, the COMMON OPTIONS examples, the inline
+  6-space examples, and the 8-space `--dump-config` block) now render
+  in bold Matrix green instead of bold white, so runnable commands are
+  visually distinct from option definitions (bold white) and section
+  headings (bold brand purple). The green is the default Green theme's
+  body stop (80, 255, 110) from the chroma catalog, quantized per
+  terminal capability (truecolor RGB / 256-color index 84 / ANSI green
+  32 / plain on mono) — the same four-rung ladder as the brand purple.
+  The help colorizer (`config/colorize_help.rs`) now wraps the whole
+  example line (previously only the binary name was bold), and its
+  green-open helper is capability-parameterized for deterministic unit
+  testing. The `#` annotation comments that annotated examples as
+  misaligned right-side comments (drifting away from their command at
+  every terminal width) moved to a line ABOVE their example — 11
+  annotations across the color, color-tune, charset, and dump-config
+  entries; position, not color, marks them as commentary (they stay
+  plain).
+- **Refactor**: the manual text moved from a `print_help` local to the
+  module-level `HELP_TEXT` constant (`cli/help_detail.rs`) so the new
+  layout-contract tests can assert on it directly. No output change:
+  `print_help` prints the same string through the same colorize path.
+- **Verification**: 7 new unit tests — 5 in `colorize_help.rs` (green
+  capability ladder, whole-line green wrap at all three indent levels,
+  prose-mention non-match, annotation passthrough, unchanged
+  heading/flag styles) and 2 layout-contract tests in `help_detail.rs`
+  (no right-side `#` comment on any example line; annotations sit
+  directly above their examples). Full suite 2960 passing. End-to-end
+  pty run of the real binary (TERM=xterm-truecolor, NO_COLOR/CLICOLOR
+  cleared) byte-verified 8/8 checks: exact green-open + verbatim body +
+  reset wrapping on example lines at every indent, plain annotations
+  above their green examples, and prose mentions left untouched.
+
+### ci: NIGHT-boost-1 — glob-only CI path-filter policy codified as gate-keepers check 16
+
+- **Change**: owner mandate (2026-09-24) — workflow `paths:` /
+  `paths-ignore:` entries that point inside a directory must be
+  directory globs (`scripts/**`, `src/**`, `docs/**`), never hardcoded
+  filenames (`scripts/example.sh`): a filename entry silently rots the
+  moment the file is renamed and the workflow stops triggering while
+  the filter still looks alive (the 2026-09-13 `test/**` filter
+  incident class). Full-repo audit found zero existing violations
+  (every entry across the 9 workflows is glob-form or an exempt
+  root-level build file), so the mandate is codified as a permanent
+  gate: new `scripts/check-ci-path-filters.py` (indentation-aware
+  block scanner, root-level entries exempt), wired as gate-keepers
+  check 16. The `cosmic-dragon-guard.yml` check inventory comment was
+  synced (check 15, the emoji sweep, was stale-missing) and the policy
+  documented in `docs/workflow/ABOUT_CI.md`.
+- **Verification**: synthetic-violation test (a scratch
+  `scripts/example-wrong.sh` entry) fails with exit 1 naming the entry
+  and suggesting the glob; clean state passes all 9 workflows;
+  gate-keepers 14/14 green; clippy `-D warnings` clean.
+
 ### security: NIGHT-security-4 follow-up — hard refuse `--check-update` at euid 0: network egress denied at root (exit 2)
 
 - **Change**: owner follow-up — the NIGHT-security-4 warning alone left
