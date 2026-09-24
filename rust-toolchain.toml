@@ -6,14 +6,14 @@
 # Dormant mode: pinned to a specific version instead of "stable" so that
 # a future `stable` release cannot silently break the build. When updating
 # to a newer Rust version, bump this channel + the MSRV in Cargo.toml +
-# run the full gatekeeper (./scripts/build.sh check-all) to verify.
+# run the full gatekeeper (./scripts/build/build.sh check-all) to verify.
 #
 # Miri (UB detector) requires nightly + the `miri` component, which is
 # NOT pinned here to avoid forcing nightly on every contributor. Instead,
-# `./scripts/build.sh miri` auto-installs nightly + miri on first use via
+# `./scripts/build/build.sh miri` auto-installs nightly + miri on first use via
 # `rustup toolchain install nightly --profile minimal --component miri`.
 # After Miri runs successfully, a status banner is shown on every
-# subsequent `./scripts/build.sh` invocation (cached in target/miri-stamp).
+# subsequent `./scripts/build/build.sh` invocation (cached in target/miri-stamp).
 # See docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md for the audit methodology.
 
 [toolchain]

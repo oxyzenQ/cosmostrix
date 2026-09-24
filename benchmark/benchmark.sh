@@ -88,7 +88,7 @@ print_cpu_info() {
 #   1. BENCH_BIN / BENCH_BIN2 env vars
 #   2. probe_bin() — auto-discover under target/
 
-# Detect host target triple (same pattern as scripts/build.sh).
+# Detect host target triple (same pattern as scripts/build/build.sh).
 default_target() {
 	if command -v rustc >/dev/null 2>&1; then
 		local host

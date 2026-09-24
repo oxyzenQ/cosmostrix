@@ -171,7 +171,7 @@ inherits = "pro"
 
 # v18: PGO (Profile-Guided Optimization) nitro build.
 # Two-stage: instrument → run benchmark → recompile with profile data.
-# Use: ./scripts/build.sh pgo
+# Use: ./scripts/build/build.sh pgo
 # Or manually:
 #   1. COSMOSTRIX_BUILD=nitro cargo build --profile pgo-instrument
 #   2. ./target/debug/cosmostrix --benchmark --bench-duration 10
@@ -198,7 +198,7 @@ strip = false
 # ── Lint policy ────────────────────────────────────────────────────────
 #
 # Project-wide lint configuration. The actual enforcement happens in
-# scripts/build.sh::run_clippy via `cargo clippy -- -D warnings`
+# scripts/build/build.sh::run_clippy via `cargo clippy -- -D warnings`
 # (warnings are errors). This table centralizes project-wide allows
 # that would otherwise need a file-level `#![allow(...)]` attr.
 #
@@ -216,7 +216,7 @@ strip = false
 [lints.clippy]
 # Project-wide clippy lint configuration. The default clippy policy (all
 # lints warn) is enforced via `cargo clippy -- -D warnings` in
-# scripts/build.sh. Entries below are deliberate deviations:
+# scripts/build/build.sh. Entries below are deliberate deviations:
 #   - `allow` entries silence default nits project-wide.
 #   - `deny` entries promote specific lints so they fail EVERY cargo
 #     invocation (plain `cargo clippy`, IDE runs, rust-analyzer) —

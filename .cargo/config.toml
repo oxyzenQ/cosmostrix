@@ -140,7 +140,7 @@ pro-android-aarch64 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?AN
 # resulting binary lands in target/<host>/pgo-use/cosmostrix and reports
 # `pgo: yes` in `--benchmark` output.
 #
-# Equivalent to: ./scripts/build.sh pgo --auto
+# Equivalent to: ./scripts/build/build.sh pgo --auto
 #
 # Implementation note: we use a tiny runner crate (pgo-runner/)
 # instead of cargo's `!`-prefix shell-alias feature, because the latter

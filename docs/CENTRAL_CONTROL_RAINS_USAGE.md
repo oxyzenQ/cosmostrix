@@ -1167,7 +1167,7 @@ your tuning is hue-specific, either:
   runtime knob implementation.
 - [`docs/RELEASE_CANDIDATE.md`](./RELEASE_CANDIDATE.md) — has
   `--color-tune` validation examples and edge cases.
-- [`scripts/build.sh`](../scripts/build.sh) — use `--check-all` to
+- [`scripts/build/build.sh`](../scripts/build/build.sh) — use `--check-all` to
   verify your tuning change compiles and passes tests before
   committing.
 <!-- COSMOSTRIX-DISCLAIMER -->

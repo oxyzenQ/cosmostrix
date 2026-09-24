@@ -23,6 +23,65 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### refactor: NIGHT-refactor-1 — scripts/ de-flattened: every script now lives in a category directory (build/gates/release/audit/bench/harness/setup)
+
+- **Change**: owner mandate (2026-09-24) — the 34 flat scripts under
+  `scripts/` moved into seven category directories by job: `build/`
+  (build.sh, ci-strict-build.sh, resolve-latest-ndk.py), `gates/`
+  (gate-keepers.sh + the nine check-* guards + inject-disclaimer.sh),
+  `release/` (version-to.sh, rust-version-to.sh, bump-rust-to.sh,
+  generate-release-notes.sh, verify-release-build.sh), `audit/`
+  (docs-audit.py, stale-hunt.py, language_audit.py, emoji-audit.py,
+  visual-mode-audit.py), `bench/` (bench-runner.py,
+  run_scaling_benchmarks.py), `harness/` (the stress/e2e harnesses +
+  apply-visual-preset.sh), and `setup/` (install.sh, uninstall.sh);
+  the pre-existing `depthbore/` category is unchanged. The
+  `scripts/` root now contains only `README.md` and category
+  directories. `scripts/README.md` is the single canonical layout
+  reference (category table, entry points, size-policy pointer).
+- **References**: 73 live files rewritten (9 workflows — minus the
+  four that had no script references — plus scripts themselves, 21
+  live docs, README, CONTRIBUTING, src/test comment references,
+  Cargo.toml, build.rs, rust-toolchain.toml, .cargo/config.toml,
+  pgo-runner). The 618-file live corpus holds zero old-path
+  references after the sweep. Changelogs, docs/archive, docs/audits,
+  docs/research and bench-labs evidence are historical records and
+  stay as written (docs-audit's 8 broken-ref hits there are
+  history-framed by contract).
+- **Hardening found during the move (all verified)**: build.sh
+  check-all's shellcheck scope was the non-recursive `scripts/*.sh`
+  glob and ruff was `scripts/*.py` — both silently skipped every
+  subdirectory script (gate-keepers was already recursive;
+  check-all was not). Both are now recursive (find-based shellcheck
+  list, `ruff check scripts` directory arg). pgo-runner located
+  build.sh via `join("scripts").join("build.sh")` — invisible to
+  text rewrites and a silent `cargo use-pgo` breakage; fixed to
+  `join("scripts").join("build").join("build.sh")`. 12
+  self-locating scripts had their REPO_ROOT resolution deepened
+  (`/..` -> `/../..`, `$0` and `BASH_SOURCE` variants), 4 python
+  audits `parents[1]` -> `parents[2]`, and
+  run_scaling_benchmarks.py reworked to `SCRIPT_DIR.parents[1]`.
+  Seven stale glob-mentions in live docs/comments updated
+  (CONTRIBUTING shell/python rules, ABOUT_CI shfmt refresh hint,
+  TERMINAL_COMPATIBILITY scope, cosmic-dragon-guard ruff/shfmt
+  comments, check-symbol-only-output scope note); three
+  history/negation-context mentions deliberately kept.
+- **Verification**: git rename detection intact for all 34 moves
+  (100755 modes preserved); gate-keepers 21/21 green from its new
+  `scripts/gates/` home (bash -n/shellcheck/shfmt over all 35 .sh
+  files, actionlint+yamllint on the rewritten workflows, markdownlint
+  incl. the new scripts/README.md, permissions 644/755 incl. the new
+  category directories); build.sh version-sync passes end-to-end
+  through the new chain (build/build.sh -> release/version-to.sh ->
+  gates/check-rust-version-sync.sh, v100.0.3 consistent);
+  bump-rust-to.sh --help forwarder chain works; ruff directory-arg
+  and find-based shellcheck verified directly; scripts LOC guard
+  green from its new home (35 scripts, 2 exemptions); docs-audit
+  stale-path section clean; stale-hunt 0 stale references;
+  check-all -q killed at the 2-minute local budget during the cold
+  clippy compile (light checks passed silently before the kill,
+  heavy left to CI per owner rule).
+
 ### lts: NIGHT-lts-1 — scripts 1K LOC hard limit: gate-keepers check 17 + check-all wiring; gatekeeper LOC-guard silent-death fix
 
 - **Change**: owner mandate (2026-09-24) — every shell and Python

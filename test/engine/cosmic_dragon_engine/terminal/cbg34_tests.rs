@@ -30,7 +30,7 @@
 //!
 //! These unit tests pin the shadow-side flag contract; the four
 //! end-to-end owner scenarios are verified by
-//! `scripts/night_cbg34_e2e.py` (PTY + mini terminal emulator).
+//! `scripts/harness/night_cbg34_e2e.py` (PTY + mini terminal emulator).
 
 use super::LastFrame;
 use crate::cell::Cell;

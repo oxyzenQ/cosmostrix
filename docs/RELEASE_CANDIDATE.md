@@ -9,9 +9,9 @@ cosmostrix follows [SemVer](https://semver.org/) for package versions. Git tags 
 cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
-./scripts/build.sh check-all
+./scripts/build/build.sh check-all
 cargo pro-linux-v3
-./scripts/version-to.sh --check <version>
+./scripts/release/version-to.sh --check <version>
 ```
 
 All must pass with zero errors before a release candidate is considered.
@@ -64,7 +64,7 @@ Note: `i` is lowercase-only (uppercase `I` is a no-op — see `docs/HUD.md` and 
 
 ## AUR Metadata Check
 
-Verify `aur/cosmostrix-bin/PKGBUILD` and `aur/cosmostrix-bin/.SRCINFO` have matching `pkgver`, `pkgdesc`, and repository URL. Run `./scripts/version-to.sh --check <version>` to automate this.
+Verify `aur/cosmostrix-bin/PKGBUILD` and `aur/cosmostrix-bin/.SRCINFO` have matching `pkgver`, `pkgdesc`, and repository URL. Run `./scripts/release/version-to.sh --check <version>` to automate this.
 
 ## README / CHANGELOG Guard + Benchmark Interpretation
 

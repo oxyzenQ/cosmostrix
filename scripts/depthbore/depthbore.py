@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# LOC_EXEMPT: self-contained LTS depth-bore tool (single probe file; the five bug-class probes share one harness state); tracked as migration debt by scripts/check-scripts-loc.sh (NIGHT-lts-1).
+# LOC_EXEMPT: self-contained LTS depth-bore tool (single probe file; the five bug-class probes share one harness state); tracked as migration debt by scripts/gates/check-scripts-loc.sh (NIGHT-lts-1).
 # PLATFORM: UNIX-only (Linux, macOS, BSD). Optimal for Unix-like
 #   systems only; not for Windows cmd.exe or PowerShell (use WSL
 #   or Git Bash on Windows).

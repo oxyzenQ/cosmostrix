@@ -202,7 +202,7 @@ When a `cosmic_dragon_incubator/` module is ready to graduate:
    removed.
 4. Update any `crate::cosmic_dragon_incubator::<anatomy>::<name>`
    references to the new path.
-5. Run `cargo test --all` and `./scripts/build.sh check-all`.
+5. Run `cargo test --all` and `./scripts/build/build.sh check-all`.
 
 The graduation is a one-way operation. Once a module lives in a
 substantive engine directory, it is part of the stable engine and

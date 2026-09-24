@@ -35,7 +35,7 @@
 >     comment described a "backward compat, keep until" state that no
 >     longer matched reality; it now describes the live mechanism
 >     (release.yml posts the event after a release publishes).
-> - `scripts/docs-audit.py` — truth notes refreshed (2952 `#[test]`
+> - `scripts/audit/docs-audit.py` — truth notes refreshed (2952 `#[test]`
 >   fns = 2418 in `test/` + 534 in `src/`), the corpus rules encoded
 >   (see section 1), and sections 1-3 gained negation/history context
 >   awareness so intentional history is no longer tool noise.
@@ -45,7 +45,7 @@
 > count, or phase claim with no history framing is a defect. The
 > "project ships 80+ .md files" line inside the injected
 > `COSMOSTRIX-DISCLAIMER` blocks is a lower bound that stays true and is
-> re-injected verbatim by `scripts/inject-disclaimer.sh` (updating it
+> re-injected verbatim by `scripts/gates/inject-disclaimer.sh` (updating it
 > would fork the disclaimer into two variants across the historical
 > corpus — accepted as-is).
 
@@ -53,7 +53,7 @@
 > historical broken refs in CHANGELOG/CONTRIBUTING — deferred per
 > historical record contract, but could be noted for future cleanup)."
 
-## 1. Corpus rules (what `scripts/docs-audit.py` audits)
+## 1. Corpus rules (what `scripts/audit/docs-audit.py` audits)
 
 The live corpus is every git-tracked `.md` file EXCEPT the historical
 snapshots, which are never rewritten:
@@ -75,7 +75,7 @@ Within the live corpus, a reference to a path that no longer exists is
 a defect UNLESS its context marks it as intentional history — explicit
 removal/retirement/move/example framing on the line, in the preceding
 3 lines, or under the nearest markdown heading (the same awareness
-`scripts/stale-hunt.py` applies to Rust comments).
+`scripts/audit/stale-hunt.py` applies to Rust comments).
 
 ## 2. Intentional-history register (live corpus, kept by design)
 
@@ -104,15 +104,15 @@ form). Historical entries are never retroactively updated.
 
 ## 4. Standing verification (run after any doc pass)
 
-1. `python3 scripts/docs-audit.py` — broken refs, stale paths, stale
+1. `python3 scripts/audit/docs-audit.py` — broken refs, stale paths, stale
    counts, duplicates over the live corpus. Expected: sections 1-3
    report nothing beyond context-exempt intentional history.
-2. `python3 scripts/stale-hunt.py` — comment-structure stale-reference
+2. `python3 scripts/audit/stale-hunt.py` — comment-structure stale-reference
    scan over `src/**` + `test/**`. Expected: 0 stale flags, paths,
    modules. The duplicate-comment groups are the heuristic
    mirror-test pattern (parallel test families repeat their contract
    narration by design).
-3. `bash scripts/inject-disclaimer.sh --check` — every live `.md`
+3. `bash scripts/gates/inject-disclaimer.sh --check` — every live `.md`
    file carries the disclaimer marker.
 4. Commit: one micro-commit per task, per the micro-commit-push owner
    rule.

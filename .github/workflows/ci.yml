@@ -68,7 +68,7 @@ env:
   # `-D warnings` (see macos/linux-v3-v4/windows build jobs below).
   # RUSTDOCFLAGS covers `cargo doc` failures (rustdoc emits its own
   # warnings for broken intra-doc links). Belt-and-suspenders with
-  # scripts/ci-strict-build.sh which scans for warning:/error: lines
+  # scripts/build/ci-strict-build.sh which scans for warning:/error: lines
   # post-build and prints a FAILED CI BUILD summary block.
   RUSTFLAGS: "-D warnings"
   RUSTDOCFLAGS: "-D warnings"
@@ -115,13 +115,13 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Verify all active version refs agree with Cargo.toml
-        run: ./scripts/build.sh version-sync
+        run: ./scripts/build/build.sh version-sync
 
       - name: Also run the version anti-pattern guard
-        run: bash scripts/check-version-anti-patterns.sh
+        run: bash scripts/gates/check-version-anti-patterns.sh
 
       - name: Verify Rust version sync (toolchain ↔ MSRV ↔ CI env)
-        run: bash scripts/check-rust-version-sync.sh
+        run: bash scripts/gates/check-rust-version-sync.sh
 
   msrv:
     name: Cosmic Dragon Guard - MSRV
@@ -154,7 +154,7 @@ jobs:
         run: cargo test --all --locked lock_
 
   # NIGHT-boost-5 (owner mandate 2026-09-24): the display name points
-  # at the canonical local verification entry point, ./scripts/build.sh
+  # at the canonical local verification entry point, ./scripts/build/build.sh
   # check-all -q — green here means the tree compiles clean under
   # -D warnings, the same contract check-all -q verifies locally, so
   # the Actions UI names the local command that reproduces the gate.
@@ -206,7 +206,7 @@ jobs:
       # gate; the job id stays `build_test` so the six downstream
       # `needs: build_test` references are untouched.
       - name: Build (debug)
-        run: bash scripts/ci-strict-build.sh -- build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
+        run: bash scripts/build/ci-strict-build.sh -- build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
 
   # NIGHT-perf-2 (2026-09-20): the full suite (~2950 tests) executes here
   # in two parallel, count-balanced partitions via cargo-nextest. Each
@@ -312,7 +312,7 @@ jobs:
           RUSTFLAGS: "-C target-cpu=native -D warnings"
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-        run: bash scripts/ci-strict-build.sh -- build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
+        run: bash scripts/build/ci-strict-build.sh -- build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify build metadata
         shell: bash
@@ -385,7 +385,7 @@ jobs:
           # no "latest" support (it splices the value literally into the
           # download URL -> 404), so resolve the newest stable-final NDK
           # from Google's repository manifest at run time.
-          echo "ndk=$(python3 scripts/resolve-latest-ndk.py)" >> "$GITHUB_OUTPUT"
+          echo "ndk=$(python3 scripts/build/resolve-latest-ndk.py)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Android NDK
         id: ndk
@@ -410,7 +410,7 @@ jobs:
           export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"
 
-          bash scripts/ci-strict-build.sh -- build --profile pro-android-aarch64 --locked --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
+          bash scripts/build/ci-strict-build.sh -- build --profile pro-android-aarch64 --locked --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify embedded build metadata
         shell: bash
@@ -478,7 +478,7 @@ jobs:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           COSMOSTRIX_BUILD: linux-aarch64-native
           COSMOSTRIX_PROFILE: pro
-        run: bash scripts/ci-strict-build.sh -- build --profile pro --locked --target aarch64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
+        run: bash scripts/build/ci-strict-build.sh -- build --profile pro --locked --target aarch64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify embedded build metadata
         shell: bash
@@ -574,7 +574,7 @@ jobs:
           usesh: true
           mem: 4096
           prepare: |
-            # bash: the run block below invokes `bash scripts/ci-strict-build.sh`
+            # bash: the run block below invokes `bash scripts/build/ci-strict-build.sh`
             # (PIPESTATUS + [[ ]] need real bash). FreeBSD base does NOT ship
             # bash — without this pkg, step [4/4] dies with `sh: bash: not found`
             # (exit 127). usesh:true above runs the block itself under POSIX sh,
@@ -609,7 +609,7 @@ jobs:
             COSMOSTRIX_PROFILE=pro-freebsd-amd64 \
             COSMOSTRIX_LTO=fat \
             COSMOSTRIX_STRIP=yes \
-            bash scripts/ci-strict-build.sh -- build --profile pro-freebsd-amd64 --locked --jobs "$(sysctl -n hw.ncpu)"
+            bash scripts/build/ci-strict-build.sh -- build --profile pro-freebsd-amd64 --locked --jobs "$(sysctl -n hw.ncpu)"
 
             # Verify embedded build metadata via --doctor (reliable post-strip;
             # strings-based grep is fragile after LTO+strip merges constants).
@@ -691,7 +691,7 @@ jobs:
           RUSTFLAGS: "${{ matrix.rustflags }} -D warnings"
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-        run: bash scripts/ci-strict-build.sh -- build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
+        run: bash scripts/build/ci-strict-build.sh -- build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify build metadata
         shell: bash

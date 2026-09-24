@@ -11,7 +11,7 @@
 > marker (378 markers across 130 file-passes: bold, italic, and
 > multi-line bold spans) from all comment types. Comments are now plain
 > prose. This document codifies the new contract, and
-> `scripts/check-comment-style.py` (wired into `gate-keepers.sh`)
+> `scripts/gates/check-comment-style.py` (wired into `gate-keepers.sh`)
 > enforces it so the drift cannot return.
 
 > **Audit 2026-08-19 (superseded)**: owner reported `*abc*` and
@@ -190,7 +190,7 @@ backticks is untouched).
 
 ## 7. Enforcement
 
-- `scripts/check-comment-style.py` — gate-keepers check: fails on any
+- `scripts/gates/check-comment-style.py` — gate-keepers check: fails on any
   `**bold**` or `*italic*` emphasis marker in a comment line (fence
   content excluded). Zero-tolerance, no allowlist.
 - `cargo clippy::doc_markdown` — catches some markdown issues

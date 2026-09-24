@@ -11,7 +11,7 @@ mod tests {
     const MAX_RUST_LOC: usize = 800;
 
     /// Marker that files exceeding the hard cap must self-declare to be
-    /// exempt. Mirrors `scripts/check-rs-loc.sh` semantics so the runtime
+    /// exempt. Mirrors `scripts/gates/check-rs-loc.sh` semantics so the runtime
     /// test and the build-time gatekeeper agree on what is allowed.
     ///
     /// Files with this marker are tracked debt — the justification is
@@ -31,7 +31,7 @@ mod tests {
             let lines = text.lines().count();
             if lines > MAX_RUST_LOC {
                 // Honor the LOC_EXEMPT marker (same semantics as
-                // scripts/check-rs-loc.sh). Without this, the runtime
+                // scripts/gates/check-rs-loc.sh). Without this, the runtime
                 // test would flag files that the build-time gatekeeper
                 // correctly exempts — causing false failures.
                 let is_exempt = text

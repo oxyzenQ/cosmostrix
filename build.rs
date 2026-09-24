@@ -483,7 +483,7 @@ fn is_native_tuned_build(build_id: &str) -> bool {
 }
 
 /// Returns `"yes"` if the current build was compiled with PGO profile data
-/// (the `nitro-pgo` stage of `./scripts/build.sh pgo`), `"no"` otherwise.
+/// (the `nitro-pgo` stage of `./scripts/build/build.sh pgo`), `"no"` otherwise.
 ///
 /// The instrumentation stage (`nitro-pgo-instrument`) is NOT a PGO-optimized
 /// build — it carries profiling overhead and is slower than a plain release

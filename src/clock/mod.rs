@@ -184,7 +184,7 @@ const UPTIME_VALUE_MAX_CHARS: usize = 19;
 ///   (12-digit year + `:11mo` = 18 chars), so overflow is impossible.
 /// - ASCII only: every component is plain ASCII (`d`, `h`, `m`,
 ///   `mo`, `y` + `:` + digits) — complies with the project-wide
-///   symbol-only-output policy (see `scripts/check-symbol-only-output.sh`).
+///   symbol-only-output policy (see `scripts/gates/check-symbol-only-output.sh`).
 ///
 /// ## Callers
 ///

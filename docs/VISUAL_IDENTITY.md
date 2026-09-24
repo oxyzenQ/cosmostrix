@@ -9,8 +9,8 @@ narrative, chosen for LTS long usage).
 > **Visual lock (2026-08-23)**: Deep Focus declared champion by owner
 > A/B terminal battle. Signature: **oxyzenQ** — preset round 2 verdict,
 > long-usage endurance profile. Applied via
-> `scripts/apply-visual-preset.sh deep-focus`; reverts to the previous
-> champion anytime via `./scripts/apply-visual-preset.sh cinema-noir`.
+> `scripts/harness/apply-visual-preset.sh deep-focus`; reverts to the previous
+> champion anytime via `./scripts/harness/apply-visual-preset.sh cinema-noir`.
 
 This document is the canonical reference for "what does cosmostrix look like
 and why". It exists because the visual-preset history is spread across
@@ -153,7 +153,7 @@ are retained for their analysis quality:
 - All rain visual constants live in `src/central_control_rains/mod.rs`
   (plug-and-play control file — edit values, `cargo build --release`).
 - To switch between the champion and the round-2 challenger presets:
-  `./scripts/apply-visual-preset.sh <name>` (see
+  `./scripts/harness/apply-visual-preset.sh <name>` (see
   [`docs/research/PRESET_BATTLE_2.md`](research/PRESET_BATTLE_2.md)).
 - Tuning guide for individual parameters:
   [`docs/CENTRAL_CONTROL_RAINS_USAGE.md`](CENTRAL_CONTROL_RAINS_USAGE.md).

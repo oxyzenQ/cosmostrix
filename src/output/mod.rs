@@ -521,7 +521,7 @@ pub(crate) fn eprintln_error_labeled(msg: &str) {
 /// Print a labeled warning to stderr: "! <msg>" in yellow.
 /// v80.0.0-beta.2: ASCII symbol only — icon glyphs ("\u{26a0}" and every
 /// other pictograph/emoji) render as tofu on some terminals. Enforced by
-/// `scripts/check-symbol-only-output.sh` (gate-keepers + build.sh check-all).
+/// `scripts/gates/check-symbol-only-output.sh` (gate-keepers + build.sh check-all).
 pub(crate) fn eprintln_warn_labeled(msg: &str) {
     // Phase 5 closure (P3-5): increment the startup warning counter so the
     // caller can emit a summary line at the end of config apply. This helps

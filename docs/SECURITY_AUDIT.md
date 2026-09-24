@@ -46,7 +46,7 @@ Documented **"no new unsafe in renderer/core paths"** policy (`docs/archive/SIMD
 
 ## 4. Process Spawning — 4 Sites, All Defensive
 
-`src/platform/update.rs` spawns `curl` (`--silent --max-time 15`), falling back to `wget` (`-q -O - -T 15`, busybox/GNU-compatible flags) only when curl is absent from PATH — both for the `--check-update` flag only, no shell, explicit argv, and an actionable error naming the manual releases URL when neither tool exists (NIGHT-hunter-7). `src/engine/cosmic_dragon_engine/terminal/restore.rs:259`/`:265`/`:270` spawn `stty sane`/`reset`/`tput reset` for `--reset-terminal` flag only — best-effort recovery. `pgo-runner/src/main.rs:58` spawns `bash scripts/build.sh pgo --auto` — dev convenience alias, not part of shipped binary. (NIGHT-hunt-42 2026-09-14: spawn-site refs re-pointed to `terminal/restore.rs` after the terminal-module split.)
+`src/platform/update.rs` spawns `curl` (`--silent --max-time 15`), falling back to `wget` (`-q -O - -T 15`, busybox/GNU-compatible flags) only when curl is absent from PATH — both for the `--check-update` flag only, no shell, explicit argv, and an actionable error naming the manual releases URL when neither tool exists (NIGHT-hunter-7). `src/engine/cosmic_dragon_engine/terminal/restore.rs:259`/`:265`/`:270` spawn `stty sane`/`reset`/`tput reset` for `--reset-terminal` flag only — best-effort recovery. `pgo-runner/src/main.rs:58` spawns `bash scripts/build/build.sh pgo --auto` — dev convenience alias, not part of shipped binary. (NIGHT-hunt-42 2026-09-14: spawn-site refs re-pointed to `terminal/restore.rs` after the terminal-module split.)
 
 **No `sh -c`, no `bash -c`, no `shell=true`** anywhere. Every spawn uses explicit argv with no shell interpolation. The Linux-only `fork()` inside `main.rs:245` is NOT `process::Command` — it is a raw `libc::fork()` that immediately calls `prctl(PR_SET_PDEATHSIG)` and `sigwait()` in the child, never executing any external program. It exists solely to restore terminal modes if the parent is SIGKILLed.
 
@@ -164,7 +164,7 @@ surface that only exists at euid 0:
    surface.
 4. **Root-owned artifacts**: `--dump-config`/`--save-baseline` writes
    create root-owned files — the exact ownership-corruption class that
-   makes `scripts/install.sh` refuse to run as root (section 7).
+   makes `scripts/setup/install.sh` refuse to run as root (section 7).
 
 **Runtime guard** (`src/platform/root_guard.rs`): `libc::geteuid()` FFI —
 the same libc-FFI family as `clock/posix_time.rs`, SAFETY-commented, no

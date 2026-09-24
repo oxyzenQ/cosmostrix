@@ -1135,7 +1135,7 @@ complete for every scene-custom field.
 > Owner note: the warning icons in the bug report's verbose paste come
 > from a binary built BEFORE commit 857423da (the symbol-only output
 > pass). Rebuild to pick up the "!" prefixes — the source tree is clean
-> (392 files checked by `scripts/check-symbol-only-output.sh`).
+> (392 files checked by `scripts/gates/check-symbol-only-output.sh`).
 
 ## 17. v80.0.0-alpha.1 S-master-HUNT-3 — Owner Bug Quartet (owner audit 2026-09-03, post-99975614)
 

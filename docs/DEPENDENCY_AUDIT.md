@@ -148,7 +148,7 @@ are "Unchanged" because they're blocked by `Cargo.toml` constraints
 | Breaking changes | notify 8.0 reworked the `Event` API: `EventKind` variants changed, `ModifyKind::Data` renamed, `Config` struct restructured. The `Watcher::new` trait method signature changed (takes `Config` by value instead of separate args). |
 | Migration | Medium — rewrite `watcher.rs` to use the new `Config` API + verify `EventKind` matching in `handle_notify_event`. ~2-4 hours work + testing. |
 | Risk | Medium — live-reload is a core feature; a regression here breaks config hot-reload. Need PTY live-reload test proof. |
-| Recommendation | **AUDIT THEN UPDATE** — do this in a dedicated PR. Test with the live PTY reload script (`scripts/cli_config_stresstest.sh`). |
+| Recommendation | **AUDIT THEN UPDATE** — do this in a dedicated PR. Test with the live PTY reload script (`scripts/harness/cli_config_stresstest.sh`). |
 
 #### rand 0.9.5 → 0.10.2
 
@@ -199,7 +199,7 @@ are "Unchanged" because they're blocked by `Cargo.toml` constraints
 # Relax the clap pin to allow 4.6.x
 # Edit Cargo.toml: change ">=4.5, <4.6" to ">=4.5, <4.7"
 cargo update -p clap -p clap_builder -p clap_derive -p generic-array
-./scripts/build.sh check-all
+./scripts/build/build.sh check-all
 git add Cargo.toml Cargo.lock
 git commit -m "Internal research: semver-compatible dep updates (clap 4.6, generic-array 0.14.9)"
 git push origin main
@@ -220,7 +220,7 @@ Each major update PR MUST:
 3. Fix all compilation errors (migration work).
 4. Run `cargo test --all --locked` (all tests pass).
 5. Run `cargo clippy -- -D warnings` (no new lints).
-6. For notify: run `scripts/cli_config_stresstest.sh` (live-reload PTY proof).
+6. For notify: run `scripts/harness/cli_config_stresstest.sh` (live-reload PTY proof).
 7. For rand: run visual A/B benchmark (rain patterns unchanged).
 8. For signal-hook: manually test Ctrl-C / kill -TERM / kill -HUP.
 

@@ -174,7 +174,7 @@ The suggestion engine is stresstested at two levels:
 - Distance > 2 on charset → no tip
 - Distance > 2 on custom scene → no tip
 
-### 5b. End-to-end stresstest script (`scripts/cli_suggestion_stresstest.sh`)
+### 5b. End-to-end stresstest script (`scripts/harness/cli_suggestion_stresstest.sh`)
 
 Z-master-1X audit added a shell-based end-to-end stresstest that runs
 the actual cosmostrix binary with a battery of typo / wrong-value /
@@ -190,7 +190,7 @@ Run it with:
 
 ```bash
 cargo build --bin cosmostrix
-bash scripts/cli_suggestion_stresstest.sh
+bash scripts/harness/cli_suggestion_stresstest.sh
 ```
 
 28 cases covering:

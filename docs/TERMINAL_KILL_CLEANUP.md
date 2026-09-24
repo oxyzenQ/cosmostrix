@@ -183,7 +183,7 @@ bumps the same counter), and SIGTERM kills within its 3 s grace
 window. Dropped restore escapes on a jammed terminal are cosmetic;
 `cosmostrix --reset-terminal` recovers the rest.
 
-Reproduction/verification harness: `scripts/termux_hang_harness.py`
+Reproduction/verification harness: `scripts/harness/termux_hang_harness.py`
 (spawns the binary on a PTY that is never drained; asserts both the
 jam-only exit and the jam + SIGTERM exit).
 

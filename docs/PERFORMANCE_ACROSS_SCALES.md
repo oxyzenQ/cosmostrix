@@ -412,7 +412,7 @@ done
 Or use the automation script:
 
 ```bash
-python3 scripts/run_scaling_benchmarks.py
+python3 scripts/bench/run_scaling_benchmarks.py
 ```
 
 Raw CSV and Markdown outputs are written per sweep to `benchmark/bench-labs/`

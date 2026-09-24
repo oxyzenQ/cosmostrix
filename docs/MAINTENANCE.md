@@ -12,26 +12,26 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 | Build (debug) | `cargo build` |
 | Build (release) | `cargo build --release` |
 | Build (optimized, AVX-512) | `cargo pro-native` |
-| Build (PGO nitro) | `./scripts/build.sh pgo` |
+| Build (PGO nitro) | `./scripts/build/build.sh pgo` |
 | Test (full suite) | `cargo test --all --locked` |
 | Test (build-script suite) | `rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests && /tmp/cosmostrix-build-script-tests` |
-| Gatekeeper (all checks) | `./scripts/build.sh check-all` |
+| Gatekeeper (all checks) | `./scripts/build/build.sh check-all` |
 | Format check | `cargo fmt --all --check` |
 | Lint | `cargo clippy -- -D warnings` |
 | Security audit | `cargo deny check all` |
 | Validate config | `cosmostrix --testconf` |
 | Diagnostics | `cosmostrix --doctor` |
-| Install (user-local) | `./scripts/install.sh --user` |
-| Uninstall | `./scripts/uninstall.sh --user` |
-| Version bump | `./scripts/version-to.sh vX.Y.Z` |
+| Install (user-local) | `./scripts/setup/install.sh --user` |
+| Uninstall | `./scripts/setup/uninstall.sh --user` |
+| Version bump | `./scripts/release/version-to.sh vX.Y.Z` |
 
 ## 2. Build Environments
 
 **Pinned toolchain**: Rust 1.98.1 (`rust-toolchain.toml`), MSRV 1.98 (`Cargo.toml` `rust-version`), profile: minimal + rustfmt + clippy.
 
-**Upgrading Rust**: one command — `./scripts/bump-rust-to.sh X.Y.Z` (owner-facing entry point; `scripts/rust-version-to.sh` is the implementation). It updates the `rust-toolchain.toml` channel plus its version comments, the `Cargo.toml` and `pgo-runner/Cargo.toml` `rust-version` MSRV pair, and every `.github/workflows/*.yml` `RUST_VERSION` pin, then verifies sync via `scripts/check-rust-version-sync.sh`. It also audits narrative docs (`docs/`, `README.md`, `CONTRIBUTING.md`) and warns about stale version references instead of auto-editing them — release dates and rationale need editorial review, so update those by hand. Afterwards: `rustup install X.Y.Z`, `./scripts/build.sh check-all`, `cargo test --all --locked`, then commit.
+**Upgrading Rust**: one command — `./scripts/release/bump-rust-to.sh X.Y.Z` (owner-facing entry point; `scripts/release/rust-version-to.sh` is the implementation). It updates the `rust-toolchain.toml` channel plus its version comments, the `Cargo.toml` and `pgo-runner/Cargo.toml` `rust-version` MSRV pair, and every `.github/workflows/*.yml` `RUST_VERSION` pin, then verifies sync via `scripts/gates/check-rust-version-sync.sh`. It also audits narrative docs (`docs/`, `README.md`, `CONTRIBUTING.md`) and warns about stale version references instead of auto-editing them — release dates and rationale need editorial review, so update those by hand. Afterwards: `rustup install X.Y.Z`, `./scripts/build/build.sh check-all`, `cargo test --all --locked`, then commit.
 
-**Dependencies**: `Cargo.lock` committed (reproducible builds), 11 unique runtime direct deps (8 cross-platform + `signal-hook`/`libc` on unix, `ctrlc` on windows; plus `proptest` as the single dev-dependency) / 105 crates in the lock, `deny.toml` + CI `cargo deny check all` daily. To update: `cargo update` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build.sh check-all`. Commit `Cargo.lock` only if all checks pass.
+**Dependencies**: `Cargo.lock` committed (reproducible builds), 11 unique runtime direct deps (8 cross-platform + `signal-hook`/`libc` on unix, `ctrlc` on windows; plus `proptest` as the single dev-dependency) / 105 crates in the lock, `deny.toml` + CI `cargo deny check all` daily. To update: `cargo update` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build/build.sh check-all`. Commit `Cargo.lock` only if all checks pass.
 
 ## 3. CI/CD Pipeline
 
@@ -52,9 +52,9 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 If `cargo deny check advisories` or GitHub Dependabot reports a vulnerability:
 
 1. **Assess severity**: direct dep or transitive? Does the vulnerable code path execute?
-2. **Update the dependency**: `cargo update -p <crate-name>` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build.sh check-all`.
+2. **Update the dependency**: `cargo update -p <crate-name>` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build/build.sh check-all`.
 3. **Commit**: `security: update <crate> for CVE-XXXX-XXXXX`.
-4. **Tag release** if user-facing: `./scripts/version-to.sh vX.Y.Z`.
+4. **Tag release** if user-facing: `./scripts/release/version-to.sh vX.Y.Z`.
 
 ### Symlink Handling
 
@@ -70,7 +70,7 @@ If returning after 5-10 years of dormancy, follow this exact sequence. No steps 
 2. **Install toolchain**: `rustup install 1.98.1 && rustup default 1.98.1` (or whatever `rust-toolchain.toml` says)
 3. **Build**: `cargo build --release`
 4. **Test**: `cargo test --all --locked`
-5. **Gatekeeper**: `./scripts/build.sh check-all -q`
+5. **Gatekeeper**: `./scripts/build/build.sh check-all -q`
 6. **Security audit**: `cargo deny check all`
 7. **Dependency update** (if any CVEs): `cargo update` -> repeat steps 4-6
 8. **Rust toolchain upgrade** (if current Rust is EOL): see Section 2 "Upgrading Rust"
@@ -136,7 +136,7 @@ After 5-10 years of dormancy, external services may be unavailable. The pinned t
 - `cargo build --release` compiles with zero warnings on the pinned toolchain.
 - `cargo test --all --locked` passes all tests.
 - The standalone build-script suite passes: `rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests && /tmp/cosmostrix-build-script-tests`.
-- `./scripts/build.sh check-all -q` passes all quality gates.
+- `./scripts/build/build.sh check-all -q` passes all quality gates.
 - `cargo deny check all` reports no advisories (or is skipped if offline).
 - `cosmostrix --testconf` validates the default config without errors.
 - `cosmostrix --doctor` reports no hard failures (warnings are acceptable).

@@ -591,7 +591,7 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
     // (bottom-center ~= 0.380, corner ~= 0.302 for Cinema Noir) were
     // relaxed into the cinematic dissolve window below so challenger
     // presets (see docs/research/PRESET_BATTLE_2.md and
-    // scripts/apply-visual-preset.sh) can be battle-tested without
+    // scripts/harness/apply-visual-preset.sh) can be battle-tested without
     // editing this test. The champion's exact values are documented in
     // docs/VISUAL_IDENTITY.md. The two guards that remain hard:
     //

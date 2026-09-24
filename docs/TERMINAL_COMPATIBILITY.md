@@ -21,7 +21,7 @@ it keeps recovery paths conservative and explicit.
 ## Diagnostic Glyph Policy (v80.0.0-beta.2)
 
 Everything cosmostrix prints as diagnostics — warnings, errors, status
-lines, banners, bench/test output, and `scripts/*.sh|py` tool output —
+lines, banners, bench/test output, and `scripts/**/*.sh|py` tool output —
 is **ASCII symbols only**: `!` = warning, `error:` = error, `OK`/`+` =
 pass, `X`/`-` = fail, `[INFO] [OK] [!] [X] [>]` = shell log badges.
 Icon glyphs (warning signs, check/cross marks, emoji) are forbidden:
@@ -35,7 +35,7 @@ width-filtered at runtime against the terminal's reported support
 (`--charset zen` is a pure-ASCII escape hatch; `--charset minimal` uses
 the nabla glyph, which the vt.c VGA font does not carry — see the
 matrix row for Linux console). Enforcement for the diagnostic layer is
-mechanical: `scripts/check-symbol-only-output.sh` runs in
+mechanical: `scripts/gates/check-symbol-only-output.sh` runs in
 `gate-keepers.sh` (check #11) and `build.sh check-all`. Full policy:
 `docs/RULES.md` § Output Glyph Policy.
 
@@ -73,7 +73,7 @@ semantic events (intro rain after the logo, old-scene glyphs after
 live-reloading `color-bg`). The shadow now re-emits the full frame
 once whenever its knowledge of the physical screen is discarded —
 all four owner scenarios are covered by the PTY E2E harness
-(`scripts/night_cbg34_e2e.py`). `black` mode was never affected
+(`scripts/harness/night_cbg34_e2e.py`). `black` mode was never affected
 (the reset cell differs from the black blank, forcing a full repaint
 by accident — which is why the bug family survived black-mode
 testing).
@@ -96,7 +96,7 @@ no OS APIs), verified per platform:
   `default-background` on FreeBSD exercises the fixed rebuild path.
 - Runtime residue checks on real Termux/FreeBSD devices remain
   owner-side (no CI runners for those platforms); re-run
-  `scripts/night_cbg34_e2e.py` there if residue is ever suspected —
+  `scripts/harness/night_cbg34_e2e.py` there if residue is ever suspected —
   it needs only Python 3 + the release binary.
 
 ## Reset Behavior

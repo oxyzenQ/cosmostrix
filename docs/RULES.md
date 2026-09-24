@@ -3,13 +3,13 @@
 
 ## Source file size
 
-All Rust source files under `src/` must stay **under 800 gross lines** (hard limit, enforced by `scripts/check-rs-loc.sh`). The **soft target for new files is 500 lines**. See `src/RULES_LOC.md` for the full policy (when to split, when NOT to split, generated-code exemption, migration path from the previous 1500-line cap).
+All Rust source files under `src/` must stay **under 800 gross lines** (hard limit, enforced by `scripts/gates/check-rs-loc.sh`). The **soft target for new files is 500 lines**. See `src/RULES_LOC.md` for the full policy (when to split, when NOT to split, generated-code exemption, migration path from the previous 1500-line cap).
 
-**Scope**: `src/**/*.rs`, `build.rs`, `*.toml`, `.cargo/config.toml`, `rust-toolchain.toml`, `*.sh`, `scripts/*.sh`, `benchmark/*.sh`, `.github/workflows/*.yml`, `.github/FUNDING.yml`. **Excluded**: `*.md`, `docs/**/*.md`, `*.txt`, assets, images, videos, `Cargo.lock`, `target/`, `.git/`.
+**Scope**: `src/**/*.rs`, `build.rs`, `*.toml`, `.cargo/config.toml`, `rust-toolchain.toml`, `*.sh`, `scripts/**/*.sh`, `benchmark/*.sh`, `.github/workflows/*.yml`, `.github/FUNDING.yml`. **Excluded**: `*.md`, `docs/**/*.md`, `*.txt`, assets, images, videos, `Cargo.lock`, `target/`, `.git/`.
 
 ## Scripts file size
 
-All shell and Python scripts under `scripts/` (any depth — subdirectories such as `scripts/depthbore/` included) must stay **at or below 1000 gross lines** (hard limit, enforced by `scripts/check-scripts-loc.sh`, wired into `gate-keepers.sh` as check 17 and `build.sh check-all`). A script that legitimately cannot be split self-declares with a `# LOC_EXEMPT: <one-line justification>` marker comment — tracked migration debt, the same semantics as the Rust `// LOC_EXEMPT:` mechanism (see `src/RULES_LOC.md`). Removing the marker re-enforces the cap on that script; no guard-side list edits are ever needed.
+All shell and Python scripts under `scripts/` (any depth — subdirectories such as `scripts/depthbore/` included) must stay **at or below 1000 gross lines** (hard limit, enforced by `scripts/gates/check-scripts-loc.sh`, wired into `gate-keepers.sh` as check 17 and `build.sh check-all`). A script that legitimately cannot be split self-declares with a `# LOC_EXEMPT: <one-line justification>` marker comment — tracked migration debt, the same semantics as the Rust `// LOC_EXEMPT:` mechanism (see `src/RULES_LOC.md`). Removing the marker re-enforces the cap on that script; no guard-side list edits are ever needed.
 
 ## Module organization
 
@@ -20,18 +20,18 @@ Prefer splitting modules by responsibility over allowing large files. `main.rs` 
 Behavior-preserving refactors must pass the full validation suite:
 
 ```bash
-scripts/check-rs-loc.sh
-scripts/check-scripts-loc.sh
-scripts/check-headers.sh
+scripts/gates/check-rs-loc.sh
+scripts/gates/check-scripts-loc.sh
+scripts/gates/check-headers.sh
 cargo fmt --all
 cargo test --all --locked
 cargo clippy --locked --all-targets --all-features -- -D warnings
-./scripts/build.sh check-all
+./scripts/build/build.sh check-all
 ```
 
 ## License headers
 
-All core, config, and script files must carry an SPDX license identifier. See `scripts/check-headers.sh` for the enforced format.
+All core, config, and script files must carry an SPDX license identifier. See `scripts/gates/check-headers.sh` for the enforced format.
 
 ## Code quality
 
@@ -51,7 +51,7 @@ icon-glyph warning-sign prefix in verbose output (owner proof:
 `! [live-reload] native watcher silent 852s ...` after the fix).
 
 **Symbol vocabulary** (mirrors `src/output/mod.rs` print helpers and
-`scripts/build.sh` log badges):
+`scripts/build/build.sh` log badges):
 
 | Meaning | Symbol | Where |
 |---|---|---|
@@ -77,9 +77,9 @@ runtime-width-filtered per terminal support, not diagnostics.
 `sanitize_message_text` already replaces emoji in user message text
 with `?` (bug #11), so user-supplied text never prints icons either.
 
-**Enforcement:** `scripts/check-symbol-only-output.sh` — a hard gate
+**Enforcement:** `scripts/gates/check-symbol-only-output.sh` — a hard gate
 wired into `gate-keepers.sh` (check #11) and `build.sh check-all`.
-Scope: `src/**/*.rs`, `build.rs`, `scripts/*.sh|py`, `benchmark/*.sh`,
+Scope: `src/**/*.rs`, `build.rs`, `scripts/**/*.sh|py`, `benchmark/*.sh`,
 `.github/workflows/*.yml`, `pgo-runner/src/**/*.rs` (that binary prints
 diagnostics too). It is a whole-file scan (comments included — a
 comment must never keep
@@ -88,7 +88,7 @@ short, and justified in the script: the check script itself (it embeds
 the denylist) and `src/output/message.rs` (sanitizer test INPUT needs a
 real emoji as data to verify replacement). Doc-prose styling was out of
 scope for this gate until NIGHT-hunt-48 (owner rule 2026-09-14): the
-project carries no emoji anywhere, so `scripts/emoji-audit.py` became a
+project carries no emoji anywhere, so `scripts/audit/emoji-audit.py` became a
 strict repo-wide detector wired into `gate-keepers.sh` as check #15 —
 it scans every git-tracked file that decodes as strict UTF-8 (`*.md`,
 `*.rs`, `*.sh`, `*.py`, `*.yml`, `*.toml`, extensionless text; binaries
@@ -130,7 +130,7 @@ assert!(include_str!("../aur/cosmostrix-bin/PKGBUILD").contains(&format!("pkgver
 
 **Allowed**: historical CHANGELOG assertions (e.g. `assert!(changelog.contains("## v13.0.0"))`, `assert!(changelog.contains("## v50.0.0-alpha.5"))`) — those entries are immutable historical record and remain valid forever.
 
-**Enforcement**: `scripts/check-version-anti-patterns.sh` (run by `build.sh check-all`) scans `src/**/*.rs` for forbidden patterns and fails the build if detected: `contains("version = \"X.Y.Z\"")`, `contains("pkgver=X.Y.Z")`, `contains(r#"TAG="vX.Y.Z""#)`. If a future test genuinely needs the current package version, use `env!("CARGO_PKG_VERSION")` — never hardcode the literal string.
+**Enforcement**: `scripts/gates/check-version-anti-patterns.sh` (run by `build.sh check-all`) scans `src/**/*.rs` for forbidden patterns and fails the build if detected: `contains("version = \"X.Y.Z\"")`, `contains("pkgver=X.Y.Z")`, `contains(r#"TAG="vX.Y.Z""#)`. If a future test genuinely needs the current package version, use `env!("CARGO_PKG_VERSION")` — never hardcode the literal string.
 
 ## Cosmic Dragon Architecture
 

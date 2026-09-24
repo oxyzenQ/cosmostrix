@@ -7,13 +7,13 @@
 > per `.rs` file**, with a **soft target of 500 lines** for new files.
 >
 > This file is the canonical reference for the LOC policy. `docs/RULES.md`
-> references it; `scripts/check-rs-loc.sh` enforces the hard limit.
+> references it; `scripts/gates/check-rs-loc.sh` enforces the hard limit.
 
 ## The Limits
 
 | Limit | Value | Enforcement |
 |-------|-------|-------------|
-| **Hard limit** | 800 lines | `scripts/check-rs-loc.sh` fails the build. NO exceptions (except generated code — see below). |
+| **Hard limit** | 800 lines | `scripts/gates/check-rs-loc.sh` fails the build. NO exceptions (except generated code — see below). |
 | **Soft target** | 500 lines | Recommended for new files. Not enforced, but PR review should flag files drifting above this without justification. |
 
 ## Why 800 / 500
@@ -65,8 +65,8 @@ All `.rs` files under `src/`, plus `build.rs`.
    cargo fmt --all --check
    cargo clippy --all-targets -- -D warnings
    cargo test
-   ./scripts/gate-keepers.sh
-   ./scripts/check-rs-loc.sh   # must show 0 files > 800
+   ./scripts/gates/gate-keepers.sh
+   ./scripts/gates/check-rs-loc.sh   # must show 0 files > 800
    ```
 
 ## When NOT to Split
@@ -77,7 +77,7 @@ All `.rs` files under `src/`, plus `build.rs`.
   hitting 500 introduces artificial boundaries that hurt readability.
 - **Test files**: test files live in the mirrored `test/` tree
   (NIGHT-hunter-1, owner mandate 2026-09-04), which is OUTSIDE the
-  `src/` scan of `scripts/check-rs-loc.sh` — the cap governs production
+  `src/` scan of `scripts/gates/check-rs-loc.sh` — the cap governs production
   source only. Prefer splitting test files by category (e.g.
   `tests_border.rs`, `tests_phosphor.rs`) when a file grows past
   1000 to keep review manageable.
@@ -90,7 +90,7 @@ All `.rs` files under `src/`, plus `build.rs`.
   ```
 
   Place this marker on line 3 (after the copyright + SPDX header).
-  `scripts/check-rs-loc.sh` dynamically greps each over-800 file for
+  `scripts/gates/check-rs-loc.sh` dynamically greps each over-800 file for
   this marker — **no hardcoded file list**. The exemption lives WITH
   the file, so it can never drift out of sync. Removing an exemption
   = delete the marker comment (no script edit needed).
@@ -107,12 +107,12 @@ Never `chmod 777` or `chmod 755 -R`. Use `git update-index --chmod=-x
 
 ## Enforcement
 
-- **CI**: `scripts/check-rs-loc.sh` runs in `./scripts/build.sh check-all`
+- **CI**: `scripts/gates/check-rs-loc.sh` runs in `./scripts/build/build.sh check-all`
   and in the gatekeeper. Fails the build if any `.rs` file exceeds 800.
 - **PR review**: reviewers should reject PRs that add files >800
   without a `// LOC_EXEMPT:` marker comment containing a justification.
 - **This file**: canonical reference. Update here first, then propagate
-  to `docs/RULES.md` + `scripts/check-rs-loc.sh`.
+  to `docs/RULES.md` + `scripts/gates/check-rs-loc.sh`.
 
 ## Migration Path (2026-08-28 → ongoing)
 

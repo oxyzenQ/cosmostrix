@@ -10,7 +10,7 @@ publish = false
 autobins = true
 autoexamples = false
 autotests = false
-description = "Tiny cargo-use-pgo alias runner — delegates to scripts/build.sh pgo --auto."
+description = "Tiny cargo-use-pgo alias runner — delegates to scripts/build/build.sh pgo --auto."
 
 [[bin]]
 name = "pgo-runner"

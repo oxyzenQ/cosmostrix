@@ -156,7 +156,7 @@ The Dragon's roar is not loud — it is precise.
 - Fixed virtual screen size (`--screen-size WxH`) for benchmarking.
 - Benchmark mode with JSON output, compound duration (`--bench-duration 1h30m`), `--bench-io` (wet terminal I/O), `--bench-all` (scaling ladder), `--compare-baseline`, and self-documenting reports.
 - **5-layer destructive terminal recovery** (`--reset-terminal`) — RIS reset, alternate-screen exit, cursor restore, terminal attributes reset, scrollback clear.
-- PGO nitro build via `./scripts/build.sh pgo` (3-stage: instrument -> benchmark -> optimize).
+- PGO nitro build via `./scripts/build/build.sh pgo` (3-stage: instrument -> benchmark -> optimize).
 - Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD.
 
 ## Limitations
@@ -218,7 +218,7 @@ The chroma dragon border gradient (`-mb` message overlay) and HUD chroma gradien
 
 Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify the checksum, and place `cosmostrix` in your `PATH`.
 
-Every archive ships three checksums (classical SHA-512 plus quantum-resistant BLAKE2b-512 and SHAKE256) and one GPG detached signature from the maintainer's key. Verification — key import, `gpg --verify`, and all three checksum commands — is documented once in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md); the quick install flow below carries the classical SHA-512 check inline. Binaries produced locally via `cargo build` or `./scripts/build.sh release` carry the embedded `Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)` signature string, discoverable via `strings ./cosmostrix | grep "Cosmic Dragon"`.
+Every archive ships three checksums (classical SHA-512 plus quantum-resistant BLAKE2b-512 and SHAKE256) and one GPG detached signature from the maintainer's key. Verification — key import, `gpg --verify`, and all three checksum commands — is documented once in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md); the quick install flow below carries the classical SHA-512 check inline. Binaries produced locally via `cargo build` or `./scripts/build/build.sh release` carry the embedded `Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)` signature string, discoverable via `strings ./cosmostrix | grep "Cosmic Dragon"`.
 
 **Available platforms:**
 
@@ -334,7 +334,7 @@ To verify an optimized artifact:
 ```bash
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --doctor
 file target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix
-scripts/verify-release-build.sh pro-linux-v3
+scripts/release/verify-release-build.sh pro-linux-v3
 ```
 
 ## Quickstart
@@ -610,7 +610,7 @@ cargo test chroma_dragon_engine::tests::lock -- --nocapture
 
 # print the Cosmic Dragon engine lock report
 cargo test cosmic_dragon_incubator::tests::lock -- --nocapture
-scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
+scripts/release/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 ```
 
 ## Release Process
@@ -622,12 +622,12 @@ Create a release by pushing a `v*` tag. See [docs/workflow/ABOUT_CI.md](docs/wor
 Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD, .SRCINFO, README install tag, docs/workflow/ABOUT_CI.md), then build:
 
 ```bash
-./scripts/version-to.sh vX.Y.Z          # bump to vX.Y.Z across all active files
-./scripts/build.sh release              # optimized release build
-./scripts/build.sh version-sync         # verify all version refs agree (no build)
+./scripts/release/version-to.sh vX.Y.Z          # bump to vX.Y.Z across all active files
+./scripts/build/build.sh release              # optimized release build
+./scripts/build/build.sh version-sync         # verify all version refs agree (no build)
 ```
 
-`Cargo.toml` `[package] version` is the single source of truth. Every other active version reference is derived from it — either at compile time via `env!("CARGO_PKG_VERSION")` in source, or by `./scripts/version-to.sh` for files that need a literal version string (PKGBUILD, README install example). CI runs `version-sync` as a fail-fast guard before any Rust builds, so a desync breaks the pipeline in seconds rather than after a full test job. The `scripts/check-version-anti-patterns.sh` guard blocks re-introduction of hardcoded version assertions in `src/`.
+`Cargo.toml` `[package] version` is the single source of truth. Every other active version reference is derived from it — either at compile time via `env!("CARGO_PKG_VERSION")` in source, or by `./scripts/release/version-to.sh` for files that need a literal version string (PKGBUILD, README install example). CI runs `version-sync` as a fail-fast guard before any Rust builds, so a desync breaks the pipeline in seconds rather than after a full test job. The `scripts/gates/check-version-anti-patterns.sh` guard blocks re-introduction of hardcoded version assertions in `src/`.
 
 ## Contributing
 

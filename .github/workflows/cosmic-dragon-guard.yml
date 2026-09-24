@@ -3,7 +3,7 @@
 #
 # Cosmic Dragon Guard — unified lint/format/license gate.
 # Replaces the former shellcheck.yml and docs-ci.yml with a single
-# workflow that runs scripts/gate-keepers.sh (the one-script gate-keeper).
+# workflow that runs scripts/gates/gate-keepers.sh (the one-script gate-keeper).
 #
 # Checks performed by gate-keepers.sh:
 #   1.  Shell triad    - bash -n + shellcheck + shfmt -d on all .sh files
@@ -12,7 +12,7 @@
 #   4.  TOML syntax    - python3 tomllib on all .toml files
 #   5.  markdownlint   - all .md files
 #   6.  codespell      - spelling across all text files
-#   6b. ruff           - python lint/format on scripts/*.py
+#   6b. ruff           - python lint/format on scripts/**/*.py
 #   6c. naming         - lowercase project name outside docs/archive/
 #   7.  SPDX headers   - git-tracked code/config/doc files
 #   8.  LOC guard      - .rs files <= 800 lines (src/RULES_LOC.md)
@@ -22,12 +22,12 @@
 #  12.  Comment style  - no markdown emphasis in comments
 #  13.  Language audit - pure-English rule on comments/strings/docs
 #  14.  Permissions    - tracked files 644, executables + dirs 755,
-#                       shebang parity (scripts/check-permissions.sh)
+#                       shebang parity (scripts/gates/check-permissions.sh)
 #  15.  Emoji sweep    - no emoji-class codepoints in any tracked
-#                       text file (scripts/emoji-audit.py, hunt-48)
+#                       text file (scripts/audit/emoji-audit.py, hunt-48)
 #  16.  CI path-filter - workflow paths entries inside a directory
 #                       are globs, never hardcoded filenames
-#                       (scripts/check-ci-path-filters.py, boost-1)
+#                       (scripts/gates/check-ci-path-filters.py, boost-1)
 #
 # Every tool listed above is installed below - a check that silently skips
 # because its tool is missing is a check that does not exist (incident:
@@ -72,8 +72,8 @@ jobs:
           # Installed at the latest upstream release, resolved dynamically
           # from the GitHub releases API (owner policy: no hardcoded dep
           # versions). If a future shfmt release changes style rules, the
-          # gate-keepers diff shows it and one `shfmt -w scripts/*.sh`
-          # refresh lands the new canonical formatting. Binary download
+          # gate-keepers diff shows it and one
+          # `./scripts/gates/gate-keepers.sh --fix-all` refresh lands the new canonical formatting. Binary download
           # instead of `go install` (no compile time) or apt (lags far
           # behind upstream).
           SHFMT_VERSION="$(curl -fsSL https://api.github.com/repos/mvdan/sh/releases/latest | jq -r '.tag_name')"
@@ -83,7 +83,7 @@ jobs:
           shfmt --version
 
       - name: Run gate-keepers.sh
-        run: bash scripts/gate-keepers.sh
+        run: bash scripts/gates/gate-keepers.sh
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -94,7 +94,7 @@ fn changelog_v400_mentions_demo_refresh() {
 // Previously these tests hardcoded the version string (e.g. "5.0.0") which
 // meant every version bump broke the test suite. Now they dynamically
 // compare against the compile-time version, so a version bump via
-// `./scripts/version-to.sh` requires ZERO test file edits.
+// `./scripts/release/version-to.sh` requires ZERO test file edits.
 //
 // The old "must not contain old version X.Y.Z" assertions were also removed:
 // they were pure noise (any version != X.Y.Z passes) and accumulated one

@@ -3,7 +3,7 @@
 
 //! v35+ regression tests, extracted from `interactive/tests.rs` as a
 //! pre-emptive split to keep both files below the 800-LOC guard
-//! (`scripts/check-rs-loc.sh`).
+//! (`scripts/gates/check-rs-loc.sh`).
 //!
 //! Covers:
 //! - v35_x_key_* / v35_c_key_* / v35_s_key_* (user override + palette lock)

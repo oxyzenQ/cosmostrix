@@ -64,7 +64,7 @@ jobs:
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           CARGO_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
           if [ "${TAG_VERSION}" != "${CARGO_VERSION}" ]; then
-            echo "::error::tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${CARGO_VERSION} - bump with ./scripts/version-to.sh before tagging."
+            echo "::error::tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${CARGO_VERSION} - bump with ./scripts/release/version-to.sh before tagging."
             exit 1
           fi
           echo "Publishing cosmostrix ${CARGO_VERSION} to crates.io"
