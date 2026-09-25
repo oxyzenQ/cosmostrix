@@ -23,6 +23,39 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### perf: NIGHT-lts-2 & NIGHT-perf-1 — depth performance audit: every overhead class verified at peak, zero code changes (fresh 10 s A/B evidence captured during the lts-3 run)
+
+- Allocation: 563 total allocs over a 119 K-frame 10 s run (0.0047
+  allocs/frame) with `heap_retained` flat and the zero-alloc cosmetics
+  tripwire already pinning the overlay + HUD paths — the render + I/O
+  hot path is zero-alloc, and the 168-byte total-allocation delta
+  between the two A/B runs is git-sha string noise, not engine state.
+- Per-frame syscalls: every `Instant::now()` in rain_at.rs /
+  post_rain.rs is conditional on component-timing mode (benchmark or
+  --perf-stats only) — interactive mode captures `now` once at frame
+  start and injects it everywhere (the v30 + P1 passes already removed
+  the hidden per-wave and per-frame calls; verified all 8 sites).
+- Locks: the engine tree has no Mutex/RwLock — the only locks in the
+  codebase sit in cold terminal-restore/TTY paths.
+- Transcendentals: the single remaining `exp()` in the shader helpers
+  is inside a `LazyLock` LUT initializer; per-cell math is LUT reads
+  and integer adds (TRAIL_EXP_LUT, rain-shadow, vignette, edge-fade,
+  column-coherence, head-bloom — the Phase D/C hot-path LUT family).
+- String work: zero `format!`/`to_string`/`to_owned` in rain_at.rs and
+  render.rs; HUD updates are 1 Hz-gated with pre-computed strings.
+- I/O: ~1.7 µs of write time per frame at 80×24 (one batched write;
+  29.8 ns/cell I/O) — the diff engine holds its O(1) 1,463 ns/cell
+  total with the dirty ratio at ~6%, matching the documented v30-class
+  reference behavior.
+- Fresh A/B evidence (dev profile, same host, 10 s, 80×24):
+  avg_fps 11,927 → 12,046 (+1.0 %, run noise in B's favor), jitter
+  std 0.0195 → 0.0107 ms, p99.9 frame time 0.318 → 0.126 ms,
+  density_gini 0.8964 → 0.8962, frame_entropy 3.2908 → 3.2932 bits,
+  dirty_cells_per_frame 56.74 → 56.75 — the objective visual metrics
+  are identical to the 4th decimal. Verdict: the performance engine is
+  at peak; skipping further investment per the owner's
+  don't-over-engineer-at-peak rule.
+
 ### lts: NIGHT-lts-3 — ultra-long-endurance depth audit: the column-coherence shimmer phase no longer quantizes on multi-day runs (f64 + wrap to [0, 2π))
 
 - The one real defect found in the endurance sweep: the column-coherence
