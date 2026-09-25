@@ -24,7 +24,7 @@ DURATION = 3  # seconds per renderer
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COSMOSTRIX_V4 = os.path.join(
-    REPO_ROOT, "target", "x86_64-unknown-linux-gnu", "pro-linux-v4", "cosmostrix"
+    REPO_ROOT, "target", "x86_64-unknown-linux-gnu", "pro-linux-amd64-v4-gnu", "cosmostrix"
 )
 COSMOSTRIX_DEBUG = os.path.join(REPO_ROOT, "target", "debug", "cosmostrix")
 NAIVE_SCRIPT = os.path.join(REPO_ROOT, "benchmark", "naive_matrix.py")

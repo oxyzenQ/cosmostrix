@@ -176,7 +176,7 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
 /// Fully filtering Ctrl+C on Windows would require direct Win32
 /// `SetConsoleCtrlHandler` calls (filtering CTRL_C_EVENT while accepting
 /// CTRL_BREAK_EVENT). That's a future enhancement; the primary target
-/// platform is Linux (pro-linux-v3 build) where SIGINT is already excluded.
+/// platform is Linux (pro-linux-amd64-v3-gnu build) where SIGINT is already excluded.
 #[cfg(windows)]
 pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
     let signal_exit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));

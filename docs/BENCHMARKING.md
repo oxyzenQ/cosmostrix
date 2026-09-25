@@ -7,7 +7,7 @@
 
 ```bash
 # Default 5s benchmark (dry, no I/O — pure engine throughput)
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
+target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix --benchmark
 
 # 10s benchmark with wet I/O (writes ANSI to /dev/null)
 cosmostrix --benchmark --bench-io --bench-duration 10s
@@ -562,7 +562,7 @@ Two additional sections require elevated privileges: `MICROARCHITECTURE` (Linux 
 
 ## Reproducibility + Honesty Contract
 
-**Reproducibility checklist**: same commit (`git rev-parse HEAD`), same profile (`pro-linux-v3` / `pro-linux-v4` / `nitro-pgo`), same `--bench-duration`, `--screen-size`, `--bench-scene`. Pin CPU governor (`cpupower frequency-set -g performance`), disable turbo if comparing across machines. Close other CPU-bound processes. Run twice — discard the first (warmup fills caches); use the second as the reported number. For wet benchmarks, ensure `/dev/null` is on tmpfs (default on Linux). For energy benchmarks, unplug laptop charger (battery gives cleaner RAPL) or pin to a desktop CPU with stable power.
+**Reproducibility checklist**: same commit (`git rev-parse HEAD`), same profile (`pro-linux-amd64-v3-gnu` / `pro-linux-amd64-v4-gnu` / `nitro-pgo`), same `--bench-duration`, `--screen-size`, `--bench-scene`. Pin CPU governor (`cpupower frequency-set -g performance`), disable turbo if comparing across machines. Close other CPU-bound processes. Run twice — discard the first (warmup fills caches); use the second as the reported number. For wet benchmarks, ensure `/dev/null` is on tmpfs (default on Linux). For energy benchmarks, unplug laptop charger (battery gives cleaner RAPL) or pin to a desktop CPU with stable power.
 
 **Honesty contract**: benchmark FPS is **synthetic uncapped throughput** measured in a headless simulation. It is NOT a release promise. The actual runtime target is the configured FPS (dynamic default: 60 on standard terminals, 144 on high-refresh; override with `--fps`). The terminal emulator's ANSI parse speed is the ceiling — no amount of SIMD, GPU, or C supercharger can fix a slow terminal. Do not chase raw FPS; frame-time stability and p99 latency matter more. The `RENDERER` section always reports `gpu_usage: not_applicable` — cosmostrix is CPU-only by design (see [PHILOSOPHY.md](PHILOSOPHY.md)). `--doctor` carries the same field for consistency.
 
@@ -571,7 +571,7 @@ Two additional sections require elevated privileges: `MICROARCHITECTURE` (Linux 
 - **"FPS is lower than expected"**: check `frame_time_stability` — if `medium`/`high`, look at `max_frame_time` for spikes. Check `fps_drift_percent` — positive drift = throttle/leak. Verify CPU governor is `performance`.
 - **"RSS grows over time"**: check `alloc_calls_per_frame` and `heap_retained`. Steady growth in `peak_rss` across multiple `--bench-duration 60s` runs = leak. Use `--bench-duration 5m` to confirm.
 - **"Wet bandwidth is low"**: check `backpressure_events` — non-zero = kernel pipe full. Check `avg_write_latency` — >1ms suggests `/dev/null` is not on tmpfs.
-- **"IPC is below 2.0"**: verify the binary is built with `pro-linux-v3` or `pro-linux-v4` profile (AVX2/AVX-512). `cargo build --release` without a profile gives baseline SIMD.
+- **"IPC is below 2.0"**: verify the binary is built with `pro-linux-amd64-v3-gnu` or `pro-linux-amd64-v4-gnu` profile (AVX2/AVX-512). `cargo build --release` without a profile gives baseline SIMD.
 - **"Energy per frame is high"**: check CPU governor — `powersave` inflates energy-per-frame. Verify RAPL is reading the right socket (multi-socket systems).
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

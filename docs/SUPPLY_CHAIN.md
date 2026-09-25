@@ -82,7 +82,7 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 
 ## 5. Update Process
 
-**Routine Dependency Updates** (weekly `maintenance.yml`): (1) `cargo update` bumps all deps in `Cargo.lock` to latest compatible versions; (2) no-op detection — if `Cargo.lock` unchanged, exit early; (3) `cargo audit` verifies no known vulnerabilities; (4) `cargo deny check all` confirms continued policy compliance; (5) `cargo fmt --all -- --check`; (6) `cargo build` (dev, release, pro-linux-v3 profiles); (7) `cargo test --all --locked`; (8) `cargo clippy --locked --all-targets --all-features -- -D warnings`; (9) commit and push to `main` if all checks pass.
+**Routine Dependency Updates** (weekly `maintenance.yml`): (1) `cargo update` bumps all deps in `Cargo.lock` to latest compatible versions; (2) no-op detection — if `Cargo.lock` unchanged, exit early; (3) `cargo audit` verifies no known vulnerabilities; (4) `cargo deny check all` confirms continued policy compliance; (5) `cargo fmt --all -- --check`; (6) `cargo build` (dev, release, pro profiles — the plain `pro` profile since the 2026-08-23 owner directive, not a pinned microarch level); (7) `cargo test --all --locked`; (8) `cargo clippy --locked --all-targets --all-features -- -D warnings`; (9) commit and push to `main` if all checks pass.
 
 **Security Advisory Response** (when `cargo audit` or daily `gitbot-audit.yml` detects a vulnerability):
 

@@ -389,17 +389,20 @@ pub(crate) fn check_cpu_features() {
         if !std::arch::is_x86_feature_detected!("avx512f") {
             print_fatal("AVX-512", "x86-64-v4");
             eprintln_safe!("Rebuild with a compatible target:");
-            eprintln_safe!("  cargo pro-linux-v3    # x86-64-v3 (AVX2) — modern CPUs");
-            eprintln_safe!("  cargo pro-linux-musl  # x86-64-v3 + musl static");
+            eprintln_safe!("  cargo pro-linux-amd64-v3-gnu   # x86-64-v3 (AVX2) — modern CPUs");
+            eprintln_safe!("  cargo pro-linux-amd64-v3-musl  # x86-64-v3 + musl static");
             std::process::exit(1);
         }
     } else if build.contains("-v3") && !std::arch::is_x86_feature_detected!("avx2") {
         print_fatal("AVX2", "x86-64-v3");
         eprintln_safe!("Rebuild with:");
-        eprintln_safe!("  cargo pro-linux-musl  # x86-64-v3 + musl static (same baseline)");
         eprintln_safe!(
-            "  Note: v1/v2 profiles were dropped in v10.0.0. Use musl for max compatibility."
+            "  cargo build --release --locked  # generic x86-64 baseline (any x86-64 CPU)"
         );
+        eprintln_safe!(
+            "  Note: v1/v2 profiles were dropped in v10.0.0. Use the release profile on"
+        );
+        eprintln_safe!("  pre-AVX2 CPUs (musl is v3-baseline too — it also requires AVX2).");
         std::process::exit(1);
     }
 }
@@ -419,9 +422,9 @@ mod tests {
     #[test]
     fn canonical_build_label_reads_cosmostrix_build_env() {
         // canonical_build_label must return the value of COSMOSTRIX_BUILD
-        // at compile time. When built with `cargo pro-linux-v3`, this is
-        // "linux-amd64-v3". This test verifies the function is wired
-        // correctly; the actual value depends on how the test binary was
+        // at compile time. When built with `cargo pro-linux-amd64-v3-gnu`,
+        // this is "linux-amd64-v3-gnu". This test verifies the function is
+        // wired correctly; the actual value depends on how the test binary was
         // compiled (plain `cargo test` sets COSMOSTRIX_BUILD via build.rs
         // inference to e.g. "linux-amd64-vN" or "unknown").
         let label = canonical_build_label();

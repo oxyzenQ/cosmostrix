@@ -180,7 +180,7 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 
 **Verbose**: startup dumps full config to stderr (no borders, purple brand color). Runtime: changes tracked silently (no eprintln during rain — causes flicker). After exit: final runtime state section always prints (v50.0.0-beta.6) — first line is `exit_time: <YYYY-MM-DD HH:MM:SSZ>` (UTC, ISO 8601) and `duration: <Xm Ys>` showing the total process lifetime. UTC chosen for LTS stability (no DST transitions, no tzdata drift). Changed live-reload fields follow (only if any value changed during the session). Format: `[verbose] field: value (was old_value)`. v80.0.0-beta.2 (S-master-LOGIC-1): the tracked set is COMPLETE — every live-reload-able dimension gets a line when it changed (fps, glitch_level, bold, shading, monolith, color_bg, color_tune joined the pre-v80 set; glitch_level is derived from the live Cloud so ambient applies are reflected). The section closes with the ambient diagnostics summary.
 
-**Install**: `./scripts/install` auto-detects CPU — AVX-512 -> pro-linux-v4, AVX2 -> pro-linux-v3, baseline -> release. `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
+**Install**: `./scripts/setup/install.sh` auto-detects CPU — AVX-512 -> pro-linux-amd64-v4-gnu, AVX2 -> pro-linux-amd64-v3-gnu, baseline -> release. `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
 
 ### Naming Collision Policy (v50.0.0-beta.6 Option D)
 

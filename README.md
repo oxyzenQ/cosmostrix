@@ -301,7 +301,7 @@ cosmostrix --doctor
 For a modern Linux x86_64 machine, the recommended optimized build is:
 
 ```bash
-cargo pro-linux-v3
+cargo pro-linux-amd64-v3-gnu
 ```
 
 On FreeBSD (after installing libexecinfo — see [System Requirements](docs/SYSTEM_REQUIREMENTS.md#freebsd)):
@@ -332,9 +332,9 @@ lets the RAII terminal guard and panic hook restore the terminal on panic.
 To verify an optimized artifact:
 
 ```bash
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --doctor
-file target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix
-scripts/release/verify-release-build.sh pro-linux-v3
+target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix --doctor
+file target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix
+scripts/release/verify-release-build.sh pro-linux-amd64-v3-gnu
 ```
 
 ## Quickstart
@@ -581,9 +581,9 @@ For terminal behavior, background modes, tmux/SSH notes, and Windows recovery ex
 Benchmark results are machine-dependent. Use them to compare builds on the same machine, not as portable performance promises. Optimized builds remain comfortably above the 60 FPS target. Benchmark mode measures engine throughput — synthetic FPS, not what the terminal draws; real interactive FPS is terminal-bounded (press `i` during a real run).
 
 ```bash
-cargo pro-linux-v3
+cargo pro-linux-amd64-v3-gnu
 COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
-  target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
+  target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix --benchmark
 ```
 
 The mode catalog (`--bench-io` wet I/O, `--bench-scene lean|production-draw`, `--bench-all`, `--bench-duration` up to the 24 h ceiling, `--json`, baselines), the full report-field reference, and what benchmark mode skips are documented once in [docs/BENCHMARKING.md](docs/BENCHMARKING.md). Reference results across versions: [benchmark/HIST_BENCH.md](benchmark/HIST_BENCH.md); advanced microarchitecture + energy metrics: [docs/BENCHMARK_ADVANCED.md](docs/BENCHMARK_ADVANCED.md).
@@ -612,7 +612,7 @@ cargo test chroma_dragon_engine::tests::lock -- --nocapture
 
 # print the Cosmic Dragon engine lock report
 cargo test cosmic_dragon_incubator::tests::lock -- --nocapture
-scripts/release/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
+scripts/release/verify-release-build.sh pro-linux-amd64-v3-gnu pro-linux-amd64-v4-gnu pro-linux-amd64-v3-musl
 ```
 
 ## Release Process

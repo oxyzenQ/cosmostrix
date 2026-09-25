@@ -145,13 +145,18 @@ incremental = false
 [profile.pro-native]
 inherits = "pro"
 
-[profile.pro-linux-v3]
+# NIGHT-blade-1: profile names mirror the cargo aliases 1:1 (see
+# .cargo/config.toml) — the name carries arch + baseline + libc.
+[profile.pro-linux-amd64-v3-gnu]
 inherits = "pro"
 
-[profile.pro-linux-v4]
+[profile.pro-linux-amd64-v4-gnu]
 inherits = "pro"
 
-[profile.pro-linux-musl]
+[profile.pro-linux-amd64-v3-musl]
+inherits = "pro"
+
+[profile.pro-linux-amd64-v4-musl]
 inherits = "pro"
 
 [profile.pro-macos-aarch64-native]

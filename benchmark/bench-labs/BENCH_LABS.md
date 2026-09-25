@@ -75,7 +75,7 @@ complete the `docs/archive/research/IPC_RESEARCH.md` verification.
 - Zero memory leaks across all sizes; `frame_time_stability: excellent` up to 4K.
 - RAPL energy and perf microarchitecture counters unavailable (cloud VM).
 - Regenerate with: `./benchmark/benchmark.sh sweep` (requires Rust toolchain)
-  or `SWEEP_BIN=target/<triple>/pro-linux-v4/cosmostrix ./benchmark/benchmark.sh sweep`
+  or `SWEEP_BIN=target/<triple>/pro-linux-amd64-v4-gnu/cosmostrix ./benchmark/benchmark.sh sweep`
   for an AVX-512 targeted build.
 
 ## See Also

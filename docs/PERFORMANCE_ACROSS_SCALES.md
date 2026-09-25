@@ -287,7 +287,7 @@ a scaling number looks unexpected and you need a starting point.
 | `dirty_ratio%` higher than v30 reference at same size    | Visual change increasing per-frame mutations                | Recent scene/palette/charset changes                           | Some scenes (cinematic) inherently have higher dirty ratio than others (monolith).              |
 | `io_ns/cell` grows with size                             | Diff engine emitting too many bytes per dirty cell          | `io_ns/cell` column — should stay ~55 ns/cell                  | Check RLE batching in `src/engine/cosmic_dragon_engine/terminal/`. v30: 51-58 ns/cell flat.                               |
 | `render_ns/cell` grows with size                         | New per-cell work in render path                            | `render_ns/cell` column — should stay ~27 ns/cell              | Bisect on `src/engine/cosmic_dragon_engine/cloud/render.rs`, `src/engine/cosmic_dragon_engine/cloud/phosphor.rs`, `src/engine/cosmic_dragon_engine/cloud/rain.rs`.                  |
-| `avg_fps` at 80×24 below 50,000                          | Build profile or env regression                             | Build flags (LTO, PGO); CPU governor; SMT state                | Match the v30 reference env: `pro-linux-v3`, schedutil, SMT on.                                 |
+| `avg_fps` at 80×24 below 50,000                          | Build profile or env regression                             | Build flags (LTO, PGO); CPU governor; SMT state                | Match the v30 reference env: `pro-linux-amd64-v3-gnu`, schedutil, SMT on.                                 |
 | `avg_fps` at 400×200 below 5,000                         | Cache thrashing or memory bandwidth saturation              | `total_ns/cell` — if >100 ns/cell, cache miss is the cause     | The 8.5% uptick at 400×200 (85.8 vs 78.5 ns/cell) is cache pressure, expected.                  |
 
 ---
@@ -350,7 +350,7 @@ it's the rain animation working as designed.
 **Wrong:** Higher avg_fps on cloud Xeon means the v30 reference is outdated.
 **Correct:** The two numbers come from DIFFERENT hardware and DIFFERENT
 build profiles. The cloud Xeon runs `cargo build --release` (x86-64-v1
-baseline, no AVX2). The v30 reference runs `pro-linux-v3` (AVX2/BMI2/FMA)
+baseline, no AVX2). The v30 reference runs `pro-linux-amd64-v3-gnu` (AVX2/BMI2/FMA)
 on a Ryzen 5800HS. The cloud Xeon wins because of higher sustained
 single-thread IPC at 3.2 GHz, despite the older SIMD baseline. Both
 numbers are correct for their respective environments.

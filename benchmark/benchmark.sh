@@ -17,8 +17,8 @@ BINARY_NAME="${BINARY_NAME:-cosmostrix}"
 # generic profiles.
 #
 # Detection order:
-#   AVX-512 (avx512f) → pro-linux-v4
-#   AVX2              → pro-linux-v3
+#   AVX-512 (avx512f) → pro-linux-amd64-v4-gnu
+#   AVX2              → pro-linux-amd64-v3-gnu
 #   ARM NEON          → pro-native  (aarch64)
 #   Fallback          → pro
 
@@ -43,10 +43,10 @@ auto_detect_build_profile() {
 		fi
 
 		if [[ "$flags" == *avx512f* ]]; then
-			echo "pro-linux-v4"
+			echo "pro-linux-amd64-v4-gnu"
 			return 0
 		elif [[ "$flags" == *avx2* ]]; then
-			echo "pro-linux-v3"
+			echo "pro-linux-amd64-v3-gnu"
 			return 0
 		fi
 	fi
@@ -111,7 +111,7 @@ probe_bin() {
 
 	# Profile priority: most optimized first
 	local -a profiles=(
-		pro-linux-v4 pro-linux-v3 pro-linux-musl
+		pro-linux-amd64-v4-gnu pro-linux-amd64-v3-gnu pro-linux-amd64-v3-musl
 		pro-macos-aarch64-native pro-win-amd64 pro-win-aarch64
 		pro-freebsd-amd64 pro-android-aarch64
 		pro-native pro
@@ -150,7 +150,7 @@ probe_bin() {
 }
 
 # Extract profile label from binary path for reporting.
-# e.g. target/x86_64-unknown-linux-gnu/pro-linux-v4/cosmostrix → pro-linux-v4
+# e.g. target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix → pro-linux-amd64-v4-gnu
 #      /abs/path/target/release/cosmostrix → release
 bin_profile_label() {
 	local bin="$1"
@@ -403,7 +403,7 @@ run_sweep() {
 		needs_build=true
 		build_alias="${2:-}"
 		if [[ -z "$build_alias" ]]; then
-			echo "[sweep] --build requires a cargo alias (e.g. pro-linux-v4, pro, release)" >&2
+			echo "[sweep] --build requires a cargo alias (e.g. pro-linux-amd64-v4-gnu, pro, release)" >&2
 			exit 1
 		fi
 		bin="${3:-}"
@@ -432,8 +432,8 @@ run_sweep() {
 	if [[ -z "$bin" || ! -x "$bin" ]]; then
 		echo "[sweep] No usable binary found." >&2
 		echo "[sweep] Build first with any profile, e.g.:" >&2
-		echo "[sweep]   cargo pro-linux-v4   # or pro-linux-v3, pro-native, release" >&2
-		echo "[sweep]   ./benchmark/benchmark.sh sweep --build pro-linux-v4" >&2
+		echo "[sweep]   cargo pro-linux-amd64-v4-gnu   # or pro-linux-amd64-v3-gnu, pro-native, release" >&2
+		echo "[sweep]   ./benchmark/benchmark.sh sweep --build pro-linux-amd64-v4-gnu" >&2
 		echo "[sweep]   SWEEP_BIN=./my-custom-binary ./benchmark/benchmark.sh sweep" >&2
 		exit 1
 	fi
@@ -627,14 +627,14 @@ sweep)
 	echo "  (no args)                   Run the original single-size benchmark" >&2
 	echo "  sweep                       Sweep 1x1 to 8K with auto-detected binary" >&2
 	echo "  sweep --auto                Auto-detect CPU, build optimal profile, sweep" >&2
-	echo "  sweep --build pro-linux-v4  Build then sweep" >&2
+	echo "  sweep --build pro-linux-amd64-v4-gnu  Build then sweep" >&2
 	echo "  sweep --build pro-native   Build pro-native then sweep" >&2
 	echo "  sweep --build release      Build release then sweep" >&2
 	echo "  sweep ./target/pro-native/cosmostrix  Sweep with explicit binary" >&2
 	echo "" >&2
 	echo "  --auto detection order:" >&2
-	echo "    AVX-512 (avx512f)  -> pro-linux-v4" >&2
-	echo "    AVX2              -> pro-linux-v3" >&2
+	echo "    AVX-512 (avx512f)  -> pro-linux-amd64-v4-gnu" >&2
+	echo "    AVX2              -> pro-linux-amd64-v3-gnu" >&2
 	echo "    ARM NEON          -> pro-native" >&2
 	echo "    Fallback          -> pro" >&2
 	echo "" >&2

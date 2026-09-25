@@ -201,8 +201,8 @@ The prior 1.97.x pins fixed an LLVM miscompilation present since Rust
 | Architecture | Profile | CPU Features | Notes |
 |--------------|---------|--------------|-------|
 | x86-64-v1 | `release` / `pro` | SSE2 (2001) | Baseline — runs on any x86-64 CPU |
-| x86-64-v3 | `pro-linux-v3` | AVX2 (2013) | Modern CPUs (Haswell+, Ryzen+) |
-| x86-64-v4 | `pro-linux-v4` | AVX-512 (2017) | Server/workstation CPUs |
+| x86-64-v3 | `pro-linux-amd64-v3-gnu` | AVX2 (2013) | Modern CPUs (Haswell+, Ryzen+) |
+| x86-64-v4 | `pro-linux-amd64-v4-gnu` | AVX-512 (2017) | Server/workstation CPUs |
 | aarch64 | `pro-android-aarch64` | NEON | Android/Termux, Apple Silicon |
 | aarch64 macOS | `pro-macos-aarch64-native` | NEON | Apple M1/M2/M3 |
 | x86-64 FreeBSD | `pro-freebsd-amd64` | native (host CPU) | FreeBSD 13+, GhostBSD |
@@ -210,8 +210,8 @@ The prior 1.97.x pins fixed an LLVM miscompilation present since Rust
 **`install.sh` auto-detects** the CPU microarchitecture level and builds
 the optimal profile (Linux only):
 
-- AVX-512 detected -> `pro-linux-v4`
-- AVX2 detected -> `pro-linux-v3`
+- AVX-512 detected -> `pro-linux-amd64-v4-gnu`
+- AVX2 detected -> `pro-linux-amd64-v3-gnu`
 - Neither -> `release` (v1 baseline, works everywhere)
 
 On FreeBSD, use `cargo pro-freebsd-amd64` directly.
@@ -284,8 +284,8 @@ rustc --version  # should be >= 1.98.1
 
 # Check CPU features
 grep -o 'avx2\|avx512f' /proc/cpuinfo | sort -u
-# avx2 -> pro-linux-v3 build available
-# avx512f -> pro-linux-v4 build available
+# avx2 -> pro-linux-amd64-v3-gnu build available
+# avx512f -> pro-linux-amd64-v4-gnu build available
 # (empty) -> release build (v1 baseline)
 
 # Run cosmostrix doctor for full system check

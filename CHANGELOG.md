@@ -23,6 +23,39 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### build: NIGHT-blade-1 — cargo alias rename: the Linux x86_64 build family now names arch + baseline + libc (pro-linux-amd64-v3/v4-gnu, pro-linux-amd64-v3/v4-musl)
+
+- `cargo pro-linux-v3` / `pro-linux-v4` / `pro-linux-musl` are renamed to
+  `cargo pro-linux-amd64-v3-gnu` / `pro-linux-amd64-v4-gnu` /
+  `pro-linux-amd64-v3-musl` (the musl alias always pinned
+  `target-cpu=x86-64-v3`, so its name now says so), and
+  `pro-linux-amd64-v4-musl` joins the family for local builds (the
+  release matrix is unchanged: v3-gnu, v4-gnu, v3-musl). Profile names
+  mirror the aliases 1:1 (zelynic pro-linux lineage), so binaries land
+  in `target/<triple>/<alias-name>/cosmostrix`.
+- The musl build id becomes `linux-amd64-v3-musl` (was
+  `linux-amd64-musl`), aligning the embedded `--doctor` label with the
+  v3 codegen it ships; the runtime AVX2 guard in
+  `info.rs::check_cpu_features` now covers musl binaries too (the old
+  id hid the v3 token from the guard).
+- Hunt fixes riding the rename: release.yml's verify-build-metadata
+  case labels now match the matrix build ids verbatim (the pre-blade-1
+  labels dropped the -gnu suffix, so the v3/v4 baseline verification
+  silently never matched — only the musl leg exercised the case); the
+  non-AVX2 rebuild guidance no longer suggests the musl v3 build (same
+  baseline — it would SIGILL too) and points at the generic release
+  profile; SUPPLY_CHAIN.md's maintenance step list matches the
+  workflow's plain `pro` build again (2026-08-23 owner directive);
+  RULES.md's install path repointed at scripts/setup/install.sh.
+- All live references updated: .cargo/config.toml, Cargo.toml profiles,
+  build.rs (baseline-claim matching for the new name shapes + a
+  regression test), install.sh autodetect, verify-release-build.sh,
+  version-to.sh, benchmark.sh, compare_renderers.py, release/ci/
+  maintenance workflows, README.md + 9 docs. Historical records
+  (benchmark/HIST_BENCH.md, bench-labs sweeps, docs/archive/)
+  intentionally keep the old names — they document what was actually
+  run.
+
 ### docs: NIGHT-master-2 — dual-licensing model: GPL-3.0-only + Commercial License (Individual $99/yr, Business $1K/yr, Company $9.9K/yr)
 
 - cosmostrix is now dual-licensed: GPL-3.0-only for open-source use (the

@@ -209,9 +209,10 @@ jobs:
           cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
           cargo build --profile release --locked --jobs "${CARGO_BUILD_JOBS}"
           # Owner directive 2026-08-23: validate the plain `pro` profile
-          # (native target, no -C target-cpu pin) instead of pro-linux-v3 —
-          # dependency validation does not need a pinned microarch level,
-          # and plain pro builds on any runner arch (incl. future arm64).
+          # (native target, no -C target-cpu pin) instead of
+          # pro-linux-amd64-v3-gnu — dependency validation does not need
+          # a pinned microarch level, and plain pro builds on any runner
+          # arch (incl. future arm64).
           cargo build --profile pro --locked --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Run tests

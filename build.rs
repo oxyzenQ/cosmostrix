@@ -373,9 +373,14 @@ fn cpu_baseline(build_id: &str, profile_name: &str, features: &HashSet<String>) 
 }
 
 fn claimed_x86_baseline(value: &str) -> Option<&'static str> {
-    if value.ends_with("-v4") {
+    // NIGHT-blade-1: build ids and profile names carry the baseline as
+    // an inner token (linux-amd64-v3-gnu, pro-linux-amd64-v3-musl), so
+    // the claim check matches "-vN-" anywhere in the string OR a
+    // trailing "-vN" (the legacy pro-linux-v3 shape and CI's
+    // linux-x86_64-vN labels keep claiming too).
+    if value.contains("-v4-") || value.ends_with("-v4") {
         Some("x86-64-v4")
-    } else if value.ends_with("-v3") {
+    } else if value.contains("-v3-") || value.ends_with("-v3") {
         Some("x86-64-v3")
     } else {
         None
@@ -407,8 +412,7 @@ fn verify_cpu_baseline(
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let official_linux_x86 = (build_id.starts_with("linux-amd64-")
-        || profile_name.starts_with("pro-linux-v")
-        || profile_name.starts_with("pro-linux-musl"))
+        || profile_name.starts_with("pro-linux-amd64-v"))
         && os == "linux"
         && arch == "x86_64";
 
@@ -529,7 +533,7 @@ fn fail_cpu_baseline(
     eprintln!("  target_features: {}", format_target_features(features));
     eprintln!("  reason: {reason}");
     eprintln!();
-    eprintln!("Use the cargo aliases (for example `cargo pro-linux-v3`) or set matching RUSTFLAGS explicitly.");
+    eprintln!("Use the cargo aliases (for example `cargo pro-linux-amd64-v3-gnu`) or set matching RUSTFLAGS explicitly.");
     std::process::exit(1);
 }
 
@@ -759,14 +763,14 @@ mod tests {
             inherits = "release"
             codegen-units = 1
 
-            [profile.pro-linux-v3]
+            [profile.pro-linux-amd64-v3-gnu]
             inherits = "pro"
         "#;
 
         let profiles = parse_profiles(text);
-        let mut effective = profile_defaults("pro-linux-v3");
+        let mut effective = profile_defaults("pro-linux-amd64-v3-gnu");
         resolve_profile(
-            "pro-linux-v3",
+            "pro-linux-amd64-v3-gnu",
             &profiles,
             &mut HashSet::new(),
             &mut effective,
@@ -802,9 +806,40 @@ mod tests {
         assert_eq!(pgo_label("nitro-pgo-instrument"), "no");
         assert_eq!(pgo_label("linux-amd64-v3"), "no");
         assert_eq!(pgo_label("linux-amd64-v3-musl"), "no");
-        assert_eq!(pgo_label("pro-linux-v3"), "no");
+        assert_eq!(pgo_label("pro-linux-amd64-v3-gnu"), "no");
         assert_eq!(pgo_label("unknown"), "no");
         assert_eq!(pgo_label(""), "no");
+    }
+
+    #[test]
+    fn claimed_x86_baseline_matches_blade1_name_shapes() {
+        // NIGHT-blade-1: ids/profiles carry the baseline as an inner
+        // token; both the new (linux-amd64-v3-gnu) and the legacy
+        // (pro-linux-v3) shapes must claim their baseline, and
+        // baseline-less ids must not claim.
+        assert_eq!(
+            claimed_x86_baseline("linux-amd64-v3-gnu"),
+            Some("x86-64-v3")
+        );
+        assert_eq!(
+            claimed_x86_baseline("linux-amd64-v4-gnu"),
+            Some("x86-64-v4")
+        );
+        assert_eq!(
+            claimed_x86_baseline("linux-amd64-v3-musl"),
+            Some("x86-64-v3")
+        );
+        assert_eq!(
+            claimed_x86_baseline("linux-amd64-v4-musl"),
+            Some("x86-64-v4")
+        );
+        assert_eq!(
+            claimed_x86_baseline("pro-linux-amd64-v3-gnu"),
+            Some("x86-64-v3")
+        );
+        assert_eq!(claimed_x86_baseline("pro-linux-v3"), Some("x86-64-v3"));
+        assert_eq!(claimed_x86_baseline("linux-amd64-musl"), None);
+        assert_eq!(claimed_x86_baseline("pro"), None);
     }
 
     #[test]

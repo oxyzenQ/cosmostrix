@@ -30,23 +30,23 @@ jobs:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             platform: linux-amd64-v3
-            profile: pro-linux-v3
+            profile: pro-linux-amd64-v3-gnu
             rustflags: "-C target-cpu=x86-64-v3"
             build: linux-amd64-v3-gnu
             checks: true
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             platform: linux-amd64-v4
-            profile: pro-linux-v4
+            profile: pro-linux-amd64-v4-gnu
             rustflags: "-C target-cpu=x86-64-v4"
             build: linux-amd64-v4-gnu
             checks: false
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-musl
             platform: linux-amd64-musl
-            profile: pro-linux-musl
+            profile: pro-linux-amd64-v3-musl
             rustflags: "-C target-cpu=x86-64-v3"
-            build: linux-amd64-musl
+            build: linux-amd64-v3-musl
             checks: false
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
@@ -282,9 +282,13 @@ jobs:
           BIN="target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix"
           BUILD_ID="${{ matrix.build }}"
           case "${BUILD_ID}" in
-            linux-amd64-v3) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
-            linux-amd64-v4) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512)"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
-            linux-amd64-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
+            # NIGHT-blade-1: labels match the matrix build ids verbatim
+            # (the pre-blade-1 labels dropped the -gnu/-musl suffix, so
+            # the v3/v4 baseline verification silently never matched and
+            # only the musl leg exercised this case).
+            linux-amd64-v3-gnu) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
+            linux-amd64-v4-gnu) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512)"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
+            linux-amd64-v3-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
             *) BASELINE=""; OPTIMIZATION=""; REQUIRED=""; DENIED="" ;;
           esac
 

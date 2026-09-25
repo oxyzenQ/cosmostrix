@@ -35,42 +35,64 @@ pro-native = [
   "build.rustflags=[\"-C\",\"target-cpu=native\"]",
 ]
 
-pro-linux-v3 = [
+# NIGHT-blade-1 (zelynic pro-linux lineage): the Linux x86_64 alias
+# names carry the arch (amd64), the microarch baseline (v3/v4), and
+# the libc flavor (gnu/musl), so an invocation names the exact
+# artifact it produces — the old pro-linux-v3 / pro-linux-musl names
+# hid the arch and the libc (musl is v3-baseline, matching its
+# target-cpu pin). pro-linux-amd64-v4-musl completes the family for
+# local builds; the release matrix still ships v3-gnu, v4-gnu, and
+# v3-musl only. Profile names stay 1:1 with the alias names so the
+# binaries land in target/<target>/<alias-name>/cosmostrix.
+pro-linux-amd64-v3-gnu = [
   "build",
   "--profile",
-  "pro-linux-v3",
+  "pro-linux-amd64-v3-gnu",
   "--config",
   "env.COSMOSTRIX_BUILD=\"linux-amd64-v3-gnu\"",
   "--config",
-  "env.COSMOSTRIX_PROFILE=\"pro-linux-v3\"",
+  "env.COSMOSTRIX_PROFILE=\"pro-linux-amd64-v3-gnu\"",
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\"]",
   "--target",
   "x86_64-unknown-linux-gnu",
 ]
-pro-linux-v4 = [
+pro-linux-amd64-v4-gnu = [
   "build",
   "--profile",
-  "pro-linux-v4",
+  "pro-linux-amd64-v4-gnu",
   "--config",
   "env.COSMOSTRIX_BUILD=\"linux-amd64-v4-gnu\"",
   "--config",
-  "env.COSMOSTRIX_PROFILE=\"pro-linux-v4\"",
+  "env.COSMOSTRIX_PROFILE=\"pro-linux-amd64-v4-gnu\"",
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
   "--target",
   "x86_64-unknown-linux-gnu",
 ]
-pro-linux-musl = [
+pro-linux-amd64-v3-musl = [
   "build",
   "--profile",
-  "pro-linux-musl",
+  "pro-linux-amd64-v3-musl",
   "--config",
-  "env.COSMOSTRIX_BUILD=\"linux-amd64-musl\"",
+  "env.COSMOSTRIX_BUILD=\"linux-amd64-v3-musl\"",
   "--config",
-  "env.COSMOSTRIX_PROFILE=\"pro-linux-musl\"",
+  "env.COSMOSTRIX_PROFILE=\"pro-linux-amd64-v3-musl\"",
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\"]",
+  "--target",
+  "x86_64-unknown-linux-musl",
+]
+pro-linux-amd64-v4-musl = [
+  "build",
+  "--profile",
+  "pro-linux-amd64-v4-musl",
+  "--config",
+  "env.COSMOSTRIX_BUILD=\"linux-amd64-v4-musl\"",
+  "--config",
+  "env.COSMOSTRIX_PROFILE=\"pro-linux-amd64-v4-musl\"",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
   "--target",
   "x86_64-unknown-linux-musl",
 ]

@@ -20,7 +20,7 @@ usage() {
 Usage: scripts/release/verify-release-build.sh [--no-build] [--unlocked] [profile...]
 
 Profiles default to:
-  pro-linux-v3 pro-linux-v4 pro-linux-musl
+  pro-linux-amd64-v3-gnu pro-linux-amd64-v4-gnu pro-linux-amd64-v3-musl
 
 The script builds Linux x86_64 release variants, prints binary sizes, runs
 safe variants with --doctor, verifies build metadata, and checks stripped status on
@@ -63,45 +63,50 @@ have_avx512f() {
 
 build_id_for_profile() {
 	case "$1" in
-	pro-linux-v3) printf 'linux-amd64-v3' ;;
-	pro-linux-v4) printf 'linux-amd64-v4' ;;
-	pro-linux-musl) printf 'linux-amd64-musl' ;;
+	pro-linux-amd64-v3-gnu) printf 'linux-amd64-v3-gnu' ;;
+	pro-linux-amd64-v4-gnu) printf 'linux-amd64-v4-gnu' ;;
+	pro-linux-amd64-v3-musl) printf 'linux-amd64-v3-musl' ;;
+	pro-linux-amd64-v4-musl) printf 'linux-amd64-v4-musl' ;;
 	*) fail "Unsupported profile '$1'" ;;
 	esac
 }
 
 rustflags_for_profile() {
 	case "$1" in
-	pro-linux-v3) printf -- '-C target-cpu=x86-64-v3' ;;
-	pro-linux-v4) printf -- '-C target-cpu=x86-64-v4' ;;
-	pro-linux-musl) printf -- '-C target-cpu=x86-64-v3' ;;
+	pro-linux-amd64-v3-gnu) printf -- '-C target-cpu=x86-64-v3' ;;
+	pro-linux-amd64-v4-gnu) printf -- '-C target-cpu=x86-64-v4' ;;
+	pro-linux-amd64-v3-musl) printf -- '-C target-cpu=x86-64-v3' ;;
+	pro-linux-amd64-v4-musl) printf -- '-C target-cpu=x86-64-v4' ;;
 	*) fail "Unsupported profile '$1'" ;;
 	esac
 }
 
 baseline_for_profile() {
 	case "$1" in
-	pro-linux-v3) printf 'x86-64-v3' ;;
-	pro-linux-v4) printf 'x86-64-v4' ;;
-	pro-linux-musl) printf 'x86-64-v3' ;;
+	pro-linux-amd64-v3-gnu) printf 'x86-64-v3' ;;
+	pro-linux-amd64-v4-gnu) printf 'x86-64-v4' ;;
+	pro-linux-amd64-v3-musl) printf 'x86-64-v3' ;;
+	pro-linux-amd64-v4-musl) printf 'x86-64-v4' ;;
 	*) fail "Unsupported profile '$1'" ;;
 	esac
 }
 
 optimization_for_profile() {
 	case "$1" in
-	pro-linux-v3) printf 'x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)' ;;
-	pro-linux-v4) printf 'x86-64-v4 baseline (AVX-512)' ;;
-	pro-linux-musl) printf 'x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static' ;;
+	pro-linux-amd64-v3-gnu) printf 'x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)' ;;
+	pro-linux-amd64-v4-gnu) printf 'x86-64-v4 baseline (AVX-512)' ;;
+	pro-linux-amd64-v3-musl) printf 'x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static' ;;
+	pro-linux-amd64-v4-musl) printf 'x86-64-v4 baseline (AVX-512) + musl static' ;;
 	*) fail "Unsupported profile '$1'" ;;
 	esac
 }
 
 required_features_for_profile() {
 	case "$1" in
-	pro-linux-v3) printf 'avx2 bmi2 fma' ;;
-	pro-linux-v4) printf 'avx512f avx512bw avx512cd avx512dq avx512vl' ;;
-	pro-linux-musl) printf 'avx2 bmi2 fma' ;;
+	pro-linux-amd64-v3-gnu) printf 'avx2 bmi2 fma' ;;
+	pro-linux-amd64-v4-gnu) printf 'avx512f avx512bw avx512cd avx512dq avx512vl' ;;
+	pro-linux-amd64-v3-musl) printf 'avx2 bmi2 fma' ;;
+	pro-linux-amd64-v4-musl) printf 'avx512f avx512bw avx512cd avx512dq avx512vl' ;;
 	*) fail "Unsupported profile '$1'" ;;
 	esac
 }
@@ -225,7 +230,7 @@ while (($#)); do
 done
 
 if ((${#profiles[@]} == 0)); then
-	profiles=(pro-linux-v3 pro-linux-v4 pro-linux-musl)
+	profiles=(pro-linux-amd64-v3-gnu pro-linux-amd64-v4-gnu pro-linux-amd64-v3-musl)
 fi
 
 for profile in "${profiles[@]}"; do
@@ -250,7 +255,7 @@ for profile in "${profiles[@]}"; do
 	log "Binary size: $(binary_size "$bin")"
 
 	case "$profile" in
-	pro-linux-v4)
+	pro-linux-amd64-v4-gnu | pro-linux-amd64-v4-musl)
 		if have_avx512f; then
 			verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
 		else
@@ -258,7 +263,7 @@ for profile in "${profiles[@]}"; do
 			scan_binary "$bin" "$expected" "$baseline" "$optimization" "$required"
 		fi
 		;;
-	pro-linux-v3)
+	pro-linux-amd64-v3-gnu | pro-linux-amd64-v3-musl)
 		if have_avx2; then
 			verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
 		else

@@ -52,8 +52,8 @@ Usage: $0 [--system|--user] [--force]
 CPU autodetect (Linux/x86-64 only):
   The build step auto-detects the CPU microarchitecture and picks the
   optimal cargo profile:
-    AVX-512 (x86-64-v4) → cargo pro-linux-v4 --locked
-    AVX2    (x86-64-v3) → cargo pro-linux-v3 --locked
+    AVX-512 (x86-64-v4) → cargo pro-linux-amd64-v4-gnu --locked
+    AVX2    (x86-64-v3) → cargo pro-linux-amd64-v3-gnu --locked
     baseline / non-x86  → cargo build --release --locked
   No manual profile selection needed — just run: $0
 
@@ -195,9 +195,9 @@ detect_build_profile() {
 	cpuinfo="$(grep -m1 '^flags' /proc/cpuinfo 2>/dev/null || true)"
 
 	if echo "${cpuinfo}" | grep -qw avx512f; then
-		echo "pro-linux-v4"
+		echo "pro-linux-amd64-v4-gnu"
 	elif echo "${cpuinfo}" | grep -qw avx2; then
-		echo "pro-linux-v3"
+		echo "pro-linux-amd64-v3-gnu"
 	else
 		echo "release"
 	fi
@@ -205,15 +205,15 @@ detect_build_profile() {
 
 BUILD_PROFILE="$(detect_build_profile)"
 case "${BUILD_PROFILE}" in
-pro-linux-v4)
-	echo "   detected: x86-64-v4 (AVX-512) — using pro-linux-v4 profile"
-	cargo pro-linux-v4 --locked
-	BINARY="target/x86_64-unknown-linux-gnu/pro-linux-v4/${PROJECT_NAME}"
+pro-linux-amd64-v4-gnu)
+	echo "   detected: x86-64-v4 (AVX-512) — using pro-linux-amd64-v4-gnu profile"
+	cargo pro-linux-amd64-v4-gnu --locked
+	BINARY="target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/${PROJECT_NAME}"
 	;;
-pro-linux-v3)
-	echo "   detected: x86-64-v3 (AVX2) — using pro-linux-v3 profile"
-	cargo pro-linux-v3 --locked
-	BINARY="target/x86_64-unknown-linux-gnu/pro-linux-v3/${PROJECT_NAME}"
+pro-linux-amd64-v3-gnu)
+	echo "   detected: x86-64-v3 (AVX2) — using pro-linux-amd64-v3-gnu profile"
+	cargo pro-linux-amd64-v3-gnu --locked
+	BINARY="target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/${PROJECT_NAME}"
 	;;
 *)
 	echo "   detected: baseline x86-64 or non-x86 — using release profile"

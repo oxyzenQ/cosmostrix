@@ -647,10 +647,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - profile: pro-linux-v3
+          - profile: pro-linux-amd64-v3-gnu
             rustflags: "-C target-cpu=x86-64-v3"
             build: linux-x86_64-v3
-          - profile: pro-linux-v4
+          - profile: pro-linux-amd64-v4-gnu
             rustflags: "-C target-cpu=x86-64-v4"
             build: linux-x86_64-v4
     steps:
