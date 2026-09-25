@@ -39,8 +39,8 @@ tripwire note in the pre-v13 archive).
   bounds-checked with defensive fallbacks (`color_map[idx]` is guarded
   with an explicit egg-#15 bounds check; `glitch_map[idx]` guards
   length before read).
-- Untrusted-input surfaces: the strict config parser (validation order
-  + strict-mode + typo-rejection test families), the root-usage guard
+- Untrusted-input surfaces: the strict config parser (validation order,
+  strict-mode, and typo-rejection test families), the root-usage guard
   (NIGHT-security-4 + the euid-0 hard refuse on --check-update),
   safepath canonicalization tests, and the terminal
   raw-mode/alternate-screen teardown contracts (panic = unwind by
