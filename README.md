@@ -595,6 +595,8 @@ The mode catalog (`--bench-io` wet I/O, `--bench-scene lean|production-draw`, `-
 - [Known Issues](KNOWN_ISSUES.md) — platform-specific quirks and workarounds
 - [Insights](INSIGHTS.md) — living idea journal (the story behind features)
 - [Contributing Guide](CONTRIBUTING.md) — build, test, coding conventions, PR checklist
+- [Commercial Licensing](COMMERCIAL_LICENSE.md) — dual-license tiers, crypto payment, verification
+- [Licensing FAQ](docs/LICENSING_FAQ.md) — who needs which license
 
 Rendering architecture, benchmarking, ambient intelligence, terminal compatibility, supply chain, and the release workflow all live in the [Docs Index](docs/README.md)
 
@@ -662,6 +664,29 @@ Owner-verified receive addresses (rezky_nightky / oxyzenQ). All three passed off
 - **Bitcoin** — `BTC` on Taproot (P2TR, bech32m, `bc1p`-prefixed — verified Taproot, not native SegWit): `bc1p88nqysn4p8u9zxwz2pyxs5pl77wllcrk6ca2r2l3ryr3863hxkys5vdkze`
 
 Support is optional. The project remains open-source.
+
+## Commercial Licensing
+
+Companies using this in production need a commercial license. cosmostrix is
+dual-licensed: GPL-3.0-only for open-source use, and a Commercial License
+for proprietary or commercial use that cannot meet GPL-3.0 copyleft
+obligations.
+
+| Tier       | Price          | Target                                                       |
+| ---------- | -------------- | ------------------------------------------------------------ |
+| Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
+| Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
+| Business   | $1,000/year    | SMB, revenue $100K–$10M/year                                 |
+| Company    | $9,900/year    | Enterprise (>$10M/year revenue) OR any redistribution rights |
+
+Payment is USD-pegged and accepted in crypto (Solana, Ethereum, Bitcoin
+Taproot). See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) for payment
+addresses, the verification process, and full terms. For licensing inquiries
+contact [with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+
+The voluntary crypto donations under [Support](#support) above are tips for
+the open-source project — separate from commercial licensing; they grant no
+commercial rights.
 
 ## Intellectual Property & Trademark
 

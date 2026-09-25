@@ -17,6 +17,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 | Release a new version | [workflow/ABOUT_CI.md](workflow/ABOUT_CI.md) |
 | Recover a broken terminal | `cosmostrix --reset-terminal` or [TERMINAL_KILL_CLEANUP.md](TERMINAL_KILL_CLEANUP.md) |
 | Report a bug / contribute | [RULES.md](RULES.md) |
+| Understand licensing (open source vs commercial) | [LICENSING_FAQ.md](LICENSING_FAQ.md) |
 
 ## Architecture & Engine
 
@@ -93,6 +94,14 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | Doc | Covers |
 |-----|--------|
 | [COMMENT_STYLE.md](COMMENT_STYLE.md) | Rust source comment conventions — `///` vs `//`, rustdoc markdown (`*italic*`, `**bold**`, ` ```text ` code fences), semantic distinction between emphasis types. Audit 2026-08-19 confirmed codebase is consistent; this doc codifies the convention for future contributors. |
+
+## Licensing & Trademark
+
+| Doc | Covers |
+|-----|--------|
+| [../COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) | Commercial license tiers, crypto payment, verification workflow |
+| [LICENSING_FAQ.md](LICENSING_FAQ.md) | Short FAQ — who needs which license, tier selection, payment flow |
+| [../TRADEMARK.md](../TRADEMARK.md) | Trademark and IP policy, fork categories, brand permission |
 
 ## Build, Release & CI
 

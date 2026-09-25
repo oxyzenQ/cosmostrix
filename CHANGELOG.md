@@ -23,6 +23,28 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### docs: NIGHT-master-2 — dual-licensing model: GPL-3.0-only + Commercial License (Individual $99/yr, Business $1K/yr, Company $9.9K/yr)
+
+- cosmostrix is now dual-licensed: GPL-3.0-only for open-source use (the
+  existing license, unchanged) plus a Commercial License for
+  proprietary/commercial use. See COMMERCIAL_LICENSE.md for details.
+- New COMMERCIAL_LICENSE.md: who needs a license, tier pricing (Personal
+  free under GPL-3.0-only, Individual $99/year, Business $1,000/year,
+  Company $9,900/year), crypto payment instructions (Solana, Ethereum,
+  Bitcoin Taproot) with inline QR codes, the USD-peg policy, the on-chain
+  verification workflow, and contact channels.
+- New docs/LICENSING_FAQ.md: the five recurring licensing questions (free
+  company use, tier selection, payment, hobby use, rebranding).
+- New assets/qr/: payment QR codes for the three owner-verified addresses
+  (error correction level M, ~200 px, <5 KB each; decode round-trip
+  verified equal to the exact address strings, and the addresses
+  re-validated: base58 32-byte ed25519 key, EIP-55 checksum, bech32m
+  taproot witness program).
+- LICENSE now opens with a dual-license notice above the GPL-3.0-only
+  text; README.md gained a Commercial Licensing section plus doc-list
+  entries; TRADEMARK.md and NOTICE cross-reference the commercial
+  offering; docs/README.md indexes the new FAQ.
+
 ### fix: NIGHT-perf-2 - thread-attributed alloc counting: the cosmetics zero-alloc tripwire measured process-global counters, so libtest's parallel shared-process execution attributed concurrent tests' allocations to the cosmetics path (FreeBSD CI: 16.3 allocs/frame of cross-thread noise)
 
 - **Root cause** (FreeBSD CI failure on the NIGHT-perf-2 harness commit,

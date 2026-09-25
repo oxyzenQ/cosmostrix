@@ -5,6 +5,8 @@
 **Repository:** <https://github.com/oxyzenQ/cosmostrix>
 **Source license:** GPL-3.0-only
 
+Commercial licensing is separate from trademark licensing. See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
+
 ## 1. Copyright & Ownership
 
 cosmostrix — including its source code, logo, name, and all associated
