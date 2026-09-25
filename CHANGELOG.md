@@ -23,6 +23,36 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### lts: NIGHT-lts-3 — ultra-long-endurance depth audit: the column-coherence shimmer phase no longer quantizes on multi-day runs (f64 + wrap to [0, 2π))
+
+- The one real defect found in the endurance sweep: the column-coherence
+  hue shimmer derived its temporal phase from the process-lifetime
+  elapsed via `as_secs_f32()` — an f32 ULP reaches a full 16.7 ms frame
+  period after ~36 h (31 ms after ~3 days, 62 ms after ~9 days), so the
+  intended ~60 s shimmer cycle progressively froze on ultra-long runs,
+  and the unbounded `sin()` argument (~1.7M rad after a month) quantized
+  the perturbation into temporal noise at multi-week ages. New
+  `shaders::base::column_coherence_phase()` computes the phase in f64
+  and wraps it to [0, 2π) before the f32 handoff: `sin` is 2π-periodic,
+  so the wrapped phase is mathematically identical and stays small
+  forever — the shimmer keeps its full drift resolution at any session
+  age, for one f64 mul + rem per frame (the `cols`-length LUT fill it
+  feeds costs far more).
+- Regression tests: the phase advances at the tuned rate at a 30-day
+  elapsed (the pre-fix path produced zero advance per 16 ms step there),
+  stays inside [0, 2π) at ages up to a year, and matches the legacy
+  unwrapped computation at short elapsed (the first hours behave
+  identically — no visual change for normal sessions).
+- The rest of the endurance surface verified at peak, zero changes
+  needed: frame scheduling uses absolute deadlines with `checked_add`
+  plus a monotonic clock-jump guard (drift-free, VM-safe); every easing
+  anchor (pause/resume/glyph-entry) is settle-and-clear bounded; the
+  EnduranceHealth signals are bounded ring buffers (60 RSS samples) and
+  init-flagged EMAs; all elapsed reads go through
+  `saturating_duration_since` (no Instant subtraction panics); counters
+  are u64; the restart-consistency contract (fresh-start state on 'r')
+  is already pinned by tests_restart_lts3.rs.
+
 ### ci: NIGHT-improve-1 — the commit+tag collision gate: both tag pipelines now serialize behind the branch CI on the tagged SHA, so `git push origin main vX.Y.Z` is safe
 
 - The documented release recipe (docs/workflow/ABOUT_CI.md, the

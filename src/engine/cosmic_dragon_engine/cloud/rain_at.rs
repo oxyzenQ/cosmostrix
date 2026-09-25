@@ -1621,10 +1621,18 @@ impl super::Cloud {
         // 0.105 rad/s, the phase now smoothly cycles every 2π/0.105 ≈ 60s,
         // which is the intended slow-drift behavior. Also removes a hidden
         // Instant::now() syscall per frame.
-        let column_coherence_phase = now
-            .saturating_duration_since(self.start_anchor)
-            .as_secs_f32()
-            * crate::chroma_dragon_engine::tuning::COLUMN_COHERENCE_FREQ;
+        //
+        // NIGHT-lts-3: the phase computation moved into
+        // shaders::base::column_coherence_phase — f64 internally, wrapped
+        // to [0, 2π) before the f32 handoff. The previous `as_secs_f32()`
+        // on the lifetime elapsed quantized at whole frame periods after
+        // ~36 h, progressively freezing the shimmer on multi-day runs
+        // (and the unbounded sin() argument added temporal noise at
+        // multi-week ages). See the helper's doc for the full timeline.
+        let column_coherence_phase =
+            crate::chroma_dragon_engine::shaders::base::column_coherence_phase(
+                now.saturating_duration_since(self.start_anchor),
+            );
         let cols_us = self.cols as usize;
         if self.column_coherence_lut.len() != cols_us {
             self.column_coherence_lut.resize(cols_us, 0);

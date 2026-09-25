@@ -4,9 +4,11 @@
 //! Shader helper functions — extracted from `shaders/base/mod.rs` to
 //! keep that file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
-//! Owns 6 free helper functions used by the chroma dragon shader:
+//! Owns 7 free helper functions used by the chroma dragon shader:
 //! - `bayer_threshold`: ordered dithering threshold (4x4 Bayer matrix).
 //! - `column_coherence_perturbation`: per-column hue phase offset.
+//! - `column_coherence_phase`: wrapped temporal phase for the shimmer
+//!   (NIGHT-lts-3).
 //! - `hue_drift_offset`: maps ecosystem hue_drift to i32 offset.
 //! - `cell_hash`: FNV-1a hash for per-cell deterministic jitter.
 //! - `apply_subpixel_jitter`: RGB subpixel dithering for smooth gradients.
@@ -107,6 +109,26 @@ pub(crate) fn column_coherence_perturbation(phase: f32, col: u16) -> i32 {
     let spatial = (col as f32) * 0.05;
     // Amplitude: ±0.5 → rounds to {-1, 0, +1}
     ((phase + spatial).sin() * 0.5_f32).round() as i32
+}
+
+/// NIGHT-lts-3: temporal phase driving the column-coherence shimmer,
+/// from the process-lifetime elapsed (`Cloud::start_anchor`).
+///
+/// Computed in f64 and wrapped to `[0, 2π)` before the f32 handoff.
+/// The pre-lts-3 call site converted the elapsed with `as_secs_f32()`
+/// first: an f32 ULP reaches a full 16.7 ms frame period after ~36 h
+/// (31 ms after ~3 days), so the ~60 s shimmer cycle progressively
+/// froze on ultra-long runs, and the unwrapped `sin()` argument grows
+/// without bound (~1.7M rad after a month), quantizing the perturbation
+/// into temporal noise. `sin` is 2π-periodic — the wrapped phase is
+/// mathematically identical and stays small forever, so the shimmer
+/// keeps its intended cycle at any session age. One f64 mul + rem per
+/// frame (the `cols`-length LUT fill it feeds costs far more).
+#[inline]
+pub(crate) fn column_coherence_phase(elapsed: std::time::Duration) -> f32 {
+    let phase = elapsed.as_secs_f64()
+        * f64::from(crate::chroma_dragon_engine::tuning::COLUMN_COHERENCE_FREQ);
+    (phase % (2.0 * std::f64::consts::PI)) as f32
 }
 
 /// Phase 3-H: compute the global hue-drift palette-stop offset.

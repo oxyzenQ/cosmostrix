@@ -740,7 +740,8 @@ use helpers::{
     apply_subpixel_jitter, bayer_threshold, cell_hash, SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD,
 };
 pub(crate) use helpers::{
-    color_uses_previous_palette, column_coherence_perturbation, hue_drift_offset, TRAIL_EXP_LUT,
+    color_uses_previous_palette, column_coherence_perturbation, column_coherence_phase,
+    hue_drift_offset, TRAIL_EXP_LUT,
 };
 
 // Test-support helpers shared by the four #[path] test modules below.

@@ -675,3 +675,67 @@ fn short_droplet_produces_visible_gradient() {
         "head-side Middle ({r1}) should be brighter than tail-side ({r2})"
     );
 }
+
+// ─── NIGHT-lts-3: column_coherence_phase (ultra-long-endurance) ─────────────
+
+/// NIGHT-lts-3: the coherence phase must keep advancing at the tuned
+/// rate even at multi-day session ages. The pre-fix call site converted
+/// the lifetime elapsed with `as_secs_f32()` — an f32 ULP reaches a
+/// full 16.7 ms frame period after ~36 h, so at a 30-day elapsed the
+/// 16 ms step produced ZERO phase advance (or a whole-ULP jump), and
+/// the ~60 s shimmer cycle was effectively frozen.
+#[test]
+fn column_coherence_phase_advances_at_multi_day_elapsed() {
+    let base = std::time::Duration::from_secs(86_400) * 30; // 30 days
+    let p0 = column_coherence_phase(base);
+    let p1 = column_coherence_phase(base + std::time::Duration::from_millis(16));
+    // Expected advance: FREQ rad/s * 16 ms.
+    let expected = crate::chroma_dragon_engine::tuning::COLUMN_COHERENCE_FREQ * 0.016_f32;
+    // Wrap-aware difference (p1 may have wrapped past 2π).
+    let raw = p1 - p0;
+    let diff = if raw < 0.0 {
+        raw + 2.0 * std::f32::consts::PI
+    } else {
+        raw
+    };
+    assert!(
+        (diff - expected).abs() < 1e-4,
+        "phase advance at a 30-day elapsed must be ~{expected:.6} rad per 16 ms step, got {diff:.6}"
+    );
+}
+
+/// The phase is always wrapped to [0, 2π): the sin() argument stays
+/// small at any session age, so argument-reduction noise cannot creep
+/// into the shimmer on multi-week runs.
+#[test]
+fn column_coherence_phase_stays_wrapped_at_any_age() {
+    let two_pi = 2.0 * std::f32::consts::PI;
+    for secs in [0u64, 60, 3_600, 86_400, 30 * 86_400, 365 * 86_400] {
+        let p = column_coherence_phase(std::time::Duration::from_secs(secs));
+        assert!(
+            (0.0..two_pi).contains(&p),
+            "phase {p} escaped [0, 2π) at {secs}s elapsed"
+        );
+    }
+}
+
+/// Equivalence at short elapsed: while the f32 conversion of the
+/// elapsed is still exact, the wrapped phase must match the legacy
+/// unwrapped computation (mod 2π) — the first hours of a session behave
+/// identically to the pre-lts-3 code.
+#[test]
+fn column_coherence_phase_matches_legacy_at_short_elapsed() {
+    let two_pi_f32 = 2.0 * std::f32::consts::PI;
+    for secs in [0u64, 7, 123, 3_600, 7_200] {
+        let elapsed = std::time::Duration::from_secs(secs);
+        let legacy = (elapsed.as_secs_f32()
+            * crate::chroma_dragon_engine::tuning::COLUMN_COHERENCE_FREQ)
+            % two_pi_f32;
+        let wrapped = column_coherence_phase(elapsed);
+        let d = (legacy - wrapped).abs();
+        assert!(
+            d < 1e-5,
+            "legacy vs wrapped phase diverged at {secs}s: {d} rad"
+        );
+    }
+}
