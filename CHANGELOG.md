@@ -23,6 +23,41 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### audit: NIGHT-lts-1 & NIGHT-safety-1 — depth security/safety audit: all surfaces verified at peak, zero code changes
+
+- Unsafe inventory (the whole of `src/`, 19 files): every `unsafe`
+  block lives behind an FFI/seam boundary — sysstat (libc
+  /proc readers), clock (localtime_r/gmtime_r), terminal TTY raw-mode
+  and io_recovery, watchdog, fork/root guards, alloc_trace,
+  termdetect host fingerprinting, bench_perf (perf_event_open),
+  reclaim_state, config_io — and the render/shader/rain engine has
+  ZERO unsafe code. This matches the audited methodology in
+  docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md plus the weekly Miri
+  CI job.
+- Panic surface in the hot path: rain_at.rs, render.rs, and the shader
+  helpers carry zero `unwrap()`/`expect()`; computed-index lookups are
+  bounds-checked with defensive fallbacks (`color_map[idx]` is guarded
+  with an explicit egg-#15 bounds check; `glitch_map[idx]` guards
+  length before read).
+- Untrusted-input surfaces: the strict config parser (validation order
+  + strict-mode + typo-rejection test families), the root-usage guard
+  (NIGHT-security-4 + the euid-0 hard refuse on --check-update),
+  safepath canonicalization tests, and the terminal
+  raw-mode/alternate-screen teardown contracts (panic = unwind by
+  design so the RAII guard + panic hook restore the terminal; SIGCONT
+  double-teardown was closed as P0 in NIGHT-ultimate-1) are all
+  present and pinned by tests.
+- Overflow class: release profiles ship `overflow-checks = false`, and
+  the audited arithmetic on user-controlled values (density scaling,
+  cols×lines products, u8 color saturation casts) operates in
+  usize/u32/f32 domains where terminal-bounded values cannot wrap;
+  screen sizes are clamped (NIGHT-ultimate-1) before any geometry math.
+- Verdict: the safety/security surface is at peak — the comprehensive
+  audit trail (NIGHT-ultimate-1, NIGHT-security-4 family, the mirrored
+  test tree's guard suites) held up under independent re-verification;
+  no new mitigations needed, none added (owner's
+  don't-over-engineer-at-peak rule).
+
 ### perf: NIGHT-lts-2 & NIGHT-perf-1 — depth performance audit: every overhead class verified at peak, zero code changes (fresh 10 s A/B evidence captured during the lts-3 run)
 
 - Allocation: 563 total allocs over a 119 K-frame 10 s run (0.0047
