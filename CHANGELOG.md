@@ -23,6 +23,42 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### ci: NIGHT-improve-1 — the commit+tag collision gate: both tag pipelines now serialize behind the branch CI on the tagged SHA, so `git push origin main vX.Y.Z` is safe
+
+- The documented release recipe (docs/workflow/ABOUT_CI.md, the
+  version-to.sh summary) is `git push origin main vX.Y.Z` — commit and
+  tag in one push — but the tag-triggered workflows raced the branch
+  CI: release.yml started its 8-platform build (and crates-io.yml its
+  IRREVERSIBLE `cargo publish`) while ci.yml was still running the
+  same SHA, so a broken commit could ship a release and a yank-only
+  crates.io version before CI passed judgment. The owner hit exactly
+  this pushing a commit and immediately pushing its tag.
+- New `scripts/release/wait-for-ci.sh` (first-party, curl + jq, zero
+  new actions): polls the Actions API for the ci.yml push-run on the
+  exact tagged SHA (`event=push&branch=main&head_sha=<sha>`, filtered
+  by workflow path so PR runs never satisfy the gate) until it
+  completes, then requires conclusion=success. Cancelled/failed CI
+  blocks the release with a recovery hint; docs-only commits that
+  ci.yml's paths filter skips pass after a 90 s grace period (the
+  unconditional gate-keepers workflow covered that push).
+- release.yml and crates-io.yml each open with a `ci_gate` job
+  (permissions tightened to actions:read + contents:read at the job
+  level); all four release build jobs and the crates.io publish now
+  `needs: ci_gate`, so publish_release and the AUR dispatch gate
+  transitively too. Concurrency blocks unchanged (distinct groups per
+  workflow name — no cross-cancellation existed to fix).
+- Docs swept: ABOUT_CI.md (trigger table rows, a new "Commit + tag
+  pushed together" section, the manual-tag sentence now states the
+  combined push is safe) and README.md's Release Process intro.
+  Cost documented honestly: the release now serializes behind CI
+  (total wall time = CI + release instead of max of the two).
+- Hunt note: while mapping the trigger graph, the path-filter audit
+  surfaced that ci.yml's paths list is unchanged in spirit —
+  Cargo.toml/Cargo.lock are in the filter, so every release commit
+  (version bump always touches them) produces a CI run for the gate
+  to wait on; the docs-only-release path (no CI run) is the designed
+  grace-period pass, not a hole.
+
 ### build: NIGHT-blade-1 — cargo alias rename: the Linux x86_64 build family now names arch + baseline + libc (pro-linux-amd64-v3/v4-gnu, pro-linux-amd64-v3/v4-musl)
 
 - `cargo pro-linux-v3` / `pro-linux-v4` / `pro-linux-musl` are renamed to

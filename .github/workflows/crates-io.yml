@@ -45,9 +45,34 @@ env:
   RUST_VERSION: "1.98.1"
 
 jobs:
+  # NIGHT-improve-1: the same commit+tag collision gate release.yml
+  # carries. When the release commit and its tag are pushed together,
+  # this publish used to race the branch CI on the same SHA — and a
+  # crates.io publish is IRREVERSIBLE (a bad version can only be
+  # yanked, never replaced). The gate waits for the ci.yml push-run on
+  # the exact tagged SHA and requires conclusion=success before the
+  # upload. Full contract: scripts/release/wait-for-ci.sh.
+  ci_gate:
+    name: CI gate (commit+tag push)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Wait for the branch CI on the tagged commit
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./scripts/release/wait-for-ci.sh
+
   publish-crates-io:
     name: Publish to crates.io (${{ github.ref_name }})
     runs-on: ubuntu-24.04
+    needs: ci_gate
     timeout-minutes: 30
     steps:
       - name: Checkout

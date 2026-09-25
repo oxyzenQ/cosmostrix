@@ -8,11 +8,11 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | push + PR to `main` (path-filtered) | fmt, clippy, test, build, security audit, version sync |
-| `release.yml` | tag push `v*` | 8-platform binaries + checksums + GPG sign + GitHub Release |
+| `release.yml` | tag push `v*` (CI-gated: waits for the `ci.yml` run on the tagged SHA — NIGHT-improve-1) | 8-platform binaries + checksums + GPG sign + GitHub Release |
 | `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) | `cargo update` + audit + commit if validation passes |
 | `gitbot-audit.yml` | daily cron + push/PR (path-filtered) | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
-| `crates-io.yml` | tag push `v*` (stable + pre-release) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
+| `crates-io.yml` | tag push `v*` (stable + pre-release, same CI gate) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
 | `miri.yml` | weekly cron (Sun 00:00 UTC / 07:00 WIB) + push (path-filtered) | Undefined behavior detection |
 | `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
@@ -176,6 +176,24 @@ bash scripts/build/ci-strict-build.sh -- build --profile dev --locked
 - `vX.Y.Z-alpha.N` / `vX.Y.Z-beta.N` / `vX.Y.Z-rc.N` -> GitHub **prerelease** + crates.io publish
 - `vX.Y.Z` -> GitHub **normal release** (eligible for Latest) + crates.io publish
 
+### Commit + tag pushed together (NIGHT-improve-1)
+
+The documented release recipe is `git push origin main vX.Y.Z` — commit
+and tag in one push. Before NIGHT-improve-1 that raced: the
+tag-triggered workflows (release.yml, crates-io.yml) started building
+and publishing while the branch CI (`ci.yml`) was still running the
+same SHA, so a broken commit could ship a release — and a bad crates.io
+version (irreversible) — before CI passed judgment. Both tag pipelines
+now open with a `ci_gate` job (`scripts/release/wait-for-ci.sh`) that
+polls the Actions API until the `ci.yml` push-run for the exact tagged
+SHA completes, then requires `conclusion=success` before any build or
+publish step runs. A cancelled or failed CI blocks the release with a
+recovery hint; a commit that `ci.yml`'s `paths:` filter skips
+(docs-only releases) passes the gate after a 90 s grace period because
+the unconditional gate-keepers workflow covered that push. Cost: the
+release serializes behind CI (total wall time = CI + release instead
+of `max(CI, release)`).
+
 ## crates.io publishing
 
 The crate is published by `crates-io.yml` on every owner-pushed `v*` tag
@@ -246,7 +264,9 @@ It skips CHANGELOG headings (historical record) and audits workflow files for ha
 `version-to.sh` accepts both stable (`X.Y.Z`) and pre-release
 (`X.Y.Z-alpha.N` / `-beta.N` / `-rc.N` / `-pre.N` / `-nightly.N`)
 versions; the tag for a release is created manually by the owner
-(`git tag vX.Y.Z && git push origin vX.Y.Z`).
+(`git tag vX.Y.Z`), and `git push origin main vX.Y.Z` (commit and tag
+together) is safe — the tag pipelines wait for the branch CI on the
+tagged SHA via the NIGHT-improve-1 gate.
 
 Verify the current version without changes:
 

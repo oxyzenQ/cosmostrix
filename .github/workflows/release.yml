@@ -19,9 +19,42 @@ env:
   RUST_VERSION: "1.98.1"
 
 jobs:
+  # NIGHT-improve-1: the commit+tag collision gate. When the release
+  # commit and its tag are pushed together (git push origin main
+  # vX.Y.Z), this workflow used to start building while the branch CI
+  # (ci.yml) was still running the same SHA — the release shipped
+  # before CI could pass judgment, and the parallel crates-io.yml
+  # publish (irreversible) shipped with it. Every build job below now
+  # needs this gate: it waits for the ci.yml push-run on the exact
+  # tagged SHA and requires conclusion=success (docs-only commits that
+  # ci.yml's paths filter skips pass after a grace period; a cancelled
+  # or failed CI blocks the release with a recovery hint). Full
+  # contract: scripts/release/wait-for-ci.sh. docs/workflow/ABOUT_CI.md
+  # documents the serialized release flow.
+  ci_gate:
+    name: Cosmic Dragon - CI gate (commit+tag push)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      # Job-level override: the gate only reads run listings + the
+      # checkout — the workflow-level contents:write/actions:write
+      # grants stay scoped to the jobs that need them.
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Wait for the branch CI on the tagged commit
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./scripts/release/wait-for-ci.sh
+
   build_packages:
     name: Cosmic Dragon - Build packages (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
+    needs: ci_gate
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -546,6 +579,7 @@ jobs:
   build_android:
     name: Cosmic Dragon - Build packages (android-aarch64-native)
     runs-on: ubuntu-24.04
+    needs: ci_gate
     timeout-minutes: 30
 
     steps:
@@ -744,6 +778,7 @@ jobs:
     #     populated after the runner is allocated), so the Linux guard is
     #     enforced structurally via `runs-on` rather than via an expression.
     runs-on: ubuntu-24.04
+    needs: ci_gate
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -876,6 +911,7 @@ jobs:
   build_freebsd:
     name: Cosmic Dragon - Build (freebsd native)
     runs-on: ubuntu-24.04
+    needs: ci_gate
     timeout-minutes: 40
     steps:
       - name: Checkout

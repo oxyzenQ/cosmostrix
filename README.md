@@ -617,7 +617,7 @@ scripts/release/verify-release-build.sh pro-linux-amd64-v3-gnu pro-linux-amd64-v
 
 ## Release Process
 
-Create a release by pushing a `v*` tag. See [docs/workflow/ABOUT_CI.md](docs/workflow/ABOUT_CI.md) for CI and release workflow details.
+Create a release by pushing a `v*` tag — `git push origin main vX.Y.Z` (commit and tag together) is safe: both tag pipelines (release.yml, crates-io.yml) open with a CI gate that waits for the branch CI run on the tagged SHA and requires it green before building or publishing (NIGHT-improve-1). See [docs/workflow/ABOUT_CI.md](docs/workflow/ABOUT_CI.md) for CI and release workflow details.
 
 ### Version bump + build
 
