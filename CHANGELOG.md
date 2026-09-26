@@ -23,6 +23,38 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### audit: NIGHT-long-horizon-1 — the five-phase long-horizon depth audit: stability, hygiene, optimization, security, and LTS all verified at peak, zero code changes
+
+- Fresh scripted evidence (full report: docs/audits/NIGHT_LONG_HORIZON_1_AUDIT_2026-09-26.md):
+  a brace-aware production panic-site analyzer (tracks #[cfg(test)]
+  scopes through brace depth) proves ZERO raw production unwrap()
+  across the 306-file src/ tree — every unwrap sits inside a test
+  scope; the 27 expect() sites each carry a documented invariant
+  string; the 49 unsafe sites are all SAFETY-documented (matching
+  the NIGHT-lts-1 inventory); 123 defensive-arithmetic sites vs 38
+  deliberate wrapping sites (hash mixing, generation counters); every
+  cols-1-class subtraction sits inside .min()/.clamp() guards, with
+  69 saturating_sub sites in the cloud engine alone.
+- Optimization phase verified at code level: zero per-frame heap
+  allocations in the two hottest files (frame.rs, terminal/draw.rs),
+  pre-sized ByteWindow encoding windows — consistent with the
+  documented 0.002 allocs/frame and the prior "early-return paths
+  already at peak" verdicts; skipped per the if-peak-skip rule.
+- Security phase: zero env-var writes, process execution limited to
+  unix terminal-restore plus one test-only simulation, whitelist-only
+  path security (safepath), strict exit-2 config validation, locked
+  Cargo.lock + deny.toml in CI — at peak.
+- Hygiene phase (near-peak by design): zero commented-out zombie
+  blocks; 19 allow(dead_code) all documented; 9 cross-file duplicate
+  groups are the cost of the self-contained-subsystem architecture —
+  the four owner-directed deprecated constants (style_rain.rs x3,
+  intro_colors.rs x1) are registered as v101 cleanup candidates, not
+  removed unilaterally.
+- Methodology note recorded for future auditors: a suspected legacy.rs
+  syntax error (#ust_use]) was debunked by od -c — the file contains
+  the correct #[must_use]; the corruption was a display-layer
+  artifact. Byte-level check before byte-level verdict.
+
 ### audit: NIGHT-lts-1 & NIGHT-safety-1 — depth security/safety audit: all surfaces verified at peak, zero code changes
 
 - Unsafe inventory (the whole of `src/`, 19 files): every `unsafe`
