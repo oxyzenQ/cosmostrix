@@ -595,6 +595,7 @@ The mode catalog (`--bench-io` wet I/O, `--bench-scene lean|production-draw`, `-
 - [Known Issues](KNOWN_ISSUES.md) — platform-specific quirks and workarounds
 - [Insights](INSIGHTS.md) — living idea journal (the story behind features)
 - [Contributing Guide](CONTRIBUTING.md) — build, test, coding conventions, PR checklist
+- [Contributor License Agreement](CLA.md) — CLA terms, DCO sign-off acceptance, dual-license grant
 - [Commercial Licensing](COMMERCIAL_LICENSE.md) — dual-license tiers, crypto payment, verification
 - [Licensing FAQ](docs/LICENSING_FAQ.md) — who needs which license
 
@@ -633,7 +634,7 @@ Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD,
 
 ## Contributing
 
-PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (build, test, conventions, PR checklist) and [RULES.md](docs/RULES.md) for project conventions.
+PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (build, test, conventions, PR checklist) and [RULES.md](docs/RULES.md) for project conventions. By submitting a PR you accept the [Contributor License Agreement](CLA.md) — the `Signed-off-by:` line (`git commit -s`) is the acceptance mechanism.
 
 ## API Stability
 

@@ -14,6 +14,7 @@ Index:
 - [Payment](#payment)
 - [Hobby use](#hobby-use)
 - [Rebranding and resale](#rebranding-and-resale)
+- [Contributing](#contributing)
 
 ## Company use
 
@@ -60,6 +61,18 @@ A: No. Redistribution requires the Company tier, and using the cosmostrix
 name, logo, or branding additionally requires trademark permission — see
 [TRADEMARK.md](../TRADEMARK.md). Non-contribution forks must use a different
 name and branding, and must be discussed with the owner first.
+
+## Contributing
+
+### Q: Do I need to sign anything to contribute?
+
+A: No separate signature. The DCO-style `Signed-off-by:` line on your
+commits (`git commit -s` adds it automatically) accepts the
+[Contributor License Agreement](../CLA.md), or you can comment
+`I have read the CLA and I agree` on the PR. The CLA grants the owner
+the right to dual-license the project (GPL-3.0-only + Commercial)
+while you keep full copyright to your contribution — without it, a
+commercial license could not cover code that includes your work.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

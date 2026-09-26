@@ -100,6 +100,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | Doc | Covers |
 |-----|--------|
 | [../COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) | Commercial license tiers, crypto payment, verification workflow |
+| [../CLA.md](../CLA.md) | Contributor License Agreement — DCO sign-off acceptance, dual-license grant |
 | [LICENSING_FAQ.md](LICENSING_FAQ.md) | Short FAQ — who needs which license, tier selection, payment flow |
 | [../TRADEMARK.md](../TRADEMARK.md) | Trademark and IP policy, fork categories, brand permission |
 
@@ -118,7 +119,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 
 Also: [FUTURE_BACKLOG.md](FUTURE_BACKLOG.md) — the parked-ideas and file-migration record (where removed scripts/docs went).
 
-Other meta docs: [RULES.md](RULES.md) (conventions), [BRANDING.md](BRANDING.md) (brand identity), [MAINTENANCE.md](MAINTENANCE.md) (dormant-mode guide), [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md), [../CHANGELOG.md](../CHANGELOG.md), [../CONTRIBUTING.md](../CONTRIBUTING.md).
+Other meta docs: [RULES.md](RULES.md) (conventions), [BRANDING.md](BRANDING.md) (brand identity), [MAINTENANCE.md](MAINTENANCE.md) (dormant-mode guide), [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md), [../CHANGELOG.md](../CHANGELOG.md), [../CONTRIBUTING.md](../CONTRIBUTING.md), [../CLA.md](../CLA.md) (contributor licensing).
 
 ## Coming Back After a Long Break?
 

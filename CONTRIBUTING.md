@@ -1,7 +1,7 @@
 # Contributing to cosmostrix
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-> cosmostrix is a professional-grade cinematic Matrix rain renderer built in Rust. Contributions are welcome — especially bug fixes, platform compatibility improvements, and documentation. See [TRADEMARK.md](TRADEMARK.md) §4a for the contribution fork policy.
+> cosmostrix is a professional-grade cinematic Matrix rain renderer built in Rust. Contributions are welcome — especially bug fixes, platform compatibility improvements, and documentation. See [TRADEMARK.md](TRADEMARK.md) §4a for the contribution fork policy. By submitting a PR you accept the [Contributor License Agreement](CLA.md) — the DCO-style `Signed-off-by:` commit line is the acceptance mechanism (Section 3).
 
 ## 1. Getting Started
 
@@ -64,6 +64,16 @@ Body explaining what + why (not how).
 
 Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fix(visual): internal independent QA — H1 resize color cache`, `refactor(split-E1): extract sanitize_message_text from main.rs to src/output/message.rs`, `docs(bench): add v50 reference matrix`.
 
+**Commit sign-off (CLA acceptance)**: every commit in a PR carries a
+`Signed-off-by: Your Name <you@example.com>` line — `git commit -s`
+adds it automatically from your git identity. This DCO-style line is
+the acceptance of the [Contributor License Agreement](CLA.md): it
+grants the Owner the right to dual-license the project
+(GPL-3.0-only + Commercial, see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md))
+while you keep full copyright to your Contribution. PRs without a
+sign-off can instead post the comment `I have read the CLA and I agree`
+on the PR itself.
+
 **Before committing**: (1) Run `./scripts/build/build.sh check-all` — all checks must pass; (2) Run `cargo fmt --all` if formatting issues; (3) Verify no debug `eprintln!` / `println!` in production code paths (use `push_runtime_warning` for diagnostics during rain — see AB-10).
 
 **Pull request checklist**:
@@ -75,6 +85,7 @@ Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fi
 - [ ] No `eprintln!`/`write_fmt` in rain-active code paths (use buffer)
 - [ ] File LOC stays under the 800 hard cap (500 soft target — see `src/RULES_LOC.md`; split with the `#[path = "..."] mod` pattern or an `// LOC_EXEMPT:` marker with justification)
 - [ ] SPDX header on new files
+- [ ] Every commit carries `Signed-off-by:` — CLA acceptance ([CLA.md](CLA.md))
 - [ ] Commit message follows the format above
 
 ## 4. Forking Policy
