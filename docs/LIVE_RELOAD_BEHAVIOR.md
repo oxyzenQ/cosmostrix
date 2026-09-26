@@ -860,7 +860,10 @@ Two cooperating paths enforce the lift (whichever sees the file first):
 Comment-in recovers the same way as startup: the scheduler refires the
 current phase (AB-09 identity reset) and ambient takes over again
 (verified live: revert at ~5s, re-apply at ~10s in the PTY trace,
-`benchmark/bench-labs/v51_2_pdragon_ambient/live_pty_trace.log`).
+`benchmark/bench-labs/v51_2_pdragon_ambient/live_pty_trace.log` —
+the trace log itself was later removed in a benchmark-artifact
+cleanup; the lab directory's `A*.json`/`B*.json` artifacts and
+`README.md` narration preserve the record).
 
 ### 14.2 Power-dragon OFF = fixed density (the documented promise, enforced)
 

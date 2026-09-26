@@ -100,6 +100,8 @@ removal/retirement/move/example framing on the line, in the preceding
 | `docs/VISUAL_IDENTITY.md` | removed `PRESET_BATTLE_VERDICT.md` | "was deleted by the 2026-08 orphan-doc cleanup" |
 | `docs/THREE_DRAGON_ENGINES.md` | retired `KEY.md` / `RULES.md` / `dragon-history.sh` | "former ... was retired 2026-09-20" narration |
 | `benchmark/HIST_BENCH.md` | removed `bench-compare.sh` / `release-benchmark-report.sh` | "historical ... removed" measurement records |
+| `docs/LIVE_RELOAD_BEHAVIOR.md` | removed `live_pty_trace.log` (v51.2 ambient lab evidence) | "the trace log itself was later removed in a benchmark-artifact cleanup" framing (registered NIGHT-improve-2) |
+| `benchmark/bench-labs/v51_2_pdragon_ambient/README.md` | removed `live_pty_trace.log` | "(removed in a later benchmark-artifact cleanup)" bullet framing (registered NIGHT-improve-2) |
 | `benchmark/research/COMPETITOR_COMPARISON.md` | removed `naive_matrix.py` | "was written as a baseline" |
 | `src/cosmic_dragon_incubator/README.md` | pre-restructure flat paths (`src/cloud/`, `src/frame.rs`, `src/runtime.rs`, the `cosmic_dragon_egg_io_uring` experiment) | "at that time" history section |
 | `src/RULES.md` | `src/A/B_tests.rs` → `test/A/B_tests.rs`, `src/my_group/submodule_a.rs` | illustrative mirror-mapping / re-export-pattern examples |
@@ -109,11 +111,12 @@ removal/retirement/move/example framing on the line, in the preceding
 
 The era files and dated records quote test counts and theme counts that
 were accurate at their time; they stay verbatim. Current numbers for
-anyone triaging: 2952 `#[test]` fns across the tracked tree (2418 in
-`test/` + 534 in `src/`), 44 builtin themes (`THEME_COUNT`,
-`src/theme/mod.rs`), 508 tracked `.rs` files, 33 scripts in
-`scripts/`. The chroma engine sits at Phase 9-D (the locked final
-form). Historical entries are never retroactively updated.
+anyone triaging (recounted 2026-09-26, NIGHT-improve-2): 2998 `#[test]`
+fns across the tracked tree (2436 in `test/` + 562 in `src/`), 44
+builtin themes (`THEME_COUNT`, `src/theme/mod.rs`), 515 tracked `.rs`
+files, 43 scripts in `scripts/`. The chroma engine sits at Phase 9-D
+(the locked final form). Historical entries are never retroactively
+updated.
 
 ## 4. Standing verification (run after any doc pass)
 

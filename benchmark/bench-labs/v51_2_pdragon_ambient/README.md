@@ -10,7 +10,8 @@
   (A/A2 primary; A1-A4 the same-tree control rerun used to establish
   the allocator-variance baseline).
 - `B*.json` — post-change tree (v51.2).
-- `live_pty_trace.log` — PTY live proof of the ambient overlay-lift
+- `live_pty_trace.log` (removed in a later benchmark-artifact cleanup)
+  — PTY live proof of the ambient overlay-lift
   contract (real binary, `COSMOSTRIX_LIVE_RELOAD_DEBUG=1`, graceful
   `q` exit): ambient applies at 2s (snapback), ALL `ambient.*` keys
   commented out at 5s (trace: "schedule emptied — reverting

@@ -42,6 +42,6 @@ bench loop never triggers. Correctness win: the four owner scenarios
 (intro residue, 'x'/'X' scene-switch residue, 'r' restart residue,
 color-bg live-reload residue + custom-palette variant) go from
 39/195/141/2554/2352 stuck cells to 0/0/≤2/0/0 — verified by
-`scripts/night_cbg34_e2e.py` (PTY + mini terminal emulator).
+`scripts/harness/night_cbg34_e2e.py` (PTY + mini terminal emulator).
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!-- COSMOSTRIX-VERIFIED-A/B -->

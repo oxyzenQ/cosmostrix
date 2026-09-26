@@ -15,8 +15,8 @@ benchmark needed per the docs-only rule).
 
 ## Methodology (6 checks, script-pinned)
 
-1. **Stale file paths** — every `src/…​.rs`, `docs/…​.md`,
-   `scripts/…​.sh` style reference in non-archive docs checked
+1. **Stale file paths** — every `src/….rs`, `docs/….md`,
+   `scripts/….sh` style reference in non-archive docs checked
    against the working tree.
 2. **Config-key coverage** — every `USER_CONFIG_KEYS` entry
    (41 keys) must appear in at least one non-archive doc; removed
