@@ -65,7 +65,7 @@ jobs:
       - name: Install gate-keeper dependencies
         run: |
           set -euo pipefail
-          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          sudo apt-get -o Acquire::Retries=5 update -qq && sudo apt-get -o Acquire::Retries=5 install -y -qq shellcheck
           # Unpinned on purpose (owner policy 2026-08-30): CI-installed
           # deps resolve their latest upstream release at run time - zero
           # hardcoded dep versions in .github/*, minimal maintenance.
@@ -82,8 +82,22 @@ jobs:
           # `./scripts/gates/gate-keepers.sh --fix-all` refresh lands the new canonical formatting. Binary download
           # instead of `go install` (no compile time) or apt (lags far
           # behind upstream).
-          SHFMT_VERSION="$(curl -fsSL https://api.github.com/repos/mvdan/sh/releases/latest | jq -r '.tag_name')"
-          sudo curl -fsSL "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64" -o /usr/local/bin/shfmt
+          # NIGHT-dinner-1: both the version resolve and the binary
+          # download ride the curl retry contract — a GitHub-side 5xx
+          # on this step is the exact observed failure class (the
+          # owner's fleet: shfmt download answered 500, curl exit 22,
+          # the run died before a single gate executed). Without
+          # --retry-all-errors, curl's --retry refuses exit-22
+          # re-attempts; without -f a 5xx error page lands in the
+          # binary and dies later inside shfmt with a misleading
+          # error.
+          SHFMT_VERSION="$(curl -fsSL --retry 6 --retry-all-errors \
+            --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+            https://api.github.com/repos/mvdan/sh/releases/latest | jq -r '.tag_name')"
+          sudo curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 \
+            --retry-max-time 300 --connect-timeout 15 \
+            "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64" \
+            -o /usr/local/bin/shfmt
           sudo chmod 755 /usr/local/bin/shfmt
           echo "shfmt resolved to latest upstream release: ${SHFMT_VERSION}"
           shfmt --version

@@ -36,10 +36,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     permissions:
-      # Job-level override: the gate only reads run listings + the
-      # checkout — the workflow-level contents:write/actions:write
-      # grants stay scoped to the jobs that need them.
-      actions: read
+      # Job-level override. The wait itself only needs run listings +
+      # the checkout (actions: read / contents: read); the NIGHT-dinner-1
+      # infra carve-out additionally requests re-runs of infra-
+      # signatured failed runs (actions: write — the job's ephemeral
+      # github.token can re-run this repo's CI and nothing else). The
+      # workflow-level contents:write/actions:write grants stay scoped
+      # to the jobs that need them.
+      actions: write
       contents: read
     steps:
       - name: Checkout
@@ -205,8 +209,10 @@ jobs:
       - name: Install musl cross-compiler (musl builds only)
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
+          # NIGHT-dinner-1: apt rides its own retry knob — a flaky
+          # mirror fetch must not read as a code failure.
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y musl-tools
 
       - name: Verify Linux x86_64 CPU baseline inputs
         if: startsWith(matrix.platform, 'linux-amd64-v') || matrix.platform == 'linux-amd64-musl'
@@ -239,8 +245,10 @@ jobs:
       - name: Install Linux aarch64 linker
         if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.arch == 'X64'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          # NIGHT-dinner-1: apt rides its own retry knob — a flaky
+          # mirror fetch must not read as a code failure.
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y gcc-aarch64-linux-gnu
 
       - name: Install audit + deny tools
         if: matrix.checks
@@ -927,7 +935,12 @@ jobs:
           mem: 4096
           prepare: |
             pkg install -y curl ca_root_nss python3
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
+            # NIGHT-dinner-1: the rustup download rides the curl retry
+            # contract (--retry-all-errors covers the exit-22 5xx class
+            # plain --retry refuses to re-attempt).
+            curl --proto '=https' --tlsv1.2 -sSf --retry 6 --retry-all-errors \
+              --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+              https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
             . "$HOME/.cargo/env"
             rustup component add clippy rustfmt
           run: |
@@ -1203,7 +1216,12 @@ jobs:
           set -euo pipefail
           TAG="${{ steps.ver.outputs.tag }}"
           echo "Triggering AUR sync for ${TAG} via repository_dispatch"
-          HTTP_CODE=$(curl -s -o /tmp/aur_trigger_response.txt -w "%{http_code}" -X POST \
+          # NIGHT-dinner-1: the dispatch POST rides the curl retry
+          # contract. Safe to re-attempt: a duplicate dispatch queues a
+          # second aur-sync run for the same tag, and aur.yml's
+          # per-tag concurrency group plus the idempotent AUR push
+          # make the second run a no-op sync of the same state.
+          HTTP_CODE=$(curl -s --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15 -o /tmp/aur_trigger_response.txt -w "%{http_code}" -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/dispatches" \

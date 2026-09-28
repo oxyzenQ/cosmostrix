@@ -467,8 +467,10 @@ jobs:
 
       - name: Install Linux aarch64 linker
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          # NIGHT-dinner-1: apt rides its own retry knob — a flaky
+          # mirror fetch must not read as a code failure.
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y gcc-aarch64-linux-gnu
 
       - name: Add Rust target
         run: rustup target add aarch64-unknown-linux-gnu
@@ -581,7 +583,13 @@ jobs:
             # which is fine: the block is sh-clean; only the strict-build
             # wrapper is bash-only.
             pkg install -y curl ca_root_nss bash
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
+            # NIGHT-dinner-1: the rustup download rides the curl retry
+            # contract (--retry-all-errors covers the exit-22 5xx class
+            # plain --retry refuses to re-attempt; observed in the owner's
+            # fleet: a release-asset URL answering 500 mid-download).
+            curl --proto '=https' --tlsv1.2 -sSf --retry 6 --retry-all-errors \
+              --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+              https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
             . "$HOME/.cargo/env"
             rustup target add x86_64-unknown-freebsd
             rustup component add clippy rustfmt

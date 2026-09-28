@@ -194,6 +194,55 @@ the unconditional gate-keepers workflow covered that push. Cost: the
 release serializes behind CI (total wall time = CI + release instead
 of `max(CI, release)`).
 
+### Infra-failure carve-out (NIGHT-dinner-1)
+
+GitHub's own infrastructure fails sometimes: a release-asset URL
+answering 500 mid-download (observed in the owner's fleet: the shfmt
+install step, `curl: (22)`, the run dying before a single gate
+executed), a runner evicted mid-job, a workflow that never started. A
+red gate that is GitHub's fault must never read as a code fault — and
+an irreversible release or crates.io publish must not stall on it.
+The mitigation is layered, each layer aimed at an observed failure
+class:
+
+1. **The curl retry contract** (`--retry 6 --retry-all-errors
+   --retry-delay 10 --retry-max-time 300 --connect-timeout 15`, with
+   `-f` wherever a response body must not masquerade as a file) rides
+   every tool download in the workflows: the shfmt version resolve +
+   binary download (cosmic-dragon-guard.yml), both rustup.rs downloads
+   (ci.yml's FreeBSD lane, release.yml's FreeBSD lane), and the
+   crates.io idempotency probe (crates-io.yml — a flaky 5xx there
+   reads "not published", falls through to `cargo publish`, and dies
+   as a duplicate-version error: an infra flake perfectly disguised as
+   a code failure). The AUR repository_dispatch POST (release.yml)
+   rides the same contract; a re-attempt is safe because aur.yml's
+   per-tag concurrency group plus the idempotent AUR push make a
+   duplicate dispatch a no-op sync of the same state. Without
+   `--retry-all-errors`, curl's `--retry` refuses exit-22 re-attempts
+   (the class `--fail` produces from a 5xx); without `-f`, a 5xx error
+   page lands in the file and dies later inside tar/shfmt with a
+   misleading error.
+2. **apt rides its own retry knob** (`-o Acquire::Retries=5`) on
+   every `apt-get update`/`install` in the workflows (ci.yml,
+   release.yml, cosmic-dragon-guard.yml) — a flaky mirror fetch must
+   not read as a code failure.
+3. **The ci_gate itself classifies before blocking**
+   (`scripts/release/wait-for-ci.sh`): on a red waited run it fetches
+   the failed jobs' logs and hunts known infra signatures (curl
+   transport errors, 5xx texts, download faults, DNS/route failures,
+   runner eviction, apt fetch faults). When every failed job carries
+   one it requests one re-run of the failed jobs (the job carries
+   `permissions: actions: write` — the ephemeral `github.token` can
+   re-run this repo's CI and nothing else) and keeps polling, up to
+   `WAIT_INFRA_RETRIES` (default 2) times. Safety property:
+   classification only ever buys a re-run — a real code failure fails
+   the re-run too, burns the budget, and blocks exactly as before;
+   unfetchable logs block (never auto-retry what cannot be seen).
+4. **User-facing downloads carry the same contract**: the README
+   install snippet and the AUR PKGBUILD's `curl_flags` (which gains
+   `--retry-all-errors`) — a transient GitHub-side 5xx must not fail
+   a user's install either.
+
 ## crates.io publishing
 
 The crate is published by `crates-io.yml` on every owner-pushed `v*` tag

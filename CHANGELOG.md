@@ -27,6 +27,62 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### ci: NIGHT-dinner-1 — infra flakes can't read as code failures: the curl retry contract, apt retries, and the ci_gate infra carve-out keep a GitHub-side 500 from stalling a release
+
+- The hazard: GitHub's own infrastructure fails sometimes — a
+  release-asset URL answering 500 mid-download (observed in the
+  owner's fleet: the shfmt install step, `curl: (22)`, the run dying
+  before a single gate executed), a runner evicted mid-job, a
+  workflow that never started. A red gate that is GitHub's fault must
+  never read as a code fault, and an IRREVERSIBLE release or
+  crates.io publish must not stall on it. Four layers, each aimed at
+  an observed failure class:
+- Layer 1 — the curl retry contract (`--retry 6 --retry-all-errors
+  --retry-delay 10 --retry-max-time 300 --connect-timeout 15`, `-f`
+  normalized) on every tool download in the workflows: the shfmt
+  version resolve + binary download (cosmic-dragon-guard.yml — the
+  exact observed 500 class), both rustup.rs downloads (the FreeBSD
+  lanes of ci.yml and release.yml), the crates.io idempotency probe
+  (crates-io.yml — a flaky 5xx there reads "not published", falls
+  through to cargo publish, and dies as a duplicate-version error:
+  an infra flake perfectly disguised as a code failure), and the AUR
+  repository_dispatch POST (safe to re-attempt: aur.yml's per-tag
+  concurrency group plus the idempotent AUR push make a duplicate
+  dispatch a no-op sync of the same state). Without
+  --retry-all-errors, curl's --retry refuses exit-22 re-attempts (the
+  class --fail produces from a 5xx); without -f, a 5xx error page
+  lands in the file and dies later inside tar/shfmt with a misleading
+  error.
+- Layer 2 — apt rides its own knob (-o Acquire::Retries=5) on every
+  apt-get update/install in the workflows: the shellcheck install
+  (cosmic-dragon-guard.yml), the musl-tools and aarch64 linker
+  installs (release.yml), and the ci.yml aarch64 linker lane.
+- Layer 3 — scripts/release/wait-for-ci.sh, the release pipeline's
+  serializer, gains the infra-failure carve-out: on a red waited run
+  it fetches the failed jobs' logs and hunts known infra signatures
+  (curl transport errors, 5xx texts, download faults, DNS/route
+  failures, runner eviction, apt fetch faults); when EVERY failed job
+  carries one it requests one re-run of the failed jobs and keeps
+  polling, up to WAIT_INFRA_RETRIES (default 2) times. Safety
+  property: classification only ever BUYS A RE-RUN — a real code
+  failure fails the re-run too, burns the budget, and blocks exactly
+  as before; unfetchable logs block (never auto-retry what cannot be
+  seen). Both ci_gate jobs (release.yml, crates-io.yml) now carry
+  permissions: actions: write — the job's ephemeral github.token can
+  re-run this repo's CI and nothing else.
+- Layer 4 — the user-facing downloads carry the same contract: the
+  README manual-install snippet (which also gains -f, so a 5xx error
+  page can no longer masquerade as the tarball and die confusingly
+  inside sha512sum) and the AUR PKGBUILD's curl_flags (gains
+  --retry-all-errors to complete its existing --retry 3 for the
+  exit-22 class).
+- Docs: docs/workflow/ABOUT_CI.md gains the Infra-failure carve-out
+  section documenting all four layers. Verified locally: bash -n,
+  shellcheck, shfmt -d clean on wait-for-ci.sh; yamllint, actionlint
+  clean on all four workflows; the name-case and language gates stay
+  green. No benchmark per house rule — CI orchestration only, zero
+  render-path code.
+
 ### gate: NIGHT-dinner-2 — the name-case gate: the lowercase rule becomes a machine-enforced tripwire, every tracked file and path scanned, nothing excluded
 
 - New `scripts/gates/check-name-case.py` as gate-keepers section 18:

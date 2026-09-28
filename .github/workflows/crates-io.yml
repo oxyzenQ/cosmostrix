@@ -57,7 +57,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     permissions:
-      actions: read
+      # The wait itself only needs run listings + the checkout
+      # (actions: read / contents: read); the NIGHT-dinner-1 infra
+      # carve-out additionally requests re-runs of infra-signatured
+      # failed runs (actions: write — the job's ephemeral github.token
+      # can re-run this repo's CI and nothing else).
+      actions: write
       contents: read
     steps:
       - name: Checkout
@@ -109,7 +114,11 @@ jobs:
           # Idempotency probe: crates.io rejects duplicate versions, so a
           # re-pushed tag (or a re-run) must not attempt a second upload.
           # The API requires a custom User-Agent (plain curl gets 403).
-          if curl -fsSL -A "cosmostrix-ci-publish-check" \
+          # NIGHT-dinner-1: the probe rides the curl retry contract — a
+          # flaky 5xx answer otherwise reads "not published", falls
+          # through to cargo publish, and dies as a duplicate-version
+          # error: an infra flake perfectly disguised as a code failure.
+          if curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15 -A "cosmostrix-ci-publish-check" \
               "https://crates.io/api/v1/crates/cosmostrix/${VERSION}" >/dev/null 2>&1; then
             echo "cosmostrix ${VERSION} is already published on crates.io - nothing to do."
             exit 0

@@ -232,8 +232,13 @@ Every archive ships three checksums (classical SHA-512 plus quantum-resistant BL
 REPO="oxyzenQ/cosmostrix"
 TAG="v100.0.5"
 PLATFORM="linux-amd64-v3"
-curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
-curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
+# The retry contract (NIGHT-dinner-1): a transient GitHub-side 5xx must
+# not fail the install — -f fails on HTTP errors instead of saving the
+# error page as the tarball, --retry-all-errors covers the exit-22 class
+# plain --retry refuses to re-attempt.
+CURL_FLAGS=(-f -L --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15)
+curl "${CURL_FLAGS[@]}" -O "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
+curl "${CURL_FLAGS[@]}" -O "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
 sha512sum -c "cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
 tar -xzf "cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 ./cosmostrix --doctor
