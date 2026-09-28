@@ -9,10 +9,14 @@ monolith carried every entry since v50.0.0-beta.6 inside a single
 Unreleased section, and the stable bump of 2026-09-14 never cut it):
 
 - Unreleased (post-v100.0.0-stable work, 2026-09-14 onward) — this file, below.
-- [CHANGELOG-V100-ERA.md](CHANGELOG-V100-ERA.md) — the v100 line that built v100.0.0 stable: the nightly.1 hunts (2026-09-04 to 2026-09-10), the beta.1 long-horizon hardening (2026-09-10 to 2026-09-14), and the rc.1 candidate (2026-09-14).
-- [CHANGELOG-V80-ERA.md](CHANGELOG-V80-ERA.md) — the v80 line: S-master hunts, the crystal dragon, and the Z-master harmony campaigns (2026-08-30 to 2026-09-03).
-- [CHANGELOG-V50-ERA.md](CHANGELOG-V50-ERA.md) — the v50.0.0 pre-release line plus the condensed v13-v25 releases.
+- [CHANGELOG-V100-ERA.md](docs/archive/CHANGELOG-V100-ERA.md) — the v100 line that built v100.0.0 stable: the nightly.1 hunts (2026-09-04 to 2026-09-10), the beta.1 long-horizon hardening (2026-09-10 to 2026-09-14), and the rc.1 candidate (2026-09-14).
+- [CHANGELOG-V80-ERA.md](docs/archive/CHANGELOG-V80-ERA.md) — the v80 line: S-master hunts, the crystal dragon, and the Z-master harmony campaigns (2026-08-30 to 2026-09-03).
+- [CHANGELOG-V50-ERA.md](docs/archive/CHANGELOG-V50-ERA.md) — the v50.0.0 pre-release line plus the condensed v13-v25 releases.
 - [Pre-v13 archive](docs/archive/CHANGELOG_PRE_V13.md) — pre-v13 history (v2 to v12).
+
+All three era files moved under `docs/archive/` in NIGHT-dinner-4
+(joining the pre-v13 archive there — the root stays a single live
+`CHANGELOG.md`, exactly like every other historical record).
 
 The condensed origin story stays at the bottom of this file. The
 `## v4.0.0` and `## v3.9.0` headings are tripwire-locked by
@@ -22,6 +26,29 @@ tripwire note in the pre-v13 archive).
 ---
 
 ## Unreleased
+
+### docs: NIGHT-dinner-4 — the era changelogs move to docs/archive/: the root keeps one live CHANGELOG.md, nothing else
+
+- `CHANGELOG-V100-ERA.md`, `CHANGELOG-V80-ERA.md`, and
+  `CHANGELOG-V50-ERA.md` moved verbatim to `docs/archive/` via
+  `git mv` (100644 mode preserved, history follows the rename) —
+  they are completed historical records, exactly like the pre-v13
+  archive that already lives there, so the repo root now carries a
+  single live `CHANGELOG.md` and the archive holds every frozen
+  era. Zero content edits inside the moved files: byte-identical
+  blobs, rename-only in the index.
+- Every reference updated so no link goes stale: the era index at
+  the top of this file (links now resolve to `docs/archive/`),
+  this file's NIGHT-docs-1 entry (paths annotated with the new
+  location), `docs/HUD.md` (expansion-history links),
+  `docs/FUTURE_BACKLOG.md` (the never-rewritten corpus list — the
+  three files now literally sit under `docs/archive/**`, the rule
+  they were already equated to), and `src/RULES_LOC.md` (the
+  refactor-policy pointer).
+- No packaging impact: `Cargo.toml`'s `exclude` list already drops
+  `docs/archive/*` from the shipped crate, so the crate tarball
+  shrinks by the three era files (the root copies were previously
+  packaged as dead weight — 578 KB of frozen history riders).
 
 ### audit: NIGHT-long-horizon-1 — the five-phase long-horizon depth audit: stability, hygiene, optimization, security, and LTS all verified at peak, zero code changes
 
@@ -1715,6 +1742,8 @@ tripwire note in the pre-v13 archive).
   `CHANGELOG-V80-ERA.md` (the v80 line: S-master hunts, crystal dragon,
   Z-master harmony, 2,291 lines), and `CHANGELOG-V50-ERA.md` (the v50
   pre-release line plus the condensed v13-v25 releases, 237 lines).
+  (The three era files moved to `docs/archive/` in NIGHT-dinner-4 —
+  this entry records the original root-level split as it happened.)
   The live `CHANGELOG.md` keeps the Unreleased (post-v100) section,
   the condensed origin story, and a new era index — 8,235 lines down
   to 4,083. The `## v4.0.0` and `## v3.9.0` headings stay in the live

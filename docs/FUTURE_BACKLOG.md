@@ -71,12 +71,12 @@
 The live corpus is every git-tracked `.md` file EXCEPT the historical
 snapshots, which are never rewritten:
 
-- `docs/archive/**` — archived everything (audits, research, specs).
+- `docs/archive/**` — archived everything (audits, research,
+  specs, and — since NIGHT-dinner-4 — the era changelogs
+  `CHANGELOG-V50-ERA.md`, `CHANGELOG-V80-ERA.md`, and
+  `CHANGELOG-V100-ERA.md`, moved from the repo root).
 - `docs/research/**` — dated investigation logs.
 - `docs/audits/**` — dated audit reports.
-- `CHANGELOG-V50-ERA.md`, `CHANGELOG-V80-ERA.md`,
-  `CHANGELOG-V100-ERA.md` — the era changelog split; as historical as
-  `docs/archive/**`.
 - `benchmark/bench-labs/**` A/B artifacts, except the hand-maintained
   index `benchmark/bench-labs/BENCH_LABS.md`.
 - `benchmark/bench-labs/sweep_*.md` — machine-generated (pre-existing
