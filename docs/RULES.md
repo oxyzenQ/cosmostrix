@@ -40,6 +40,36 @@ All core, config, and script files must carry an SPDX license identifier. See `s
 - All tests must pass on every commit.
 - MSRV: Rust 1.98.1 (pinned in `rust-toolchain.toml`).
 
+## Project Name Casing
+
+- The project name is lowercase `cosmostrix` in every context — prose,
+  titles, headings, code, CLI output, comments, commit subjects, and
+  file paths — the nginx/curl convention (BRANDING section 2,
+  NIGHT-dinner-2 owner mandate). No context capitalizes it, including
+  the start of a sentence.
+- The uppercase survivors are identifiers and display banners, never
+  the name as a word: the `COSMOSTRIX_*` environment variables, the
+  `<!-- COSMOSTRIX-DISCLAIMER -->` marker and its `COSMOSTRIX-*`
+  siblings, the all-caps banner comment titles heading the `scripts/`
+  gate files, and the all-caps display titles the binary prints
+  (`COSMOSTRIX BENCHMARK`, `COSMOSTRIX DIAGNOSTICS REPORT`,
+  `COSMOSTRIX PERFORMANCE REPORT`) plus the em-dash hero line in
+  diagnostics output.
+- Nothing is excluded from the scan: every tracked file and every
+  tracked path is checked, hidden trees (`.github/`, `.cargo/`) and
+  `docs/archive/` included. Archived historical documents were
+  reworded to the lowercase form in the same task; their content is
+  otherwise untouched.
+
+### Enforcement
+
+`scripts/gates/check-name-case.py` (gate-keepers section 18) walks
+`git ls-files`, classifies every name token case by case, and fails
+the build on any casing outside the legal families above, reporting
+`file:line:token`. The checker is self-clean by construction: it
+builds the all-caps form at runtime, so its own source carries no
+literal it would flag.
+
 ## Output Glyph Policy (v80.0.0-beta.2)
 
 **Rule (owner directive, 2026-09-02):** everything the binary — or any

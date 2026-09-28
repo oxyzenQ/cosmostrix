@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Cosmostrix Unsafe Soundness Pass — Miri + Manual Review
+# cosmostrix Unsafe Soundness Pass — Miri + Manual Review
 
 **Repo**: cosmostrix @ v30.0.0-alpha.1
 **Scope**: All `unsafe` blocks in production source code

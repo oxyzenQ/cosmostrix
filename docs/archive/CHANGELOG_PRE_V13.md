@@ -178,7 +178,7 @@ visual floor without changing the architecture established in v4.0.0.
 
 ## v3.1.0 — Monolith Rain Engine
 
-Plain `cosmostrix` now launches signature Cosmostrix Monolith Rain: sparse
+Plain `cosmostrix` now launches signature cosmostrix Monolith Rain: sparse
 structured vertical data pillars with segmented blocks, subtle spines,
 visible gaps, and a clear brightness hierarchy. Classic Matrix glyph rain
 remains available with `cosmostrix --scene matrix`.

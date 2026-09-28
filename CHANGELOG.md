@@ -27,6 +27,36 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### gate: NIGHT-dinner-2 — the name-case gate: the lowercase rule becomes a machine-enforced tripwire, every tracked file and path scanned, nothing excluded
+
+- New `scripts/gates/check-name-case.py` as gate-keepers section 18:
+  a `git ls-files` walk over every tracked file and path (the
+  `.cargo/` and `.github/` hidden trees included — nothing excluded,
+  `docs/archive/` included), case-by-case classification, and
+  `file:line:token` failures. Legal families only: lowercase, plus
+  the identifier family (`COSMOSTRIX_*` environment variables, the
+  `COSMOSTRIX-DISCLAIMER` marker and its `COSMOSTRIX-*` siblings),
+  the all-caps banner comment titles heading the `scripts/` gate
+  files, and the all-caps display banners the binary prints
+  (`COSMOSTRIX BENCHMARK`, `COSMOSTRIX DIAGNOSTICS REPORT`,
+  `COSMOSTRIX PERFORMANCE REPORT`) plus the em-dash hero line.
+  Self-clean by construction: the all-caps form is built at runtime
+  from the lowercase name.
+- The 17 wrong-case remainings the scan found are retired: 14 in
+  archived historical documents (reworded to the lowercase form,
+  case-only edits, content otherwise untouched) and 3 in
+  `docs/BRANDING.md` (the old section 2 described the banned
+  spellings as literal exhibits and allowed a README hero that no
+  longer exists). The old section 6c naming check is superseded and
+  removed: it caught one casing, exempted the archive, and never
+  looked at paths.
+- Docs: BRANDING section 2 rewritten (the lowercase rule, the
+  surviving uppercase families, the machine-enforcement note), a new
+  Project Name Casing section in `docs/RULES.md`, the CONTRIBUTING
+  naming paragraph, and the workflow gate list. Verified live:
+  1111 tracked files and paths, 3140 name tokens — 2551 lowercase,
+  589 identifier/banner/display family, 0 violations.
+
 ### docs: NIGHT-dinner-4 — the era changelogs move to docs/archive/: the root keeps one live CHANGELOG.md, nothing else
 
 - `CHANGELOG-V100-ERA.md`, `CHANGELOG-V80-ERA.md`, and

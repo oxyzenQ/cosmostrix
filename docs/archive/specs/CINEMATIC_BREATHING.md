@@ -42,14 +42,14 @@ document before implementation.
 
 ## What is Cinematic Breathing?
 
-Cosmostrix is not a static screensaver. Its visuals have rhythm, weight, and
+cosmostrix is not a static screensaver. Its visuals have rhythm, weight, and
 intention. When rain falls across the terminal, it does not simply repeat the
 same frame at a constant rate — it breathes. Cinematic breathing is the
 vocabulary we use to describe how the rain lives on screen.
 
 The concept draws from film editing, where pacing is not an accident but a
 deliberate creative choice. A director does not cut randomly between scenes;
-each transition carries meaning. Similarly, Cosmostrix treats visual state
+each transition carries meaning. Similarly, cosmostrix treats visual state
 changes as intentional acts with rhythm and purpose. The rain accelerates,
 slows, thickens, thins, brightens, and dims — not at random, but according
 to a shared language that both developers and users can reference and
@@ -72,7 +72,7 @@ shift — not a surprise, but a promise.
 
 ## Activating Atmosphere Regimes
 
-Cosmostrix does NOT ship built-in `atmosphere-*` scene presets. To activate
+cosmostrix does NOT ship built-in `atmosphere-*` scene presets. To activate
 an atmosphere regime, use one of these two methods:
 
 **Method 1 — Direct CLI flags (quickest):**
@@ -134,7 +134,7 @@ uniform density. Colors follow the selected palette without modulation.
 Glitch intensity is at the chosen level. The screen looks alive but calm,
 like a quiet forest with leaves falling at a natural rate. There is no
 sense of acceleration or deceleration, no brightness shifts, no density
-waves. This is the state the user expects when they launch Cosmostrix
+waves. This is the state the user expects when they launch cosmostrix
 without any atmosphere flags.
 
 **Technical note:** All parameters sit at their configured values. The
@@ -299,7 +299,7 @@ and is explicitly blocked at every parsing layer.
 **The natural transition between states.** Never instant. Always gradual.
 A breath cycle is the minimum transition period between two visual states.
 
-**Visual description:** When Cosmostrix moves from one visual state to
+**Visual description:** When cosmostrix moves from one visual state to
 another — say, from Rest to Pulse, or from Compression back to Rest —
 the transition unfolds over a perceptible period rather than snapping
 between states. Think of it as a slow exhale: the rain eases into its
@@ -344,7 +344,7 @@ releases, but the principle that transitions have a minimum duration
 does not change.
 
 **Atmosphere effects never surprise the user.** They are opt-in or
-clearly signaled. A user who launches Cosmostrix with no atmosphere
+clearly signaled. A user who launches cosmostrix with no atmosphere
 flags will never see atmospheric modulation. A user who activates an
 atmosphere preset or profile does so explicitly through a named,
 documented option. There is no hidden atmosphere activation path, no
@@ -386,7 +386,7 @@ visual identity, even though it remains whisper-bounded.
 ## Naming Conventions
 
 These conventions govern how presets, scenes, and atmosphere effects are
-named throughout Cosmostrix. Consistency in naming helps users form
+named throughout cosmostrix. Consistency in naming helps users form
 correct expectations and helps developers maintain a coherent codebase.
 
 **Scene names are single words, lowercase, evocative:** classic,
@@ -417,7 +417,7 @@ not need to follow any convention.
 
 **No scene or profile name may imply a promise the renderer cannot keep.**
 A scene called "60fps-guaranteed" would violate this rule because
-Cosmostrix does not guarantee frame rates. A scene called "photorealistic"
+cosmostrix does not guarantee frame rates. A scene called "photorealistic"
 would violate this rule because the renderer produces terminal character
 rain, not photorealistic images. Names must be honest about what the
 software can deliver.
@@ -425,11 +425,11 @@ software can deliver.
 **No name may reference a specific FPS target or hardware capability.**
 Names like "120hz" or "gpu-accelerated" are forbidden because they
 imply performance characteristics that depend on the user's hardware and
-terminal. A name must be meaningful regardless of where Cosmostrix runs.
+terminal. A name must be meaningful regardless of where cosmostrix runs.
 
 ## State Hierarchy
 
-Visual state in Cosmostrix resolves through a layered system. Higher layers
+Visual state in cosmostrix resolves through a layered system. Higher layers
 override lower layers. The complete hierarchy, from lowest to highest
 priority, is:
 
@@ -473,7 +473,7 @@ anti-pattern is a bug, not a feature.
 
 **NOT random visual flicker.** If the rain brightness shifts unpredictably
 frame-to-frame with no rhythm or pattern, that is flicker, not breathing.
-Breathing has direction and intention. Flicker is noise. Cosmostrix must
+Breathing has direction and intention. Flicker is noise. cosmostrix must
 never produce visual output that a user would describe as "flickery"
 unless they have explicitly configured glitch intensity to a high level.
 
@@ -511,7 +511,7 @@ documented atmosphere effect, or a clearly communicated system behavior.
 
 ## Future Direction
 
-This vocabulary will expand as Cosmostrix Live and future renderer
+This vocabulary will expand as cosmostrix Live and future renderer
 experiments mature. New breathing terms may be needed to describe visual
 effects that do not fit neatly into the current vocabulary — for example,
 if a future version introduces spatial effects (rain responding to cursor

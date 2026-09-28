@@ -13,14 +13,19 @@ Visual identity and communication standards for the cosmostrix project. Ensures 
 
 ## 2. Name Usage
 
+The name is **always lowercase** — `cosmostrix` — in every context: prose, titles, headings, code, CLI output, comments, commit subjects, and file paths (the nginx/curl convention, NIGHT-dinner-2 owner mandate). No context capitalizes it, including the start of a sentence.
+
 | Context | Format |
 |---|---|
 | Running text / prose / titles / headings | cosmostrix |
 | Code / CLI | `cosmostrix` (lowercase) |
-| All-caps hero (README hero only) | COSMOSTRIX |
 | With article | "the cosmostrix project", "cosmostrix renderer" |
 
-**Incorrect forms**: ~~CosmoStrix~~ (no internal capitalization), ~~COSMOSTRIX~~ (except README hero), ~~cosmostrix~~ in prose, ~~Cosmo~~ as abbreviation. In external articles, the first mention should include context: "cosmostrix is a high-performance cinematic Matrix rain renderer for the terminal."
+The one uppercase family that survives is identifiers and display banners, never the name as a word: the `COSMOSTRIX_*` environment variables, the `<!-- COSMOSTRIX-DISCLAIMER -->` injection marker and its `COSMOSTRIX-*` siblings, the all-caps banner comment titles heading the `scripts/` gate files, and the all-caps display titles the binary prints (`COSMOSTRIX BENCHMARK`, `COSMOSTRIX DIAGNOSTICS REPORT`, `COSMOSTRIX PERFORMANCE REPORT`) plus the em-dash hero line in diagnostics output — shell, identifier, and display conventions, not brand spellings.
+
+Since NIGHT-dinner-2 the rule is machine-enforced: `scripts/gates/check-name-case.py` (gate-keepers section 18) scans every tracked file and every tracked path and fails the build on any casing outside these families — nothing is excluded from the scan, the archive included (the archived historical documents were reworded to the lowercase form in the same task; their content is otherwise untouched).
+
+**Incorrect forms**: a capitalized first letter, or any internal capital, in any context (every letter of the name is lowercase, even at the start of a sentence — machine-enforced, see above); all-caps used as prose (the display-banner family above is the only uppercase survivor); shortened forms as abbreviations. In external articles, the first mention should include context: "cosmostrix is a high-performance cinematic Matrix rain renderer for the terminal."
 
 ## 3. Logo
 

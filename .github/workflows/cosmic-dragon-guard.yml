@@ -13,7 +13,6 @@
 #   5.  markdownlint   - all .md files
 #   6.  codespell      - spelling across all text files
 #   6b. ruff           - python lint/format on scripts/**/*.py
-#   6c. naming         - lowercase project name outside docs/archive/
 #   7.  SPDX headers   - git-tracked code/config/doc files
 #   8.  LOC guard      - .rs files <= 800 lines (src/RULES_LOC.md)
 #   9.  Rust version   - toolchain / MSRV / CI env in sync
@@ -28,6 +27,13 @@
 #  16.  CI path-filter - workflow paths entries inside a directory
 #                       are globs, never hardcoded filenames
 #                       (scripts/gates/check-ci-path-filters.py, boost-1)
+#  17.  Scripts LOC    - every .sh/.py under scripts/ <= 1000 lines
+#                       (scripts/gates/check-scripts-loc.sh, lts-1)
+#  18.  Name-case      - lowercase project name in every tracked file
+#                       and path, nothing excluded; the identifier,
+#                       banner, and display families are the only
+#                       uppercase survivors
+#                       (scripts/gates/check-name-case.py, dinner-2)
 #
 # Every tool listed above is installed below - a check that silently skips
 # because its tool is missing is a check that does not exist (incident:

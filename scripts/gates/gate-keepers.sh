@@ -57,6 +57,18 @@
 #       .sh/.py under scripts/ at any depth stays at or below 1000
 #       gross lines; scripts/gates/check-scripts-loc.sh mirrors check 8's
 #       marker-exemption semantics for shell and Python)
+#  18.  Name-case rule (owner mandate, NIGHT-dinner-2 —
+#       scripts/gates/check-name-case.py: the project name is
+#       lowercase cosmostrix in every context, paths included; the
+#       uppercase survivors are the identifier family (COSMOSTRIX_*
+#       environment variables, the COSMOSTRIX-* markers), the
+#       all-caps banner titles heading the scripts/ gate files, and
+#       the all-caps display banners the binary prints. Every
+#       tracked file and path is scanned — nothing excluded, the
+#       archive included — and any other casing fails the push.
+#       (Supersedes the old section 6c naming check, which caught
+#       one casing, exempted the archive, and never looked at
+#       paths.)
 #
 # Exit codes:
 #   0 = all checks passed
@@ -341,26 +353,6 @@ else
 	PASS=$((PASS + 1))
 fi
 
-# ── 6c. Naming consistency ─────────────────────────────────────────────────
-# The project name is always lowercase `cosmostrix` (owner rule 2026-08-24,
-# documented in CONTRIBUTING.md section 2). The capitalized form is a naming
-# inconsistency; archived historical documents are exempt. The pattern below
-# is written without the literal capitalized form so this check does not
-# match its own source.
-header "Naming consistency"
-# `git grep` exits 1 on zero matches (the clean state) - guard with || true
-# so `set -e` does not kill the script on success.
-CAP_HITS=$(git grep -l -E "C""osmostrix" -- ":(exclude)docs/archive/**" 2>/dev/null | head -5 || true)
-if [ -z "$CAP_HITS" ]; then
-	info "naming: project name is lowercase everywhere (non-archive)"
-	PASS=$((PASS + 1))
-else
-	echo "$CAP_HITS" | while IFS= read -r f; do
-		echo "  capitalized project name in: $f"
-	done
-	fail "naming: use lowercase 'cosmostrix' (see CONTRIBUTING.md section 2)"
-fi
-
 # ── 7. SPDX License Header Check ──────────────────────────────────────────
 header "SPDX License Headers"
 if [ -f scripts/gates/check-headers.sh ]; then
@@ -583,6 +575,31 @@ if [ -f scripts/gates/check-scripts-loc.sh ]; then
 	fi
 else
 	warn "check-scripts-loc.sh not found — skipping"
+fi
+
+# ── 18. Name-Case Rule (owner mandate, NIGHT-dinner-2) ─────────────────
+# The project name is lowercase cosmostrix in every context — the
+# nginx/curl convention docs/BRANDING.md section 2 codifies.
+# check-name-case.py scans EVERY tracked file and every tracked
+# path (git ls-files — the .cargo/ and .github/ hidden trees
+# included, the archive included: nothing is excluded), classifies
+# each name token case by case, and fails on any casing outside
+# the legal families: lowercase, the identifier family
+# (COSMOSTRIX_* environment variables, the COSMOSTRIX-* markers),
+# the scripts/ banner titles, and the all-caps display banners the
+# binary prints. Supersedes the old section 6c one-casing check.
+header "Name-Case Rule (check-name-case.py)"
+if [ -f scripts/gates/check-name-case.py ] && command -v python3 >/dev/null 2>&1; then
+	if python3 scripts/gates/check-name-case.py 2>&1; then
+		info "name-case: the project name is lowercase everywhere (identifier/banner/display families legal)"
+		PASS=$((PASS + 1))
+	else
+		fail "name-case: wrong-case project name found (see the file:line:token list above)"
+	fi
+elif [ ! -f scripts/gates/check-name-case.py ]; then
+	warn "check-name-case.py not found — skipping"
+else
+	warn "python3 not installed — skipping"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────
