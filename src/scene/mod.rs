@@ -253,8 +253,13 @@ pub(crate) fn validate_scene_name(name: &str) -> Result<String, String> {
 #[must_use]
 pub(crate) fn list_scenes_text() -> String {
     let mut out = String::new();
+    // NIGHT-dinner-3: the column width is computed from the actual scene
+    // names, not hardcoded. The former `{:10}` predates the 13- and
+    // 22-char names (cosmic_dragon, sorgonemous_intrascals), which broke
+    // the description column out of alignment for every longer name.
+    let width = SCENES.iter().map(|s| s.name.len()).max().unwrap_or(10);
     for scene in SCENES {
-        out.push_str(&format!("  {:10} {}\n", scene.name, scene.description));
+        out.push_str(&format!("  {:width$} {}\n", scene.name, scene.description));
     }
     out
 }

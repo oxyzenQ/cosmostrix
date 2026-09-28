@@ -27,6 +27,63 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### ux: NIGHT-dinner-3 — the CLI output depth audit: six fixes land, style and data sharpness unified across every diagnostics surface
+
+- The audit walked every user-facing CLI surface live (--doctor,
+  --benchmark text + JSON, --perf-stats under a PTY, -V, --help,
+  error and suggestion paths, --list-scenes, --list-charsets,
+  --list-colors, --config-path) hunting two defect classes: style
+  drift between surfaces that report the same fact, and data output
+  too blunt to read at a glance. Six fixes land:
+- Style fix 1 — the -V Build-time line now renders ISO 8601
+  (`2026-09-28 20:06Z`) instead of the US-ambiguous `9/28/2026
+  19:55 (UTC)`. The project's own verbose contract (RULES.md:
+  `exit_time: <YYYY-MM-DD HH:MM:SSZ>`, "UTC chosen for LTS
+  stability") is now followed by every timestamp the binary prints;
+  build.rs's formatter and all five of its date-pinned unit tests
+  updated (epoch, leap-day, truncation, minute-roll, negative-epoch
+  cases; the standalone runner executes them, 10/10 green).
+- Style fix 2 — gpu_basis is now one sentence on every surface: the
+  bench report and bench JSON previously said "cosmostrix is a CPU +
+  stdout renderer; ..." while the doctor said "CPU+stdout renderer;
+  ...". The tighter doctor phrasing wins everywhere; the JSON key is
+  unchanged (bench-labs parses keys, not prose).
+- Style fix 3 — --list-scenes columns finally align. The listing
+  format carried a hardcoded 10-wide name column that predates the
+  13- and 22-char scene names (cosmic_dragon,
+  sorgonemous_intrascals); every longer name broke the description
+  column. The width is now computed from the actual scene names.
+- Style fix 4 — the --perf-stats BACKPRESSURE section's bare
+  `avg: 0.000` / `peak: 0.000` keys carried no scope (average of
+  WHAT?). They are now `pressure_avg` / `pressure_peak`, matching
+  their budget_* siblings; the basis and advice lines updated to
+  the new names.
+- Data fix 1 — share_percent precision unified: COMPONENT TIMING
+  printed the sim/render/io shares at two decimals (44.99) while
+  CELL EFFICIENCY printed the same conceptual shares at one (45.0)
+  — two precisions for one quantity reads as two different
+  measurements. Both now carry two decimals.
+- Data fix 2 — the doctor BUILD section's `commit` and `rustc` keys
+  are now `git_sha` and `rustc_version`, aligning the doctor with
+  the bench report and the bench JSON (the machine contract
+  bench-labs parses wins; the doctor is prose and follows).
+- Checked and deliberately NOT changed (honest reporting kept): the
+  smt_active "off" reading is a genuine sysfs observation, not a
+  fallback guess; the perf-stats `avg_dirty_cells` vs bench
+  `avg_dirty_cells_per_frame` names describe different measurement
+  contexts; the PERFORMANCE / CELL EFFICIENCY dirty-cell companions
+  are an owner-requested readable pair (2026-08-23), kept with
+  precision now consistent.
+- Verification: cargo fmt clean; clippy --all-targets --all-features
+  clean; cargo test --locked 2983 passed / 0 failed / 2 ignored;
+  build-script standalone tests 10/10 (including the three
+  date-format tests). A/B benchmark (10 s, 100x30, dry) against a
+  pre-change baseline saved via --save-baseline: every metric OK —
+  avg_fps +2.54%, dirty cells/frame -0.23%, density_gini 0.8959 ->
+  0.8962, frame_entropy 3.63 -> 3.63, color_transition_delta 0.00 ->
+  0.00. Zero render-path code touched; the deltas are debug-build
+  noise.
+
 ### ci: NIGHT-dinner-1 — infra flakes can't read as code failures: the curl retry contract, apt retries, and the ci_gate infra carve-out keep a GitHub-side 500 from stalling a release
 
 - The hazard: GitHub's own infrastructure fails sometimes — a

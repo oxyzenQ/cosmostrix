@@ -55,15 +55,19 @@ pub(crate) fn print_doctor_report(args: &Args) {
     {
         let s = r.section("BUILD");
         s.field("version", &format!("v{}", env!("CARGO_PKG_VERSION")));
+        // NIGHT-dinner-3: keys aligned with the bench report and the
+        // bench JSON (git_sha / rustc_version) — the same data carried
+        // three different key names across the surfaces; the machine
+        // contract (bench-labs parses it) wins, the doctor follows.
         if let Some(sha) = crate::info::build_commit_short() {
-            s.field("commit", sha);
+            s.field("git_sha", sha);
         }
         s.field("variant", cpu.variant);
         s.field("optimization", env!("COSMOSTRIX_OPTIMIZATION"));
         s.field("dispatch", cpu.dispatch);
         s.field("cpu_baseline", env!("COSMOSTRIX_CPU_BASELINE"));
         s.field("target_features", env!("COSMOSTRIX_TARGET_FEATURES"));
-        s.field("rustc", env!("COSMOSTRIX_RUSTC_VERSION"));
+        s.field("rustc_version", env!("COSMOSTRIX_RUSTC_VERSION"));
         s.field("lto", env!("COSMOSTRIX_LTO"));
         s.field("panic", env!("COSMOSTRIX_PANIC"));
         s.field("strip", env!("COSMOSTRIX_STRIP"));

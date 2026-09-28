@@ -115,10 +115,12 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // cosmostrix is a CPU + stdout renderer — no OpenGL/Vulkan/Metal/
         // DirectX/WebGPU context is ever created. The terminal emulator
         // may use GPU for compositing, but that is outside cosmostrix.
+        // NIGHT-dinner-3: the phrasing is byte-identical to the doctor's
+        // gpu_basis — one contract, one sentence, every surface.
         s.field("gpu_usage", "not_applicable");
         s.field(
             "gpu_basis",
-            "cosmostrix is a CPU + stdout renderer; no GPU context is ever created",
+            "CPU+stdout renderer; no GPU context is ever created",
         );
     }
 
@@ -629,17 +631,21 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // account for — no hidden rounding, no invisible gap.
         let component_sum_ns = sim_ns + render_ns + io_ns;
         if component_sum_ns > 0.0 {
+            // NIGHT-dinner-3: precision unified with COMPONENT TIMING —
+            // the same conceptual shares printed at two precisions
+            // (44.99 vs 45.0) read as different measurements; both now
+            // carry two decimals.
             s.field(
                 "sim_share_percent",
-                &format!("{:.1}", sim_ns / component_sum_ns * 100.0),
+                &format!("{:.2}", sim_ns / component_sum_ns * 100.0),
             );
             s.field(
                 "render_share_percent",
-                &format!("{:.1}", render_ns / component_sum_ns * 100.0),
+                &format!("{:.2}", render_ns / component_sum_ns * 100.0),
             );
             s.field(
                 "io_share_percent",
-                &format!("{:.1}", io_ns / component_sum_ns * 100.0),
+                &format!("{:.2}", io_ns / component_sum_ns * 100.0),
             );
             if total_ns > 0.0 {
                 s.field(

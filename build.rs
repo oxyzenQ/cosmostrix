@@ -78,7 +78,7 @@ fn main() {
     println!("cargo:rustc-env=COSMOSTRIX_PANIC={}", metadata.panic);
     println!("cargo:rustc-env=COSMOSTRIX_STRIP={}", metadata.strip);
 
-    // Build timestamp: M/D/YYYY HH:MM (UTC at compile time).
+    // Build timestamp: YYYY-MM-DD HH:MMZ (ISO 8601, UTC at compile time).
     //
     // Why UTC and not local time? The previous implementation used
     // `chrono::Local::now()` which required `chrono` as a build-dependency
@@ -684,8 +684,8 @@ fn detect_rustc_version() -> String {
         .unwrap_or_else(|| "unknown".to_string())
 }
 
-/// Build timestamp in `M/D/YYYY HH:MM (UTC)` format, computed from
-/// `std::time::SystemTime` without chrono.
+/// Build timestamp in `YYYY-MM-DD HH:MMZ` (ISO 8601, UTC) format,
+/// computed from `std::time::SystemTime` without chrono.
 ///
 /// Replaces the previous `chrono::Local::now().format("%-m/%-d/%Y %H:%M")`
 /// call so that `chrono` no longer needs to be a `[build-dependencies]`
@@ -705,8 +705,12 @@ fn format_build_time_utc() -> String {
 }
 
 /// Pure formatting function — takes unix-epoch seconds and returns
-/// `M/D/YYYY HH:MM (UTC)`. Separated from `format_build_time_utc` so
-/// the algorithm is unit-testable without depending on the wall clock.
+/// `YYYY-MM-DD HH:MMZ` (ISO 8601, UTC, the same contract the verbose
+/// exit_time line follows — NIGHT-dinner-3: the former `M/D/YYYY
+/// HH:MM (UTC)` was US-ambiguous internationally and inconsistent
+/// with the project's ISO 8601 mandate). Separated from
+/// `format_build_time_utc` so the algorithm is unit-testable without
+/// depending on the wall clock.
 ///
 /// Algorithm: split `total_secs` into days + seconds-of-day, then use
 /// Howard Hinnant's `civil_from_days` algorithm
@@ -734,7 +738,7 @@ fn format_unix_secs_as_build_time(total_secs: i64) -> String {
     let m = if mp < 10 { mp + 3 } else { mp - 9 }; // [1, 12]
     let year = if m <= 2 { y + 1 } else { y };
 
-    format!("{m}/{d}/{year} {hour:02}:{minute:02} (UTC)")
+    format!("{year}-{m:02}-{d:02} {hour:02}:{minute:02}Z")
 }
 
 #[cfg(test)]
@@ -845,13 +849,13 @@ mod tests {
     #[test]
     fn build_time_format_matches_known_unix_epochs() {
         // UNIX epoch: 1970-01-01 00:00:00 UTC.
-        assert_eq!(format_unix_secs_as_build_time(0), "1/1/1970 00:00 (UTC)");
+        assert_eq!(format_unix_secs_as_build_time(0), "1970-01-01 00:00Z");
 
         // 2000-01-01 00:00:00 UTC = 946_684_800 seconds since epoch.
         // Computed via: date -u -d '2000-01-01 00:00:00' +%s
         assert_eq!(
             format_unix_secs_as_build_time(946_684_800),
-            "1/1/2000 00:00 (UTC)"
+            "2000-01-01 00:00Z"
         );
 
         // 2024-02-29 12:34:00 UTC = 1_709_210_040 seconds since epoch.
@@ -862,7 +866,7 @@ mod tests {
         // -d @1709210440`. The date-verified value is 1_709_210_040.)
         assert_eq!(
             format_unix_secs_as_build_time(1_709_210_040),
-            "2/29/2024 12:34 (UTC)"
+            "2024-02-29 12:34Z"
         );
 
         // 2026-08-04 15:30:00 UTC = 1_785_857_400 seconds since epoch.
@@ -872,7 +876,7 @@ mod tests {
         // -d @1787930200`. The date-verified value is 1_785_857_400.)
         assert_eq!(
             format_unix_secs_as_build_time(1_785_857_400),
-            "8/4/2026 15:30 (UTC)"
+            "2026-08-04 15:30Z"
         );
     }
 
@@ -884,14 +888,14 @@ mod tests {
         // is still rendered as 12:34.
         assert_eq!(
             format_unix_secs_as_build_time(1_709_210_040 + 59),
-            "2/29/2024 12:34 (UTC)"
+            "2024-02-29 12:34Z"
         );
 
         // One second past a whole minute rolls the rendered minute
         // forward only at the :00 boundary (12:34:60 == 12:35:00).
         assert_eq!(
             format_unix_secs_as_build_time(1_709_210_040 + 60),
-            "2/29/2024 12:35 (UTC)"
+            "2024-02-29 12:35Z"
         );
     }
 
@@ -967,13 +971,6 @@ mod tests {
         // arithmetic, not panic or underflow.
         // 1969-12-31 23:59:00 UTC = -60 seconds.
         let result = format_unix_secs_as_build_time(-60);
-        assert!(
-            result.ends_with("(UTC)"),
-            "negative-epoch result should still be (UTC)-suffixed: {result}"
-        );
-        assert!(
-            result.contains("1969"),
-            "negative-epoch result should land in 1969: {result}"
-        );
+        assert_eq!(result, "1969-12-31 23:59Z");
     }
 }

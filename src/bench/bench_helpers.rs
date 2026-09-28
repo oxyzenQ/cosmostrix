@@ -166,8 +166,12 @@ pub(crate) fn format_backpressure_section(
             avg_frame_period_ms
         ),
     );
-    s.field("avg", &format!("{:.3}", avg_pressure));
-    s.field("peak", &format!("{:.3}", peak_pressure));
+    // NIGHT-dinner-3: the bare `avg`/`peak` keys carried no scope —
+    // a reader scanning the section saw "avg: 0.000" with no hint of
+    // WHAT was averaged (pressure? utilization? bytes?). The keys now
+    // name their quantity, matching the budget_* siblings.
+    s.field("pressure_avg", &format!("{:.3}", avg_pressure));
+    s.field("pressure_peak", &format!("{:.3}", peak_pressure));
     let frames_f = frames.max(1) as f64;
     let avg_util = utilization_sum / frames_f;
     let tgt_s = target_period.as_secs_f64().max(0.000_001);
@@ -184,13 +188,13 @@ pub(crate) fn format_backpressure_section(
     s.field("classification", pressure_class);
     s.field(
         "basis",
-        "avg/peak = clamp(frame_period/target_period - 1, 0, 2); non-zero when the frame PERIOD exceeds target (work + sleep + polling). budget_utilization = work_s/target_period — the WORK share only. pressure high + utilization low = the gap is scheduler/poll time, not renderer work.",
+        "pressure_avg/pressure_peak = clamp(frame_period/target_period - 1, 0, 2); non-zero when the frame PERIOD exceeds target (work + sleep + polling). budget_utilization = work_s/target_period — the WORK share only. pressure high + utilization low = the gap is scheduler/poll time, not renderer work.",
     );
     s.field(
         "overshoot_frames",
         &format!("{} ({:.1}% of total)", overshoot_frames, overshoot_ratio),
     );
-    s.advice("avg/peak 0.000 = healthy (renderer kept up). budget_utilization shows how much of the frame budget was consumed by renderer WORK (always non-zero). frame_period_avg_ms > frame_period_target_ms explains why pressure can be non-zero while utilization is low. For real FPS see TIMING.avg_fps / TIMING.instant_fps.");
+    s.advice("pressure_avg/pressure_peak 0.000 = healthy (renderer kept up). budget_utilization shows how much of the frame budget was consumed by renderer WORK (always non-zero). frame_period_avg_ms > frame_period_target_ms explains why pressure can be non-zero while utilization is low. For real FPS see TIMING.avg_fps / TIMING.instant_fps.");
 }
 
 /// Resolve bench duration from --bench-duration (now accepts compound format).

@@ -136,7 +136,7 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         o.push_kv_str("gpu_usage", "not_applicable");
         o.push_kv_str(
             "gpu_basis",
-            "cosmostrix is a CPU + stdout renderer; no GPU context is ever created",
+            "CPU+stdout renderer; no GPU context is ever created",
         );
     });
 
