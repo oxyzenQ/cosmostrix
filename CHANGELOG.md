@@ -27,6 +27,49 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### infra: NIGHT-diner-10 — the CI gate reads the status FIELD, not the summary prefix: v100.0.6-rc.1's two tag pipelines stop polling an already-green CI into their own timeout (zelynic NIGHT-dinner-25 lineage, same bug found there first)
+
+- The v100.0.6-rc.1 tag push left both tag pipelines (Guard -
+  Release run 109, crates.io publish run 12) stuck in the gate job
+  polling "ci.yml run is completed (conclusion so far: success)"
+  while the ci.yml run for the tagged SHA (d959449) had already
+  passed — the exact symptom the owner had just fixed in zelynic
+  (NIGHT-dinner-25, commit 834aeb0): the gate shipped in 041b470
+  with the run id already prepended to newest_run's output (dinner-1
+  re-run targeting) while the poll loop's branch still tested the
+  pre-prepend prefix `completed|*`. Dead code from birth: the
+  summary starts with the numeric run id, so every completed run —
+  green or red — fell into the waiting branch and polled straight
+  into the 1800 s budget timeout. rc.1 was simply the first tag
+  push through the regressed script.
+- Fix (zelynic's, applied verbatim in spirit): the four fields are
+  parsed once at the top of the poll loop and the branch tests the
+  status FIELD — `elif [[ "${status}" == "completed" ]]` — which
+  restores the whole documented decision table: success passes on
+  the first poll, failure/timed_out goes to the dinner-1 infra
+  classifier, cancelled keeps its recovery hint, in_progress keeps
+  polling. The two in-branch duplicate parses are gone. Diff: one
+  comment block, one parse line, one branch rewrite (+17/-3).
+- Verification (the zelynic method, harness session-side at
+  scripts/ci-gate-test/): a local mock of the Actions API served
+  the exact rc.1 shape. The pre-fix script reproduces the failure
+  byte-for-byte — "run is completed (conclusion so far: success)"
+  polling into its own timeout, exit 1 — while the fixed script
+  prints "PASS: ci.yml completed with conclusion=success" and
+  exits 0 on the first poll with zero waiting lines; an
+  in_progress run still polls (no premature pass) and the no-run
+  docs-only grace path still passes. bash -n, shellcheck, and
+  shfmt -d are clean on the canonicalized script.
+- Recovery for the stuck tag: the doomed runs were left to their
+  own budget (they cannot be saved — they execute the tag's old
+  script), the fix landed on main, and the rc tag was re-pointed
+  at the fix commit so both pipelines re-trigger through the
+  repaired gate (an rc tag under rapid testing is movable; the
+  annotated message is preserved).
+- Test-infrastructure change only: no production code path is
+  touched, the release binary is bit-identical, so the 10 s render
+  benchmark is skipped (nothing to A/B).
+
 ### deps: NIGHT-diner-9 — sha2 0.11.0 takes the last Unchanged line with it: one function rewritten, identity proven three ways, and the wall-of-Unchanged is gone (eight lines -> four -> two -> zero in two days)
 
 - sha2 0.10.9 → 0.11.0 (owner-approved via the quarterly-revisit

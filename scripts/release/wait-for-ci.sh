@@ -202,6 +202,22 @@ echo "[ci-gate] budget:   ${TIMEOUT_SECS}s (grace ${GRACE_SECS}s, poll ${POLL_SE
 while :; do
 	summary="$(newest_run)"
 
+	# NIGHT-diner-10 regression fix (zelynic NIGHT-dinner-25
+	# lineage — the same bug, found there first on the v11.0.0-rc.3
+	# tag): the gate shipped in 041b470 with the run id already
+	# prepended to newest_run's output (dinner-1's re-run
+	# targeting) while the branch test below still matched the
+	# pre-prepend prefix `completed|*`. The summary starts with
+	# the numeric run id, so that branch was dead code from
+	# birth: every completed run — green or red — fell into the
+	# waiting branch and polled straight into the budget
+	# timeout while the log printed "conclusion so far: success"
+	# over and over (exactly what v100.0.6-rc.1's two tag
+	# pipelines did while CI for the tagged SHA sat green). The
+	# fields are parsed once here; the status FIELD is the
+	# branch, never the prefix.
+	IFS='|' read -r run_id status conclusion url <<<"${summary}"
+
 	if [[ -z "${summary}" ]]; then
 		if (($(date +%s) >= grace_until)); then
 			echo "[ci-gate] PASS: no ci.yml push-run exists for this SHA after the grace period."
@@ -210,8 +226,7 @@ while :; do
 			exit 0
 		fi
 		echo "[ci-gate] no ci.yml run visible yet (commit+tag pushed together?); polling..."
-	elif [[ "${summary}" == completed\|* ]]; then
-		IFS='|' read -r run_id status conclusion url <<<"${summary}"
+	elif [[ "${status}" == "completed" ]]; then
 		if [[ "${conclusion}" == "success" ]]; then
 			echo "[ci-gate] PASS: ci.yml completed with conclusion=success."
 			echo "[ci-gate] run: ${url}"
@@ -256,7 +271,6 @@ while :; do
 		fi
 		exit 1
 	else
-		IFS='|' read -r run_id status conclusion url <<<"${summary}"
 		echo "[ci-gate] ci.yml run is ${status} (conclusion so far: ${conclusion}); waiting ${POLL_SECS}s..."
 	fi
 
