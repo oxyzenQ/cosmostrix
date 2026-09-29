@@ -52,6 +52,12 @@ tripwire note in the pre-v13 archive).
   benchmark SIGINT abort (exit 0, was_interrupted:true in the JSON —
   the signal-hook 0.4 flag::register path). 2983/2983 tests,
   gate-keepers 21/21.
+- Post-commit A/B bench (10 s, release profile, cinematic + monolith,
+  2 runs each, vs the 6e3d718 baseline binary): performance-neutral
+  and visual-identical within run noise — monolith flat to four
+  decimals on gini, fps two-sided around zero (means -0.67%, median
+  -0.18%, peak +0.95%), the frame path never enters signal-hook.
+  Recorded in benchmark/bench-labs/night_dinner8/AB_REPORT.md.
 - Backlog after this entry: rand 0.10 (the 4-6 h visual-risk item,
   next in this task) and sha2 0.11 (HOLD). Research record:
   docs/research/NIGHT_DINNER_8_MAJOR_BUMP_BACKLOG.md.

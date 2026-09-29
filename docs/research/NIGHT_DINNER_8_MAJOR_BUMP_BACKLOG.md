@@ -97,8 +97,12 @@ same `forever()` loop as SIGTERM — one mechanism, one proof.
 2983/2983 tests passed (0 failed, 2 ignored), `cargo fmt --check`
 clean, clippy `-D warnings` clean, gate-keepers 21/21 (including the
 new harness passing ruff + permission + name-case gates). The
-10 s A/B bench (cinematic + monolith vs the 6e3d718 baseline binary)
-follows the post-commit protocol and is recorded in
+10 s A/B bench vs the 6e3d718 baseline binary (cinematic + monolith
+controls, 2 runs each) is performance-neutral and visual-identical
+within run noise — monolith flat to four decimals on gini, fps
+two-sided around zero (means -0.67%, median -0.18%, peak +0.95%),
+cinematic straddling baseline with the usual 3.5K same-binary peak
+spread — recorded in
 [../bench-labs/night_dinner8/AB_REPORT.md](../bench-labs/night_dinner8/AB_REPORT.md).
 
 ## Part 2 — rand 0.9.5 → 0.10.x: the dragon-heart item
