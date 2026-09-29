@@ -63,7 +63,27 @@ exclude = [
 # breaking-ish behavior) still cannot enter the lockfile silently.
 clap = { version = ">=4.5, <4.7", default-features = false, features = ["std", "color", "help", "usage", "error-context", "derive", "suggestions"] }
 crossterm = { version = "0.29", default-features = false, features = ["bracketed-paste", "events", "windows"] }
-rand = "0.9"
+# rand: floor 0.10 (migrated from "0.9" in NIGHT-dinner-8, 2026-09-30,
+# owner-approved relax policy). The 0.10 line's engine-relevant facts,
+# each verified rather than assumed:
+#   - API: rand_core 0.10 renamed RngCore -> Rng, so rand's extension
+#     trait moved `Rng` -> `RngExt` (the ONLY source change this
+#     migration needed: 2 import lines). `distr::{Distribution,
+#     Uniform}` (Result-returning new/new_inclusive), `rngs::StdRng`,
+#     `SeedableRng::seed_from_u64`, `rand::rng()` are unchanged.
+#   - Determinism: 0.10 swapped StdRng's backend rand_chacha -> chacha20
+#     "output remains the same" (their claim) — proven here with a
+#     16,000-draw parity probe across 8 engine patterns (u8/u16/u32/
+#     usize/i64/f32/f64, new + new_inclusive, both sample call
+#     directions, multiple seeds): bit-for-bit identical vs 0.9.5.
+#     Same seeds -> same sequences -> same picture.
+#   - ThreadRng (rand::rng(), 2 ambient-jitter sites) is OS-seeded and
+#     non-deterministic on every version; sequence identity there is
+#     not a visual-identity concern.
+# The bare "0.10" pin means >=0.10, <0.11 — a future 0.11 line (0.x
+# minors are majors under this project's policy) cannot enter the
+# lockfile silently.
+rand = "0.10"
 bitvec = "1"
 smallvec = "1"
 unicode-width = "0.2"

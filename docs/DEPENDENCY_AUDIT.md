@@ -82,12 +82,11 @@ tracked. Verdict now: **resolved by the notify 8 migration**
   ignores. web-time (the advisory's recommended replacement) is not
   even pulled on native targets — the graph simply got smaller.
 
-## Current state (cargo update --verbose, 2026-09-30, post signal-hook-0.4)
+## Current state (cargo update --verbose, 2026-09-30, post rand-0.10)
 
 ```
  Locking 0 packages to latest compatible versions
  Unchanged generic-array v0.14.7 (available: v0.14.9)
- Unchanged rand v0.9.5 (available: v0.10.3)
  Unchanged sha2 v0.10.9 (available: v0.11.0)
 ```
 
@@ -97,10 +96,12 @@ only self-imposed over-strictness and is now relaxed to `>=4.5, <4.7`
 (lockfile at 4.6.7), and the notify 8 migration (owner-approved relax
 policy) moved the lockfile to 8.2.0 — clearing RUSTSEC-2024-0384 and
 shrinking this list from eight lines to four. NIGHT-dinner-8
-(2026-09-30) moved signal-hook to 0.4.4 as a pure pin bump, shrinking
-it to three; rand 0.10 is in flight in the same task. generic-array is
-upstream-pinned, not ours (see its section below); the remaining
-major bumps stay boundary-pinned on purpose. Full policy:
+(2026-09-30) finished the actionable backlog in the same style:
+signal-hook 0.4.4 and rand 0.10.3 both landed as pin-bump-class
+migrations, shrinking the list to two. What remains is exactly the two
+non-actionable lines by design: generic-array is upstream-pinned, not
+ours (see its section below); sha2 0.11 is HOLD per the owner
+decision. Full policy:
 [NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md](research/NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md).
 
 ## Per-dependency analysis
@@ -146,18 +147,19 @@ major bumps stay boundary-pinned on purpose. Full policy:
 | Risk | Low — 2983/2983 tests pass, clippy clean, gate-keepers clean, PTY config stresstest re-run as live-reload proof |
 | Status | **APPLIED** — Cargo.toml migrated, `cargo update -p notify` run, lockfile + deny.toml committed |
 
-#### rand 0.9.5 → 0.10.2
+#### rand 0.9.5 → 0.10.3 — DONE in NIGHT-dinner-8 (2026-09-30)
 
 | Field | Value |
 |-------|-------|
-| Cargo.toml constraint | `0.9` (= >=0.9.0, <0.10.0) |
-| Available | 0.10.2 |
+| Cargo.toml constraint | `0.10` (migrated from `0.9`; owner-approved relax policy) |
+| Locked version | 0.10.3 (was 0.9.5) |
 | Type | Major (0.9 → 0.10, 0.x minor = major) |
-| Usage depth | Deep — rain droplet RNG across `src/engine/`, `src/msg_fill_style/`, tests (~15 call sites) |
-| Breaking changes | rand 0.10 reworked the `Rng` trait, `distr` module (renamed from `distributions`), `SeedableRng` API. `rand::rngs::StdRng` API changed. |
-| Migration | Medium-high — update all `use rand::distr::Distribution` → `use rand::distr::Distribution` (may be same), `rand::rngs::StdRng::seed_from_u64` may change signature. Need to audit each call site. ~4-6 hours work + testing. |
-| Risk | Medium — RNG is used in visual rendering; a subtle change could alter rain patterns without breaking tests. Need visual A/B comparison. |
-| Recommendation | **AUDIT THEN UPDATE** — do this AFTER notify. Run the visual A/B benchmark to verify rain patterns are unchanged. |
+| Usage depth | Deep but narrow — 217 rand-API lines in `src/` (49 engine files) + 66 in `test/`, yet the API surface is 7 items: `distr::{Distribution, Uniform}`, `rngs::StdRng`, `SeedableRng`/`seed_from_u64`, `.sample` (both call directions), `Uniform::new/new_inclusive` (Result API), `.random_range`, `rand::rng()` |
+| Breaking changes | **One, on this project's surface:** rand_core 0.10 renamed `RngCore` → `Rng`, so rand's extension trait moved `Rng` → `RngExt`. The earlier "reworked the Rng trait / distr module / SeedableRng API / StdRng API changed / seed_from_u64 may change signature" assessment in this table was an unverified overestimate — `distr::{Distribution, Uniform}` (identical Result-returning constructors), `rngs::StdRng`, `seed_from_u64`, `rand::rng()`, and `.random_range` are all unchanged |
+| Migration | 2 import lines: `use rand::Rng;` → `use rand::RngExt;` (ghost.rs) and `use rand::Rng;` → `use rand::{Rng, RngExt};` (living_rain.rs — the low-level `Rng` stays as the minimal bound for its 7 generic rng plumbs; `Distribution::sample` needs exactly that in 0.10). Everything else compiles untouched: `cargo check --locked --all-targets` clean. Lockfile delta: rand 0.10.3, rand_core 0.10.1, chacha20 0.10.2 (the StdRng backend swap), cpufeatures 0.3.1, getrandom 0.4.3, r-efi 6.0.0 added; rand 0.9.5 + rand_core 0.9.5 + rand_chacha 0.9.0 stay as a dev-only duplicate (proptest 1.11.0, the max stable line, still pins rand 0.9) → deny.toml gains documented rand/rand_core 0.9.5 skips. The 4-6 h estimate was priced against rework that does not exist |
+| Determinism | **The dragon-heart proof:** StdRng's backend swap (rand_chacha → chacha20) is claimed output-identical upstream and proven here — a parity probe ran the engine's exact patterns (seeded StdRng + Uniform int/float sampling, u8/u16/u32/usize/i64/f32/f64, `new` + `new_inclusive`, both sample call directions, multiple seeds; 16,000 draws) on rand 0.9.5 and rand 0.10.3: bit-for-bit identical. Same seeds → same sequences → same picture. ThreadRng (`rand::rng()`, 2 ambient-jitter sites) is OS-seeded and non-deterministic on every version, so no identity concern there |
+| Risk | Low — 2983/2983 tests pass (RNG-dependent engine invariants included — consistent with identical sequences), clippy clean, gate-keepers 21/21; visual identity additionally carried by the post-commit A/B campaign ([bench-labs/night_dinner8](../bench-labs/night_dinner8/AB_REPORT.md)) |
+| Status | **APPLIED** — Cargo.toml migrated, `cargo update -p rand` run, lockfile + deny.toml committed |
 
 #### signal-hook 0.3.18 → 0.4.4 — DONE in NIGHT-dinner-8 (2026-09-30)
 
@@ -205,7 +207,7 @@ automatically via the weekly maintenance.yml cron.
 |----------|-----|-------------|------------|
 | 1 | notify 8 | **DONE 2026-09-29** (pin bump only — zero source changes; the 2-4 h estimate was based on unverified breaking-change claims) | — |
 | 2 | signal-hook 0.4 | **DONE 2026-09-30** (pin bump only, zero source changes — the third unverified-breaking-change claim corrected; 8-check PTY signal parity harness vs the 0.3.18 baseline binary: `scripts/harness/signal_smoke.py`) | None (independent) |
-| 3 | rand 0.10 | 4-6 hours | Isolate from other visual-affecting changes (A/B benchmark campaign) |
+| 3 | rand 0.10 | **DONE 2026-09-30** (2 import lines + pin bump — the fourth unverified-breaking-change estimate corrected; dragon-heart determinism proven bit-identical by a 16,000-draw parity probe, then the A/B campaign) | Isolate from other visual-affecting changes (A/B benchmark campaign) |
 | — | sha2 0.11 | HOLD | Revisit quarterly |
 
 Each major update PR MUST:
@@ -215,7 +217,7 @@ Each major update PR MUST:
 4. Run `cargo test --all --locked` (all tests pass).
 5. Run `cargo clippy -- -D warnings` (no new lints).
 6. For notify: run `scripts/harness/cli_config_stresstest.sh` (live-reload PTY proof).
-7. For rand: run visual A/B benchmark (rain patterns unchanged).
+7. For rand: DONE 2026-09-30 — determinism parity probe (bit-identical across 16,000 draws × 8 engine patterns, rand 0.9.5 vs 0.10.3) plus the post-commit A/B benchmark campaign recorded in [bench-labs/night_dinner8](../bench-labs/night_dinner8/AB_REPORT.md).
 8. For signal-hook: DONE 2026-09-30 — `scripts/harness/signal_smoke.py` (8 checks: Ctrl+C keystroke, SIGTSTP/SIGCONT, SIGTERM, bench SIGINT) run against BOTH the 0.3.18 baseline and 0.4.4 migrated binaries with identical results. SIGHUP/SIGQUIT share SIGTERM's registered handler arm (one `Signals::new` list, one `forever()` loop), so the mechanism is covered by the SIGTERM proof.
 
 ### Step 3: Ongoing maintenance

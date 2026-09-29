@@ -193,7 +193,7 @@ both binaries — full record:
 |-----|------------|-------|--------------|
 | clap | `>=4.5, <4.7` | boundary pin (relaxed) | headroom of one minor line; 5.x / removal-carrying 4.7+ stay out |
 | notify | `>=8, <9` | boundary pin (migrated) | 8.x landed 2026-09-29 as a zero-source-change pin bump (owner-approved relax); the ceiling keeps 9.x (rc) out |
-| rand | `0.9` | auto-flow within line | 0.10 reworks the Rng/distr traits across ~15 call sites; visual regression risk needs an A/B benchmark campaign |
+| rand | `0.10` | boundary pin (migrated) | 0.10.3 landed 2026-09-30 (NIGHT-dinner-8): 2 import lines (Rng→RngExt) + pin bump; the "reworked Rng/distr traits" claim was an unverified overestimate, and the dragon-heart sequences are proven bit-identical by a 16,000-draw parity probe. The bare `0.10` pin keeps 0.11 out |
 | sha2 | `0.10` | auto-flow within line | 0.11 is a security-critical hashing-path rework (config change detection + fingerprints); HOLD per audit |
 | signal-hook | `0.4` | boundary pin (migrated) | 0.4.4 landed 2026-09-30 as a zero-source-change pin bump (NIGHT-dinner-8); the "Signals iterator API change" claim was an unverified overestimate — the 0.4 line only changes `low_level::pipe`, never called here. The bare `0.4` pin keeps 0.5 out |
 | crossterm | `0.29` | auto-flow | 0.29.0 is simply the newest release; nothing is being blocked |
@@ -209,20 +209,19 @@ both binaries — full record:
    maintenance cron DOES take every in-range update, but through a
    full validation pipeline (audit, deny, fmt, build, test, clippy)
    before the lockfile lands on main.
-3. **Every "blocked" update is a migration, not an update** — the
-   remaining major bumps each touch code paths whose failure mode is
-   visible (rain patterns, terminal cleanup) or security-relevant
-   (config hashing). They are scheduled work, not constraint
-   casualties. (notify, the fourth, migrated 2026-09-29;
-   signal-hook, the fifth, 2026-09-30.)
+3. **Every "blocked" update is a migration, not an update** — what
+   remains of the backlog is sha2 0.11, a security-critical
+   hashing-path rework held per owner decision. It is scheduled
+   work, not a constraint casualty. (notify migrated 2026-09-29;
+   signal-hook and rand, 2026-09-30.)
 4. **The user-visible confusion is now documented** — this file plus
    the refreshed DEPENDENCY_AUDIT.md state table exist so the next
    person who runs `cargo update --verbose` and sees `Unchanged`
    knows exactly which of the three classes each line belongs to and
    that none of them means "cosmostrix is rotting" (the list itself
    shrank from eight lines to four on 2026-09-29: clap and notify
-   both moved, and to three on 2026-09-30: signal-hook
-   [NIGHT-dinner-8]).
+   both moved, and to two on 2026-09-30: signal-hook and rand
+   [NIGHT-dinner-8] — the actionable backlog is now empty).
 
 ## Cross-references
 

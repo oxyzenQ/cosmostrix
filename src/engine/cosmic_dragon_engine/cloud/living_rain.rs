@@ -36,7 +36,14 @@
 use std::time::{Duration, Instant};
 
 use rand::distr::{Distribution, Uniform};
-use rand::Rng;
+use rand::{Rng, RngExt};
+// NOTE (NIGHT-dinner-8, rand 0.10): the extension-trait import moved —
+// rand_core 0.10 renamed RngCore -> Rng, so rand's old `Rng` extension
+// trait (sample / random_range / random) is now `RngExt`. `Rng` here is
+// the LOW-LEVEL trait (next_u32/next_u64/fill_bytes): it remains the
+// correct minimal bound for the generic rng plumbing below
+// (Distribution::sample needs exactly R), while RngExt is in scope for
+// the .random_range() call sites.
 
 use crate::constants::*;
 

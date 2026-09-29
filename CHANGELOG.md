@@ -27,6 +27,45 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### deps: NIGHT-dinner-8 (part 2) — rand 0.10.3 crosses the dragon's heart in two import lines: the 4-6 h estimate dies by compiler, and 16,000 parity draws prove the heart's sequences never moved a bit
+
+- rand 0.9.5 → 0.10.3 (owner-approved relax policy, the dragon
+  skin-not-heart rule — rand being the one crate whose output IS the
+  picture on screen). The 0.10 line's single breaking change on this
+  project's surface: rand_core 0.10 renamed RngCore -> Rng, so rand's
+  extension trait moved Rng -> RngExt. The full migration is TWO
+  import lines (ghost.rs: `use rand::RngExt`; living_rain.rs:
+  `use rand::{Rng, RngExt}` — the low-level Rng stays as the minimal
+  bound for the file's 7 generic rng plumbs, Distribution::sample
+  needing exactly that in 0.10). The audit table's "reworked
+  Rng/distr traits / StdRng API changed / seed_from_u64 may change
+  signature" claims join the corrected-overestimate pile;
+  distr::{Distribution, Uniform} (identical Result constructors),
+  rngs::StdRng, seed_from_u64, rand::rng(), and .random_range are all
+  unchanged — `cargo check --locked --all-targets` clean beyond those
+  two lines.
+- The dragon-heart proof, because passing tests alone cannot certify
+  sequence identity: rand 0.10 swapped StdRng's backend rand_chacha ->
+  chacha20 claiming identical output, and a parity probe ran the
+  engine's exact patterns (seeded StdRng + Uniform sampling across
+  u8/u16/u32/usize/i64/f32/f64, new + new_inclusive, both sample
+  call directions, multiple seeds; 16,000 draws) on rand 0.9.5 and
+  rand 0.10.3 side by side: bit-for-bit identical. Same seeds -> same
+  sequences -> same picture. 2983/2983 tests (engine invariant sweeps
+  included), clippy clean, gate-keepers 21/21.
+- Graph consequence: proptest 1.11.0 (dev-dependency, already the max
+  stable line) still pins rand 0.9, so rand 0.9.5 + rand_core 0.9.5 +
+  rand_chacha 0.9.0 stay in the DEV graph only — never compiled into
+  a release binary — and deny.toml gains documented rand/rand_core
+  0.9.5 skips with the leave-condition recorded (proptest's own
+  migration). Release-graph additions: rand 0.10.3, rand_core 0.10.1,
+  chacha20 0.10.2, cpufeatures 0.3.1, getrandom 0.4.3, r-efi 6.0.0
+  (the latter lockfile-only on non-UEFI targets).
+- The actionable major-bump backlog is now EMPTY: `cargo update
+  --verbose` prints two Unchanged lines, both by design (generic-array
+  upstream-pinned, sha2 0.11 HOLD per owner decision). The A/B
+  campaign record lands in benchmark/bench-labs/night_dinner8/.
+
 ### deps: NIGHT-dinner-8 (part 1) — signal-hook 0.4.4 lands as a compiler-proven pure pin bump, and the Unix signal contract gets an 8-check PTY parity harness to prove the dragon's exit paths never moved
 
 - signal-hook 0.3.18 → 0.4.4 (owner-approved relax policy, the

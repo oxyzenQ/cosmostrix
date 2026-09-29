@@ -8,7 +8,12 @@
 use std::time::{Duration, Instant};
 
 use crossterm::style::Color;
-use rand::Rng;
+use rand::RngExt;
+// NOTE (NIGHT-dinner-8, rand 0.10): the extension-trait import moved —
+// rand_core 0.10 renamed RngCore -> Rng, so rand's old `Rng` extension
+// trait (sample / random_range / random) is now `RngExt`. `rand::Rng`
+// still exists but is the LOW-LEVEL trait (next_u32/next_u64/fill_bytes)
+// and does not carry .random_range().
 
 use crate::cell::Cell;
 use crate::frame::Frame;

@@ -13,7 +13,7 @@ Every dependency that ships with cosmostrix must be auditable. The CI pipeline e
 |---|---|---|---|---|
 | `clap` | `>=4.5, <4.7` (derive feature; relaxed from `<4.6` in NIGHT-dinner-5, locked at 4.6.7) | CLI argument parsing via derive macros | No | No |
 | `crossterm` | `0.29` | Cross-platform terminal manipulation (colors, cursor, events) | No | No |
-| `rand` | `0.9` | Cryptographic-quality RNG for rain columns | No | No |
+| `rand` | `0.10` (migrated from 0.9 in NIGHT-dinner-8, locked at 0.10.3; sequence-identical by parity proof) | Deterministic seeded RNG for rain columns (StdRng + Uniform) | No | No |
 | `bitvec` | `1` | Compact bit-vector storage for per-column state | No | No |
 | `smallvec` | `1` | Stack-allocated small vectors — avoids heap allocation in hot paths | No | No |
 | `unicode-width` | `0.2` | Correct character width calculation for CJK and wide glyphs | No | No |

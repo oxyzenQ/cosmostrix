@@ -78,9 +78,19 @@ deny = []
 # transitive-only, and both versions route through the same
 # signal-hook-registry 1.4.x backend — no duplicated signal behavior
 # at runtime.
+#
+# 2026-09-30 (rand 0.10 migration, NIGHT-dinner-8): added the rand
+# 0.9.5 and rand_core 0.9.5 skips — the direct dep moved to 0.10.3,
+# but proptest 1.11.0 (the max stable line, dev-dependency only)
+# still pins rand 0.9, keeping rand 0.9.5 + rand_core 0.9.5 +
+# rand_chacha 0.9.0 in the dev graph. DEV-ONLY: none of it compiles
+# into a cosmostrix release binary (dev-deps build for `cargo test`
+# only). The duplicates leave when proptest migrates to rand 0.10.
 skip = [
     { name = "windows-sys", version = "0.60.2" },
     { name = "signal-hook", version = "0.3.18" },
+    { name = "rand", version = "0.9.5" },
+    { name = "rand_core", version = "0.9.5" },
 ]
 skip-tree = []
 

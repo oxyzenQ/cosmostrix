@@ -105,30 +105,122 @@ cinematic straddling baseline with the usual 3.5K same-binary peak
 spread — recorded in
 [../bench-labs/night_dinner8/AB_REPORT.md](../bench-labs/night_dinner8/AB_REPORT.md).
 
-## Part 2 — rand 0.9.5 → 0.10.x: the dragon-heart item
+## Part 2 — rand 0.9.5 → 0.10.3: the dragon-heart item, done in two import lines
 
-IN FLIGHT (this task, next commit). The plan, from the audit table
-plus a fresh API census:
+### The census first: deep but narrow
 
-- Usage census: 217 rand-API lines in `src/` (49 engine files — the
-  cosmic dragon cloud IS the heart) + 66 in `test/`. Dominant
-  patterns: `rng.sample(Uniform)` (206 calls), `StdRng` (120),
-  `seed_from_u64` (21), `.pick(` (13), `rand::rng()` (8),
-  `.random_range(` (3).
-- Two-layer proof of visual identity, because tests alone cannot
-  catch a subtle sequence change: (a) a determinism check — two
-  scratch crates (rand 0.9 vs rand 0.10) run the exact engine
-  patterns (seeded StdRng + Uniform int/float sampling + pick) and
-  the sequences are compared bit-for-bit; (b) the 10 s A/B benchmark
-  campaign (baseline vs migrated, release profile, cinematic +
-  monolith + an RNG-heavy scene, 2 runs each).
+217 rand-API lines in `src/` across 49 engine files (the cosmic
+dragon cloud IS the heart) plus 66 in `test/` — but the actual API
+surface is seven items: `distr::{Distribution, Uniform}`, `rngs::StdRng`,
+`SeedableRng`/`seed_from_u64`, `.sample` (both call directions), the
+Result-returning `Uniform::new`/`new_inclusive`, `.random_range`, and
+`rand::rng()`. The audit table's "~15 call sites" was a file-count
+guess; the dominant pattern is distributions built once (stored as
+engine fields: `rand_chance`, `rand_line`, `rand_cpidx`, `rand_len`)
+and sampled repeatedly.
+
+### The claim versus the compiler, round four
+
+The audit table priced this at 4-6 hours against "rand 0.10 reworked
+the Rng trait, distr module, SeedableRng API; StdRng API changed;
+seed_from_u64 may change signature." The upstream 0.10.0 changelog
+tells a different story, and every claim is checkable against the
+0.10.3 source in the registry:
+
+- rand_core 0.10 renamed `RngCore` → `Rng`, so rand's extension trait
+  moved `Rng` → `RngExt` — the one real break on this surface.
+- `distr::{Distribution, Uniform}` unchanged; `Uniform::new`/
+  `new_inclusive` keep the identical Result-returning signatures;
+  `impl Distribution<T> for &D` still exists (both sample call
+  directions work).
+- `rngs::StdRng`, `SeedableRng`, `seed_from_u64`, `rand::rng()`,
+  `.random_range` all unchanged. MSRV 1.85 ≤ the pinned 1.98.1.
+- StdRng's backend swapped rand_chacha → chacha20, "but the output
+  remains the same" (their claim — proven below).
+
+The migration diff, in full: `use rand::Rng;` → `use rand::RngExt;`
+in ghost.rs, and `use rand::Rng;` → `use rand::{Rng, RngExt};` in
+living_rain.rs (the low-level `Rng` stays in scope as the minimal
+bound for the file's seven generic rng plumbs — `Distribution::sample`
+needs exactly that in 0.10, while `RngExt` covers the `.random_range`
+call sites). `cargo check --locked --all-targets` is clean beyond
+those two lines; the 4-6 h estimate was priced against rework that
+does not exist — the fourth consecutive corrected estimate in this
+dependency campaign (notify, signal-hook, now rand's three claims).
+
+### The dragon-heart proof: 16,000 draws, bit-for-bit
+
+Tests passing cannot certify sequence identity — a subtly different
+sequence still renders a valid-looking rain. So the proof is direct:
+twin scratch crates (rand `=0.9.5` vs `=0.10.3`) ran the engine's
+exact patterns — seeded `StdRng` via `seed_from_u64` plus `Uniform`
+sampling across u8/u16/u32/usize/i64/f32/f64, `new` and
+`new_inclusive`, both sample call directions, four different seeds,
+2,000 draws per pattern (16,000 total), hashed into rolling
+accumulators with the first values printed verbatim:
+
+```text
+P1 u32_incl seed42 acc=14750518565326727433 first=[3 12 5 13 20 15 23 9 23 0 ]
+P2 f32_new  seed7  acc=10589635599201140335 first=[0.4166409 0.0303173 ...]
+P3 f64_incl seed9  acc=11515707078024267162 first=[5.703490606 1.736559845 ...]
+P4 usize_new seed100 acc=3839053145641555151
+P5 i64_incl  seed555 acc=241753304108680433
+P6 u8_incl   seed64  acc=16260058814659461507
+P7 u16_new   seed2024 acc=6201053124762786260
+P8 u32_incl  seed_deadbeef acc=5211116755195889039
+```
+
+Every accumulator and every printed value is identical between the
+two versions (archived session-side as `rand_parity_0.9.5.txt` /
+`rand_parity_0.10.3.txt`). The chacha20 backend swap preserves
+StdRng's output exactly as upstream claimed, and the `seed_from_u64`
+derivation is unchanged. Same seeds → same sequences → same picture:
+the dragon heart cannot render anything different than it did on
+0.9.5. ThreadRng (`rand::rng()`, two ambient-jitter sites — gust idle
+durations and ghost events) is OS-seeded and non-deterministic on
+every version, so sequence identity there is neither possible nor a
+visual-identity concern.
+
+### The graph consequence: a dev-only duplicate
+
+proptest 1.11.0 — already the max stable line — still pins rand 0.9,
+so rand 0.9.5, rand_core 0.9.5 and rand_chacha 0.9.0 stay in the DEV
+graph (`cargo test` builds only; never compiled into a release
+binary). deny.toml gains documented `rand`/`rand_core` 0.9.5 skips
+with the leave-condition recorded (proptest's own migration to 0.10).
+Release-graph additions: rand 0.10.3, rand_core 0.10.1, chacha20
+0.10.2, cpufeatures 0.3.1, getrandom 0.4.3, r-efi 6.0.0 (the latter
+lockfile-only on non-UEFI targets).
+
+### Gates
+
+2983/2983 tests passed (RNG-dependent engine invariant sweeps
+included — consistent with identical sequences), `cargo fmt --check`
+clean, clippy `-D warnings` clean, gate-keepers 21/21. The 10 s A/B
+campaign (cinematic + monolith vs the signal-hook binary, release
+profile) is recorded in
+[../bench-labs/night_dinner8/AB_REPORT.md](../bench-labs/night_dinner8/AB_REPORT.md).
+
+## Backlog state at task end
+
+| Item | Status at task end |
+|------|--------------------|
+| notify 8 | DONE 2026-09-29 (NIGHT-dinner-5 follow-up) |
+| signal-hook 0.4 | DONE 2026-09-30 (this task, part 1 — zero source changes) |
+| rand 0.10 | DONE 2026-09-30 (this task, part 2 — two import lines, sequences proven identical) |
+| sha2 0.11 | HOLD (owner decision; the audit's revisit cadence is quarterly) |
+| generic-array 0.14.9 | upstream exact-pin (leaves only with the sha2 0.11 migration) |
+
+`cargo update --verbose` now prints two `Unchanged` lines, both by
+design: the actionable major-bump backlog the owner approved burning
+down is empty — "nothing remainings" achieved.
 
 ## Cross-references
 
-- `docs/DEPENDENCY_AUDIT.md` — per-dep tables (signal-hook DONE, rand in flight), state list, action plan
+- `docs/DEPENDENCY_AUDIT.md` — per-dep tables (signal-hook and rand both DONE), state list, action plan
 - `docs/research/NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md` — the relax policy, the dragon boundary, the prior two relaxations
 - `scripts/harness/signal_smoke.py` — the standing signal regression harness
-- `deny.toml` — the signal-hook 0.3.18 skip and its leave-condition
+- `deny.toml` — the documented skips (signal-hook 0.3.18, rand/rand_core 0.9.5) and their leave-conditions
 - `../bench-labs/night_dinner8/AB_REPORT.md` — the A/B records for both migrations
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
