@@ -27,6 +27,55 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### deps: NIGHT-diner-9 — sha2 0.11.0 takes the last Unchanged line with it: one function rewritten, identity proven three ways, and the wall-of-Unchanged is gone (eight lines -> four -> two -> zero in two days)
+
+- sha2 0.10.9 → 0.11.0 (owner-approved via the quarterly-revisit
+  clause; the last HOLD on the audit). The 2026-09-02 audit claims
+  ("Digest trait restructured, `Sha512::new()` → `new_with_prefix()`,
+  four call sites, medium effort, high risk to live-reload") were
+  wrong in every particular — the fifth consecutive unverified
+  breaking-change estimate corrected in this project's history.
+  Verified by compiler: `new()`/`update()`/`finalize()` and
+  `Into<[u8; 64]>` all survived untouched; the ONE real break is
+  digest 0.11's hybrid-array output dropping the `LowerHex` impl
+  generic-array had, which killed exactly one formatting call —
+  `sha512_hex`'s `format!("{:0128x}", finalize())`. The migration
+  rewrote that one function (convert to `[u8; 64]` first, hand
+  hex-encode) and updated one comment; the three test sites and
+  `hash_file_prefix` compile unchanged. sha2 never touches the frame
+  path — it hashes config bytes only (live-reload change detection
+  every 750 ms on the watcher thread, `--dump-config` and
+  `--testconf` fingerprints).
+- Identity proven three ways, because "it's just SHA-512" is an
+  assumption and assumptions are what produced the five wrong
+  estimates: (1) twin parity probe — the exact repo call patterns
+  (new/update/finalize, both conversion paths) on sha2 0.10.9 with
+  the old formatting vs sha2 0.11.0 with the new path, 10 vectors
+  (NIST FIPS 180-4 empty/abc/2-block, block-boundary edges
+  127/128/129, config-shaped TOML, 1 MB million-'a' stress, chunked
+  3,333-byte feeds like `hash_file_prefix` partial reads) —
+  bit-for-bit identical; (2) the suite's hardcoded NIST vectors pass
+  on 0.11.0 (2983/2983, clippy clean); (3) end-to-end: the migrated
+  binary's `--testconf` file-sha512 output equals GNU coreutils
+  `sha512sum` on the same file byte-for-byte.
+- Graph consequence: the migration retired the last two Unchanged
+  lines in one stroke. generic-array 0.14.7 + version_check left
+  entirely (crypto-common 0.1.7's exact `=0.14.7` pin was the chain;
+  the 0.11 line's crypto-common 0.2.2 doesn't use generic-array at
+  all), and the cpufeatures 0.2.17 duplicate left by unifying with
+  rand's 0.3.1. Arrivals: digest 0.11.3, hybrid-array 0.4.15,
+  block-buffer 0.12.1, const-oid 0.10.2. `cargo update --verbose`
+  now prints ZERO Unchanged lines — the wall that started at eight
+  (2026-09-29) is gone; every dependency sits at the latest version
+  its constraint allows, and the quarterly round finds nothing to
+  do. deny.toml unchanged (no new duplicates).
+- Docs: DEPENDENCY_AUDIT.md (sha2 row DONE with the corrected
+  claims, generic-array section RESOLVED, zero-line current state,
+  priority table row 4), SUPPLY_CHAIN.md sha2 row, DINNER_5
+  strictness doc (fourth-relaxation section, one-glance table,
+  counts), and the full research record
+  [NIGHT_DINNER_9_SHA2_0_11.md](docs/research/NIGHT_DINNER_9_SHA2_0_11.md).
+
 ### deps: NIGHT-dinner-8 (part 2) — rand 0.10.3 crosses the dragon's heart in two import lines: the 4-6 h estimate dies by compiler, and 16,000 parity draws prove the heart's sequences never moved a bit
 
 - rand 0.9.5 → 0.10.3 (owner-approved relax policy, the dragon

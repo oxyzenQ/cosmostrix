@@ -278,7 +278,22 @@ pub(crate) fn dump_config_with_header() -> String {
 pub(crate) fn sha512_hex(data: &[u8]) -> String {
     let mut hasher = Sha512::new();
     hasher.update(data);
-    format!("{:0128x}", hasher.finalize())
+    // digest 0.11's hybrid-array output dropped the LowerHex impl that
+    // generic-array had, so the digest converts to [u8; 64] first and is
+    // hex-encoded by hand. Output is unchanged: exactly 128 lowercase
+    // hex chars (a SHA-512 digest is always 64 bytes, so the old
+    // {:0128x} zero-padding never triggered). Bit-identical to the
+    // 0.10.9 formatting per the NIGHT_DINNER_9 parity probe (NIST
+    // FIPS 180-4 vectors, block-boundary edges, 1 MB stress, chunked
+    // feeds).
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let digest: [u8; 64] = hasher.finalize().into();
+    let mut out = String::with_capacity(128);
+    for byte in digest {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out
 }
 
 /// Extract the `template-fingerprint` hex digest from the header of a config

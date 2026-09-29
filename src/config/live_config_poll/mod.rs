@@ -410,7 +410,8 @@ fn hash_file_prefix(path: &Path, max_bytes: usize) -> Option<[u8; 64]> {
     let mut hasher = Sha512::new();
     hasher.update(&buf);
     let result = hasher.finalize();
-    // GenericArray to [u8; 64] — `Into` is implemented.
+    // hybrid-array output to [u8; 64] — `Into` is implemented, same as
+    // it was on the old generic-array line (digest 0.10 -> 0.11).
     let hash_arr: [u8; 64] = result.into();
     Some(hash_arr)
 }

@@ -118,7 +118,13 @@ notify = { version = ">=8, <9", default-features = false }
 # for small config files (<5 KB). Used by:
 #   - live_config_poll::hash_file_prefix (change detection)
 #   - configfile::sha512_hex (dump-config + testconf fingerprinting)
-sha2 = "0.10"
+# 0.11 line (2026-03): digest 0.11 / hybrid-array replaces the
+# digest 0.10 / crypto-common / generic-array stack, retiring the
+# upstream exact-pin and unifying cpufeatures with rand's 0.3.x.
+# Only visible change: the digest output lost its LowerHex impl, so
+# sha512_hex hex-encodes [u8; 64] by hand (bit-identical output,
+# proven by the NIGHT_DINNER_9 parity probe).
+sha2 = "0.11"
 
 # Bug 1 fix: enable kqueue backend on FreeBSD/GhostBSD/macOS (iOS too).
 # Without these target-specific features, notify's RecommendedWatcher

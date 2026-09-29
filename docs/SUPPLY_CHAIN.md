@@ -21,7 +21,7 @@ Every dependency that ships with cosmostrix must be auditable. The CI pipeline e
 | `libc` | `0.2` (Linux only) | Low-level syscall bindings for terminal size queries | No | No |
 | `ctrlc` | `3.4` (Windows only) | Graceful shutdown handler for Windows console Ctrl-C/SIGBREAK | No | No |
 | `notify` | `>=8, <9` (default-features = false; migrated from 7.x in NIGHT-dinner-5 follow-up, locked at 8.2.0) | Cross-platform filesystem watcher for live config reload | No | No |
-| `sha2` | `0.10` | SHA-512 for config.toml hashing (live-reload change detection, dump/testconf fingerprints) | No | No |
+| `sha2` | `0.11` (migrated from 0.10 in NIGHT-diner-9, locked at 0.11.0) | SHA-512 for config.toml hashing (live-reload change detection, dump/testconf fingerprints) | No | No |
 
 ### Dependency update policy
 

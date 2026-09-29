@@ -82,26 +82,27 @@ tracked. Verdict now: **resolved by the notify 8 migration**
   ignores. web-time (the advisory's recommended replacement) is not
   even pulled on native targets — the graph simply got smaller.
 
-## Current state (cargo update --verbose, 2026-09-30, post rand-0.10)
+## Current state (cargo update --verbose, 2026-09-30, post sha2-0.11)
 
 ```
  Locking 0 packages to latest compatible versions
- Unchanged generic-array v0.14.7 (available: v0.14.9)
- Unchanged sha2 v0.10.9 (available: v0.11.0)
 ```
 
-NIGHT-dinner-5 (2026-09-29) decoded the original eight-line list into
-three classes and acted on it twice in one day: the clap pin was the
-only self-imposed over-strictness and is now relaxed to `>=4.5, <4.7`
+The wall-of-Unchanged is gone: **zero lines**. NIGHT-dinner-5
+(2026-09-29) decoded the original eight-line list into three classes
+and acted on it twice in one day: the clap pin was the only
+self-imposed over-strictness and is now relaxed to `>=4.5, <4.7`
 (lockfile at 4.6.7), and the notify 8 migration (owner-approved relax
 policy) moved the lockfile to 8.2.0 — clearing RUSTSEC-2024-0384 and
 shrinking this list from eight lines to four. NIGHT-dinner-8
 (2026-09-30) finished the actionable backlog in the same style:
 signal-hook 0.4.4 and rand 0.10.3 both landed as pin-bump-class
-migrations, shrinking the list to two. What remains is exactly the two
-non-actionable lines by design: generic-array is upstream-pinned, not
-ours (see its section below); sha2 0.11 is HOLD per the owner
-decision. Full policy:
+migrations, shrinking the list to two. NIGHT-diner-9 (2026-09-30,
+owner-approved quarterly revisit) took the last two lines in one
+stroke: the sha2 0.11 migration retired the generic-array upstream
+exact-pin with it (digest 0.11 → hybrid-array), and unified the
+cpufeatures 0.2.x duplicate into rand's 0.3.1. Every dependency now
+sits at the latest version its Cargo.toml constraint allows. Full policy:
 [NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md](research/NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md).
 
 ## Per-dependency analysis
@@ -128,9 +129,9 @@ decision. Full policy:
 | Cargo.toml constraint | Transitive (via sha2 0.10 → digest 0.10.7 → crypto-common 0.1.7) |
 | Available | 0.14.9 (not yanked — verified via crates.io API, 2026-09-29) |
 | Root cause | crypto-common 0.1.7 declares `generic-array = "=0.14.7"` — an exact upstream pin (RustCrypto damage control around the 0.14.8/0.14.9 releases) |
-| Migration | Impossible from this repo: `cargo update -p generic-array` refuses, `--precise 0.14.9` refuses (resolver names the crypto-common requirement). The only path is the sha2 0.11 migration (digest 0.11 → hybrid-array), classified HOLD below |
+| Migration | Impossible from this repo: `cargo update -p generic-array` refuses, `--precise 0.14.9` refuses (resolver names the crypto-common requirement). The only path was the sha2 0.11 migration (digest 0.11 → hybrid-array) |
 | Risk | None in staying — 0.14.7 is the version RustCrypto itself pins |
-| Status | **UPSTREAM-PINNED** — corrects this audit's 2026-09-02 recommendation ("UPDATE NOW via cargo update -p generic-array"): that command cannot succeed under the sha2 0.10 line |
+| Status | **RESOLVED 2026-09-30 (NIGHT-diner-9)** — generic-array (and `version_check`) left the graph entirely with the sha2 0.11 migration; `cargo update --verbose` no longer lists it. Corrects this audit's 2026-09-02 recommendation ("UPDATE NOW via cargo update -p generic-array"): that command could never succeed under the sha2 0.10 line |
 
 ### AUDIT THEN UPDATE (major version, needs migration)
 
@@ -174,20 +175,20 @@ decision. Full policy:
 | Risk | Low — 2983/2983 tests pass, clippy clean, gate-keepers 21/21, and `scripts/harness/signal_smoke.py` (8-check PTY harness, spawn recipe from termux_hang_harness) shows identical behavior vs the 0.3.18 baseline binary: startup liveness, Ctrl+C keystroke ignored (only-q policy), SIGTSTP suspend (state T), SIGCONT resume, SIGTERM graceful exit inside the 3s grace window, terminal-restore escapes (alt-screen/cursor/mouse), bench liveness, bench SIGINT abort (exit 0, `was_interrupted: true` in the JSON report) |
 | Status | **APPLIED** — Cargo.toml migrated, `cargo update -p signal-hook` run, lockfile + deny.toml committed |
 
-### HOLD (breaking + low ROI)
+### DONE (migrated under the NIGHT relax policy)
 
-#### sha2 0.10.9 → 0.11.0
+#### sha2 0.10.9 → 0.11.0 — DONE 2026-09-30 (NIGHT-diner-9)
 
 | Field | Value |
 |-------|-------|
-| Cargo.toml constraint | `0.10` (= >=0.10.0, <0.11.0) |
-| Available | 0.11.0 |
-| Type | Major (0.10 → 0.11, 0.x minor = major) |
-| Usage depth | Low — `src/config/configfile/configfile_dump.rs` + tests (~4 call sites) |
-| Breaking changes | sha2 0.11 is a major API rework: `Digest` trait restructured, `Sha512::new()` → `Sha512::new_with_prefix()`, output API changed. |
-| Migration | Medium — update 4 call sites. BUT sha2 is used in security-critical paths (config.toml content hashing for live-reload change detection). |
-| Risk | High — a subtle hashing change could cause live-reload to miss config changes (false negative) or fire spuriously (false positive). Hard to test exhaustively. |
-| Recommendation | **HOLD** — sha2 0.10.9 is well-maintained (no CVEs, regular patch releases). The 0.11 migration cost (security-critical path, API rework) outweighs the benefit (no new features needed). Revisit if a CVE is reported in 0.10.x or if 0.11 stabilizes for 2+ years. |
+| Cargo.toml constraint | `0.11` (was `0.10`) |
+| Type | Major (0.10 → 0.11, 0.x minor = major) — owner HOLD lifted via the quarterly revisit clause |
+| Usage depth | Low — `configfile_dump::sha512_hex` + `live_config_poll::hash_file_prefix` + 3 test sites (all outside the frame path: config hashing only) |
+| Breaking changes (verified by compiler, not hearsay) | `Sha512::new()`/`update()`/`finalize()` and `Into<[u8; 64]>` all survived; the ONE real break is digest 0.11's hybrid-array output dropping the `LowerHex` impl generic-array had — `format!("{:0128x}", finalize())` stopped compiling |
+| Migration | One function rewritten (`sha512_hex` converts to `[u8; 64]` first, hand-hex-encodes) + one comment update. The 2026-09-02 claims ("`new()` → `new_with_prefix()`, 4 call sites, medium effort") were wrong in every particular — the fifth consecutive unverified-breaking-change estimate corrected in this audit's history |
+| Identity proof | Three-way: (1) twin parity probe old-formatting(0.10.9) vs new-path(0.11.0) bit-identical across 10 vectors (NIST FIPS 180-4, block-boundary edges 127/128/129, 1 MB stress, chunked feeds, config-shaped input); (2) the suite's hardcoded NIST vectors pass on 0.11.0; (3) end-to-end: the migrated binary's `--testconf` file-sha512 output equals GNU coreutils `sha512sum` byte-for-byte |
+| Graph effect | generic-array 0.14.7, version_check, cpufeatures 0.2.17 (duplicate) leave; digest 0.11.3, hybrid-array 0.4.15, block-buffer 0.12.1, const-oid, crypto-common 0.2.2 arrive; cpufeatures unified at 0.3.1 |
+| Status | **APPLIED** — the last Unchanged line; `cargo update --verbose` now prints zero lines |
 
 ## Action plan
 
@@ -208,7 +209,7 @@ automatically via the weekly maintenance.yml cron.
 | 1 | notify 8 | **DONE 2026-09-29** (pin bump only — zero source changes; the 2-4 h estimate was based on unverified breaking-change claims) | — |
 | 2 | signal-hook 0.4 | **DONE 2026-09-30** (pin bump only, zero source changes — the third unverified-breaking-change claim corrected; 8-check PTY signal parity harness vs the 0.3.18 baseline binary: `scripts/harness/signal_smoke.py`) | None (independent) |
 | 3 | rand 0.10 | **DONE 2026-09-30** (2 import lines + pin bump — the fourth unverified-breaking-change estimate corrected; dragon-heart determinism proven bit-identical by a 16,000-draw parity probe, then the A/B campaign) | Isolate from other visual-affecting changes (A/B benchmark campaign) |
-| — | sha2 0.11 | HOLD | Revisit quarterly |
+| 4 | sha2 0.11 | **DONE 2026-09-30** (one function rewritten + pin bump — the fifth unverified-breaking-change estimate corrected; three-way identity proof, zero frame-path impact) | Was HOLD; owner lifted it via the quarterly-revisit clause |
 
 Each major update PR MUST:
 1. Change the `Cargo.toml` constraint.
@@ -219,6 +220,7 @@ Each major update PR MUST:
 6. For notify: run `scripts/harness/cli_config_stresstest.sh` (live-reload PTY proof).
 7. For rand: DONE 2026-09-30 — determinism parity probe (bit-identical across 16,000 draws × 8 engine patterns, rand 0.9.5 vs 0.10.3) plus the post-commit A/B benchmark campaign recorded in [bench-labs/night_dinner8](../bench-labs/night_dinner8/AB_REPORT.md).
 8. For signal-hook: DONE 2026-09-30 — `scripts/harness/signal_smoke.py` (8 checks: Ctrl+C keystroke, SIGTSTP/SIGCONT, SIGTERM, bench SIGINT) run against BOTH the 0.3.18 baseline and 0.4.4 migrated binaries with identical results. SIGHUP/SIGQUIT share SIGTERM's registered handler arm (one `Signals::new` list, one `forever()` loop), so the mechanism is covered by the SIGTERM proof.
+9. For sha2: DONE 2026-09-30 — three-way identity proof (twin parity probe / NIST vectors in-suite / GNU sha512sum end-to-end), see [NIGHT_DINNER_9_SHA2_0_11.md](research/NIGHT_DINNER_9_SHA2_0_11.md).
 
 ### Step 3: Ongoing maintenance
 
