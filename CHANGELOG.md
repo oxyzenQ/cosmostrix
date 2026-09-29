@@ -69,6 +69,15 @@ tripwire note in the pre-v13 archive).
   (2026-09-29) is gone; every dependency sits at the latest version
   its constraint allows, and the quarterly round finds nothing to
   do. deny.toml unchanged (no new duplicates).
+- Post-commit A/B benchmark (n=3 per scene per side, baseline
+  5a4f1e6 worktree vs the migration commit): monolith gini flat to
+  four decimals on every run, entropy and dirty cells flat to the
+  third decimal, cinematic wobbles inside its own run-to-run
+  spreads, fps deltas two-sided (-1.8% / +2.4%) with each produced
+  by a single outlier run on opposite sides — performance-neutral
+  and visual-identical, as the structure predicts (the render loop
+  executes zero digest instructions). Record:
+  benchmark/bench-labs/night_dinner9/AB_REPORT.md.
 - Docs: DEPENDENCY_AUDIT.md (sha2 row DONE with the corrected
   claims, generic-array section RESOLVED, zero-line current state,
   priority table row 4), SUPPLY_CHAIN.md sha2 row, DINNER_5

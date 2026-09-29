@@ -167,7 +167,14 @@ edits — and the three-way identity proof covers exactly that.
   mechanism that compares digests is proof-covered by the parity
   above).
 - gate-keepers: 21/21 (this session's run).
-- Post-commit A/B benchmark: recorded in
+- Post-commit A/B benchmark: n=3 per scene per side, baseline
+  `5a4f1e6` (worktree) vs after `92d5597`. Monolith gini flat to
+  four decimals on every run, entropy/dirty flat to the third
+  decimal; cinematic wobbles inside its own run spreads; fps
+  deltas two-sided (-1.8% / +2.4%), each produced by a single
+  outlier run on opposite sides — performance-neutral,
+  visual-identical, as the structure predicts (the render loop
+  executes zero digest instructions). Full record:
   [benchmark/bench-labs/night_dinner9/AB_REPORT.md](../../benchmark/bench-labs/night_dinner9/AB_REPORT.md).
 
 ## References
