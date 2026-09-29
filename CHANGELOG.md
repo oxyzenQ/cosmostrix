@@ -61,10 +61,17 @@ tripwire note in the pre-v13 archive).
   migration). Release-graph additions: rand 0.10.3, rand_core 0.10.1,
   chacha20 0.10.2, cpufeatures 0.3.1, getrandom 0.4.3, r-efi 6.0.0
   (the latter lockfile-only on non-UEFI targets).
+- Post-commit A/B campaign (10 s, release profile, cinematic +
+  monolith vs the signal-hook binary, monolith locked at n=3):
+  visual-identical (guaranteed by the bit-identical parity proof,
+  confirmed by gini/entropy flat to the fourth decimal) and
+  performance-neutral-to-positive — monolith, the RNG-heaviest
+  scene, runs +3.6% faster on means with a ~24x tighter run spread
+  (the chacha20 + cpufeatures backend at work), cinematic flat at
+  +0.25%. Recorded in benchmark/bench-labs/night_dinner8/.
 - The actionable major-bump backlog is now EMPTY: `cargo update
   --verbose` prints two Unchanged lines, both by design (generic-array
-  upstream-pinned, sha2 0.11 HOLD per owner decision). The A/B
-  campaign record lands in benchmark/bench-labs/night_dinner8/.
+  upstream-pinned, sha2 0.11 HOLD per owner decision).
 
 ### deps: NIGHT-dinner-8 (part 1) — signal-hook 0.4.4 lands as a compiler-proven pure pin bump, and the Unix signal contract gets an 8-check PTY parity harness to prove the dragon's exit paths never moved
 

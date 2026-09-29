@@ -197,8 +197,12 @@ lockfile-only on non-UEFI targets).
 2983/2983 tests passed (RNG-dependent engine invariant sweeps
 included — consistent with identical sequences), `cargo fmt --check`
 clean, clippy `-D warnings` clean, gate-keepers 21/21. The 10 s A/B
-campaign (cinematic + monolith vs the signal-hook binary, release
-profile) is recorded in
+campaign vs the signal-hook binary (release profile, cinematic +
+monolith controls, monolith locked at n=3) is visual-identical and
+performance-neutral-to-positive: monolith — the RNG-heaviest scene —
+runs +3.6% faster on means with a ~24× tighter run spread (the
+chacha20 + cpufeatures backend at work), cinematic flat at +0.25%;
+recorded in
 [../bench-labs/night_dinner8/AB_REPORT.md](../bench-labs/night_dinner8/AB_REPORT.md).
 
 ## Backlog state at task end
