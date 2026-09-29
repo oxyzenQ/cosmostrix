@@ -47,12 +47,23 @@ All prices are annual, pegged to USD, and payable in cryptocurrency (see
 | ---------- | -------------- | ------------------------------------------------------------ |
 | Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
 | Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
-| Business   | $1,000/year    | SMB, revenue $100K–$10M/year                                 |
-| Company    | $9,900/year    | Enterprise (>$10M/year revenue) OR any redistribution rights |
+| Business   | $5,000/year    | SMB, revenue $100K–$10M/year                                 |
+| Company    | $50,199/year   | Enterprise (>$10M/year revenue) OR any redistribution rights |
 
 Multi-year contracts are available at the owner's discretion: 20% off a
 2-year contract, 30% off a 3-year contract. No free tier above Personal is
 granted without explicit owner approval.
+
+### Pricing Philosophy
+
+cosmostrix is a masterpiece-grade renderer, and it is priced like one.
+Every hardening pass, dependency audit, LTS release, and benchmark
+campaign raises the value of the codebase year by year — the Business
+and Company tiers track that rising value deliberately. A company
+buying a license is not buying a screensaver; it is buying the
+accumulated engineering of hundreds of audited releases, and the
+price will keep increasing as that engineering compounds. Budget
+accordingly: today's price is the lowest it will ever be.
 
 ## What Each Tier Grants
 
@@ -62,12 +73,34 @@ maintainer:
 
 - **Individual ($99/year)** — solo developers and freelancers with annual
   revenue under $100K.
-- **Business ($1,000/year)** — small and medium businesses with annual
+- **Business ($5,000/year)** — small and medium businesses with annual
   revenue from $100K to $10M.
-- **Company ($9,900/year)** — enterprises above $10M annual revenue, and
+- **Company ($50,199/year)** — enterprises above $10M annual revenue, and
   any buyer who needs redistribution rights: embedding or reselling
   cosmostrix inside your own products. Redistribution additionally requires
   trademark permission (see [TRADEMARK.md](TRADEMARK.md)).
+
+## Unauthorized Use — Read This Before You Steal
+
+Taking the cosmostrix source code — or any fork, copy, or derivative of
+it — into a closed-source commercial product, hosted service, or paid
+offering without contacting the owner and paying for the license is
+not a gray area and not a loophole. It is theft.
+
+This applies equally to companies and to individuals: lifting the code,
+stripping the license, renaming the project, or laundering it through a
+fork to dodge GPL-3.0-only copyleft while shipping closed source for
+money violates [LICENSE](LICENSE), this document, and
+[TRADEMARK.md](TRADEMARK.md). The owner, rezky_nightky (oxyzenQ),
+enforces these terms with takedown requests and legal action where
+warranted (see [TRADEMARK.md §5](TRADEMARK.md)).
+
+Be direct about the ethics: anyone who knows this license exists,
+knows how to contact the owner, and still ships stolen cosmostrix code
+as their own closed-source commercial product is acting in the worst
+possible faith — that is rotten behavior, full stop. If the price is
+the barrier, contact the owner: terms are discussed in good faith.
+Choosing to steal instead is a choice, and it is the wrong one.
 
 The Personal tier is the GPL-3.0-only license itself — free, including its
 copyleft obligations; no commercial license document is issued.

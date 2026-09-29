@@ -684,13 +684,23 @@ obligations.
 | ---------- | -------------- | ------------------------------------------------------------ |
 | Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
 | Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
-| Business   | $1,000/year    | SMB, revenue $100K–$10M/year                                 |
-| Company    | $9,900/year    | Enterprise (>$10M/year revenue) OR any redistribution rights |
+| Business   | $5,000/year    | SMB, revenue $100K–$10M/year                                 |
+| Company    | $50,199/year   | Enterprise (>$10M/year revenue) OR any redistribution rights |
 
 Payment is USD-pegged and accepted in crypto (Solana, Ethereum, Bitcoin
-Taproot). See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) for payment
-addresses, the verification process, and full terms. For licensing inquiries
-contact [with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+Taproot). Prices rise deliberately as the codebase's audited engineering
+value compounds year by year. See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)
+for payment addresses, the verification process, the pricing philosophy,
+and full terms. For licensing inquiries contact
+[with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+
+Warning: taking cosmostrix — or any fork, copy, or derivative of it — into
+a closed-source commercial product without contacting the owner and paying
+for the license is theft, not a gray area. It violates GPL-3.0-only, the
+Commercial License, and [TRADEMARK.md](TRADEMARK.md), and the owner
+rezky_nightky (oxyzenQ) enforces it with takedowns and legal action.
+See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) for the full
+unauthorized-use warning.
 
 The voluntary crypto donations under [Support](#support) above are tips for
 the open-source project — separate from commercial licensing; they grant no

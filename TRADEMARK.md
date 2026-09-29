@@ -17,7 +17,12 @@ owner.
 
 This project is NOT for sale. Source-code theft, rebranding, or
 re-distribution under a different license without the express written
-consent of rezky_nightky (oxyzenQ) is strictly prohibited.
+consent of rezky_nightky (oxyzenQ) is strictly prohibited. That includes
+the specific case of taking the code — or any fork, copy, or derivative
+of it — into a closed-source commercial product without contacting the
+owner and paying for a Commercial License
+(see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)); such use is theft
+and is treated as such.
 
 ## 2. Permitted Uses
 
@@ -82,8 +87,10 @@ would compete with, dilute, or confuse the cosmostrix brand.
 
 ## 5. Enforcement
 
-Unauthorized use of the cosmostrix Marks may result in takedown requests
-and legal action to protect the intellectual property.
+Unauthorized use of the cosmostrix Marks — and unlicensed closed-source
+commercial use of the source code itself (see
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)) — may result in takedown
+requests and legal action to protect the intellectual property.
 
 ## 6. Contact
 

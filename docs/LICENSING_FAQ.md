@@ -11,8 +11,10 @@ Index:
 
 - [Company use](#company-use)
 - [Tier selection](#tier-selection)
+- [Pricing](#pricing)
 - [Payment](#payment)
 - [Hobby use](#hobby-use)
+- [Unlicensed commercial use](#unlicensed-commercial-use)
 - [Rebranding and resale](#rebranding-and-resale)
 - [Contributing](#contributing)
 
@@ -34,6 +36,32 @@ A: Tiers follow annual revenue: under $100K/year means Individual, between
 $100K and $10M/year means Business, above $10M/year means Company. Any
 redistribution of cosmostrix requires the Company tier regardless of
 revenue.
+
+## Pricing
+
+### Q: Why did the Business and Company prices go up?
+
+A: Because the product keeps going up. cosmostrix is priced as a
+masterpiece-grade renderer: every hardening pass, dependency audit, and
+LTS release compounds the value of the codebase, and the Business
+($5,000/year) and Company ($50,199/year) tiers are deliberately raised
+to track it year by year. The Personal tier stays free and the
+Individual tier stays $99/year — the increase only touches business and
+enterprise buyers who profit from the work. See the Pricing Philosophy
+section in [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
+
+## Unlicensed commercial use
+
+### Q: What happens if a company uses cosmostrix commercially without a license?
+
+A: It is theft, and it is treated as theft. Taking the code — or any
+fork, copy, or derivative of it — into a closed-source commercial
+product without contacting the owner and paying for the license violates
+GPL-3.0-only, the Commercial License, and [TRADEMARK.md](../TRADEMARK.md).
+The owner rezky_nightky (oxyzenQ) pursues takedowns and legal action
+where warranted. If the price is the barrier, contact the owner — terms
+are discussed in good faith. See the full unauthorized-use warning in
+[COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
 
 ## Payment
 

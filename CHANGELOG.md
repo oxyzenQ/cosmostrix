@@ -27,6 +27,27 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### license: NIGHT-dinner-6 — the value-price realignment: Business and Company tiers rise to $5,000 and $50,199 a year, the unauthorized-use warning lands, and the piracy position goes on record
+
+- The Business tier moves from $1,000/year to $5,000/year and the
+  Company tier from $9,900/year to $50,199/year. The Personal tier
+  stays free and the Individual tier stays $99/year — the raise only
+  touches business and enterprise buyers. The rationale is now
+  documented as a Pricing Philosophy section in COMMERCIAL_LICENSE.md:
+  cosmostrix is priced as a masterpiece-grade renderer, and every
+  hardening pass, dependency audit, and LTS release compounds the
+  codebase's value year by year, which the paid tiers deliberately
+  track. Today's price is the lowest it will ever be.
+- A new Unauthorized Use section in COMMERCIAL_LICENSE.md states the
+  anti-piracy position in plain terms: taking the source code — or any
+  fork, copy, or derivative of it — into a closed-source commercial
+  product without contacting the owner rezky_nightky (oxyzenQ) and
+  paying for the license is theft, not a gray area. README.md carries
+  the short form next to the pricing table, TRADEMARK.md sections 1
+  and 5 name unlicensed closed-source commercial use explicitly, and
+  docs/LICENSING_FAQ.md gains two Q&As (why prices rose, what happens
+  on unlicensed commercial use) so no reader is left confused.
+
 ### ux: NIGHT-dinner-3 — the CLI output depth audit: six fixes land, style and data sharpness unified across every diagnostics surface
 
 - The audit walked every user-facing CLI surface live (--doctor,
