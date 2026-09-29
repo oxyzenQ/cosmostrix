@@ -69,8 +69,18 @@ deny = []
 # bitflags 2.x, so the bitflags 1.x duplicate is gone from the graph.
 # Updated the windows-sys skip from 0.52.0 to 0.60.2 (notify 8's new
 # floor).
+#
+# 2026-09-30 (signal-hook 0.4 migration, NIGHT-dinner-8): added the
+# signal-hook 0.3.18 skip — the direct dep moved to 0.4.4 (pure pin
+# bump, zero source changes), but crossterm 0.29's signal-hook-mio
+# still pins the 0.3 line, so 0.3.18 stays in the graph transitively.
+# The duplicate leaves only when crossterm migrates. Unix-only,
+# transitive-only, and both versions route through the same
+# signal-hook-registry 1.4.x backend — no duplicated signal behavior
+# at runtime.
 skip = [
     { name = "windows-sys", version = "0.60.2" },
+    { name = "signal-hook", version = "0.3.18" },
 ]
 skip-tree = []
 

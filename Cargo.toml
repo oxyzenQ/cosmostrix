@@ -112,7 +112,17 @@ notify = { version = ">=8, <9", default-features = false, features = ["macos_fse
 notify = { version = ">=8, <9", default-features = false, features = ["kqueue"] }
 
 [target.'cfg(unix)'.dependencies]
-signal-hook = "0.3"
+# signal-hook: floor 0.4 (migrated from "0.3" in NIGHT-dinner-8, 2026-09-30,
+# owner-approved relax policy). The 0.4 line's only breaking change is
+# low_level::pipe taking OwnedFd instead of IntoRawFd (signal-hook#196) —
+# a call site this project does not have. The used surface (consts,
+# iterator::Signals::new/.forever, low_level::raise, flag::register) is
+# API-identical across the 0.3 -> 0.4 boundary: verified by
+# `cargo check --locked --all-targets` and clippy -D warnings with ZERO
+# source changes. The bare "0.4" pin means >=0.4, <0.5, so a future 0.5
+# line (0.x minors are majors under this project's policy) cannot enter
+# the lockfile silently.
+signal-hook = "0.4"
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]

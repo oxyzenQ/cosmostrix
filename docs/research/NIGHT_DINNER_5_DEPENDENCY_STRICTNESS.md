@@ -171,6 +171,22 @@ noise — monolith flat to four decimals on gini, fps within 0.21% on
 run means, and the frame path never enters notify at all; recorded in
 [../bench-labs/night_dinner5/AB_REPORT.md](../bench-labs/night_dinner5/AB_REPORT.md).
 
+## The third relaxation: signal-hook 0.3 to 0.4 (NIGHT-dinner-8, 2026-09-30)
+
+The pattern repeated one day later and the lesson compounded: the
+audit table's second "breaking changes" claim ("0.4 changes the
+Signals iterator API") was also an unverified overestimate. The 0.4
+line's single breaking change is `low_level::pipe` taking `OwnedFd`
+(signal-hook#196) — a call site cosmostrix never had. The migration
+is a pure pin bump (0.3.18 → 0.4.4, zero source changes, compiler
+and clippy verified), with one graph consequence: crossterm 0.29
+still pins the 0.3 line via signal-hook-mio, so 0.3.18 stays in the
+graph transitively and deny.toml gains a documented skip (the
+windows-sys pattern). Functional parity was proven with the 8-check
+PTY signal harness `scripts/harness/signal_smoke.py` run against
+both binaries — full record:
+[NIGHT_DINNER_8_MAJOR_BUMP_BACKLOG.md](NIGHT_DINNER_8_MAJOR_BUMP_BACKLOG.md).
+
 ## What stays strict and why (the one-glance table)
 
 | Dep | Constraint | Class | Why it stays |
@@ -179,7 +195,7 @@ run means, and the frame path never enters notify at all; recorded in
 | notify | `>=8, <9` | boundary pin (migrated) | 8.x landed 2026-09-29 as a zero-source-change pin bump (owner-approved relax); the ceiling keeps 9.x (rc) out |
 | rand | `0.9` | auto-flow within line | 0.10 reworks the Rng/distr traits across ~15 call sites; visual regression risk needs an A/B benchmark campaign |
 | sha2 | `0.10` | auto-flow within line | 0.11 is a security-critical hashing-path rework (config change detection + fingerprints); HOLD per audit |
-| signal-hook | `0.3` | auto-flow within line | 0.4 changes the Signals iterator API; terminal-cleanup-on-Ctrl-C correctness is a dedicated-PR job |
+| signal-hook | `0.4` | boundary pin (migrated) | 0.4.4 landed 2026-09-30 as a zero-source-change pin bump (NIGHT-dinner-8); the "Signals iterator API change" claim was an unverified overestimate — the 0.4 line only changes `low_level::pipe`, never called here. The bare `0.4` pin keeps 0.5 out |
 | crossterm | `0.29` | auto-flow | 0.29.0 is simply the newest release; nothing is being blocked |
 | generic-array | (transitive) | upstream pin | crypto-common 0.1.7 exact-pins =0.14.7; leaves only with the sha2 0.11 migration |
 
@@ -194,17 +210,19 @@ run means, and the frame path never enters notify at all; recorded in
    full validation pipeline (audit, deny, fmt, build, test, clippy)
    before the lockfile lands on main.
 3. **Every "blocked" update is a migration, not an update** — the
-   three remaining major bumps each touch code paths whose failure
-   mode is visible (rain patterns, terminal cleanup) or
-   security-relevant (config hashing). They are scheduled work, not
-   constraint casualties. (notify, the fourth, migrated 2026-09-29.)
+   remaining major bumps each touch code paths whose failure mode is
+   visible (rain patterns, terminal cleanup) or security-relevant
+   (config hashing). They are scheduled work, not constraint
+   casualties. (notify, the fourth, migrated 2026-09-29;
+   signal-hook, the fifth, 2026-09-30.)
 4. **The user-visible confusion is now documented** — this file plus
    the refreshed DEPENDENCY_AUDIT.md state table exist so the next
    person who runs `cargo update --verbose` and sees `Unchanged`
    knows exactly which of the three classes each line belongs to and
    that none of them means "cosmostrix is rotting" (the list itself
    shrank from eight lines to four on 2026-09-29: clap and notify
-   both moved).
+   both moved, and to three on 2026-09-30: signal-hook
+   [NIGHT-dinner-8]).
 
 ## Cross-references
 

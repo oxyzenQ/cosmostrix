@@ -27,6 +27,35 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### deps: NIGHT-dinner-8 (part 1) — signal-hook 0.4.4 lands as a compiler-proven pure pin bump, and the Unix signal contract gets an 8-check PTY parity harness to prove the dragon's exit paths never moved
+
+- signal-hook 0.3.18 → 0.4.4 (owner-approved relax policy, the
+  dragon skin-not-heart rule: the crate never touches the render
+  path). The 0.4 line's only breaking change is `low_level::pipe`
+  taking `OwnedFd` instead of `IntoRawFd` (signal-hook#196) — a call
+  site cosmostrix does not have. `cargo check --locked --all-targets`
+  and clippy `--all-features -D warnings` pass with ZERO source
+  changes; the dependency-audit table's earlier "Signals iterator API
+  changed / flag::register signature may have changed" claim joins
+  the notify-8 Event-API claim in the corrected-overestimate pile.
+- One graph consequence: crossterm 0.29 still pins the 0.3 line via
+  signal-hook-mio, so 0.3.18 remains transitively — deny.toml gains a
+  documented signal-hook 0.3.18 skip (the windows-sys pattern), and
+  both versions share the signal-hook-registry 1.4.x backend.
+- Proof beyond the compiler: the new `scripts/harness/signal_smoke.py`
+  (spawn recipe from termux_hang_harness.py) runs the migrated binary
+  and the 0.3.18 baseline side by side — 8/8 identical checks:
+  startup liveness, Ctrl+C keystroke ignored (the only-q policy,
+  bug #15), SIGTSTP suspend (kernel state T) + SIGCONT resume, SIGTERM
+  graceful exit inside the 3s grace window with full terminal-restore
+  escapes (alt-screen, cursor, mouse), benchmark liveness, and the
+  benchmark SIGINT abort (exit 0, was_interrupted:true in the JSON —
+  the signal-hook 0.4 flag::register path). 2983/2983 tests,
+  gate-keepers 21/21.
+- Backlog after this entry: rand 0.10 (the 4-6 h visual-risk item,
+  next in this task) and sha2 0.11 (HOLD). Research record:
+  docs/research/NIGHT_DINNER_8_MAJOR_BUMP_BACKLOG.md.
+
 ### security: NIGHT-critical-infra-1 & think-like-light-years-1 — the AI-agent-scale threat model: every standing wall re-verified live, the prompt-injection surface gets its process rules, and the honest limits at 10k/1M/1B agents go on record
 
 - New audit: docs/audits/NIGHT_CRITICAL_INFRA_1_AUDIT_2026-09-29.md.

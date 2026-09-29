@@ -17,7 +17,7 @@ Every dependency that ships with cosmostrix must be auditable. The CI pipeline e
 | `bitvec` | `1` | Compact bit-vector storage for per-column state | No | No |
 | `smallvec` | `1` | Stack-allocated small vectors — avoids heap allocation in hot paths | No | No |
 | `unicode-width` | `0.2` | Correct character width calculation for CJK and wide glyphs | No | No |
-| `signal-hook` | `0.3` (Unix only) | Graceful shutdown on SIGTERM/SIGHUP/SIGQUIT (v25.13: SIGINT deprecated) | No | No |
+| `signal-hook` | `0.4` (Unix only; migrated from 0.3 in NIGHT-dinner-8, locked at 0.4.4) | Graceful shutdown on SIGTERM/SIGHUP/SIGQUIT (v25.13: SIGINT deprecated) | No | No |
 | `libc` | `0.2` (Linux only) | Low-level syscall bindings for terminal size queries | No | No |
 | `ctrlc` | `3.4` (Windows only) | Graceful shutdown handler for Windows console Ctrl-C/SIGBREAK | No | No |
 | `notify` | `>=8, <9` (default-features = false; migrated from 7.x in NIGHT-dinner-5 follow-up, locked at 8.2.0) | Cross-platform filesystem watcher for live config reload | No | No |

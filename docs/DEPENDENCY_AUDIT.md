@@ -82,14 +82,13 @@ tracked. Verdict now: **resolved by the notify 8 migration**
   ignores. web-time (the advisory's recommended replacement) is not
   even pulled on native targets — the graph simply got smaller.
 
-## Current state (cargo update --verbose, 2026-09-29, post notify-8)
+## Current state (cargo update --verbose, 2026-09-30, post signal-hook-0.4)
 
 ```
  Locking 0 packages to latest compatible versions
  Unchanged generic-array v0.14.7 (available: v0.14.9)
  Unchanged rand v0.9.5 (available: v0.10.3)
  Unchanged sha2 v0.10.9 (available: v0.11.0)
- Unchanged signal-hook v0.3.18 (available: v0.4.4)
 ```
 
 NIGHT-dinner-5 (2026-09-29) decoded the original eight-line list into
@@ -97,8 +96,10 @@ three classes and acted on it twice in one day: the clap pin was the
 only self-imposed over-strictness and is now relaxed to `>=4.5, <4.7`
 (lockfile at 4.6.7), and the notify 8 migration (owner-approved relax
 policy) moved the lockfile to 8.2.0 — clearing RUSTSEC-2024-0384 and
-shrinking this list from eight lines to four. generic-array is
-upstream-pinned, not ours (see its section below); the three remaining
+shrinking this list from eight lines to four. NIGHT-dinner-8
+(2026-09-30) moved signal-hook to 0.4.4 as a pure pin bump, shrinking
+it to three; rand 0.10 is in flight in the same task. generic-array is
+upstream-pinned, not ours (see its section below); the remaining
 major bumps stay boundary-pinned on purpose. Full policy:
 [NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md](research/NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md).
 
@@ -158,18 +159,18 @@ major bumps stay boundary-pinned on purpose. Full policy:
 | Risk | Medium — RNG is used in visual rendering; a subtle change could alter rain patterns without breaking tests. Need visual A/B comparison. |
 | Recommendation | **AUDIT THEN UPDATE** — do this AFTER notify. Run the visual A/B benchmark to verify rain patterns are unchanged. |
 
-#### signal-hook 0.3.18 → 0.4.4
+#### signal-hook 0.3.18 → 0.4.4 — DONE in NIGHT-dinner-8 (2026-09-30)
 
 | Field | Value |
 |-------|-------|
-| Cargo.toml constraint | `0.3` (= >=0.3.0, <0.4.0) |
-| Available | 0.4.4 |
+| Cargo.toml constraint | `0.4` (migrated from `0.3`; owner-approved relax policy) |
+| Locked version | 0.4.4 (was 0.3.18) |
 | Type | Major (0.3 → 0.4, 0.x minor = major) |
-| Usage depth | Low-medium — `src/interactive/signal_handlers.rs` + `src/bench/bench_progress.rs` (~5 call sites) |
-| Breaking changes | signal-hook 0.4 changed the `iterator::Signals` API and `low_level` module. The `flag::register` signature may have changed. |
-| Migration | Low-medium — signal handling is isolated to 2 files. ~1-2 hours work + testing (need to test SIGINT/SIGTERM/SIGHUP/SIGQUIT handling manually). |
-| Risk | Medium — signal handling is critical for clean terminal cleanup. A regression here could leave the terminal in a broken state on Ctrl-C. |
-| Recommendation | **AUDIT THEN UPDATE** — do this in a dedicated PR. Test signal handling manually (Ctrl-C, kill -TERM, kill -HUP). |
+| Usage depth | Low — `src/interactive/signal_handlers.rs` + `src/bench/bench_progress.rs` (5 call sites: consts, `Signals::new`/`.forever`, `low_level::raise`, `flag::register`) |
+| Breaking changes | **None on this project's surface.** The earlier "0.4 changed the iterator::Signals API and low_level module / flag::register signature may have changed" assessment in this table was unverified — signal-hook 0.4.0's single breaking change is `low_level::pipe` taking `OwnedFd` instead of `IntoRawFd` (signal-hook#196), a call site this project does not have. Verified empirically: `cargo check --locked --all-targets` and clippy `--all-features -D warnings` clean with ZERO source changes |
+| Migration | Pin bump only. Lockfile delta: signal-hook 0.4.4 added; 0.3.18 stays in the graph transitively (crossterm 0.29 pins the 0.3 line via signal-hook-mio) → deny.toml gains a documented signal-hook 0.3.18 skip (the windows-sys pattern). Both versions share the signal-hook-registry 1.4.x backend |
+| Risk | Low — 2983/2983 tests pass, clippy clean, gate-keepers 21/21, and `scripts/harness/signal_smoke.py` (8-check PTY harness, spawn recipe from termux_hang_harness) shows identical behavior vs the 0.3.18 baseline binary: startup liveness, Ctrl+C keystroke ignored (only-q policy), SIGTSTP suspend (state T), SIGCONT resume, SIGTERM graceful exit inside the 3s grace window, terminal-restore escapes (alt-screen/cursor/mouse), bench liveness, bench SIGINT abort (exit 0, `was_interrupted: true` in the JSON report) |
+| Status | **APPLIED** — Cargo.toml migrated, `cargo update -p signal-hook` run, lockfile + deny.toml committed |
 
 ### HOLD (breaking + low ROI)
 
@@ -203,7 +204,7 @@ automatically via the weekly maintenance.yml cron.
 | Priority | Dep | Est. effort | Dependency |
 |----------|-----|-------------|------------|
 | 1 | notify 8 | **DONE 2026-09-29** (pin bump only — zero source changes; the 2-4 h estimate was based on unverified breaking-change claims) | — |
-| 2 | signal-hook 0.4 | 1-2 hours | None (independent) |
+| 2 | signal-hook 0.4 | **DONE 2026-09-30** (pin bump only, zero source changes — the third unverified-breaking-change claim corrected; 8-check PTY signal parity harness vs the 0.3.18 baseline binary: `scripts/harness/signal_smoke.py`) | None (independent) |
 | 3 | rand 0.10 | 4-6 hours | Isolate from other visual-affecting changes (A/B benchmark campaign) |
 | — | sha2 0.11 | HOLD | Revisit quarterly |
 
@@ -215,7 +216,7 @@ Each major update PR MUST:
 5. Run `cargo clippy -- -D warnings` (no new lints).
 6. For notify: run `scripts/harness/cli_config_stresstest.sh` (live-reload PTY proof).
 7. For rand: run visual A/B benchmark (rain patterns unchanged).
-8. For signal-hook: manually test Ctrl-C / kill -TERM / kill -HUP.
+8. For signal-hook: DONE 2026-09-30 — `scripts/harness/signal_smoke.py` (8 checks: Ctrl+C keystroke, SIGTSTP/SIGCONT, SIGTERM, bench SIGINT) run against BOTH the 0.3.18 baseline and 0.4.4 migrated binaries with identical results. SIGHUP/SIGQUIT share SIGTERM's registered handler arm (one `Signals::new` list, one `forever()` loop), so the mechanism is covered by the SIGTERM proof.
 
 ### Step 3: Ongoing maintenance
 
