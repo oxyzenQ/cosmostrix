@@ -27,6 +27,44 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### deps: NIGHT-dinner-5 & research-1 — the strictness policy lands: clap relaxes to 4.6.7, the generic-array mystery is solved upstream, and the Unchanged list gets its decoder ring
+
+- The clap pin relaxes from `>=4.5, <4.6` to `>=4.5, <4.7` with a
+  rationale comment in Cargo.toml: 4.6 is a minor release inside the
+  stable clap 4 line, no API removals on the derive surface this
+  project uses, and the old pin blocked semver-compatible updates for
+  no stability gain. `cargo update -p clap` moves the lockfile to
+  4.6.7 (clap + clap_builder + clap_derive, plus syn 3.0.6 arriving
+  with clap_derive 4.6 — the entire lockfile delta). The ceiling
+  stays at `<4.7` so a future clap 5 or removal-carrying 4.7+ still
+  cannot enter the lockfile silently. Verified locally: cargo check
+  --locked clean, clippy --all-targets --all-features -D warnings
+  clean, gate-keepers 16/16; the full suite runs in CI on push.
+- The generic-array 0.14.7 "Unchanged" line is root-caused and it is
+  not cosmostrix strictness: crypto-common 0.1.7 (transitive via
+  sha2 0.10 to digest 0.10.7) declares `generic-array = "=0.14.7"`
+  — an exact upstream pin, verified against the crates.io registry
+  API. Neither 0.14.8 nor 0.14.9 is yanked; they are excluded by the
+  upstream requirement, so no cosmostrix constraint change can move
+  it. The only path out is the sha2 0.11 migration (HOLD per the
+  audit framework). This also corrects the 2026-09-02 audit's
+  "UPDATE NOW via cargo update -p generic-array" recommendation —
+  that command cannot succeed under the sha2 0.10 line.
+- The policy is documented in a new research doc,
+  docs/research/NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md, answering
+  the owner's question directly: which deps auto-flow (everything
+  caret-style, pushed weekly by maintenance.yml), which are
+  boundary-pinned on purpose (notify, rand, sha2, signal-hook — every
+  one a migration job, not an update), which was too strict (clap,
+  now fixed), and which is upstream-owned (generic-array).
+  docs/DEPENDENCY_AUDIT.md gets the refreshed 2026-09-29 state table
+  with the three-class decoding, the corrected generic-array verdict,
+  and the closed Step 1 action plan; docs/SUPPLY_CHAIN.md's dependency
+  table follows the new clap constraint. The point of the paper
+  trail: the next person who runs `cargo update --verbose` and sees
+  eight Unchanged lines knows exactly which lines mean what, and that
+  none of them means the project is rotting.
+
 ### license: NIGHT-dinner-6 — the value-price realignment: Business and Company tiers rise to $5,000 and $50,199 a year, the unauthorized-use warning lands, and the piracy position goes on record
 
 - The Business tier moves from $1,000/year to $5,000/year and the

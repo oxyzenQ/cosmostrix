@@ -11,7 +11,7 @@ Every dependency that ships with cosmostrix must be auditable. The CI pipeline e
 
 | Crate | Version Constraint | Purpose | Network? | Crypto? |
 |---|---|---|---|---|
-| `clap` | `>=4.5, <4.6` (derive feature) | CLI argument parsing via derive macros | No | No |
+| `clap` | `>=4.5, <4.7` (derive feature; relaxed from `<4.6` in NIGHT-dinner-5, locked at 4.6.7) | CLI argument parsing via derive macros | No | No |
 | `crossterm` | `0.29` | Cross-platform terminal manipulation (colors, cursor, events) | No | No |
 | `rand` | `0.9` | Cryptographic-quality RNG for rain columns | No | No |
 | `bitvec` | `1` | Compact bit-vector storage for per-column state | No | No |

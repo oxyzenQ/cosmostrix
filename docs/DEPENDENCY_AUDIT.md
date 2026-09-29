@@ -86,54 +86,55 @@ Verdict: **informational, not a vulnerability — accepted and tracked.**
   migration, drop the `deny.toml` ignore entry and the warning
   disappears with a routine `cargo update`.
 
-## Current state (cargo update --verbose, 2026-09-02)
+## Current state (cargo update --verbose, 2026-09-29)
 
 ```
- Locking 1 package to latest compatible version
- Unchanged clap v4.5.61 (available: v4.6.6)
- Unchanged clap_builder v4.5.61 (available: v4.6.6)
- Unchanged clap_derive v4.5.61 (available: v4.6.4)
+ Locking 0 packages to latest compatible versions
+ Unchanged clap v4.5.61 (available: v4.6.7)
+ Unchanged clap_builder v4.5.61 (available: v4.6.7)
+ Unchanged clap_derive v4.5.61 (available: v4.6.7)
  Unchanged generic-array v0.14.7 (available: v0.14.9)
  Unchanged notify v7.0.0 (available: v8.2.0)
- Unchanged rand v0.9.5 (available: v0.10.2)
+ Unchanged rand v0.9.5 (available: v0.10.3)
  Unchanged sha2 v0.10.9 (available: v0.11.0)
  Unchanged signal-hook v0.3.18 (available: v0.4.4)
- Updating smallvec v1.15.2 -> v1.16.0
 ```
 
-`smallvec` was updated (1.15.2 → 1.16.0, semver-compatible). The rest
-are "Unchanged" because they're blocked by `Cargo.toml` constraints
-(explicit upper bounds or 0.x semver rules).
+NIGHT-dinner-5 (2026-09-29) decoded this list into three classes and
+acted on it: the clap pin was the only self-imposed over-strictness
+and is now relaxed to `>=4.5, <4.7` (lockfile at 4.6.7, verified:
+cargo check + clippy -D warnings clean, gate-keepers 16/16, full suite
+delegated to CI); generic-array is upstream-pinned, not ours (see its
+section below); the four major bumps stay boundary-pinned on purpose.
+Full policy: [NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md](research/NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md).
 
 ## Per-dependency analysis
 
 ### UPDATE NOW (semver-compatible, blocked by constraint pin)
 
-#### clap 4.5.61 → 4.6.6
+#### clap 4.5.61 → 4.6.7 — DONE in NIGHT-dinner-5 (2026-09-29)
 
 | Field | Value |
 |-------|-------|
-| Cargo.toml constraint | `>=4.5, <4.6` (explicit pin to 4.5.x) |
-| Available | 4.6.6 |
+| Cargo.toml constraint | `>=4.5, <4.7` (relaxed from `<4.6` in NIGHT-dinner-5) |
+| Locked version | 4.6.7 (was 4.5.61) |
 | Type | Minor (same major 4.x) |
 | Usage depth | Deep — CLI argument parsing via derive macros (`src/cli/`) |
-| Breaking changes | None (4.6 is a feature release, clap 4.x has been stable) |
-| Migration | Zero code changes. Relax constraint to `>=4.5, <4.7` then `cargo update -p clap` |
-| Risk | Minimal — clap 4.6 is a minor feature release, no API removals |
-| Recommendation | **UPDATE NOW** — relax the pin to `<4.7`, run `cargo update -p clap`, verify `cargo test --all --locked` passes |
+| Breaking changes | None observed (derive surface compiles + clippy clean under -D warnings) |
+| Migration | Zero code changes. Lockfile delta: clap family 3 bumps + syn 3.0.6 added (clap_derive 4.6 uses syn 3) |
+| Risk | Minimal — verified locally with cargo check --locked, clippy --all-targets --all-features -D warnings, gate-keepers 16/16; full test suite delegated to CI |
+| Status | **APPLIED** — Cargo.toml relaxed, `cargo update -p clap` run, lockfile committed |
 
-#### generic-array 0.14.7 → 0.14.9
+#### generic-array 0.14.7 → 0.14.9 — NOT OURS TO MOVE (upstream exact-pin)
 
 | Field | Value |
 |-------|-------|
-| Cargo.toml constraint | Transitive (via sha2) |
-| Available | 0.14.9 |
-| Type | Patch (0.14.x → 0.14.x) |
-| Usage depth | Transitive only — no direct usage in cosmostrix |
-| Breaking changes | None (patch release) |
-| Migration | Zero — `cargo update -p generic-array` |
-| Risk | Minimal |
-| Recommendation | **UPDATE NOW** — `cargo update -p generic-array` |
+| Cargo.toml constraint | Transitive (via sha2 0.10 → digest 0.10.7 → crypto-common 0.1.7) |
+| Available | 0.14.9 (not yanked — verified via crates.io API, 2026-09-29) |
+| Root cause | crypto-common 0.1.7 declares `generic-array = "=0.14.7"` — an exact upstream pin (RustCrypto damage control around the 0.14.8/0.14.9 releases) |
+| Migration | Impossible from this repo: `cargo update -p generic-array` refuses, `--precise 0.14.9` refuses (resolver names the crypto-common requirement). The only path is the sha2 0.11 migration (digest 0.11 → hybrid-array), classified HOLD below |
+| Risk | None in staying — 0.14.7 is the version RustCrypto itself pins |
+| Status | **UPSTREAM-PINNED** — corrects this audit's 2026-09-02 recommendation ("UPDATE NOW via cargo update -p generic-array"): that command cannot succeed under the sha2 0.10 line |
 
 ### AUDIT THEN UPDATE (major version, needs migration)
 
@@ -193,23 +194,21 @@ are "Unchanged" because they're blocked by `Cargo.toml` constraints
 
 ## Action plan
 
-### Step 1: Apply safe updates now (5 minutes)
+### Step 1: Apply safe updates now — DONE (NIGHT-dinner-5, 2026-09-29)
 
-```bash
-# Relax the clap pin to allow 4.6.x
-# Edit Cargo.toml: change ">=4.5, <4.6" to ">=4.5, <4.7"
-cargo update -p clap -p clap_builder -p clap_derive -p generic-array
-./scripts/build/build.sh check-all
-git add Cargo.toml Cargo.lock
-git commit -m "Internal research: semver-compatible dep updates (clap 4.6, generic-array 0.14.9)"
-git push origin main
-```
+Applied exactly as planned: the clap pin relaxed to `>=4.5, <4.7`, the
+lockfile moved to 4.6.7 (clap + clap_builder + clap_derive + syn 3.0.6),
+verified with cargo check --locked + clippy -D warnings + gate-keepers
+16/16, and pushed with the NIGHT-dinner-5 commit. The generic-array
+half of the old step 1 is impossible from this repo — upstream
+exact-pin, see its table above. Next in-range updates land
+automatically via the weekly maintenance.yml cron.
 
 ### Step 2: Plan major version updates (one PR per dep)
 
 | Priority | Dep | Est. effort | Dependency |
 |----------|-----|-------------|------------|
-| 1 | notify 8 | 2-4 hours | None (independent) |
+| 1 | notify 8 | 2-4 hours | None (independent; note: notify 9.0.0-rc.5 exists as a pre-release — release candidates never enter the lockfile) |
 | 2 | signal-hook 0.4 | 1-2 hours | None (independent) |
 | 3 | rand 0.10 | 4-6 hours | After notify (to isolate visual regressions) |
 | — | sha2 0.11 | HOLD | Revisit quarterly |
