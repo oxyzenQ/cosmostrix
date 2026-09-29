@@ -35,11 +35,13 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-video.webp" alt="cosmostrix video" width="800">
+  <img src="assets/cosmostrix-video.webp" alt="cosmostrix video" width="800"
+  style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-4-scene.png" alt="cosmostrix 4 scene" width="800">
+  <img src="assets/cosmostrix-4-scene.png" alt="cosmostrix 4 scene" width="800"
+  style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
 </p>
 
 <p align="center">
@@ -286,7 +288,7 @@ cargo install cosmostrix
 # Build with the exact dependency set the release shipped (recommended)
 cargo install cosmostrix --locked
 # Pin a specific version, including pre-releases
-cargo install cosmostrix --version 51.0.0-beta.1 --locked
+cargo install cosmostrix --version x.z.y-beta.1 --locked
 cosmostrix --doctor
 ```
 
@@ -630,7 +632,7 @@ Create a release by pushing a `v*` tag — `git push origin main vX.Y.Z` (commit
 Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD, .SRCINFO, README install tag, docs/workflow/ABOUT_CI.md), then build:
 
 ```bash
-./scripts/release/version-to.sh vX.Y.Z          # bump to vX.Y.Z across all active files
+./scripts/release/version-to.sh vX.Y.Z        # bump to vX.Y.Z across all active files
 ./scripts/build/build.sh release              # optimized release build
 ./scripts/build/build.sh version-sync         # verify all version refs agree (no build)
 ```
