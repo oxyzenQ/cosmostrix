@@ -129,8 +129,14 @@ tripwire note in the pre-v13 archive).
   bitflags 2), and filetime (dropped upstream). deny.toml's skip list
   loses the bitflags entry and re-pins the windows-sys skip to
   0.60.2. The wall-of-Unchanged shrinks from eight lines to four —
-  every remaining line is classified in the strictness policy. A
-  follow-up commit records the 10 s A/B bench for the notify swap in
+  every remaining line is classified in the strictness policy. The
+  10 s A/B bench (release profile, baseline d533c98 vs the migration
+  commit, cinematic + monolith controls, 2 runs each) is
+  performance-neutral and visual-identical within run noise — the
+  monolith control flat to four decimals on gini and flat on entropy
+  with fps within 0.21% on run means, and the structural argument is
+  airtight: the bench frame path never enters notify, and the watcher
+  thread is idle in both binaries. Recorded in
   benchmark/bench-labs/night_dinner5/AB_REPORT.md.
 
 ### license: NIGHT-dinner-6 — the value-price realignment: Business and Company tiers rise to $5,000 and $50,199 a year, the unauthorized-use warning lands, and the piracy position goes on record

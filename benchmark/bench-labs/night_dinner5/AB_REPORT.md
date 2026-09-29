@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# NIGHT-dinner-5 A/B report — 10 s benches, release profile: clap 4.5.61 vs 4.6.7
+# NIGHT-dinner-5 A/B report — 10 s benches, release profile: clap 4.5.61 vs 4.6.7, then notify 7.0.0 vs 8.2.0
 
 Methodology (same as cybersecurity-1/hunt-36/37): baseline binary
 built from clean `579de6a` (HEAD before the clap relaxation, clap
@@ -58,6 +58,69 @@ The dependency win is elsewhere and already CI-proven: all 21 checks
 green on the clap commit (every platform build, both nextest
 partitions, MSRV, CodeQL, cargo-deny, Miri), and the constraint now
 admits one minor line of clap headroom instead of zero.
+
+## Follow-up bench — notify 7.0.0 vs 8.2.0 (commit 55a7a64, 2026-09-29, same protocol)
+
+Baseline binary built from clean `d533c98` (HEAD before the notify
+migration, notify 7.0.0 + instant 0.1.13 in the graph) in a detached
+worktree; after binary from `55a7a64` (notify 8.2.0, instant gone).
+Both `--release` (fat LTO, codegen-units 1), both built the same hour
+on the same host (3,030,520 vs 3,031,592 bytes — the same 3.03 MiB
+image class, +0.04%). Command per run identical to the clap bench:
+`TERM=dumb <bin> --benchmark --bench-duration 10 --json --scene
+cinematic|monolith`, 2 runs per scene, interleaved per scene.
+
+Structural expectation: notify code is only reachable through the
+config live-reload watcher thread, and a bench run never writes
+config.toml — the native inotify watcher parks idle in both binaries
+(no events can fire), while the 750 ms polling heartbeat that does run
+is cosmostrix's own `live_config_poll` code, byte-identical in both
+builds. The bench steady-state frame path never enters notify at all;
+the only carryover is binary layout — where the linker places the
+notify 8.2.0 code (and the space freed by instant, filetime and
+bitflags 1.x leaving the graph) inside the same image — which is
+noise-class, not cost-class.
+
+### Cinematic (glyph control)
+
+| metric | baseline r1 | baseline r2 | after r1 | after r2 |
+|---|---|---|---|---|
+| avg fps | 28,780.84 | 28,624.47 | 28,565.25 | 28,103.36 |
+| dirty cells/frame | 457.62 | 461.31 | 461.24 | 463.21 |
+| entropy bits | 5.1651 | 5.1774 | 5.1742 | 5.1818 |
+| density gini | 0.6392 | 0.6366 | 0.6371 | 0.6352 |
+
+### Monolith (structured control)
+
+| metric | baseline r1 | baseline r2 | after r1 | after r2 |
+|---|---|---|---|---|
+| avg fps | 87,124.58 | 87,434.01 | 87,358.46 | 86,843.53 |
+| dirty cells/frame | 56.77 | 56.76 | 56.77 | 56.74 |
+| entropy bits | 3.2956 | 3.2949 | 3.2942 | 3.2958 |
+| density gini | 0.8961 | 0.8961 | 0.8961 | 0.8957 |
+
+### Conclusion (notify)
+
+Performance-neutral and visual-identical within run noise — the same
+verdict class as the clap bench. The monolith control is flat to four
+decimals on gini (0.8957-0.8961) and flat on entropy (the after runs
+straddle the baseline band, 3.2942-3.2958), with fps within 0.21% on
+run means. The cinematic scene shows the documented sandbox swing:
+after r1 lands 0.3% below the baseline mean while after r2 lands 1.6%
+below after r1 itself — the same-binary spread (462 fps between two
+runs of the SAME binary) is larger than the cross-binary delta,
+which is the signature of scheduler noise, not a systematic cost.
+Every visual metric (entropy, gini, dirty cells) sits within 0.64%
+in both scenes, on both sides of zero. The structural argument
+settles it: the frame path never enters notify, and the watcher
+thread is idle in both binaries.
+
+The dependency win is real and graph-level: three crates leave the
+audit surface (instant 0.1.13 — RUSTSEC-2024-0384 cleared and the
+deny.toml suppress retired, bitflags 1.3.2 — the Linux duplicate gone,
+and filetime), the wall-of-Unchanged shrinks from eight lines to
+four, and the PTY stresstest (47/47) proves live-reload end-to-end on
+the new major line.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

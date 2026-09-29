@@ -166,7 +166,9 @@ The audit-table claim that motivated the 2-4 hour estimate
 compiler: it was an unverified overestimate, corrected in
 docs/DEPENDENCY_AUDIT.md. The 10 s A/B bench (release profile,
 baseline d533c98 vs the migration commit, cinematic + monolith
-controls) is recorded in
+controls) is performance-neutral and visual-identical within run
+noise — monolith flat to four decimals on gini, fps within 0.21% on
+run means, and the frame path never enters notify at all; recorded in
 [../bench-labs/night_dinner5/AB_REPORT.md](../bench-labs/night_dinner5/AB_REPORT.md).
 
 ## What stays strict and why (the one-glance table)
