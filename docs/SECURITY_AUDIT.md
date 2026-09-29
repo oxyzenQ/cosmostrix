@@ -222,6 +222,7 @@ refusal could break.
 
 ## Cross-References
 
+- [`docs/audits/NIGHT_CRITICAL_INFRA_1_AUDIT_2026-09-29.md`](audits/NIGHT_CRITICAL_INFRA_1_AUDIT_2026-09-29.md) — the AI-agent-scale threat model (NIGHT-critical-infra-1 & think-like-light-years-1): this classical model re-read under 10k/1M/1B-agent attack volume, the prompt-injection-into-maintainer-AI surface, and the agent-trust process rules
 - `docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md` — detailed `unsafe` review
 - `docs/archive/SIMD_FEASIBILITY.md` — "no new unsafe" policy rationale
 - `docs/RULES.md` — project rules including unsafe policy

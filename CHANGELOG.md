@@ -27,6 +27,42 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### security: NIGHT-critical-infra-1 & think-like-light-years-1 — the AI-agent-scale threat model: every standing wall re-verified live, the prompt-injection surface gets its process rules, and the honest limits at 10k/1M/1B agents go on record
+
+- New audit: docs/audits/NIGHT_CRITICAL_INFRA_1_AUDIT_2026-09-29.md.
+  The classical security record (SECURITY_AUDIT, NIGHT-long-horizon-1
+  phase 4 at peak) answered one-adversary, human-speed attacks; this
+  layer re-reads the same walls under collapsed attacker marginal
+  cost — 10k agents today, 1M mid-term, 1B speculative. The scale
+  math is stated honestly first: cosmostrix has no secrets, no auth
+  surface, no listener, one opt-in outbound GET — so "brute force"
+  decomposes into four real targets (input surfaces, repo/CI, the
+  maintainer's AI workflow, project economics), each audited with
+  walls, verification, and residual risk per tier.
+- Live verification this round: safepath 33/33, validation 26/26,
+  escape-gate 19/19, testconf 94/94 (172 green), gate-keepers 16/16,
+  clippy -D warnings clean; sweep confirms no pull_request_target and
+  no github.event.pull_request interpolation in any workflow;
+  crates.io name registration, release.yml GPG + SHA-512 sidecars,
+  and aur.yml checksum verification confirmed present. No fresh gap
+  found that a code change would improve — the walls' structural
+  property is that attack surface does not grow with attacker count.
+- The genuinely new surface — prompt injection aimed at the
+  maintainer's own AI agents (hostile PRs/issues addressing the agent
+  directly) — gets process rules, now on record in the audit: repo
+  content is data never instruction; agents never merge (the agent
+  PAT is single-repo push-only); immune-system paths (.github/
+  workflows/**, scripts/gates/**, scripts/audit/**, deny.toml, the
+  Cargo.toml dependency table) get human byte-level review; agents
+  cite runnable evidence, not conclusions. Deliberately skipped, with
+  reasons recorded: prompt-injection "detectors" (theater), in-binary
+  rate limiting (no listener exists), further CI hardening beyond
+  current permissions (remaining vectors are platform-owned) — the
+  no-over-engineering rule applies; adding wall where there is no
+  door is how LTS projects rot.
+- docs/SECURITY_AUDIT.md cross-references the new audit as the
+  AI-agent-scale companion to the classical model.
+
 ### deps: NIGHT-dinner-5 & research-1 — the strictness policy lands: clap relaxes to 4.6.7, the generic-array mystery is solved upstream, and the Unchanged list gets its decoder ring
 
 - The clap pin relaxes from `>=4.5, <4.6` to `>=4.5, <4.7` with a
