@@ -69,6 +69,16 @@
 #       (Supersedes the old section 6c naming check, which caught
 #       one casing, exempted the archive, and never looked at
 #       paths.)
+#  19.  Release-notes shape contract (zelynic NIGHT-dinner-26
+#       lineage, dinner-11 — scripts/gates/check-release-notes-
+#       shapes.sh): the release-body generator is re-executed
+#       through its real positional CLI against a hermetic temp
+#       git repo for every documented invocation shape — stable
+#       (PREV == LAST_STABLE, single range), pre-release (WARNING
+#       alert), dual range (both distances), initial release
+#       (present-but-empty optional args, the legal-empty class
+#       zelynic's v11.0.0 stable publish died on), and the
+#       missing-argument usage error.
 #
 # Exit codes:
 #   0 = all checks passed
@@ -600,6 +610,28 @@ elif [ ! -f scripts/gates/check-name-case.py ]; then
 	warn "check-name-case.py not found — skipping"
 else
 	warn "python3 not installed — skipping"
+fi
+
+# ── 19. Release-notes shape contract (dinner-11) ───────────────────────
+# The release-body generator had zero automated coverage: a regression
+# in its positional CLI or its render guards would only surface at the
+# next release publish — exactly the geometry that killed zelynic's
+# v11.0.0 stable (its generator's flag parser rejected the legal-empty
+# --since-stable "" that only a stable cut produces; the rc series
+# never tripped it). check-release-notes-shapes.sh re-executes the
+# generator through its real CLI against a hermetic temp git repo for
+# every documented shape, so the contract is enforced on every push
+# instead of at the next tag.
+header "Release-Notes Shape Contract (check-release-notes-shapes.sh)"
+if [ -f scripts/gates/check-release-notes-shapes.sh ]; then
+	if bash scripts/gates/check-release-notes-shapes.sh 2>&1; then
+		info "release-notes shapes: the generator honors its full invocation contract"
+		PASS=$((PASS + 1))
+	else
+		fail "release-notes shapes: the generator broke its shape contract (see the shape list above)"
+	fi
+else
+	warn "check-release-notes-shapes.sh not found — skipping"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

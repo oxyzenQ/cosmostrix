@@ -27,6 +27,55 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### infra: NIGHT-diner-11 — the stable-cut pre-flight: cosmostrix audited against zelynic's v11.0.0 generator incident (dinner-26, commit 6cb6f83), the exact v100.0.6 shapes verified green locally, and the release-notes generator gains a shape-contract gate
+
+- The second zelynic reference in the rc.1 arc: zelynic's v11.0.0
+  STABLE publish died 11 seconds into the Create GitHub Release job
+  because its release-notes generator's flag parser used `${2:?}`
+  guards that reject a present-but-empty value as hard as a missing
+  one — and a stable release legitimately arrives with
+  `--since-stable ""` (LAST_STABLE == PREV_TAG, no distance to
+  render). The rc series never tripped it: pre-releases always
+  carry a real distance. The bug was invisible until the first
+  stable cut switched the code path.
+- cosmostrix's generator is structurally immune to that exact bug:
+  it is a POSITIONAL parser guarded by `$# -lt 4` (counts
+  arguments, cannot reject an empty-but-present one), and the
+  workflow call site passes every argument quoted. The two
+  generators diverged before zelynic's flag era.
+- The stable-only paths are production-proven, not first-run code:
+  v100.0.0 through v100.0.5 (2026-09-14 to 09-26) each ran the full
+  stable geometry — generator stable branch, make_latest, the AUR
+  repository_dispatch, aur.yml runs 51-56, crates.io publish.
+  Diffing the release tooling v100.0.5..HEAD found the real delta:
+  the ci_gate job (new since v100.0.5, proven by the re-triggered
+  rc.1 runs 110/13 green through the dinner-10 fix), the
+  dinner-1 retry hardening (same runs), and the PKGBUILD's new
+  `--retry-all-errors` (first AUR push pending).
+- Pre-flight with the exact v100.0.6 geometry, all green: the
+  generator's stable body (v100.0.5..HEAD range, PREV ==
+  LAST_STABLE, [!TIP], single "6 commits since v100.0.5" line, no
+  dual-range), the pre-release and initial-release legal-empty
+  shapes through the real CLI, the usage error, and a verbatim
+  9-point aur.yml simulation (resolve seds, bash -n, .SRCINFO
+  validation, prepare() asset URLs, curl 8.x flag-set acceptance
+  for the hardened PKGBUILD).
+- The gap the audit DID find: the generator had zero automated
+  coverage — a regression would surface at the next tag, in the
+  publish job (the exact zelynic geometry). Closed with gate 19,
+  `scripts/gates/check-release-notes-shapes.sh`: the generator is
+  re-executed through its real positional CLI against a hermetic
+  temp git repo for every documented shape — stable single-range
+  (and no dual line for PREV == LAST_STABLE), pre-release WARNING,
+  dual range with both distances, initial-release legal-empty,
+  missing-argument usage error, classifier bucketing. Hermetic
+  because the CI gate-keepers checkout is depth-1 without tags.
+  Gate battery: 22 passed / 0 failed.
+- Verdict: the v100.0.6 stable cut flies a proven pipeline; no
+  zelynic-class rock exists in the stable path. The owner's
+  five-file release-commit pattern is unchanged. Full record:
+  docs/research/NIGHT_DINNER_11_STABLE_CUT_PRE_FLIGHT.md.
+
 ### infra: NIGHT-diner-10 — the CI gate reads the status FIELD, not the summary prefix: v100.0.6-rc.1's two tag pipelines stop polling an already-green CI into their own timeout (zelynic NIGHT-dinner-25 lineage, same bug found there first)
 
 - The v100.0.6-rc.1 tag push left both tag pipelines (Guard -

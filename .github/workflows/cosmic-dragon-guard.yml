@@ -34,6 +34,13 @@
 #                       banner, and display families are the only
 #                       uppercase survivors
 #                       (scripts/gates/check-name-case.py, dinner-2)
+#  19.  Release shapes - the release-notes generator honors its full
+#                       positional CLI contract (stable single-range,
+#                       pre-release, dual range, initial-release
+#                       legal-empty, usage error) against a hermetic
+#                       temp repo, on every push
+#                       (scripts/gates/check-release-notes-shapes.sh,
+#                       dinner-11, zelynic dinner-26 lineage)
 #
 # Every tool listed above is installed below - a check that silently skips
 # because its tool is missing is a check that does not exist (incident:
