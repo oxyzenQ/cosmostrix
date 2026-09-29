@@ -75,7 +75,12 @@ tripwire note in the pre-v13 archive).
   stays at `<4.7` so a future clap 5 or removal-carrying 4.7+ still
   cannot enter the lockfile silently. Verified locally: cargo check
   --locked clean, clippy --all-targets --all-features -D warnings
-  clean, gate-keepers 16/16; the full suite runs in CI on push.
+  clean, gate-keepers 16/16; the full suite runs in CI on push. The
+  10 s A/B bench (release profile, baseline 579de6a vs after eb18b31,
+  cinematic + monolith controls) is performance-neutral and
+  visual-identical within run noise — monolith flat to four decimals
+  on entropy and gini — recorded in
+  benchmark/bench-labs/night_dinner5/AB_REPORT.md.
 - The generic-array 0.14.7 "Unchanged" line is root-caused and it is
   not cosmostrix strictness: crypto-common 0.1.7 (transitive via
   sha2 0.10 to digest 0.10.7) declares `generic-array = "=0.14.7"`

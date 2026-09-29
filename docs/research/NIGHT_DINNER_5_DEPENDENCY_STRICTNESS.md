@@ -122,7 +122,12 @@ Verification: `cargo check --locked` clean, `cargo clippy --locked
 gate-keepers.sh 16/16 PASS. The 2950-test suite and the remaining
 build.sh check-all stages run in CI on push — the local pass covers
 everything that can break from a CLI-parser minor bump (the derive
-expansion and every type the CLI surface uses).
+expansion and every type the CLI surface uses). The 10 s A/B bench
+(release profile, baseline 579de6a vs after eb18b31, cinematic +
+monolith, 2 runs each) is performance-neutral and visual-identical
+within run noise — monolith flat to four decimals on entropy and
+gini; see
+[../bench-labs/night_dinner5/AB_REPORT.md](../bench-labs/night_dinner5/AB_REPORT.md).
 
 The ceiling stays at `<4.7`, not open-ended: a hypothetical clap 5,
 or a 4.7 that removes something, still cannot enter the lockfile
