@@ -58,55 +58,49 @@ The real signals to act on:
 None of cosmostrix's deps are unmaintained or have open CVEs as of
 2026-09-02. The available updates are "nice to have", not "must have".
 
-## RUSTSEC-2024-0384: `instant` 0.1.13 unmaintained (transitive, accepted risk)
+## RUSTSEC-2024-0384: `instant` 0.1.13 unmaintained (transitive) — RESOLVED 2026-09-29
 
 Owner question (2026-09-12): "is this cargo audit warning dangerous?"
+Verdict then: informational, not a vulnerability — accepted and
+tracked. Verdict now: **resolved by the notify 8 migration**
+(NIGHT-dinner-5 follow-up, 2026-09-29).
 
-Verdict: **informational, not a vulnerability — accepted and tracked.**
-
-- Advisory class is `unmaintained`, not a CVE: no exploit path, no
-  input parsing, no unsafe surface exposed through the chain. The
-  crate is a wasm-era wrapper around `std::time::Instant`; on every
-  native target cosmostrix builds (gnu/musl/darwin/msvc) it is a
-  zero-cost passthrough to the standard library.
-- Dependency chain: cosmostrix → notify v7.0.0 (file watcher for
-  config live-reload) → notify-types v1.0.1 → instant 0.1.13. No
-  direct usage anywhere in `src/` (the `instant` module under
+- The advisory class was `unmaintained`, never a CVE: no exploit
+  path, no input parsing, no unsafe surface exposed through the
+  chain. The crate was a wasm-era wrapper around `std::time::Instant`;
+  on every native target cosmostrix builds (gnu/musl/darwin/msvc) it
+  was a zero-cost passthrough to the standard library.
+- Old chain: cosmostrix → notify v7.0.0 (file watcher for config
+  live-reload) → notify-types v1.0.1 → instant 0.1.13. No direct
+  usage anywhere in `src/` (the `instant` module under
   `src/msg_fill_style/` is an unrelated internal text-reveal style
   that shares the name).
-- Mitigations already in place: `deny.toml` suppresses the advisory
-  with the full rationale (since v50.0.0-beta.7), and the watcher
-  does not rely on `instant` for correctness — its change detection
-  is mtime/size/SHA-512 snapshots plus native inotify events.
-- Fix path: upstream only. notify-types must migrate to `web-time`
-  (the advisory's recommended replacement). notify v8 was evaluated
-  in the table below and remains an owner decision per project rules
-  (version bumps are never agent-initiated).
-- Re-check at each LTS release: if notify-types publishes the
-  migration, drop the `deny.toml` ignore entry and the warning
-  disappears with a routine `cargo update`.
+- Resolution: notify 8.2.0 pulls notify-types 2.1.0, which dropped
+  `instant` entirely — the crate is gone from Cargo.lock, and the
+  `deny.toml` advisory ignore (in place since v50.0.0-beta.7) is
+  retired. `cargo deny check advisories` now runs clean with zero
+  ignores. web-time (the advisory's recommended replacement) is not
+  even pulled on native targets — the graph simply got smaller.
 
-## Current state (cargo update --verbose, 2026-09-29)
+## Current state (cargo update --verbose, 2026-09-29, post notify-8)
 
 ```
  Locking 0 packages to latest compatible versions
- Unchanged clap v4.5.61 (available: v4.6.7)
- Unchanged clap_builder v4.5.61 (available: v4.6.7)
- Unchanged clap_derive v4.5.61 (available: v4.6.7)
  Unchanged generic-array v0.14.7 (available: v0.14.9)
- Unchanged notify v7.0.0 (available: v8.2.0)
  Unchanged rand v0.9.5 (available: v0.10.3)
  Unchanged sha2 v0.10.9 (available: v0.11.0)
  Unchanged signal-hook v0.3.18 (available: v0.4.4)
 ```
 
-NIGHT-dinner-5 (2026-09-29) decoded this list into three classes and
-acted on it: the clap pin was the only self-imposed over-strictness
-and is now relaxed to `>=4.5, <4.7` (lockfile at 4.6.7, verified:
-cargo check + clippy -D warnings clean, gate-keepers 16/16, full suite
-delegated to CI); generic-array is upstream-pinned, not ours (see its
-section below); the four major bumps stay boundary-pinned on purpose.
-Full policy: [NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md](research/NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md).
+NIGHT-dinner-5 (2026-09-29) decoded the original eight-line list into
+three classes and acted on it twice in one day: the clap pin was the
+only self-imposed over-strictness and is now relaxed to `>=4.5, <4.7`
+(lockfile at 4.6.7), and the notify 8 migration (owner-approved relax
+policy) moved the lockfile to 8.2.0 — clearing RUSTSEC-2024-0384 and
+shrinking this list from eight lines to four. generic-array is
+upstream-pinned, not ours (see its section below); the three remaining
+major bumps stay boundary-pinned on purpose. Full policy:
+[NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md](research/NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md).
 
 ## Per-dependency analysis
 
@@ -138,18 +132,18 @@ Full policy: [NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md](research/NIGHT_DINNER_5_D
 
 ### AUDIT THEN UPDATE (major version, needs migration)
 
-#### notify 7.0.0 → 8.2.0
+#### notify 7.0.0 → 8.2.0 — DONE in NIGHT-dinner-5 follow-up (2026-09-29)
 
 | Field | Value |
 |-------|-------|
-| Cargo.toml constraint | `>=7, <8` (explicit pin to 7.x) |
-| Available | 8.2.0 |
+| Cargo.toml constraint | `>=8, <9` (migrated from `>=7, <8`; owner-approved relax policy) |
+| Locked version | 8.2.0 (was 7.0.0) |
 | Type | Major (7.x → 8.x) |
-| Usage depth | Medium — `src/config/live_config/watcher.rs` (1 file, ~10 call sites) |
-| Breaking changes | notify 8.0 reworked the `Event` API: `EventKind` variants changed, `ModifyKind::Data` renamed, `Config` struct restructured. The `Watcher::new` trait method signature changed (takes `Config` by value instead of separate args). |
-| Migration | Medium — rewrite `watcher.rs` to use the new `Config` API + verify `EventKind` matching in `handle_notify_event`. ~2-4 hours work + testing. |
-| Risk | Medium — live-reload is a core feature; a regression here breaks config hot-reload. Need PTY live-reload test proof. |
-| Recommendation | **AUDIT THEN UPDATE** — do this in a dedicated PR. Test with the live PTY reload script (`scripts/harness/cli_config_stresstest.sh`). |
+| Usage depth | Low — 2 src files + 1 test file: `src/config/live_config/watcher.rs`, `src/config/live_config_poll/mod.rs`, `test/config/live_config_poll/tests.rs` |
+| Breaking changes | **None on this project's surface.** The earlier "notify 8.0 reworked the Event API / renamed ModifyKind::Data / restructured Config / changed Watcher::new" assessment in this table was an unverified overestimate — the surface cosmostrix uses (RecommendedWatcher::new with a closure + Config::default, the Event{kind,paths,attrs} literal, EventKind::Modify/Create/Remove matching) is identical across the 7→8 boundary. Verified empirically: `cargo check --locked --all-targets` and clippy `--all-features -D warnings` clean with ZERO source changes |
+| Migration | Pin bump only (`>=7, <8` to `>=8, <9` in three target sections). Lockfile delta: notify 8.2.0, notify-types 2.1.0, inotify 0.11.5, windows-sys 0.60.2 (+ windows-targets/registry 0.53.x); three crates leave the graph — instant (RUSTSEC-2024-0384 cleared, deny.toml ignore retired), bitflags 1.3.2 (inotify 0.11 uses bitflags 2, deny.toml skip removed), filetime (dropped upstream) |
+| Risk | Low — 2983/2983 tests pass, clippy clean, gate-keepers clean, PTY config stresstest re-run as live-reload proof |
+| Status | **APPLIED** — Cargo.toml migrated, `cargo update -p notify` run, lockfile + deny.toml committed |
 
 #### rand 0.9.5 → 0.10.2
 
@@ -208,9 +202,9 @@ automatically via the weekly maintenance.yml cron.
 
 | Priority | Dep | Est. effort | Dependency |
 |----------|-----|-------------|------------|
-| 1 | notify 8 | 2-4 hours | None (independent; note: notify 9.0.0-rc.5 exists as a pre-release — release candidates never enter the lockfile) |
+| 1 | notify 8 | **DONE 2026-09-29** (pin bump only — zero source changes; the 2-4 h estimate was based on unverified breaking-change claims) | — |
 | 2 | signal-hook 0.4 | 1-2 hours | None (independent) |
-| 3 | rand 0.10 | 4-6 hours | After notify (to isolate visual regressions) |
+| 3 | rand 0.10 | 4-6 hours | Isolate from other visual-affecting changes (A/B benchmark campaign) |
 | — | sha2 0.11 | HOLD | Revisit quarterly |
 
 Each major update PR MUST:

@@ -81,11 +81,10 @@ to flow (verified against crates.io, 2026-09-29).
 ### Class 2 — boundary pins (strict on purpose): the explicit ranges
 
 - `clap >=4.5, <4.7` — relaxed today (was `<4.6`), see below.
-- `notify >=7, <8` — notify 8 reworks the `Event`/`Config` watcher API
-  that `src/config/live_config/watcher.rs` matches on; live-reload is
-  a core feature and the migration is a dedicated-PR job
-  (DEPENDENCY_AUDIT: AUDIT THEN UPDATE). Note notify 9.0.0-rc.5 exists
-  as a pre-release — release candidates never enter the lockfile.
+- `notify >=8, <9` — migrated today (was `>=7, <8`), see below. The
+  ceiling stays a boundary pin: the 9.x line (currently 9.0.0-rc)
+  never enters the lockfile, and release candidates are never
+  lockfile candidates at all.
 
 A major-boundary pin is not "too strict"; it is the difference
 between `cargo update` being a no-op risk and being a code audit. The
@@ -95,9 +94,10 @@ exactly the updates that REQUIRE code changes.
 ### Class 3 — upstream pins (not ours to relax)
 
 `generic-array =0.14.7` via crypto-common 0.1.7, described above. The
-transitive RUSTSEC-2024-0384 `instant` advisory (via notify-types) is
-the same story: fixed only upstream, suppressed with rationale in
-`deny.toml`.
+transitive RUSTSEC-2024-0384 `instant` advisory (via notify-types) was
+the same story until today: the notify 8 migration pulled notify-types
+2.1.0, which dropped `instant` entirely — the crate is gone from the
+graph and the `deny.toml` suppress is retired with it.
 
 ## What changed today
 
@@ -134,12 +134,47 @@ or a 4.7 that removes something, still cannot enter the lockfile
 silently. One minor line of headroom is the maximum relaxation that
 keeps `cargo update` a no-audit operation.
 
+## The second relaxation of the day: notify 7 to 8
+
+Owner decision (2026-09-29, same session): the relax policy is
+approved with one hard boundary, stated as a dragon analogy — the
+skin may be upgraded, the heart is never edited. A dependency
+upgrade is allowed exactly as far as it never touches the critical
+core engine (the render engines and their frame path); watcher and
+CLI plumbing are skin.
+
+Under that rule the pending question — retire the RUSTSEC-2024-0384
+suppress if notify-types migrated, or do the notify 8 migration as a
+dedicated change — resolved by verification: notify-types 1.0.1
+still depends on `instant`, so the suppress cannot be retired in
+place; notify 8.2.0 (via notify-types 2.1.0) is the only path that
+removes the crate, and its API surface on this project (2 src files,
+1 test file, all in config live-reload plumbing — zero engine
+files) is identical across the 7 to 8 boundary. The migration landed
+as a pure pin bump: `>=7, <8` to `>=8, <9` in three target sections,
+zero source changes, verified by cargo check --locked --all-targets,
+clippy --all-features -D warnings, the full 2983-test suite, and the
+PTY config stresstest. Lockfile delta: notify 8.2.0, notify-types
+2.1.0, inotify 0.11.5, windows-sys 0.60.2; instant, bitflags 1.3.2
+and filetime leave the graph. The deny.toml advisory ignore is
+retired (advisories now run clean with zero ignores) and the skip
+list loses the bitflags entry (inotify 0.11 sits on bitflags 2),
+re-pinning the windows-sys skip to 0.60.2.
+
+The audit-table claim that motivated the 2-4 hour estimate
+("notify 8 reworks the Event API") did not survive contact with the
+compiler: it was an unverified overestimate, corrected in
+docs/DEPENDENCY_AUDIT.md. The 10 s A/B bench (release profile,
+baseline d533c98 vs the migration commit, cinematic + monolith
+controls) is recorded in
+[../bench-labs/night_dinner5/AB_REPORT.md](../bench-labs/night_dinner5/AB_REPORT.md).
+
 ## What stays strict and why (the one-glance table)
 
 | Dep | Constraint | Class | Why it stays |
 |-----|------------|-------|--------------|
 | clap | `>=4.5, <4.7` | boundary pin (relaxed) | headroom of one minor line; 5.x / removal-carrying 4.7+ stay out |
-| notify | `>=7, <8` | boundary pin | 8.x reworks the watcher Event API; live-reload is core; dedicated-PR migration, plus 9.x is only at rc |
+| notify | `>=8, <9` | boundary pin (migrated) | 8.x landed 2026-09-29 as a zero-source-change pin bump (owner-approved relax); the ceiling keeps 9.x (rc) out |
 | rand | `0.9` | auto-flow within line | 0.10 reworks the Rng/distr traits across ~15 call sites; visual regression risk needs an A/B benchmark campaign |
 | sha2 | `0.10` | auto-flow within line | 0.11 is a security-critical hashing-path rework (config change detection + fingerprints); HOLD per audit |
 | signal-hook | `0.3` | auto-flow within line | 0.4 changes the Signals iterator API; terminal-cleanup-on-Ctrl-C correctness is a dedicated-PR job |
@@ -157,15 +192,17 @@ keeps `cargo update` a no-audit operation.
    full validation pipeline (audit, deny, fmt, build, test, clippy)
    before the lockfile lands on main.
 3. **Every "blocked" update is a migration, not an update** — the
-   four major bumps each touch code paths whose failure mode is
-   visible (rain patterns, live reload, terminal cleanup) or
+   three remaining major bumps each touch code paths whose failure
+   mode is visible (rain patterns, terminal cleanup) or
    security-relevant (config hashing). They are scheduled work, not
-   constraint casualties.
+   constraint casualties. (notify, the fourth, migrated 2026-09-29.)
 4. **The user-visible confusion is now documented** — this file plus
    the refreshed DEPENDENCY_AUDIT.md state table exist so the next
    person who runs `cargo update --verbose` and sees `Unchanged`
-   eight times knows exactly which of the three classes each line
-   belongs to and that none of them means "cosmostrix is rotting".
+   knows exactly which of the three classes each line belongs to and
+   that none of them means "cosmostrix is rotting" (the list itself
+   shrank from eight lines to four on 2026-09-29: clap and notify
+   both moved).
 
 ## Cross-references
 

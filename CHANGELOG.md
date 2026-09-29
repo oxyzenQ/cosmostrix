@@ -63,7 +63,7 @@ tripwire note in the pre-v13 archive).
 - docs/SECURITY_AUDIT.md cross-references the new audit as the
   AI-agent-scale companion to the classical model.
 
-### deps: NIGHT-dinner-5 & research-1 — the strictness policy lands: clap relaxes to 4.6.7, the generic-array mystery is solved upstream, and the Unchanged list gets its decoder ring
+### deps: NIGHT-dinner-5 & research-1 — the strictness policy lands: clap relaxes to 4.6.7, notify migrates to 8.2.0 and clears RUSTSEC-2024-0384, the generic-array mystery is solved upstream, and the Unchanged list gets its decoder ring
 
 - The clap pin relaxes from `>=4.5, <4.6` to `>=4.5, <4.7` with a
   rationale comment in Cargo.toml: 4.6 is a minor release inside the
@@ -105,6 +105,33 @@ tripwire note in the pre-v13 archive).
   trail: the next person who runs `cargo update --verbose` and sees
   eight Unchanged lines knows exactly which lines mean what, and that
   none of them means the project is rotting.
+- Follow-up (same day, owner-approved relax policy): notify migrates
+  7.0.0 → 8.2.0, the one major bump that pays for itself. The owner
+  approved relaxed dependency headroom with one hard boundary, in his
+  own words: the dragon's skin may be upgraded, the heart is never
+  edited — a dependency upgrade must never touch the critical core
+  engine. notify passes that bar: the watcher API surface cosmostrix
+  uses (RecommendedWatcher::new, Config::default, the
+  Event{kind,paths,attrs} literal, EventKind::Modify/Create/Remove
+  matching — two src files, one test file) is identical across the
+  7→8 boundary, so the migration is a pure pin bump (`>=7, <8` to
+  `>=8, <9`, three target sections) with zero source changes,
+  verified by cargo check --locked --all-targets, clippy
+  --all-features -D warnings, the full 2983-test suite, and the PTY
+  config stresstest. The audit table's earlier "notify 8 reworked the
+  Event API" claim was an unverified overestimate — corrected in
+  docs/DEPENDENCY_AUDIT.md with the empirical result. Lockfile delta:
+  notify 8.2.0, notify-types 2.1.0, inotify 0.11.5, windows-sys
+  0.60.2, and three crates leave the graph — instant 0.1.13
+  (RUSTSEC-2024-0384, the unmaintained-advisory suppress since
+  v50.0.0-beta.7, retired from deny.toml now the crate is gone),
+  bitflags 1.3.2 (the inotify-0.10 duplicate; inotify 0.11 sits on
+  bitflags 2), and filetime (dropped upstream). deny.toml's skip list
+  loses the bitflags entry and re-pins the windows-sys skip to
+  0.60.2. The wall-of-Unchanged shrinks from eight lines to four —
+  every remaining line is classified in the strictness policy. A
+  follow-up commit records the 10 s A/B bench for the notify swap in
+  benchmark/bench-labs/night_dinner5/AB_REPORT.md.
 
 ### license: NIGHT-dinner-6 — the value-price realignment: Business and Company tiers rise to $5,000 and $50,199 a year, the unauthorized-use warning lands, and the piracy position goes on record
 

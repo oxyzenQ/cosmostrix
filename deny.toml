@@ -10,14 +10,12 @@ no-default-features = false
 feature-depth = 1
 
 [advisories]
-# v50.0.0-beta.7: RUSTSEC-2024-0384 — `instant` crate is unmaintained.
-# Pulled transitively by notify-types v1.0.1 -> notify v7.0.0. The
-# author recommends `web-time` as replacement, but notify-types has
-# not migrated yet. `instant` is only used for time measurement
-# (Instant::now wrapper) — not security-critical. No safe upgrade
-# available until notify-types publishes a new version. Suppressing
-# until upstream resolves.
-ignore = ["RUSTSEC-2024-0384"]
+# RUSTSEC-2024-0384 (`instant` unmaintained) — RESOLVED 2026-09-29 by
+# the notify 7 -> 8 migration (NIGHT-dinner-5 follow-up): notify-types
+# 2.x dropped `instant` entirely, the crate is no longer in the
+# dependency graph, and the v50.0.0-beta.7-era ignore entry is retired.
+# `cargo deny check advisories` now runs clean with no ignores.
+ignore = []
 
 [licenses]
 allow = [
@@ -55,25 +53,24 @@ deny = []
 # changes. These are caused by the dependency tree pulling in different
 # major versions of the same crate through different paths:
 #
-# - bitflags 1.3.2 (via inotify -> notify) vs 2.13.1 (via crossterm, ctrlc, etc.)
-#   notify v7 pulls inotify v0.10 which still uses bitflags 1.x; cannot force
-#   inotify to use bitflags 2.x without upstream PR. Expected to resolve when
-#   notify migrates to inotify 0.11+.
-#
-# - windows-sys 0.52.0 (via notify v7) vs 0.61.2 (via ctrlc, rustix, anstream,
-#   mio, etc.) Different minor versions of windows-sys — notify v7 pins
-#   0.52, the rest of the ecosystem uses 0.61. Windows-only, transitive-only.
-#
-# Both are Windows-specific or transitive-only — they don't affect the
-# cosmostrix binary on Linux/macOS/FreeBSD at runtime. Skipping them here
-# silences the duplicate-versions warning without hiding real issues.
+# - windows-sys 0.60.2 (via notify v8) vs 0.61.2 (via ctrlc, rustix,
+#   anstream, mio, etc.). Different minor versions of windows-sys —
+#   notify v8 pins 0.60, the rest of the ecosystem uses 0.61.
+#   Windows-only, transitive-only — it does not affect the cosmostrix
+#   binary on Linux/macOS/FreeBSD at runtime. Skipping it here silences
+#   the duplicate-versions warning without hiding real issues.
 #
 # v50.0.0-beta.7: removed mio 0.8.11 skip (notify 7 migrated to mio 1.x,
 # eliminating the duplicate). Removed windows-sys 0.48.0 skip (was from
 # the old mio 0.8 chain, no longer present).
+#
+# 2026-09-29 (notify 8 migration, NIGHT-dinner-5 follow-up): removed
+# the bitflags 1.3.2 skip — notify 8 moved inotify to 0.11, which uses
+# bitflags 2.x, so the bitflags 1.x duplicate is gone from the graph.
+# Updated the windows-sys skip from 0.52.0 to 0.60.2 (notify 8's new
+# floor).
 skip = [
-    { name = "bitflags", version = "1.3.2" },
-    { name = "windows-sys", version = "0.52.0" },
+    { name = "windows-sys", version = "0.60.2" },
 ]
 skip-tree = []
 
