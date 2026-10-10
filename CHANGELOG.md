@@ -192,6 +192,41 @@ when the version line closes.
 - Docs-only change: no source, build, or test surface touched, so no
   A/B benchmark per house rule.
 
+### fix+docs: night-total-lts-1 — the cosmostrix skill depth audit: the origin-side terminal reset/restore stack closes at peak, one stale-reference dragon removed
+
+- The full skill layer stack read under the five-dimension rubric
+  (stability and crash, code hygiene, optimization, security
+  hardening, LTS stability): `terminal/restore.rs`,
+  `terminal/terminal_tty.rs`, `terminal/cleanup.rs`,
+  `terminal/io_recovery.rs`, `platform/fork_guard.rs`,
+  `platform/panic_hook.rs`, `interactive/signal_handlers.rs`, the
+  `--reset-terminal` dispatch in `cli/early_returns.rs`, and the guard
+  install ordering in `interactive/event_loop.rs`. This is the origin
+  side of the skill zelynic imported as the `--reset-terminal` transfer
+  (NIGHT-hunt-31).
+- The hunt that came back clean: the Linux fork guard forks before any
+  thread exists (single-threaded fork by construction, verified against
+  every spawn site); the fork-vs-prctl race, the ~200 ms reparent
+  window, the Termux wedged-PTY deadlock, the double-panic coredump,
+  the SIGTERM zombie window, and the stdout-death mid-rain path are
+  each answered in code with tests or SAFETY comments; the three
+  external rescue programs run fixed argument vectors with no
+  user-shaped input (nothing to inject); the raw-fd writes are
+  bounds-checked with `n <= 0` termination.
+- The one dragon found and removed (the fix half of this entry): 14
+  live code references to `terminal.rs` — a file that no longer exists
+  since the monolith split — repointed to their real post-split homes
+  (`terminal/mod.rs`, `terminal/draw.rs`, `terminal/io_recovery.rs`)
+  across seven files, including the incubator's runtime verdict
+  strings. The two remaining `terminal.rs` mentions are deliberate
+  historical narrative and stay accurate.
+- Zero code-behavior changes, so no A/B benchmark per house rule; the
+  comment-only fix verified `cargo fmt --all --check` clean and
+  `cargo clippy --all-targets` zero warnings.
+- Full rationale, the per-dimension evidence, and the three trip wires
+  that would reopen the verdict:
+  [NIGHT_TOTAL_LTS_1_AUDIT_2026-10-11.md](docs/audits/NIGHT_TOTAL_LTS_1_AUDIT_2026-10-11.md).
+
 ---
 
 ## v4.0.0 — Atmosphere Engine + Monolith Rain
