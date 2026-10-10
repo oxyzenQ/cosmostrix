@@ -75,9 +75,5 @@ pub(crate) fn compute_peak_fps(sorted_ft: &[f64], count: usize) -> f64 {
         .copied()
         .find(|&t| t > PEAK_FPS_MIN_FRAME_MS)
         .unwrap_or(0.0);
-    if min_ft > 0.0 {
-        1000.0 / min_ft
-    } else {
-        0.0
-    }
+    if min_ft > 0.0 { 1000.0 / min_ft } else { 0.0 }
 }

@@ -34,12 +34,12 @@ use crossterm::style::Color;
 use std::time::Duration;
 
 use super::tests_black_hole::{run_frames, run_frames_to_steady};
+use crate::STUCK_CELL_SWEEP_INTERVAL_FRAMES;
 use crate::cell::Cell;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
-use crate::STUCK_CELL_SWEEP_INTERVAL_FRAMES;
 
 fn make_cloud(style: RainStyle) -> Cloud {
     let mut cloud = Cloud::new(

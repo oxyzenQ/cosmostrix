@@ -79,7 +79,7 @@ use std::time::Instant;
 
 use crossterm::style::Color;
 
-use crate::bolt::{write_u8_to_slice, BOLD_ESCAPES, BOLD_ESCAPE_LENS};
+use crate::bolt::{BOLD_ESCAPE_LENS, BOLD_ESCAPES, write_u8_to_slice};
 use crate::cell::Cell;
 use crate::color_cache::ColorCache;
 use crate::frame::Frame;
@@ -445,11 +445,11 @@ impl BenchIoWriter {
             Some(q) => (q.quantize_fg(fg), q.quantize_bg(bg)),
             None => (fg, bg),
         };
-        if let Some(cache) = cache {
-            if let Some(cached) = cache.sgr_for_cell_silent(fg, bg) {
-                buf.extend_from_slice(cached);
-                return;
-            }
+        if let Some(cache) = cache
+            && let Some(cached) = cache.sgr_for_cell_silent(fg, bg)
+        {
+            buf.extend_from_slice(cached);
+            return;
         }
         write_sgr_colors_buf(buf, fg, bg);
     }
@@ -558,55 +558,57 @@ fn emit_cell_lean(
     // (no emission quantizer). Non-truecolor runs route every style
     // change through `emit_sgr` so the wire bytes match the run's
     // resolved color mode.
-    if fg_changed && quant.is_none() && cell.ch.is_ascii() {
-        if let (Some(Color::Rgb { r, g, b }), None) = (cell.fg, cell.bg) {
-            let mut tmp = [0u8; 32];
-            // SGR prefix: \x1b[38;2;
-            tmp[0] = 0x1b;
-            tmp[1] = b'[';
-            tmp[2] = b'3';
-            tmp[3] = b'8';
-            tmp[4] = b';';
-            tmp[5] = b'2';
-            tmp[6] = b';';
-            let mut pos = 7;
-            pos += write_u8_to_slice(&mut tmp[pos..], r);
-            tmp[pos] = b';';
-            pos += 1;
-            pos += write_u8_to_slice(&mut tmp[pos..], g);
-            tmp[pos] = b';';
-            pos += 1;
-            pos += write_u8_to_slice(&mut tmp[pos..], b);
-            // SGR terminator: ;49m  (49 = default bg)
-            tmp[pos] = b';';
-            pos += 1;
-            tmp[pos] = b'4';
-            pos += 1;
-            tmp[pos] = b'9';
-            pos += 1;
-            tmp[pos] = b'm';
-            pos += 1;
-            // Optional bold escape (only if bold changed).
-            // Branchless: index into BOLD_ESCAPES via `cell.bold as usize`
-            // (compiles to setne on x86 — no branch). The previous
-            // `if cell.bold { ... } else { ... }` had different byte counts
-            // (4 vs 5) which made cmov-style selection impossible without
-            // a table. The table lookup is branchless and L1-cached.
-            if bold_changed {
-                let idx = cell.bold as usize;
-                let len = BOLD_ESCAPE_LENS[idx];
-                tmp[pos..pos + len].copy_from_slice(BOLD_ESCAPES[idx]);
-                pos += len;
-                cursor.bold = cell.bold;
-            }
-            // Glyph (ASCII — 1 byte, no encode_utf8 needed)
-            tmp[pos] = cell.ch as u8;
-            pos += 1;
-            ansi_buf.extend_from_slice(&tmp[..pos]);
-            cursor.fg = cell.fg;
-            cursor.bg = cell.bg;
-            return;
+    if fg_changed
+        && quant.is_none()
+        && cell.ch.is_ascii()
+        && let (Some(Color::Rgb { r, g, b }), None) = (cell.fg, cell.bg)
+    {
+        let mut tmp = [0u8; 32];
+        // SGR prefix: \x1b[38;2;
+        tmp[0] = 0x1b;
+        tmp[1] = b'[';
+        tmp[2] = b'3';
+        tmp[3] = b'8';
+        tmp[4] = b';';
+        tmp[5] = b'2';
+        tmp[6] = b';';
+        let mut pos = 7;
+        pos += write_u8_to_slice(&mut tmp[pos..], r);
+        tmp[pos] = b';';
+        pos += 1;
+        pos += write_u8_to_slice(&mut tmp[pos..], g);
+        tmp[pos] = b';';
+        pos += 1;
+        pos += write_u8_to_slice(&mut tmp[pos..], b);
+        // SGR terminator: ;49m  (49 = default bg)
+        tmp[pos] = b';';
+        pos += 1;
+        tmp[pos] = b'4';
+        pos += 1;
+        tmp[pos] = b'9';
+        pos += 1;
+        tmp[pos] = b'm';
+        pos += 1;
+        // Optional bold escape (only if bold changed).
+        // Branchless: index into BOLD_ESCAPES via `cell.bold as usize`
+        // (compiles to setne on x86 — no branch). The previous
+        // `if cell.bold { ... } else { ... }` had different byte counts
+        // (4 vs 5) which made cmov-style selection impossible without
+        // a table. The table lookup is branchless and L1-cached.
+        if bold_changed {
+            let idx = cell.bold as usize;
+            let len = BOLD_ESCAPE_LENS[idx];
+            tmp[pos..pos + len].copy_from_slice(BOLD_ESCAPES[idx]);
+            pos += len;
+            cursor.bold = cell.bold;
         }
+        // Glyph (ASCII — 1 byte, no encode_utf8 needed)
+        tmp[pos] = cell.ch as u8;
+        pos += 1;
+        ansi_buf.extend_from_slice(&tmp[..pos]);
+        cursor.fg = cell.fg;
+        cursor.bg = cell.bg;
+        return;
     }
 
     // Fallback path: any cell that didn't match the Strategy E fast path.

@@ -48,7 +48,7 @@ use super::super::monolith::monolith_helpers::{
 use super::super::monolith::{BrightnessLevel, MonolithCleanup};
 
 use super::drops::AeolianDrop;
-use super::strings::{is_knot, level_for_amplitude, AeolianStrings};
+use super::strings::{AeolianStrings, is_knot, level_for_amplitude};
 
 /// One drawn cell (col, line) — the diff-cleanup currency (same
 /// shape as `LorenzCell`/`VortexCell`).
@@ -510,12 +510,11 @@ impl AeolianRain {
             // Matrix shimmer: mutate the glyph when the head lands
             // on a new cell.
             if d.trail_len() > 0 {
-                if let Some((prev_col, prev_line)) = d.trail_cell(d.trail_len() as usize - 1) {
-                    if (prev_col != col || prev_line != line)
-                        && rand_chance.sample(rng) < AEOLIAN_SHIMMER_CHANCE
-                    {
-                        d.ch = pick_pool_char(ctx.char_pool, rand_chance, rng);
-                    }
+                if let Some((prev_col, prev_line)) = d.trail_cell(d.trail_len() as usize - 1)
+                    && (prev_col != col || prev_line != line)
+                    && rand_chance.sample(rng) < AEOLIAN_SHIMMER_CHANCE
+                {
+                    d.ch = pick_pool_char(ctx.char_pool, rand_chance, rng);
                 }
             } else {
                 d.ch = pick_pool_char(ctx.char_pool, rand_chance, rng);
@@ -545,7 +544,7 @@ impl AeolianRain {
         // Pass C — the generation-tagged diff cleanup (monolith
         // pattern: u32 counter bump instead of clearing the array).
         self.drawn_gen_counter = self.drawn_gen_counter.wrapping_add(1);
-        let gen = self.drawn_gen_counter;
+        let r#gen = self.drawn_gen_counter;
         let need_len = self.drops.len().saturating_mul(lines_us.max(1));
         if self.drawn_gen.len() != need_len {
             self.drawn_gen.resize(need_len, 0);
@@ -553,7 +552,7 @@ impl AeolianRain {
         for cell in &self.current_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
             if idx < self.drawn_gen.len() {
-                self.drawn_gen[idx] = gen;
+                self.drawn_gen[idx] = r#gen;
             }
             // NIGHT-hunter-29 (the phosphor ownership rule — the
             // doc on clear_phosphor_metadata): a cell drawn this
@@ -568,7 +567,7 @@ impl AeolianRain {
         let drawn_gen = &self.drawn_gen[..];
         for cell in &self.previous_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
-            if idx < drawn_gen.len() && drawn_gen[idx] == gen {
+            if idx < drawn_gen.len() && drawn_gen[idx] == r#gen {
                 continue;
             }
             clear_cell(frame, cleanup, cell.col, cell.line);

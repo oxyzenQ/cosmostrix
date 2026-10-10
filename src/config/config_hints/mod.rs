@@ -53,20 +53,21 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     // Pattern 1: a top-level key accidentally nested under [color.tune].
     // Triggered by `color.tune.<suffix>` where `<suffix>` is a recognized
     // top-level USER_CONFIG_KEYS entry (e.g. `color.tune.bold`).
-    if let Some(suffix) = key.strip_prefix("color.tune.") {
-        if !suffix.is_empty() && is_top_level_user_key(suffix) {
-            let mut hint = format!(
-                "'{key}': '{suffix}' is a top-level key, not a [color.tune] field. \
+    if let Some(suffix) = key.strip_prefix("color.tune.")
+        && !suffix.is_empty()
+        && is_top_level_user_key(suffix)
+    {
+        let mut hint = format!(
+            "'{key}': '{suffix}' is a top-level key, not a [color.tune] field. \
                  Move it out of [color.tune] — write it at the file root as: {suffix} = <value>"
-            );
-            // `bold` is doubly wrong: wrong location AND wrong value type
-            // (it's a 0/1/2 enum, not a boolean). Call this out so the user
-            // doesn't fix the location and re-trigger an error with `bold = true`.
-            if suffix == "bold" {
-                hint.push_str(" (values: 0=off, 1=random default, 2=all — not booleans)");
-            }
-            return Some(hint);
+        );
+        // `bold` is doubly wrong: wrong location AND wrong value type
+        // (it's a 0/1/2 enum, not a boolean). Call this out so the user
+        // doesn't fix the location and re-trigger an error with `bold = true`.
+        if suffix == "bold" {
+            hint.push_str(" (values: 0=off, 1=random default, 2=all — not booleans)");
         }
+        return Some(hint);
     }
 
     // Pattern 2: adaptive-custom nested under [scene-custom.<name>].
@@ -188,18 +189,17 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     if let Some(rest) = key.strip_prefix("colors-custom.") {
         // rest looks like "<name>.<field>" or "<name>.<sub>.<...>".
         // Split off the name; everything after is the "field" portion.
-        if let Some((name, field)) = rest.split_once('.') {
-            if !name.is_empty()
-                && name
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-            {
-                // Defensive guard: if the field is one of the three valid
-                // ones, the key wouldn't have reached unknown_keys in normal
-                // flow — but be paranoid and don't emit a misleading hint.
-                if !crate::configfile::is_valid_colors_custom_field(field) {
-                    return Some(colors_custom_field_hint(key, field));
-                }
+        if let Some((name, field)) = rest.split_once('.')
+            && !name.is_empty()
+            && name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            // Defensive guard: if the field is one of the three valid
+            // ones, the key wouldn't have reached unknown_keys in normal
+            // flow — but be paranoid and don't emit a misleading hint.
+            if !crate::configfile::is_valid_colors_custom_field(field) {
+                return Some(colors_custom_field_hint(key, field));
             }
         }
     }
@@ -248,13 +248,14 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     // A dotted key like `collor.tune.brightness` would NOT trigger this
     // (it would fall through to None), which is correct because the user
     // likely mis-nested the entire section, not just typo'd the prefix.
-    if !key.contains('.') && !key.is_empty() {
-        if let Some(suggestion) = closest_top_level_key(key) {
-            return Some(format!(
-                "'{key}': unknown key (likely typo){}\n                 Run 'cosmostrix --testconf' to see all valid config keys.",
-                crate::cli::ux::format_value_suggestion(suggestion)
-            ));
-        }
+    if !key.contains('.')
+        && !key.is_empty()
+        && let Some(suggestion) = closest_top_level_key(key)
+    {
+        return Some(format!(
+            "'{key}': unknown key (likely typo){}\n                 Run 'cosmostrix --testconf' to see all valid config keys.",
+            crate::cli::ux::format_value_suggestion(suggestion)
+        ));
     }
 
     // Pattern 6 (LTS audit 2026-08-19): removed v15-era `auto-color-drift`

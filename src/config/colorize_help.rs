@@ -14,8 +14,8 @@
 //! annotation lines that sit ABOVE each example stay plain — position,
 //! not color, marks them as commentary.
 
-use crate::output::color_capability;
 use crate::output::ColorCapability;
+use crate::output::color_capability;
 
 /// Bold Matrix green open sequence for --help example command lines,
 /// capability-aware (the same four-rung ladder as

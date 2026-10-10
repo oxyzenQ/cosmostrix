@@ -260,7 +260,9 @@ pub fn spawn_kill9_terminal_guard() {
         // Spawn failed — log to stderr (best-effort, never panic here).
         let _ = std::io::Write::write_fmt(
             &mut std::io::stderr(),
-            format_args!("cosmostrix: warning — terminal guard thread spawn failed; SIGKILL recovery disabled\n"),
+            format_args!(
+                "cosmostrix: warning — terminal guard thread spawn failed; SIGKILL recovery disabled\n"
+            ),
         );
     }
 }

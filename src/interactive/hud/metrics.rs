@@ -39,8 +39,8 @@
 use std::time::Instant;
 
 use super::{
-    compute_chroma_gradient_25, format_rss_kb, FrameMode, HudState, HUD_MAX_WIDTH,
-    HUD_METRIC_INTERVAL, HUD_MIN_WIDTH,
+    FrameMode, HUD_MAX_WIDTH, HUD_METRIC_INTERVAL, HUD_MIN_WIDTH, HudState,
+    compute_chroma_gradient_25, format_rss_kb,
 };
 
 impl HudState {

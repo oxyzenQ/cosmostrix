@@ -26,9 +26,9 @@ mod cases_kitty_shift {
     use crate::cloud::Cloud;
     use crate::frame::Frame;
 
-    use crate::interactive::input::{handle_keybinding, normalize_shifted_char, KeybindingCtx};
-    use crate::platform::{default_term_reinit, TermReinit};
     use crate::CloudConfig;
+    use crate::interactive::input::{KeybindingCtx, handle_keybinding, normalize_shifted_char};
+    use crate::platform::{TermReinit, default_term_reinit};
 
     /// Duplicated from `tests.rs::mod cases::make_test_cloud()` (test fixture, stable).
     fn make_test_cloud() -> Cloud {

@@ -136,7 +136,9 @@ pub(crate) fn print_list_charsets() {
     println_safe!("  runic        Runic");
     println_safe!("  zen          Pipe character only (default for cinematic & monolith)");
     println_safe!();
-    println_safe!("  Or define a custom charset in config.toml via [charset-custom.<name>] (see --dump-config).");
+    println_safe!(
+        "  Or define a custom charset in config.toml via [charset-custom.<name>] (see --dump-config)."
+    );
 
     // v25: Show custom charsets from config (if any).
     let cfg = crate::configfile::load_config_file(None);
@@ -439,13 +441,15 @@ mod tests {
         use super::oversized_custom_block_names;
         use std::collections::HashMap;
         let cfg = HashMap::from([("scene-custom.ok.rain".to_string(), "glyph".to_string())]);
-        assert!(oversized_custom_block_names(
-            &cfg,
-            "scene-custom.",
-            crate::scene_custom::SCENE_CUSTOM_FIELDS,
-            crate::scene_custom::SCENE_CUSTOM_MAX_NAME_LEN
-        )
-        .is_empty());
+        assert!(
+            oversized_custom_block_names(
+                &cfg,
+                "scene-custom.",
+                crate::scene_custom::SCENE_CUSTOM_FIELDS,
+                crate::scene_custom::SCENE_CUSTOM_MAX_NAME_LEN
+            )
+            .is_empty()
+        );
     }
 
     // ── NIGHT-cybersecurity-1: escape hardening ─────────────────────

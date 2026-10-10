@@ -198,7 +198,7 @@ mod hunt24_tests {
 
     use std::time::{Duration, Instant};
 
-    use super::{EffectsAutoGate, AUTO_FX_DRAIN_BACKOFF_THRESHOLD, AUTO_FX_SUSTAIN_SECS};
+    use super::{AUTO_FX_DRAIN_BACKOFF_THRESHOLD, AUTO_FX_SUSTAIN_SECS, EffectsAutoGate};
     use crate::cloud::Cloud;
 
     /// Same fixture shape as `tests.rs::make_test_cloud()` (stable test

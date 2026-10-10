@@ -55,8 +55,8 @@ use crate::chroma_dragon_engine::gradient::oklab_blend_rgb;
 use crate::chroma_dragon_engine::palette::color_to_rgb;
 
 use super::{
-    end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
-    should_skip, IntroOutcome, Particle, ParticlePaint, ParticlePool, XorShift, PARTICLE_POOL_SIZE,
+    IntroOutcome, PARTICLE_POOL_SIZE, Particle, ParticlePaint, ParticlePool, XorShift, end_frame,
+    lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng, should_skip,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

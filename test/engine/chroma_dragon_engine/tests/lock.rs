@@ -72,7 +72,7 @@ use crate::chroma_dragon_engine::gradient::{
 use crate::chroma_dragon_engine::palette::{
     apply_body_tail_continuity_with, build_palette, color_to_rgb,
 };
-use crate::chroma_dragon_engine::shaders::transition::{apply_l_smoothing, TransitionLTable};
+use crate::chroma_dragon_engine::shaders::transition::{TransitionLTable, apply_l_smoothing};
 use crate::chroma_dragon_engine::tuning::{
     ABSOLUTE_MIN_FLOOR, BODY_TAIL_MAX_GAP_RATIO, GLOBAL_MAX_FLOOR, PALETTE_FLOOR_RATIO,
 };

@@ -266,7 +266,7 @@ fn c16_no_black_slots_anywhere() {
 /// and fall back to per-cell emission quantization.
 #[test]
 fn c16_hand_tuned_arrays_are_named_base16() {
-    use crate::engine::chroma_dragon_engine::catalog::{ThemeColors, THEMES};
+    use crate::engine::chroma_dragon_engine::catalog::{THEMES, ThemeColors};
     for t in THEMES.iter() {
         if let ThemeColors::StopsWithC16 { c16, .. } | ThemeColors::RgbWithC16 { c16, .. } = &t.def
         {

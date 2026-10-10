@@ -810,7 +810,7 @@ impl DragonRain {
         // Pass 2: generation-tag every drawn cell (monolith pattern —
         // u32 counter bump instead of clearing the array).
         self.drawn_gen_counter = self.drawn_gen_counter.wrapping_add(1);
-        let gen = self.drawn_gen_counter;
+        let r#gen = self.drawn_gen_counter;
         // Dragon chains are sparse (a few hundred cells at most), so
         // the drawn_gen array is sized to cols*lines like the other
         // structured styles for direct indexing.
@@ -821,7 +821,7 @@ impl DragonRain {
         for cell in &self.current_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
             if idx < self.drawn_gen.len() {
-                self.drawn_gen[idx] = gen;
+                self.drawn_gen[idx] = r#gen;
             }
             // NIGHT-hunter-29 (the phosphor ownership rule — the
             // doc on clear_phosphor_metadata): a cell drawn this
@@ -836,7 +836,7 @@ impl DragonRain {
         let drawn_gen = &self.drawn_gen[..];
         for cell in &self.previous_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
-            if idx < drawn_gen.len() && drawn_gen[idx] == gen {
+            if idx < drawn_gen.len() && drawn_gen[idx] == r#gen {
                 continue;
             }
             clear_cell(frame, cleanup, cell.col, cell.line);

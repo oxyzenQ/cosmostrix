@@ -81,7 +81,7 @@ use std::time::Instant;
 use crossterm::style::Color;
 use rand::distr::Distribution;
 
-use super::{index_fraction, index_pacing, lagged_border, CellReveal};
+use super::{CellReveal, index_fraction, index_pacing, lagged_border};
 use crate::cell::Cell;
 use crate::constants::PARTICLE_MAX_FRAME_DT_SECS;
 use crate::frame::Frame;
@@ -305,14 +305,13 @@ impl crate::cloud::Cloud {
         // detector): a resize can remap content indices and move the
         // head BACKWARD — not a newly scorch'd char, no puff.
         // last_head == usize::MAX is the fresh-reveal sentinel.
-        if let (Some((col, line)), Some(_)) = (head_pos, elapsed_ms) {
-            if head_idx != self.scorch.last_head
-                && (self.scorch.last_head == usize::MAX || head_idx > self.scorch.last_head)
-            {
-                self.scorch.last_head = head_idx;
-                if self.effects_enabled {
-                    self.spawn_scorch_puff(col, line, now);
-                }
+        if let (Some((col, line)), Some(_)) = (head_pos, elapsed_ms)
+            && head_idx != self.scorch.last_head
+            && (self.scorch.last_head == usize::MAX || head_idx > self.scorch.last_head)
+        {
+            self.scorch.last_head = head_idx;
+            if self.effects_enabled {
+                self.spawn_scorch_puff(col, line, now);
             }
         }
         self.draw_scorch_smoke(frame, now);
@@ -452,7 +451,7 @@ impl crate::cloud::Cloud {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{content_reveal, index_reveal_count, MsgFillStyle};
+    use super::super::{MsgFillStyle, content_reveal, index_reveal_count};
     use super::*;
 
     #[test]

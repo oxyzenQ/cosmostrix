@@ -10,7 +10,7 @@
 //! headers, and the extraction helper.
 
 use crate::configfile::parse_config_text;
-use crate::configfile::{is_custom_block_section, ParsedConfig};
+use crate::configfile::{ParsedConfig, is_custom_block_section};
 
 #[test]
 fn custom_block_headers_are_recorded_sorted_and_deduped() {

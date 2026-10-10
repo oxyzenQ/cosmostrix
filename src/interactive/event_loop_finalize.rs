@@ -16,7 +16,7 @@
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
-use crate::bench_helpers::{format_backpressure_section, BackpressureStats};
+use crate::bench_helpers::{BackpressureStats, format_backpressure_section};
 use crate::cloud::Cloud;
 use crate::constants::*;
 use crate::humanize::{humanize, humanize_bytes, humanize_bytes_f64, humanize_throughput};

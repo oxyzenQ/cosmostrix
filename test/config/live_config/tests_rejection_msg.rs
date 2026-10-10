@@ -9,8 +9,8 @@
 
 use super::tests::minimal_cloud_config;
 use super::*;
-use std::sync::atomic::Ordering;
 use std::sync::Mutex;
+use std::sync::atomic::Ordering;
 
 use crate::configfile;
 

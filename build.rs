@@ -1,6 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
-// LOC_EXEMPT: build script is a single-file cargo contract; its test suite must stay in-file for the standalone runner (rustc --edition 2021 --test build.rs) and grew past the cap through the hunt-2/hunt-3 hardening.
+// LOC_EXEMPT: build script is a single-file cargo contract; its test suite must stay in-file for the standalone runner (rustc --edition 2024 --test build.rs) and grew past the cap through the hunt-2/hunt-3 hardening.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -494,11 +494,7 @@ fn is_native_tuned_build(build_id: &str) -> bool {
 /// build. Only the final `nitro-pgo` stage, which consumes the collected
 /// `.profdata`, should report `pgo: yes`.
 fn pgo_label(build_id: &str) -> &'static str {
-    if build_id == "nitro-pgo" {
-        "yes"
-    } else {
-        "no"
-    }
+    if build_id == "nitro-pgo" { "yes" } else { "no" }
 }
 
 fn missing_required_features(baseline: &str, features: &HashSet<String>) -> Vec<&'static str> {
@@ -533,7 +529,9 @@ fn fail_cpu_baseline(
     eprintln!("  target_features: {}", format_target_features(features));
     eprintln!("  reason: {reason}");
     eprintln!();
-    eprintln!("Use the cargo aliases (for example `cargo pro-linux-amd64-v3-gnu`) or set matching RUSTFLAGS explicitly.");
+    eprintln!(
+        "Use the cargo aliases (for example `cargo pro-linux-amd64-v3-gnu`) or set matching RUSTFLAGS explicitly."
+    );
     std::process::exit(1);
 }
 
@@ -749,7 +747,7 @@ mod tests {
     // build.rs as a build dependency, not a test target. These tests only
     // run via the standalone runner (also documented in docs/MAINTENANCE.md):
     //
-    //   rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests
+    //   rustc --edition 2024 --test build.rs -o /tmp/cosmostrix-build-script-tests
     //   /tmp/cosmostrix-build-script-tests
     //
     // The epoch constants below are date-verified via `date -u` so the

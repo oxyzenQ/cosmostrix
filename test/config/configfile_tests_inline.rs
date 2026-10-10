@@ -469,8 +469,13 @@ fn resolve_watcher_config_path_returns_default_when_no_candidates_exist() {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved_home = std::env::var("HOME").ok();
     let saved_xdg = std::env::var("XDG_CONFIG_HOME").ok();
-    std::env::remove_var("HOME");
-    std::env::remove_var("XDG_CONFIG_HOME");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::remove_var("HOME");
+        std::env::remove_var("XDG_CONFIG_HOME");
+    }
 
     // Mark Termux detection as needing re-check by clearing env vars
     // that might match (the test runner might be on a system where
@@ -479,10 +484,20 @@ fn resolve_watcher_config_path_returns_default_when_no_candidates_exist() {
 
     // Restore env vars immediately to avoid breaking other tests.
     if let Some(h) = saved_home {
-        std::env::set_var("HOME", h);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::set_var("HOME", h);
+        }
     }
     if let Some(x) = saved_xdg {
-        std::env::set_var("XDG_CONFIG_HOME", x);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::set_var("XDG_CONFIG_HOME", x);
+        }
     }
 
     // When HOME and XDG_CONFIG_HOME are both unset, the default path
@@ -627,9 +642,11 @@ fn startup_memo_carries_full_diagnostics() {
     // (malformed lines) are part of the same coherent snapshot.
     let path = unique_temp_config("color = green\nnot a toml line\n");
     let parsed = load_config_file_full(Some(path.as_path()));
-    assert!(parsed
-        .malformed_lines
-        .contains(&"not a toml line".to_string()));
+    assert!(
+        parsed
+            .malformed_lines
+            .contains(&"not a toml line".to_string())
+    );
     // The memo hit returns the SAME diagnostics.
     let again = load_config_file_full(Some(path.as_path()));
     assert_eq!(parsed, again);

@@ -20,7 +20,7 @@ use rand::distr::Distribution;
 use crate::constants::{NEUR_BURST_INPUTS, NEUR_FANOUT, NEUR_REFRACTORY, NEUR_WIRE_STAGGER_WINDOW};
 
 use super::genesis::GenesisPhase;
-use super::network::{pulse_speed, NeuralRandom, Synapse};
+use super::network::{NeuralRandom, Synapse, pulse_speed};
 use super::neural::NeuralRain;
 
 impl NeuralRain {

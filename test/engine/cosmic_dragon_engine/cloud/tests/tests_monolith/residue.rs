@@ -7,8 +7,8 @@
 use std::time::{Duration, Instant};
 
 use super::{
-    disable_monolith_spawning, make_monolith_cloud, phosphor_index, run_frames,
-    seed_stale_phosphor, seeded_residue_count, visible_cell_count, ColorScheme, Frame, ShadingMode,
+    ColorScheme, Frame, ShadingMode, disable_monolith_spawning, make_monolith_cloud,
+    phosphor_index, run_frames, seed_stale_phosphor, seeded_residue_count, visible_cell_count,
 };
 
 #[test]

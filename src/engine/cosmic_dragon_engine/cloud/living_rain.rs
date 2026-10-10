@@ -237,8 +237,8 @@ pub(crate) fn column_density_modifier(col: u16, elapsed_secs: f64) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::StdRng;
     use rand::SeedableRng;
+    use rand::rngs::StdRng;
 
     fn fixed_rng() -> StdRng {
         StdRng::seed_from_u64(0xC0DE_C0FFEE)

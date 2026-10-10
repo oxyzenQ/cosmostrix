@@ -14,8 +14,8 @@
 use crate::frame::Frame;
 
 use super::super::super::render::DrawCtx;
-use super::super::monolith::monolith_helpers::{bold_for_level, color_for_level};
 use super::super::monolith::BrightnessLevel;
+use super::super::monolith::monolith_helpers::{bold_for_level, color_for_level};
 
 /// Radial brightness band for the annulus: `t` is the normalized radial
 /// position, 0.0 at the core edge (event horizon) and 1.0 at the outer

@@ -7,8 +7,8 @@
 use std::time::{Duration, Instant};
 
 use super::{
-    build_chars, charset_from_str, make_monolith_cloud, run_frames, visible_char_signature,
-    visible_chars, Frame, CHARSET_TRANSITION_DURATION_MS,
+    CHARSET_TRANSITION_DURATION_MS, Frame, build_chars, charset_from_str, make_monolith_cloud,
+    run_frames, visible_char_signature, visible_chars,
 };
 
 #[test]
@@ -105,9 +105,11 @@ fn monolith_charset_presets_drive_distinct_segment_glyphs() {
             assert!(signature.iter().any(|ch| matches!(ch, '0' | '1')));
         }
         if preset == "katakana" {
-            assert!(signature
-                .iter()
-                .any(|ch| ('\u{FF66}'..='\u{FF9D}').contains(ch)));
+            assert!(
+                signature
+                    .iter()
+                    .any(|ch| ('\u{FF66}'..='\u{FF9D}').contains(ch))
+            );
         }
         signatures.push(signature);
     }

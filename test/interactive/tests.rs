@@ -5,7 +5,7 @@
 mod cases {
     use std::time::{Duration, Instant};
 
-    use crate::platform::{default_term_reinit, TermReinit};
+    use crate::platform::{TermReinit, default_term_reinit};
 
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -15,9 +15,9 @@ mod cases {
 
     use crate::interactive::activity::{idle_resync_due, is_runtime_idle, register_activity};
     use crate::interactive::input::{
-        handle_keybinding, runtime_speed_clamp, KeybindingCtx, PasteBurstGuard,
+        KeybindingCtx, PasteBurstGuard, handle_keybinding, runtime_speed_clamp,
     };
-    use crate::{cycle_charset_preset, cycle_color_scheme, CloudConfig, PowerManager};
+    use crate::{CloudConfig, PowerManager, cycle_charset_preset, cycle_color_scheme};
 
     fn key(ch: char) -> KeyEvent {
         KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE)

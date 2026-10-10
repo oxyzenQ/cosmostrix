@@ -12,8 +12,8 @@ use crate::cell::Cell;
 use crate::constants::*;
 use crate::palette;
 
-use super::state::{AnomalyKind, AnomalyZone};
 use super::Cloud;
+use super::state::{AnomalyKind, AnomalyZone};
 
 #[inline]
 fn captured_phosphor_energy(line: u16, lines: u16) -> u8 {

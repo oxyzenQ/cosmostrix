@@ -15,7 +15,7 @@
 //!   the fresh bit clear, so Pass 3's exponential decay branch is reached
 //!   without needing a real droplet to move away first.
 //! - `frame.clear_with_bg()` bumps the frame generation WITHOUT rewriting
-//!   cell generations, so the seeded cell is not current-gen: this avoids
+//!   cell generations, so the seeded cell is not current-r#gen: this avoids
 //!   the `is_blank_current_gen` fast path (which would force the cell to
 //!   PHOSPHOR_TAIL_RESIDUAL and mask the adaptive difference).
 
@@ -41,7 +41,7 @@ fn decayed_energy(pressure: f32, energy: u8) -> u8 {
     assert!(!cloud.phosphor_fresh[pidx], "seeded cell must start stale");
 
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
-    frame.clear_with_bg(cloud.palette.bg); // bump gen: seeded cell is now stale-gen
+    frame.clear_with_bg(cloud.palette.bg); // bump r#gen: seeded cell is now stale-r#gen
     cloud.phosphor_decay_pass(&mut frame, 0.05);
 
     cloud.phosphor[pidx]

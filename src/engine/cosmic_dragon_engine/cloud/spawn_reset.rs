@@ -14,9 +14,9 @@ use std::time::{Duration, Instant};
 
 #[allow(unused_imports)]
 use rand::{
+    SeedableRng,
     distr::{Distribution, Uniform},
     rngs::StdRng,
-    SeedableRng,
 };
 
 #[allow(unused_imports)]

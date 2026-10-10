@@ -21,16 +21,16 @@
 //! blank_cell()` call sites resolve unchanged.
 
 #[cfg(unix)]
-use std::io::{stdin, IsTerminal};
-use std::io::{stdout, Write};
+use std::io::{IsTerminal, stdin};
+use std::io::{Write, stdout};
 #[cfg(unix)]
 use std::process::Command;
 
+use crossterm::ExecutableCommand as _;
 use crossterm::cursor;
 use crossterm::event;
 use crossterm::style::{Attribute, Color, ResetColor, SetAttribute};
 use crossterm::terminal as crossterm_terminal;
-use crossterm::ExecutableCommand as _;
 
 use crate::cell::Cell;
 

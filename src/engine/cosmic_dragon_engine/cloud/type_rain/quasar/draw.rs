@@ -54,7 +54,7 @@ use super::super::monolith::monolith_helpers::{
 };
 use super::super::monolith::{BrightnessLevel, MonolithCleanup};
 use super::ignition::IgnitionPhase;
-use super::particles::{los_of, Particle, HALO_ROUND};
+use super::particles::{HALO_ROUND, Particle, los_of};
 use super::quasar::{QuasCell, QuasarRain};
 
 /// The cell painter: the per-cell render contract (palette-aware
@@ -236,10 +236,10 @@ impl QuasarRain {
                 }
                 let (x, y) = self.geom.project_jet(p.s, p.side, prec_phase, helix_amp);
                 let mut level = soft_head_level(jet_level(p.s));
-                if let Some(k) = knot {
-                    if (p.s - k).abs() < QUAS_KNOT_W {
-                        level = step_up_level(level);
-                    }
+                if let Some(k) = knot
+                    && (p.s - k).abs() < QUAS_KNOT_W
+                {
+                    level = step_up_level(level);
                 }
                 QuasPainter {
                     ctx,
@@ -278,10 +278,11 @@ impl QuasarRain {
                 rng,
             };
             // The wake: the previous head cell, one rung dimmer.
-            if let Some((tc, tl)) = p.trail_cell() {
-                if tc < ctx.cols && tl < ctx.lines {
-                    painter.streak(p, tc, tl, step_down_level(level));
-                }
+            if let Some((tc, tl)) = p.trail_cell()
+                && tc < ctx.cols
+                && tl < ctx.lines
+            {
+                painter.streak(p, tc, tl, step_down_level(level));
             }
             painter.cell(p, x, y, level, 1.0);
         }
@@ -341,7 +342,7 @@ impl QuasarRain {
         // Pass F — the generation-tagged diff cleanup (monolith
         // pattern: u32 counter bump instead of clearing the array).
         self.drawn_gen_counter = self.drawn_gen_counter.wrapping_add(1);
-        let gen = self.drawn_gen_counter;
+        let r#gen = self.drawn_gen_counter;
         let total = self.disk.len() + self.jets.len() + self.halo.len() + self.infall.len();
         let need_len = total.saturating_mul(lines_us.max(1)).max(8);
         if self.drawn_gen.len() != need_len {
@@ -350,7 +351,7 @@ impl QuasarRain {
         for cell in &self.current_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
             if idx < self.drawn_gen.len() {
-                self.drawn_gen[idx] = gen;
+                self.drawn_gen[idx] = r#gen;
             }
             // NIGHT-hunter-29 (the phosphor ownership rule — the
             // doc on clear_phosphor_metadata): a cell drawn this
@@ -365,7 +366,7 @@ impl QuasarRain {
         let drawn_gen = &self.drawn_gen[..];
         for cell in &self.previous_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
-            if idx < drawn_gen.len() && drawn_gen[idx] == gen {
+            if idx < drawn_gen.len() && drawn_gen[idx] == r#gen {
                 continue;
             }
             clear_cell(frame, cleanup, cell.col, cell.line);

@@ -69,10 +69,10 @@ pub(super) fn visible_content_cells(frame: &Frame, cloud: &Cloud) -> Vec<(u16, u
         if mc.is_border || mc.val == ' ' {
             continue;
         }
-        if let Some(cell) = frame.get(mc.col, mc.line) {
-            if cell.ch == mc.val {
-                cells.push((mc.col, mc.line, mc.val));
-            }
+        if let Some(cell) = frame.get(mc.col, mc.line)
+            && cell.ch == mc.val
+        {
+            cells.push((mc.col, mc.line, mc.val));
         }
     }
     cells
@@ -392,10 +392,10 @@ fn spark_glyphs(frame: &Frame) -> Vec<(u16, u16, char)> {
     let mut out = Vec::new();
     for y in 0..12u16 {
         for x in 0..30u16 {
-            if let Some(cell) = frame.get(x, y) {
-                if cell.ch == '·' || cell.ch == '*' {
-                    out.push((x, y, cell.ch));
-                }
+            if let Some(cell) = frame.get(x, y)
+                && (cell.ch == '·' || cell.ch == '*')
+            {
+                out.push((x, y, cell.ch));
             }
         }
     }

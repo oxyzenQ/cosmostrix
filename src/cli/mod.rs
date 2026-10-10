@@ -46,11 +46,11 @@ pub(crate) fn help_template(color: bool) -> String {
 // --- Clap styling ---
 
 #[cfg(unix)]
+use clap::builder::Styles as ClapStyles;
+#[cfg(unix)]
 use clap::builder::styling::{Color as ClapColor, RgbColor as ClapRgbColor};
 #[cfg(unix)]
 use clap::builder::styling::{Effects as ClapEffects, Style as ClapStyle};
-#[cfg(unix)]
-use clap::builder::Styles as ClapStyles;
 
 #[must_use]
 #[cfg(unix)]

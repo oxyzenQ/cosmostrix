@@ -32,10 +32,10 @@ fn hologram_scanline_glyphs(frame: &Frame) -> Vec<(u16, u16)> {
     let mut out = Vec::new();
     for y in 0..frame.height {
         for x in 0..frame.width {
-            if let Some(cell) = frame.get(x, y) {
-                if cell.ch == '▔' {
-                    out.push((x, y));
-                }
+            if let Some(cell) = frame.get(x, y)
+                && cell.ch == '▔'
+            {
+                out.push((x, y));
             }
         }
     }

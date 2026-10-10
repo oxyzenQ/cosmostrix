@@ -21,7 +21,7 @@
 use super::events::GhostEvent;
 use crate::constants::*;
 use crate::frame::Frame;
-use rand::{distr::Distribution, rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, distr::Distribution, rngs::StdRng};
 use smallvec::SmallVec;
 use std::time::Instant;
 

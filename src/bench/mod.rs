@@ -60,8 +60,8 @@ mod silent;
 #[path = "../../test/bench/tests_bench_cosmetics.rs"]
 pub mod tests_bench_cosmetics;
 
-use crate::bench_report::BenchReportData;
 use crate::CloudConfig;
+use crate::bench_report::BenchReportData;
 
 // Re-export bench validation helpers + consts from bench_helpers.rs.
 // Pure functions moved out to keep this file under the LOC cap.
@@ -71,7 +71,7 @@ use crate::CloudConfig;
 // `use super::validate_bench_scene`.
 pub(crate) use crate::bench_helpers::validate_bench_scene;
 #[cfg(test)]
-pub(crate) use crate::bench_helpers::{validate_bench_scene_str, VALID_BENCH_SCENES};
+pub(crate) use crate::bench_helpers::{VALID_BENCH_SCENES, validate_bench_scene_str};
 
 // v50.0.0-beta.7 LOC refactor: run_premium_benchmark extracted to
 // premium.rs to keep this file under the 800-LOC hard cap.

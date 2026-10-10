@@ -13,8 +13,8 @@
 //! to gracefully interrupt the benchmark mid-run.
 
 use std::io::{self, IsTerminal, Write};
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
 use crossterm::cursor::{Hide, Show};

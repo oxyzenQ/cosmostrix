@@ -23,13 +23,12 @@ pub(crate) fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
     if let (Ok(w_str), Ok(h_str)) = (
         env::var("COSMOSTRIX_BENCH_COLS"),
         env::var("COSMOSTRIX_BENCH_LINES"),
-    ) {
-        if let (Ok(w), Ok(h)) = (w_str.parse::<u16>(), h_str.parse::<u16>()) {
-            return (
-                w.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS),
-                h.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES),
-            );
-        }
+    ) && let (Ok(w), Ok(h)) = (w_str.parse::<u16>(), h_str.parse::<u16>())
+    {
+        return (
+            w.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS),
+            h.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES),
+        );
     }
     // v17 audit: query the ACTUAL terminal size before falling back to the
     // hardcoded 120x40 default. Previously the benchmark never queried the
@@ -38,13 +37,14 @@ pub(crate) fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
     // crossterm::terminal::size() is a pure query (no terminal state change),
     // safe to call in headless benchmark mode. Returns Err on non-TTY (pipes,
     // CI without PTY) — in that case we fall through to the 120x40 default.
-    if let Ok((w, h)) = crossterm::terminal::size() {
-        if w >= MIN_TERMINAL_COLS && h >= MIN_TERMINAL_LINES {
-            return (
-                w.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS),
-                h.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES),
-            );
-        }
+    if let Ok((w, h)) = crossterm::terminal::size()
+        && w >= MIN_TERMINAL_COLS
+        && h >= MIN_TERMINAL_LINES
+    {
+        return (
+            w.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS),
+            h.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES),
+        );
     }
     // Last-resort default: 120x40 (for non-TTY / piped / CI without PTY).
     (
@@ -371,11 +371,11 @@ pub(crate) fn validate_bench_scene(cfg: &CloudConfig) {
 
 #[cfg(test)]
 mod tests {
+    use super::BENCHMARK_DURATION_SECS;
+    use super::BackpressureStats;
     use super::collect_bench_noop_warnings;
     use super::format_backpressure_section;
     use super::resolve_bench_duration;
-    use super::BackpressureStats;
-    use super::BENCHMARK_DURATION_SECS;
     use crate::bench_meta::AVG_DIRTY_CELL_RATIO_MEANING;
     use crate::bench_report::ACTIVE_FRAME_RATIO_MEANING;
     use crate::report::Report;

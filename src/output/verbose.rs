@@ -593,17 +593,15 @@ fn describe_color_bg(
         return match custom_palette_bg {
             Some(bg) => {
                 let hex = format_bg_color(Some(bg));
-                format!(
-                    "custom palette '{name}' bg={hex} (palette bg overrides --color-bg)"
-                )
+                format!("custom palette '{name}' bg={hex} (palette bg overrides --color-bg)")
             }
             None => match color_bg {
                 ColorBg::DefaultBackground => format!(
                     "default-background (custom palette '{name}' has no bg field, terminal native shows through)"
                 ),
-                ColorBg::Black => format!(
-                    "black (custom palette '{name}' has no bg field, solid black)"
-                ),
+                ColorBg::Black => {
+                    format!("black (custom palette '{name}' has no bg field, solid black)")
+                }
             },
         };
     }

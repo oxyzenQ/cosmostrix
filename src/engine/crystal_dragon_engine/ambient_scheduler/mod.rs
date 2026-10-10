@@ -348,8 +348,8 @@ fn scheduler_loop(
             };
             let current = s.current_phase(now_min).cloned();
             let sleep = s.seconds_to_next_phase(now_min, now_sec).unwrap_or(60);
-            let gen = generation.load(Ordering::SeqCst);
-            (current, sleep, gen)
+            let r#gen = generation.load(Ordering::SeqCst);
+            (current, sleep, r#gen)
         };
 
         // Fire current phase if its identity changed since last fire.
@@ -425,31 +425,32 @@ fn scheduler_loop(
             // saturated channel — suppresses marking today as "seen" so
             // the next wake re-attempts the refire.
             let mut refire_saturated = false;
-            if let Some(entry) = &current_entry {
-                if entry.minutes_of_day() <= now_min && last_applied.as_ref() == Some(entry) {
-                    // Same entry, new day, past today's boundary — refire.
-                    // The `last_applied == Some(entry)` guard ensures we only
-                    // take this branch when the existing != check above did
-                    // NOT fire (i.e. the entry was already applied on a
-                    // previous day). If the entry is new (last_applied is
-                    // None or different), the != check above already fired it
-                    // and we just mark today as "seen".
-                    crate::lr_trace!(
-                        "ambient-scheduler: day-boundary refire {:02}:{:02} (scene={}, yday={})",
-                        entry.hour,
-                        entry.minute,
-                        entry.scene,
-                        today_yday
-                    );
-                    match deliver(&tx, entry) {
-                        DeliverOutcome::ReceiverGone => return,
-                        DeliverOutcome::Delivered => {}
-                        DeliverOutcome::Saturated => {
-                            // Entry dropped — leave today unmarked so the
-                            // next wake re-attempts the day-boundary refire
-                            // (retry cadence bounded by the condvar sleep).
-                            refire_saturated = true;
-                        }
+            if let Some(entry) = &current_entry
+                && entry.minutes_of_day() <= now_min
+                && last_applied.as_ref() == Some(entry)
+            {
+                // Same entry, new day, past today's boundary — refire.
+                // The `last_applied == Some(entry)` guard ensures we only
+                // take this branch when the existing != check above did
+                // NOT fire (i.e. the entry was already applied on a
+                // previous day). If the entry is new (last_applied is
+                // None or different), the != check above already fired it
+                // and we just mark today as "seen".
+                crate::lr_trace!(
+                    "ambient-scheduler: day-boundary refire {:02}:{:02} (scene={}, yday={})",
+                    entry.hour,
+                    entry.minute,
+                    entry.scene,
+                    today_yday
+                );
+                match deliver(&tx, entry) {
+                    DeliverOutcome::ReceiverGone => return,
+                    DeliverOutcome::Delivered => {}
+                    DeliverOutcome::Saturated => {
+                        // Entry dropped — leave today unmarked so the
+                        // next wake re-attempts the day-boundary refire
+                        // (retry cadence bounded by the condvar sleep).
+                        refire_saturated = true;
                     }
                 }
             }

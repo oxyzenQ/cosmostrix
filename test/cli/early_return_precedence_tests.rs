@@ -15,7 +15,7 @@
 //! (stdout writes, file writes, ux dies) is already covered by the
 //! runtime smoke matrix recorded in the module docs.
 
-use super::{classify_post_config, classify_pre_config, PostConfigCmd, PreConfigCmd};
+use super::{PostConfigCmd, PreConfigCmd, classify_post_config, classify_pre_config};
 use crate::config::Args;
 use clap::Parser;
 

@@ -16,12 +16,12 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use crate::CloudConfig;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 use crate::platform::TermReinit;
-use crate::CloudConfig;
 
-use crate::interactive::input::{handle_keybinding, KeyOutcome, KeybindingCtx};
+use crate::interactive::input::{KeyOutcome, KeybindingCtx, handle_keybinding};
 
 // ── fixtures (mirrored from tests.rs — kept local so this suite
 // stays self-contained) ─────────────────────────────────────────

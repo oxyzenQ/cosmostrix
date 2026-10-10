@@ -127,11 +127,16 @@ pub(crate) unsafe fn hint_reclaim_pages(ptr: *const u8, len: usize) {
         // could touch neighboring objects. Skip entirely.
         return;
     };
-    let ret = libc::madvise(
-        start as *mut libc::c_void,
-        interior_len,
-        libc::MADV_DONTNEED,
-    );
+    // SAFETY: caller contract guarantees [ptr, ptr+len) is a mapped
+    // region; interior_page_range clips to full interior pages, so the
+    // advise never touches a byte outside the caller's allocation.
+    let ret = unsafe {
+        libc::madvise(
+            start as *mut libc::c_void,
+            interior_len,
+            libc::MADV_DONTNEED,
+        )
+    };
     // CC2-06: ignore all errors (pages not reclaimable, ENOMEM, etc.) —
     // best-effort.
     let _ = ret;
@@ -188,11 +193,7 @@ fn page_size() -> usize {
         // SAFETY: sysconf with a valid _SC_PAGESIZE constant is always
         // safe to call; it reads a system constant and touches no memory.
         let v = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
-        if v > 0 {
-            v as usize
-        } else {
-            4096
-        }
+        if v > 0 { v as usize } else { 4096 }
     })
 }
 

@@ -16,7 +16,7 @@
 use super::*;
 use crate::cloud::type_rain::black_hole::black_hole::level_rank;
 use crate::cloud::type_rain::black_hole::infall::{
-    advance_infall_mote, level_for_speed, InfallMote, InfallStream,
+    InfallMote, InfallStream, advance_infall_mote, level_for_speed,
 };
 use crate::cloud::type_rain::black_hole::ring::proximity_level;
 use crate::cloud::type_rain::monolith::BrightnessLevel;
@@ -803,7 +803,7 @@ fn black_hole_infall_corotates_with_the_disk() {
     // spawn contract (every activate sample, strict) and the
     // steady-state invariant (every live mote, tolerant of the
     // brake-decayed plunge near zero).
-    use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
+    use rand::{SeedableRng, distr::Uniform, rngs::StdRng};
 
     // Layer 1 — the spawn contract over a wide spawn envelope.
     let rand_chance = Uniform::new(0.0, 1.0).unwrap();

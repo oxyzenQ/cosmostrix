@@ -18,7 +18,7 @@ use crate::color_tune::ColorTune;
 use crate::palette::Palette;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
-use crate::types::constants::{default_message_text, MESSAGE_MAX_LEN};
+use crate::types::constants::{MESSAGE_MAX_LEN, default_message_text};
 
 /// Inputs collected from CLI arg validation in `main()`.
 pub(crate) struct CfgInputs<'a> {

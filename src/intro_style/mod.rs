@@ -70,12 +70,12 @@ use crate::chroma_dragon_engine::intro_colors::NEON_GREEN_FALLBACK;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 use crate::palette::color_to_rgb;
-use crate::terminal::{is_terminal_gone, Terminal};
+use crate::terminal::{Terminal, is_terminal_gone};
 
 // Key-modifier guard + shutdown flags live in `interactive`; re-exported
 // at the `interactive` facade so this crate-root module reaches them
 // without the whole submodules becoming pub(crate).
-use crate::interactive::{is_unmodified_or_shift, FRAME_COUNTER, GRACEFUL_SHUTDOWN};
+use crate::interactive::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, is_unmodified_or_shift};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Intro type enum + dispatcher

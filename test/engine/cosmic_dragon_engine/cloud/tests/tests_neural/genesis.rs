@@ -9,7 +9,7 @@
 
 use super::*;
 
-use crate::cloud::neural::genesis::{genesis_phase, genesis_total_secs, luminosity, GenesisPhase};
+use crate::cloud::neural::genesis::{GenesisPhase, genesis_phase, genesis_total_secs, luminosity};
 
 #[test]
 fn genesis_timeline_is_ordered_and_complete() {
@@ -92,11 +92,13 @@ fn genesis_first_cascade_fires_at_the_thought_seam() {
         "the first cascade never fired"
     );
     // The wiring completed at the seam (the no-seam handoff).
-    assert!(cloud
-        .neural_rain
-        .synapses
-        .iter()
-        .all(|s| !s.active || s.grown >= 1.0));
+    assert!(
+        cloud
+            .neural_rain
+            .synapses
+            .iter()
+            .all(|s| !s.active || s.grown >= 1.0)
+    );
 }
 
 #[test]
@@ -130,9 +132,11 @@ fn genesis_fast_forward_fills_the_steady_machine() {
         cloud.neural_rain.node_active_for_test(),
         cloud.neural_rain.nodes.len()
     );
-    assert!(cloud
-        .neural_rain
-        .synapses
-        .iter()
-        .all(|s| !s.active || s.grown >= 1.0));
+    assert!(
+        cloud
+            .neural_rain
+            .synapses
+            .iter()
+            .all(|s| !s.active || s.grown >= 1.0)
+    );
 }

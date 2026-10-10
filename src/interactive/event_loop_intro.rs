@@ -27,12 +27,12 @@
 //! Cloud + Frame if dimensions changed. This keeps the render loop's first
 //! frame consistent with the post-intro terminal geometry.
 
+use crate::CloudConfig;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 use crate::intro_style::IntroType;
 use crate::runtime::ColorScheme;
 use crate::terminal::Terminal;
-use crate::CloudConfig;
 
 use super::super::effective_density;
 use crate::constants::{

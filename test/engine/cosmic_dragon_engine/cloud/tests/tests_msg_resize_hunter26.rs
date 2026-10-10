@@ -19,11 +19,11 @@
 
 use std::time::{Duration, Instant};
 
-use super::tests_msg_fill_style::{make_cloud_colored, set_message_elapsed};
 use super::Cloud;
+use super::tests_msg_fill_style::{make_cloud_colored, set_message_elapsed};
 use crate::frame::Frame;
-use crate::msg_fill_style::engrave::ENGRAVE_SPARKS_PER_HEAD;
 use crate::msg_fill_style::MsgFillStyle;
+use crate::msg_fill_style::engrave::ENGRAVE_SPARKS_PER_HEAD;
 
 /// One overlay draw at a fixed wall-clock `t` (dt = 0 between calls
 /// keeps spark physics frozen — no natural decay mid-test).

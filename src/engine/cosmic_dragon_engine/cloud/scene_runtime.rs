@@ -155,12 +155,11 @@ impl Cloud {
         // custom palette is active — the ambient scene owns color, so a
         // lingering config/CLI palette shadowing the same scheme is cleared
         // (set_color_scheme drops custom_palette_active + rebuilds).
-        if let Some(color_name) = config.color {
-            if let Ok(scheme) = parse_color_scheme(color_name) {
-                if scheme != self.color_scheme || self.custom_palette_active {
-                    self.set_color_scheme(scheme);
-                }
-            }
+        if let Some(color_name) = config.color
+            && let Ok(scheme) = parse_color_scheme(color_name)
+            && (scheme != self.color_scheme || self.custom_palette_active)
+        {
+            self.set_color_scheme(scheme);
         }
 
         // Apply scene charset if specified.
@@ -170,11 +169,11 @@ impl Cloud {
         // the color-scheme guard above).
         let charset_name: &str = config.charset.unwrap_or(current_charset_preset);
         let charset_owned = charset_name.to_string();
-        if charset_name != current_charset_preset {
-            if let Ok(cs) = charset_from_str(charset_name, def_ascii) {
-                let chars = build_chars(cs, user_ranges, def_ascii);
-                self.transition_chars(chars);
-            }
+        if charset_name != current_charset_preset
+            && let Ok(cs) = charset_from_str(charset_name, def_ascii)
+        {
+            let chars = build_chars(cs, user_ranges, def_ascii);
+            self.transition_chars(chars);
         }
 
         // Apply speed
@@ -281,16 +280,15 @@ impl Cloud {
         }
         // `colors-custom` — explicit custom palette name. Applied
         // only if `color` wasn't set (avoids last-writer-wins confusion).
-        if custom.color.is_none() {
-            if let Some(palette_name) = &custom.colors_custom {
-                if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, palette_name) {
-                    // v80.0.0-beta.2 HUD honesty (owner bug: an ambient-fired
-                    // cp77 rendered cyberpunk_2077 colors while the HUD kept
-                    // showing the base-scene scheme "clr: Purple") — the
-                    // name now travels with the palette.
-                    self.set_palette(Some(palette_name), palette);
-                }
-            }
+        if custom.color.is_none()
+            && let Some(palette_name) = &custom.colors_custom
+            && let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, palette_name)
+        {
+            // v80.0.0-beta.2 HUD honesty (owner bug: an ambient-fired
+            // cp77 rendered cyberpunk_2077 colors while the HUD kept
+            // showing the base-scene scheme "clr: Purple") — the
+            // name now travels with the palette.
+            self.set_palette(Some(palette_name), palette);
         }
         // charset (built-in via `charset`, OR custom via `charset-custom`)
         if let Some(charset_name) = &custom.charset {
@@ -307,33 +305,31 @@ impl Cloud {
         }
         // `charset-custom` — explicit custom charset name. Applied
         // only if `charset` wasn't set.
-        if custom.charset.is_none() {
-            if let Some(charset_name) = &custom.charset_custom {
-                if let Some(custom_chars) =
-                    crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
-                {
-                    charset_preset = charset_name.clone();
-                    self.transition_chars(custom_chars);
-                }
-            }
+        if custom.charset.is_none()
+            && let Some(charset_name) = &custom.charset_custom
+            && let Some(custom_chars) =
+                crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
+        {
+            charset_preset = charset_name.clone();
+            self.transition_chars(custom_chars);
         }
         // speed
-        if let Some(speed_str) = &custom.speed {
-            if let Ok(speed) = speed_str.trim().parse::<f32>() {
-                self.set_chars_per_sec(speed);
-            }
+        if let Some(speed_str) = &custom.speed
+            && let Ok(speed) = speed_str.trim().parse::<f32>()
+        {
+            self.set_chars_per_sec(speed);
         }
         // density
-        if let Some(density_str) = &custom.density {
-            if let Ok(density) = density_str.trim().parse::<f32>() {
-                self.set_droplet_density(density);
-            }
+        if let Some(density_str) = &custom.density
+            && let Ok(density) = density_str.trim().parse::<f32>()
+        {
+            self.set_droplet_density(density);
         }
         // glitch-level
-        if let Some(glitch_str) = &custom.glitch_level {
-            if let Ok(level) = GlitchLevel::from_str(glitch_str, true) {
-                self.apply_glitch_level_runtime(level);
-            }
+        if let Some(glitch_str) = &custom.glitch_level
+            && let Ok(level) = GlitchLevel::from_str(glitch_str, true)
+        {
+            self.apply_glitch_level_runtime(level);
         }
         // Note: fps is applied by the event loop (power manager + HUD)
         // via `scene_custom::ambient_scene_fps` — the Cloud does not own

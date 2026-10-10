@@ -6,8 +6,8 @@
 #[cfg(test)]
 mod tests {
     use crate::terminal::{TERMINAL_RESET_SEQUENCE, TERMINAL_RESTORE_SEQUENCE};
-    use std::sync::atomic::AtomicBool;
     use std::sync::Arc;
+    use std::sync::atomic::AtomicBool;
 
     #[derive(Default)]
     struct CleanupFlags {

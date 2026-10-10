@@ -25,6 +25,7 @@
 
 use std::time::{Duration, Instant};
 
+use crate::PowerManager;
 use crate::app::CloudConfig;
 use crate::cloud::Cloud;
 use crate::interactive::event_loop_self_heal::HealInputs;
@@ -32,7 +33,6 @@ use crate::interactive::hud::HudState;
 use crate::interactive::{event_loop_hud::update_hud_state, event_loop_self_heal::run_self_healer};
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
-use crate::PowerManager;
 
 fn base_cfg(power_dragon: bool) -> CloudConfig {
     CloudConfig {

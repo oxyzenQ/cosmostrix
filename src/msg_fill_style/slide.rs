@@ -16,7 +16,7 @@
 //!
 //! Border: lags text with the shared `t^1.5` ease-out curve.
 
-use super::{index_fraction, index_pacing, lagged_border, CellReveal, FADE_IN_START};
+use super::{CellReveal, FADE_IN_START, index_fraction, index_pacing, lagged_border};
 
 /// Per-character reveal stagger.
 pub(crate) const SLIDE_CHAR_MS: usize = 60;

@@ -10,11 +10,11 @@
 
 use std::io::Write;
 
+use crossterm::ExecutableCommand as _;
 use crossterm::cursor;
 use crossterm::event;
 use crossterm::style::{Attribute, ResetColor, SetAttribute};
 use crossterm::terminal as crossterm_terminal;
-use crossterm::ExecutableCommand as _;
 
 impl super::Terminal {
     /// NIGHT-ultimate-1: neutralize this Terminal after an EXTERNAL

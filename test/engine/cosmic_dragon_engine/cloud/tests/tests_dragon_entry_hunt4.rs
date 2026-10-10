@@ -16,11 +16,11 @@
 
 use std::time::{Duration, Instant};
 
+use crate::DRAGON_ENTRY_DURATION_SECS;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
-use crate::DRAGON_ENTRY_DURATION_SECS;
 
 fn make_dragon_cloud(cols: u16, lines: u16) -> Cloud {
     let mut cloud = Cloud::new(

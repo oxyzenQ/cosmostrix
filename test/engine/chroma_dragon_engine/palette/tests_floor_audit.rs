@@ -181,8 +181,12 @@ fn phase7_print_body_tail_gap_audit() {
         super::super::tuning::BODY_TAIL_MAX_GAP_RATIO
     );
     eprintln!("Tuning guidance:");
-    eprintln!("  - HIGH count > 5: raise GLOBAL_MAX_FLOOR (e.g. 180 → 220) — at cost of some v17-style washout");
-    eprintln!("  - All low + trails look washed out: lower PALETTE_FLOOR_RATIO or BODY_TAIL_MAX_GAP_RATIO");
+    eprintln!(
+        "  - HIGH count > 5: raise GLOBAL_MAX_FLOOR (e.g. 180 → 220) — at cost of some v17-style washout"
+    );
+    eprintln!(
+        "  - All low + trails look washed out: lower PALETTE_FLOOR_RATIO or BODY_TAIL_MAX_GAP_RATIO"
+    );
 }
 
 /// Phase 7 ratio sweep audit (informational). For each of the 44 themes,
@@ -209,7 +213,7 @@ fn phase7_print_body_tail_gap_audit() {
 ///                   (i.e. derived floor would have been > 180)
 #[test]
 fn phase7_print_ratio_sweep_audit() {
-    use crate::chroma_dragon_engine::catalog::{ThemeColors, THEMES};
+    use crate::chroma_dragon_engine::catalog::{THEMES, ThemeColors};
 
     let ratios: [f32; 4] = [0.15, 0.20, 0.25, 0.30];
     let abs_min = super::super::tuning::ABSOLUTE_MIN_FLOOR;
@@ -225,11 +229,21 @@ fn phase7_print_ratio_sweep_audit() {
     eprintln!();
     eprintln!(
         "{:<14} {:>8} {:>10}  {:>10} {:>6} {:>1}  {:>10} {:>6} {:>1}  {:>10} {:>6} {:>1}  {:>10} {:>6} {:>1}",
-        "THEME", "HEAD_SUM", "ORIG_TRL",
-        "TRL@.15", "GAP", "C",
-        "TRL@.20", "GAP", "C",
-        "TRL@.25", "GAP", "C",
-        "TRL@.30", "GAP", "C",
+        "THEME",
+        "HEAD_SUM",
+        "ORIG_TRL",
+        "TRL@.15",
+        "GAP",
+        "C",
+        "TRL@.20",
+        "GAP",
+        "C",
+        "TRL@.25",
+        "GAP",
+        "C",
+        "TRL@.30",
+        "GAP",
+        "C",
     );
 
     let mut n_capped_per_ratio = [0usize; 4];
@@ -331,8 +345,12 @@ fn phase7_print_ratio_sweep_audit() {
     }
     eprintln!();
     eprintln!("Tuning guidance:");
-    eprintln!("  - Pick the lowest ratio where GAP>3.0x count drops to ~0 (kills horizontal-line illusion)");
-    eprintln!("  - Watch cap_hit count: if it grows significantly, dark themes may wash out (v17 regression)");
+    eprintln!(
+        "  - Pick the lowest ratio where GAP>3.0x count drops to ~0 (kills horizontal-line illusion)"
+    );
+    eprintln!(
+        "  - Watch cap_hit count: if it grows significantly, dark themes may wash out (v17 regression)"
+    );
     eprintln!(
         "  - Production current: PALETTE_FLOOR_RATIO = {:.2}",
         super::super::tuning::PALETTE_FLOOR_RATIO
@@ -364,7 +382,7 @@ fn phase7_print_ratio_sweep_audit() {
 ///     SAT@g      — "*" if any channel hit 255 (continuity capped by u8 max)
 #[test]
 fn phase7b_print_gap_ratio_sweep_audit() {
-    use crate::chroma_dragon_engine::catalog::{ThemeColors, THEMES};
+    use crate::chroma_dragon_engine::catalog::{THEMES, ThemeColors};
 
     let gaps: [f32; 4] = [2.5, 2.0, 1.8, 1.5];
     let ratio = super::super::tuning::PALETTE_FLOOR_RATIO;
@@ -380,11 +398,21 @@ fn phase7b_print_gap_ratio_sweep_audit() {
     eprintln!();
     eprintln!(
         "{:<14} {:>8} {:>8}  {:>10} {:>7} {:>1}  {:>10} {:>7} {:>1}  {:>10} {:>7} {:>1}  {:>10} {:>7} {:>1}",
-        "THEME", "HEAD_SUM", "BODY_MIN",
-        "TRL@2.5", "GAP", "S",
-        "TRL@2.0", "GAP", "S",
-        "TRL@1.8", "GAP", "S",
-        "TRL@1.5", "GAP", "S",
+        "THEME",
+        "HEAD_SUM",
+        "BODY_MIN",
+        "TRL@2.5",
+        "GAP",
+        "S",
+        "TRL@2.0",
+        "GAP",
+        "S",
+        "TRL@1.8",
+        "GAP",
+        "S",
+        "TRL@1.5",
+        "GAP",
+        "S",
     );
 
     let mut n_saturated_per_gap = [0usize; 4];

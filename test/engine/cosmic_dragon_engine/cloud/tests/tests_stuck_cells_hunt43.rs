@@ -39,7 +39,7 @@ use crossterm::style::Color;
 use super::make_cloud;
 use crate::cell::Cell;
 use crate::cloud::Cloud;
-use crate::constants::{reclaim_frame_cells, ReclaimState, STUCK_CELL_SWEEP_INTERVAL_FRAMES};
+use crate::constants::{ReclaimState, STUCK_CELL_SWEEP_INTERVAL_FRAMES, reclaim_frame_cells};
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};

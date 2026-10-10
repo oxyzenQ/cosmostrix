@@ -34,10 +34,10 @@ use crate::constants::{
     NEUR_STREAMER_SURGE_CAP, NEUR_THRESHOLD,
 };
 
-use super::genesis::{genesis_phase, genesis_total_secs, GenesisPhase};
+use super::genesis::{GenesisPhase, genesis_phase, genesis_total_secs};
 use super::network::{
-    growth_step, neuron_step, pulse_step, streamer_step, synapse_step, NeurFactors, NeuralGeom,
-    NeuralRandom, Neuron, Pulse, Streamer, Synapse,
+    NeurFactors, NeuralGeom, NeuralRandom, Neuron, Pulse, Streamer, Synapse, growth_step,
+    neuron_step, pulse_step, streamer_step, synapse_step,
 };
 
 /// One drawn cell (col, line) — the diff-cleanup currency (same
@@ -633,10 +633,10 @@ impl NeuralRain {
                     s.glow = 1.0;
                     let dst = s.dst;
                     let w = s.weight;
-                    if let Some(n) = self.nodes.get_mut(dst) {
-                        if n.active {
-                            n.potential = (n.potential + w).min(NEUR_POT_CAP);
-                        }
+                    if let Some(n) = self.nodes.get_mut(dst)
+                        && n.active
+                    {
+                        n.potential = (n.potential + w).min(NEUR_POT_CAP);
                     }
                 }
             }

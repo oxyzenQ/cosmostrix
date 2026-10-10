@@ -676,15 +676,21 @@ mod tests {
         // A pool whose ONLY glyph is wide (CJK) or zero-width (ZWSP) has
         // nothing usable left after the skip filter — the error must say
         // so. Control chars stay hard errors.
-        assert!(parse_charset_value("漢")
-            .unwrap_err()
-            .contains("no usable single-width characters"));
-        assert!(parse_charset_value("\u{200B}")
-            .unwrap_err()
-            .contains("no usable single-width characters"));
-        assert!(parse_charset_value("\u{0007}")
-            .unwrap_err()
-            .contains("control character"));
+        assert!(
+            parse_charset_value("漢")
+                .unwrap_err()
+                .contains("no usable single-width characters")
+        );
+        assert!(
+            parse_charset_value("\u{200B}")
+                .unwrap_err()
+                .contains("no usable single-width characters")
+        );
+        assert!(
+            parse_charset_value("\u{0007}")
+                .unwrap_err()
+                .contains("control character")
+        );
     }
     // ── NIGHT-depthtest-3: oversized-name hard validation ──────────
 

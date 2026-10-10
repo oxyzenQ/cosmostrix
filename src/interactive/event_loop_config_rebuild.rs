@@ -98,7 +98,8 @@ pub(crate) fn apply_config_rebuild(ctx: &mut LoopCtx) -> bool {
                 // family reverts to the locked startup snapshot.
                 crate::lr_trace!(
                     "scene override removed — reverting to the locked startup scene '{}' (runtime was '{}')",
-                    ctx.config.startup.scene_name, ctx.scene.scene_name
+                    ctx.config.startup.scene_name,
+                    ctx.scene.scene_name
                 );
                 super::event_loop_scene_sync::restore_locked_scene_family(
                     &mut ctx.config.base,
@@ -276,11 +277,11 @@ pub(crate) fn apply_config_rebuild(ctx: &mut LoopCtx) -> bool {
             ctx.ambient.last_schedule = new_cfg.ambient_schedule.clone();
             if new_cfg.ambient_schedule.entries.is_empty() {
                 super::ambient_diag_schedule_empty();
-                if let Some(ref le) = ctx.ambient.last_applied_entry {
-                    if ctx.scene.scene_name == le.scene {
-                        ctx.scene.scene_name = new_cfg.scene_name.clone();
-                        ctx.scene.scene_generation = ctx.scene.scene_generation.wrapping_add(1);
-                    }
+                if let Some(ref le) = ctx.ambient.last_applied_entry
+                    && ctx.scene.scene_name == le.scene
+                {
+                    ctx.scene.scene_name = new_cfg.scene_name.clone();
+                    ctx.scene.scene_generation = ctx.scene.scene_generation.wrapping_add(1);
                 }
                 ctx.ambient.last_applied_entry = None;
                 ctx.cloud.ambient_palette_locked = false;

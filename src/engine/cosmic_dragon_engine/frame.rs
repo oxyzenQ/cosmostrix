@@ -12,7 +12,7 @@
 //!
 //! Two independent generation systems coexist:
 //!
-//! 1. Content generation (`gen` + `cell_gen: Vec<u32>`): tracks whether
+//! 1. Content generation (`r#gen` + `cell_gen: Vec<u32>`): tracks whether
 //!    each cell holds live content for the current logical frame or is
 //!    effectively blank. Bumped by [`clear_with_bg`] on semantic resets
 //!    (resize, theme change). See existing docs below.
@@ -73,10 +73,10 @@ pub struct Frame {
     pub height: u16,
     pub cells: Vec<Cell>,
     /// Content generation counter. Bumped by `clear_with_bg` on semantic
-    /// resets. A cell is "live" iff `cell_gen[i] == gen`. Exposed as
+    /// resets. A cell is "live" iff `cell_gen[i] == r#gen`. Exposed as
     /// `pub(crate)` so the Cosmic Dragon lock suite (`cosmic_dragon_lock_tests`)
     /// can verify the overflow safety invariant.
-    pub(crate) gen: u32,
+    pub(crate) r#gen: u32,
     pub(crate) cell_gen: Vec<u32>,
     pub(crate) blank: Cell,
     dirty_all: bool,
@@ -129,7 +129,7 @@ impl Frame {
         let height = height.clamp(MIN_TERMINAL_LINES, max_lines);
         let len = width as usize * height as usize;
         let blank = Cell::blank_with_bg(bg);
-        let gen = 1u32;
+        let r#gen = 1u32;
         // dirty_gen starts at 1; all dirty_cell_gen entries start at 0 (stale).
         // So every cell is initially "clean" from the dirty-tracking POV,
         // and dirty_all=true forces the first frame to be a full redraw.
@@ -137,8 +137,8 @@ impl Frame {
             width,
             height,
             cells: vec![blank; len],
-            gen,
-            cell_gen: vec![gen; len],
+            r#gen,
+            cell_gen: vec![r#gen; len],
             blank,
             dirty_all: true,
             dirty_gen: 1,
@@ -150,10 +150,10 @@ impl Frame {
 
     pub fn clear_with_bg(&mut self, bg: Option<crossterm::style::Color>) {
         self.blank = Cell::blank_with_bg(bg);
-        self.gen = self.gen.wrapping_add(1);
-        if self.gen == 0 || self.gen >= GEN_RESET_THRESHOLD {
+        self.r#gen = self.r#gen.wrapping_add(1);
+        if self.r#gen == 0 || self.r#gen >= GEN_RESET_THRESHOLD {
             self.cell_gen.fill(0);
-            self.gen = 1;
+            self.r#gen = 1;
         }
         self.dirty_all = true;
         self.dirty.clear();
@@ -204,7 +204,7 @@ impl Frame {
     #[must_use]
     #[inline]
     pub fn current_gen(&self) -> u32 {
-        self.gen
+        self.r#gen
     }
 
     /// Returns the generation counter for a cell at the given flat index.
@@ -266,7 +266,7 @@ impl Frame {
     pub fn get(&self, x: u16, y: u16) -> Option<&Cell> {
         self.index(x, y).map(|i| {
             // Cosmic Dragon egg #7: direct indexing — i from index() is bounds-checked.
-            if self.cell_gen[i] == self.gen {
+            if self.cell_gen[i] == self.r#gen {
                 &self.cells[i]
             } else {
                 &self.blank
@@ -278,7 +278,7 @@ impl Frame {
     #[inline]
     pub fn cell_at_index(&self, i: usize) -> Cell {
         // P3: direct indexing (caller bounds-checks via index() or dirty_indices)
-        if self.cell_gen[i] == self.gen {
+        if self.cell_gen[i] == self.r#gen {
             self.cells[i]
         } else {
             self.blank
@@ -291,7 +291,7 @@ impl Frame {
     #[inline]
     pub fn cell_at_index_ref(&self, i: usize) -> &Cell {
         // P3: direct indexing
-        if self.cell_gen[i] == self.gen {
+        if self.cell_gen[i] == self.r#gen {
             &self.cells[i]
         } else {
             &self.blank
@@ -311,7 +311,10 @@ impl Frame {
             debug_assert!(
                 UnicodeWidthChar::width(cell.ch) == Some(1),
                 "Frame::set received width!=1 char {:?} (U+{:04X}) at ({}, {}) — Bug #11 regression",
-                cell.ch, cell.ch as u32, x, y
+                cell.ch,
+                cell.ch as u32,
+                x,
+                y
             );
         }
         if let Some(i) = self.index(x, y) {
@@ -320,14 +323,14 @@ impl Frame {
             // indexing here avoids the redundant bounds check in .get() and
             // the Option allocation in .copied().
             //
-            // BEFORE: self.cell_gen.get(i).copied() == Some(self.gen)
+            // BEFORE: self.cell_gen.get(i).copied() == Some(self.r#gen)
             //   = bounds check + Option<u32> alloc + copied + Option comparison
-            // AFTER: self.cell_gen[i] == self.gen
+            // AFTER: self.cell_gen[i] == self.r#gen
             //   = direct load + u32 comparison
             //
             // Saves ~2-3 cycles per set() call. At 50K FPS × ~300 dirty cells/frame
             // = 15M set() calls/sec, saves ~30-45M cycles/sec = ~10-15ms/sec.
-            let gen_matches = self.cell_gen[i] == self.gen;
+            let gen_matches = self.cell_gen[i] == self.r#gen;
             let cur = if gen_matches {
                 self.cells[i]
             } else {
@@ -338,7 +341,7 @@ impl Frame {
             }
 
             self.cells[i] = cell;
-            self.cell_gen[i] = self.gen;
+            self.cell_gen[i] = self.r#gen;
             // Double-buffered dirty mark: stamp the cell with the current dirty
             // generation. If the stamp already matches (cell already dirty this
             // frame), skip the push to avoid duplicate entries in the dirty list.
@@ -375,13 +378,16 @@ impl Frame {
             debug_assert!(
                 UnicodeWidthChar::width(cell.ch) == Some(1),
                 "Frame::set_force received width!=1 char {:?} (U+{:04X}) at ({}, {}) — Bug #11 regression",
-                cell.ch, cell.ch as u32, x, y
+                cell.ch,
+                cell.ch as u32,
+                x,
+                y
             );
         }
         if let Some(i) = self.index(x, y) {
             // Cosmic Dragon egg #1: direct indexing — index() already bounds-checked.
             self.cells[i] = cell;
-            self.cell_gen[i] = self.gen;
+            self.cell_gen[i] = self.r#gen;
             // Double-buffered dirty mark — see set() for explanation. HUNT-26:
             // stamp unconditionally (per-frame "written" bookkeeping), push
             // only when the dirty list is in use.
@@ -399,7 +405,7 @@ impl Frame {
     /// S-master-HUNT-26 (NIGHT-hunter-2 round 2): this is the per-frame
     /// signal the render passes were DOCUMENTED to use ("cells currently
     /// drawn by droplets", "blanked by a tail this frame") but previously
-    /// approximated with the content-EPOCH check `cell_gen == gen` — which
+    /// approximated with the content-EPOCH check `cell_gen == r#gen` — which
     /// only clear_with_bg resets, so "this frame" silently meant "any time
     /// since the last semantic event". That approximation froze the phosphor
     /// decay pass's park branch on every cell a droplet ever vacated (the
@@ -419,7 +425,7 @@ impl Frame {
     /// S-master-HUNT-26 (NIGHT-hunter-2 round 2): the P2 self-healer's
     /// hint_reclaim_pages can zap interior pages of `cells` between frames;
     /// a zapped Cell reads back as `{ch: '\0', fg: None, ...}` from the
-    /// zero-fill, and a gen-matched cell in that state is emitted as a RAW
+    /// zero-fill, and a r#gen-matched cell in that state is emitted as a RAW
     /// NUL byte into the ANSI stream (terminals drop it — a silent
     /// model/screen divergence until the cell is rewritten). The old code
     /// assumed rain_at bumps the content generation after every force; it

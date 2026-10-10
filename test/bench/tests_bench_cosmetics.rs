@@ -133,15 +133,30 @@ fn bench_cosmetics_requires_benchmark_at_parse_time() {
 fn cosmetics_harness_measures_overlay_and_hud() {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let previous = std::env::var("COSMOSTRIX_BENCH_WARMUP_SECS").ok();
-    std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", "0");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", "0");
+    }
 
     let cfg = make_bench_config(true);
     let data = run_premium_benchmark_silent(&cfg).expect("cosmetics bench must run");
 
     if let Some(prev) = previous {
-        std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", prev);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", prev);
+        }
     } else {
-        std::env::remove_var("COSMOSTRIX_BENCH_WARMUP_SECS");
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::remove_var("COSMOSTRIX_BENCH_WARMUP_SECS");
+        }
     }
 
     // The harness reports itself: mode on, message overlay active.
@@ -212,7 +227,12 @@ fn cosmetics_harness_measures_overlay_and_hud() {
 fn cosmetics_tripwire_immune_to_concurrent_thread_allocations() {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let previous = std::env::var("COSMOSTRIX_BENCH_WARMUP_SECS").ok();
-    std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", "0");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", "0");
+    }
 
     // The noise thread: continuous allocation churn on another thread
     // for the whole bench window. Even the weakest plausible machine
@@ -240,9 +260,19 @@ fn cosmetics_tripwire_immune_to_concurrent_thread_allocations() {
     noise.join().expect("noise thread must join");
 
     if let Some(prev) = previous {
-        std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", prev);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", prev);
+        }
     } else {
-        std::env::remove_var("COSMOSTRIX_BENCH_WARMUP_SECS");
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::remove_var("COSMOSTRIX_BENCH_WARMUP_SECS");
+        }
     }
 
     // The load must have been real, or the test would pass vacuously.
@@ -274,15 +304,30 @@ fn cosmetics_tripwire_immune_to_concurrent_thread_allocations() {
 fn plain_bench_keeps_cosmetics_fields_idle() {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let previous = std::env::var("COSMOSTRIX_BENCH_WARMUP_SECS").ok();
-    std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", "0");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", "0");
+    }
 
     let cfg = make_bench_config(false);
     let data = run_premium_benchmark_silent(&cfg).expect("plain bench must run");
 
     if let Some(prev) = previous {
-        std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", prev);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::set_var("COSMOSTRIX_BENCH_WARMUP_SECS", prev);
+        }
     } else {
-        std::env::remove_var("COSMOSTRIX_BENCH_WARMUP_SECS");
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::remove_var("COSMOSTRIX_BENCH_WARMUP_SECS");
+        }
     }
 
     // Default Z-6 behavior is untouched: no cosmetics measurement, no

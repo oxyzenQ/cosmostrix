@@ -13,7 +13,7 @@ use crate::constants::{
     SIM_PRESSURE_SCALE_FACTOR,
 };
 use crate::frame::Frame;
-use crate::terminal::{is_terminal_gone, Terminal};
+use crate::terminal::{Terminal, is_terminal_gone};
 
 /// Results from the sim+draw step.
 pub(crate) struct SimDrawResult {
@@ -111,25 +111,23 @@ pub(crate) fn run_sim_and_draw(
     let is_dirty_all = frame.is_dirty_all();
     let dirty_len = frame.dirty_indices().len();
     let did_draw = is_dirty_all || dirty_len > 0;
-    if did_draw {
-        if let Err(e) = term.draw(frame) {
-            // EIO on Linux = terminal (PTY) was closed/destroyed.
-            // BrokenPipe = write to closed pipe (macOS, some Linux).
-            // In both cases, the terminal is gone — exit gracefully
-            // instead of continuing to write to a dead fd.
-            if is_terminal_gone(&e) {
-                cloud.raining = false;
-                return Ok(SimDrawResult {
-                    work_start,
-                    is_dirty_all: false,
-                    dirty_len: 0,
-                    did_draw: false,
-                    terminal_gone: true,
-                });
-            }
-            // Other I/O errors: propagate normally.
-            return Err(e);
+    if did_draw && let Err(e) = term.draw(frame) {
+        // EIO on Linux = terminal (PTY) was closed/destroyed.
+        // BrokenPipe = write to closed pipe (macOS, some Linux).
+        // In both cases, the terminal is gone — exit gracefully
+        // instead of continuing to write to a dead fd.
+        if is_terminal_gone(&e) {
+            cloud.raining = false;
+            return Ok(SimDrawResult {
+                work_start,
+                is_dirty_all: false,
+                dirty_len: 0,
+                did_draw: false,
+                terminal_gone: true,
+            });
         }
+        // Other I/O errors: propagate normally.
+        return Err(e);
     }
 
     Ok(SimDrawResult {

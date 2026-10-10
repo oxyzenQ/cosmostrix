@@ -45,7 +45,7 @@ use std::collections::HashMap;
 
 use clap::Parser;
 
-use crate::configfile::{parse_config_text, ParsedConfig, USER_CONFIG_KEYS};
+use crate::configfile::{ParsedConfig, USER_CONFIG_KEYS, parse_config_text};
 use crate::testconf::{validate_config_strictly, validate_field_value};
 
 // ─────────────────────────────────────────────────────────────────
@@ -817,42 +817,41 @@ fn assert_rebuild_invariants(
         cfg.get("charset")
     );
     // Reflection contract: a valid key must win over the base value.
-    if let Some(v) = cfg.get("speed") {
-        if let Ok(n) = crate::validation::parse_canonical_speed("speed", v) {
-            assert_eq!(rebuilt.speed, n, "valid speed key {v} not reflected");
-        }
+    if let Some(v) = cfg.get("speed")
+        && let Ok(n) = crate::validation::parse_canonical_speed("speed", v)
+    {
+        assert_eq!(rebuilt.speed, n, "valid speed key {v} not reflected");
     }
-    if let Some(v) = cfg.get("density") {
-        if let Ok(n) = crate::validation::parse_canonical_f32_range("density", v, 0.01, 5.0) {
-            assert_eq!(rebuilt.density, n, "valid density key {v} not reflected");
-            assert_eq!(
-                rebuilt.base_density, n,
-                "valid density key must sync base_density"
-            );
-        }
+    if let Some(v) = cfg.get("density")
+        && let Ok(n) = crate::validation::parse_canonical_f32_range("density", v, 0.01, 5.0)
+    {
+        assert_eq!(rebuilt.density, n, "valid density key {v} not reflected");
+        assert_eq!(
+            rebuilt.base_density, n,
+            "valid density key must sync base_density"
+        );
     }
-    if let Some(v) = cfg.get("fps") {
-        if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 240.0) {
-            assert_eq!(rebuilt.target_fps, n, "valid fps key {v} not reflected");
-        }
+    if let Some(v) = cfg.get("fps")
+        && let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 240.0)
+    {
+        assert_eq!(rebuilt.target_fps, n, "valid fps key {v} not reflected");
     }
-    if let Some(v) = cfg.get("charset") {
-        if crate::charset::charset_from_str(v, false).is_ok()
-            || crate::charset_custom::load_custom_charset_if_matches(cfg, v).is_some()
-        {
-            assert_eq!(
-                &rebuilt.charset_preset, v,
-                "valid charset key {v} not reflected"
-            );
-        }
+    if let Some(v) = cfg.get("charset")
+        && (crate::charset::charset_from_str(v, false).is_ok()
+            || crate::charset_custom::load_custom_charset_if_matches(cfg, v).is_some())
+    {
+        assert_eq!(
+            &rebuilt.charset_preset, v,
+            "valid charset key {v} not reflected"
+        );
     }
-    if let Some(v) = cfg.get("color") {
-        if let Ok(scheme) = crate::cli::parse_color_scheme(v) {
-            assert_eq!(
-                rebuilt.color_scheme, scheme,
-                "valid color key {v} not reflected"
-            );
-        }
+    if let Some(v) = cfg.get("color")
+        && let Ok(scheme) = crate::cli::parse_color_scheme(v)
+    {
+        assert_eq!(
+            rebuilt.color_scheme, scheme,
+            "valid color key {v} not reflected"
+        );
     }
 }
 

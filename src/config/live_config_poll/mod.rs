@@ -33,9 +33,9 @@
 //! per poll — negligible at 750ms intervals.
 
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::SyncSender;
-use std::sync::Arc;
 use std::time::Duration;
 
 use notify::EventKind;
@@ -358,14 +358,16 @@ pub(crate) fn snapshot_file_state_cached(
     // This skips the open + read + hash on every steady-state poll cycle.
     // The `prev.mtime.is_some()` guard ensures we never cache off a
     // previously-failed snapshot (which had `content_hash: None`).
-    if let Some(prev) = prev {
-        if prev.mtime.is_some() && prev.mtime == mtime && prev.size == size {
-            return FileStateSnapshot {
-                mtime,
-                size,
-                content_hash: prev.content_hash,
-            };
-        }
+    if let Some(prev) = prev
+        && prev.mtime.is_some()
+        && prev.mtime == mtime
+        && prev.size == size
+    {
+        return FileStateSnapshot {
+            mtime,
+            size,
+            content_hash: prev.content_hash,
+        };
     }
 
     // Slow path: mtime/size changed (or no prev) — compute the hash.

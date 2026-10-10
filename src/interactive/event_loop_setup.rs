@@ -17,15 +17,15 @@
 //! extracted). This function sets up everything the intro needs, then
 //! the caller invokes the intro and the main loop separately.
 
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 
 use crate::color_cache::ColorCache;
 use crate::frame::Frame;
 use crate::terminal::Terminal;
 
-use super::super::{effective_density, CloudConfig};
+use super::super::{CloudConfig, effective_density};
 use super::watchdog::MOUSE_CAPTURE_ACTIVE;
 use crate::cloud::Cloud;
 use crate::platform::TermReinit;

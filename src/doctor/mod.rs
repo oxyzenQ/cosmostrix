@@ -5,8 +5,8 @@
 
 use std::env;
 
-use crate::charset::{charset_from_str, Charset};
-use crate::config::{config_io, configfile, configfile_load, Args, ColorBg};
+use crate::charset::{Charset, charset_from_str};
+use crate::config::{Args, ColorBg, config_io, configfile, configfile_load};
 use crate::constants::{DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES};
 use crate::diagnostics;
 use crate::renderer_info;

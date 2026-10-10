@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 use crate::constants::*;
 use crate::frame::Frame;
-use crate::{effective_density, CloudConfig};
+use crate::{CloudConfig, effective_density};
 
 use super::validate_bench_scene;
 
@@ -40,10 +40,10 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
     cloud.crystal_dragon = false; // drift spike protection: palette drift in benchmark
-                                  // mode corrupts p99/max metrics with palette-rebuild cost.
-                                  // Climate drift (luminance/saturation/hue modulation) still runs
-                                  // because it is deterministic (fixed RNG seed) and has no
-                                  // rebuild cost.
+    // mode corrupts p99/max metrics with palette-rebuild cost.
+    // Climate drift (luminance/saturation/hue modulation) still runs
+    // because it is deterministic (fixed RNG seed) and has no
+    // rebuild cost.
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 

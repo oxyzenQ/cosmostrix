@@ -19,8 +19,8 @@
 //! Split into its own module so `live_config.rs` stays under the
 //! 800-LOC source cap enforced by `test/tests/loc.rs`.
 
-use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 /// Cap for the debug trace buffer. Traces are emitted from the watcher
 /// thread, polling heartbeat, and render thread during the rain loop.
@@ -68,10 +68,10 @@ pub(crate) fn debug_trace(args: std::fmt::Arguments<'_>) {
     // Format the args into a String and buffer. We can't write directly to
     // stderr here because the watcher/render threads run while the alt screen
     // is active — AB-10 rain-screen cleanliness. main.rs drains post-exit.
-    if let Ok(mut g) = LIVE_RELOAD_DEBUG_TRACES.lock() {
-        if g.len() < MAX_DEBUG_TRACE_LOG {
-            g.push(format!("[live-reload-trace] {}", args));
-        }
+    if let Ok(mut g) = LIVE_RELOAD_DEBUG_TRACES.lock()
+        && g.len() < MAX_DEBUG_TRACE_LOG
+    {
+        g.push(format!("[live-reload-trace] {}", args));
     }
 }
 

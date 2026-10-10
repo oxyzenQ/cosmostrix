@@ -6,9 +6,9 @@
 use std::time::{Duration, Instant};
 
 use rand::{
+    SeedableRng,
     distr::{Distribution, Uniform},
     rngs::StdRng,
-    SeedableRng,
 };
 
 use crate::constants::*;

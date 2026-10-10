@@ -24,9 +24,9 @@ mod cases_v51_intro_brand_pause {
     use crate::palette::build_palette;
     use crate::runtime::{ColorMode, ColorScheme};
 
+    use crate::CloudConfig;
     use crate::interactive::event_loop_intro::brand_intro_cloud;
     use crate::interactive::input::hud_toggle_accepted;
-    use crate::CloudConfig;
 
     /// Duplicated from `tests.rs::mod cases::make_test_config()` (test fixture, stable).
     fn make_test_config() -> CloudConfig {
@@ -231,8 +231,8 @@ mod cases_v51_intro_brand_pause {
 /// `--config custom.toml --intro-color <custom>` validated fine, then
 /// the intro silently fell back to the brand logo.
 mod cases_nh22_intro_palette_path {
-    use crate::interactive::event_loop_intro::intro_custom_palette;
     use crate::CloudConfig;
+    use crate::interactive::event_loop_intro::intro_custom_palette;
 
     /// Same baseline as `make_test_config()` above (test fixture, stable
     /// — the repo's documented duplication idiom for test fixtures).

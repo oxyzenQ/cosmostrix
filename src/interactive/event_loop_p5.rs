@@ -85,10 +85,9 @@ pub(crate) fn sample_p5_health(ctx: &mut LoopCtx, obs: &FrameObs) -> bool {
     if ctx
         .perf_rss_samples
         .is_multiple_of(THERMAL_SAMPLER_INTERVAL_FRAMES)
+        && let Some(p) = sample_thermal_pressure()
     {
-        if let Some(p) = sample_thermal_pressure() {
-            ctx.power_manager.set_thermal_pressure(p);
-        }
+        ctx.power_manager.set_thermal_pressure(p);
     }
 
     true

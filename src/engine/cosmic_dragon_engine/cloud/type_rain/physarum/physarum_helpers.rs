@@ -12,8 +12,8 @@
 use crate::frame::Frame;
 
 use super::super::super::render::DrawCtx;
-use super::super::monolith::monolith_helpers::{bold_for_level, color_for_level};
 use super::super::monolith::BrightnessLevel;
+use super::super::monolith::monolith_helpers::{bold_for_level, color_for_level};
 
 /// Sample the trail field at a continuous (x, y) position with
 /// wraparound. Returns 0.0 if the field is empty or the position is

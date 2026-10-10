@@ -7,7 +7,7 @@
 use std::time::{Duration, Instant};
 
 use super::{
-    disable_monolith_spawning, make_monolith_cloud, visible_cell_count, DrawnCellKind, Frame,
+    DrawnCellKind, Frame, disable_monolith_spawning, make_monolith_cloud, visible_cell_count,
 };
 
 #[test]

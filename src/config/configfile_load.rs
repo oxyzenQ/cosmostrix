@@ -46,7 +46,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use super::configfile::{default_config_file_path, parse_config_text, ParsedConfig};
+use super::configfile::{ParsedConfig, default_config_file_path, parse_config_text};
 
 // NIGHT-depthtest-2 hunt-30: the platform system path lives HERE (the
 // loader's default-path fallback is its primary consumer) and is

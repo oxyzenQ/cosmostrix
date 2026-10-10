@@ -458,8 +458,7 @@ fn quantum_particle_snapshot_matches_an_actual_palette_stop() {
         // head (last) or any other stop.
         let body_idx = palette_stops.len() / 2;
         assert_eq!(
-            rgb,
-            palette_stops[body_idx],
+            rgb, palette_stops[body_idx],
             "particle snapshot must equal the body (mid-index) stop, not the head or any other stop"
         );
         // Reset color must never appear as a snapshot.

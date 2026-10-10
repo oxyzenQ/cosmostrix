@@ -789,8 +789,10 @@ mod example_layout_tests {
     /// 6-space COMMON OPTIONS pair and one 8-space --dump-config pair.
     #[test]
     fn annotations_sit_directly_above_their_examples() {
-        assert!(super::HELP_TEXT
-            .contains("      # custom palette from config\n      cosmostrix -c cyberpunk_2077"));
+        assert!(
+            super::HELP_TEXT
+                .contains("      # custom palette from config\n      cosmostrix -c cyberpunk_2077")
+        );
         assert!(super::HELP_TEXT.contains(
             "        # blocked (shell redirect)\n        cosmostrix --dump-config > /tmp/a.txt"
         ));

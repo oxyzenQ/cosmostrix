@@ -51,7 +51,7 @@
 //!
 //! Border: lags text with the shared `t^1.5` ease-out curve.
 
-use super::{index_fraction, index_pacing, lagged_border, CellReveal};
+use super::{CellReveal, index_fraction, index_pacing, lagged_border};
 use crate::cell::Cell;
 use crate::frame::Frame;
 use crate::runtime::ColorMode;
@@ -280,7 +280,7 @@ impl crate::cloud::Cloud {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{content_reveal, index_reveal_count, MsgFillStyle};
+    use super::super::{MsgFillStyle, content_reveal, index_reveal_count};
     use super::*;
 
     #[test]

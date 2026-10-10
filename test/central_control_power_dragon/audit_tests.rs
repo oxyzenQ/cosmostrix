@@ -34,8 +34,8 @@
 use std::time::{Duration, Instant};
 
 use crate::central_control_power_dragon::{
-    normalize_celsius, sample_thermal_pressure, EnduranceHealth, PerformanceSelfHealer,
-    PhasePredictor, PowerManager, PowerThresholds, ReclaimState, SelfHealAction,
+    EnduranceHealth, PerformanceSelfHealer, PhasePredictor, PowerManager, PowerThresholds,
+    ReclaimState, SelfHealAction, normalize_celsius, sample_thermal_pressure,
 };
 use crate::constants::*;
 

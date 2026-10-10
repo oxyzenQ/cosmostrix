@@ -96,10 +96,10 @@ fn fresh_entry_signal_top_biased_visibility() {
     let mut upper_visible = 0usize;
     for line in 0..=midpoint {
         for col in 0..cols {
-            if let Some(cell) = frame.get(col, line) {
-                if cell.ch != ' ' {
-                    upper_visible += 1;
-                }
+            if let Some(cell) = frame.get(col, line)
+                && cell.ch != ' '
+            {
+                upper_visible += 1;
             }
         }
     }

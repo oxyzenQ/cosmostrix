@@ -71,14 +71,14 @@ impl QuasarRain {
         {
             self.absorptions_for_test += 1;
         }
-        if self.disk_active < self.disk.len() {
-            if let Some(idx) = self.find_inactive_disk() {
-                let roll = random.rand_chance.sample(random.rng);
-                let target = crate::constants::QUAS_DISK_INNER + roll * 0.70;
-                self.disk[idx].activate_disk(theta, target, self.field_palette_slot);
-                self.disk_active += 1;
-                return;
-            }
+        if self.disk_active < self.disk.len()
+            && let Some(idx) = self.find_inactive_disk()
+        {
+            let roll = random.rand_chance.sample(random.rng);
+            let target = crate::constants::QUAS_DISK_INNER + roll * 0.70;
+            self.disk[idx].activate_disk(theta, target, self.field_palette_slot);
+            self.disk_active += 1;
+            return;
         }
         // The steady feed: the nearest orbit by angular distance
         // takes the charge (wrap-aware).

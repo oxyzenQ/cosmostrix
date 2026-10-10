@@ -724,20 +724,24 @@ fn colors_custom_value_rejects_invalid_hex() {
 
 #[test]
 fn colors_custom_stops_validates_each() {
-    assert!(validate_colors_custom_value(
-        "colors-custom.mytheme.stops",
-        "\"#1a0033\", \"#4d0080\", \"#9933ff\""
-    )
-    .is_none());
+    assert!(
+        validate_colors_custom_value(
+            "colors-custom.mytheme.stops",
+            "\"#1a0033\", \"#4d0080\", \"#9933ff\""
+        )
+        .is_none()
+    );
 }
 
 #[test]
 fn colors_custom_stops_rejects_one_bad() {
-    assert!(validate_colors_custom_value(
-        "colors-custom.mytheme.stops",
-        "\"#1a0033\", \"#gg0080\", \"#9933ff\""
-    )
-    .is_some());
+    assert!(
+        validate_colors_custom_value(
+            "colors-custom.mytheme.stops",
+            "\"#1a0033\", \"#gg0080\", \"#9933ff\""
+        )
+        .is_some()
+    );
 }
 
 #[test]

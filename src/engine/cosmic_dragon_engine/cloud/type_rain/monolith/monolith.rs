@@ -252,10 +252,10 @@ impl MonolithRain {
     /// removes that reliance.
     pub(crate) fn shift_active_streams_last_time(&mut self, elapsed: std::time::Duration) {
         for stream in &mut self.streams {
-            if stream.active {
-                if let Some(t) = stream.last_time.as_mut() {
-                    *t += elapsed;
-                }
+            if stream.active
+                && let Some(t) = stream.last_time.as_mut()
+            {
+                *t += elapsed;
             }
         }
     }
@@ -303,7 +303,7 @@ impl MonolithRain {
             .collect()
     }
 
-    /// NIGHT-hunter-14: test hook — force the drawn-gen counter to probe
+    /// NIGHT-hunter-14: test hook — force the drawn-r#gen counter to probe
     /// the u32 wrap guard without running 4 billion frames.
     #[cfg(test)]
     pub(crate) fn force_drawn_gen_counter_for_test(&mut self, value: u32) {
@@ -493,14 +493,14 @@ impl MonolithRain {
             self.drawn_gen.fill(0);
             self.drawn_gen_counter = 1;
         }
-        let gen = self.drawn_gen_counter;
+        let r#gen = self.drawn_gen_counter;
         for cell in &self.current_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
             // Direct index is safe: col < cols (checked at stream creation)
             // and line < lines (checked in draw_spine_cell / draw_segments).
             // The bounds check is defensive against resize races.
             if idx < self.drawn_gen.len() {
-                self.drawn_gen[idx] = gen;
+                self.drawn_gen[idx] = r#gen;
             }
             // NIGHT-hunter-29 (the phosphor ownership rule — the
             // doc on clear_phosphor_metadata): a cell drawn this
@@ -525,7 +525,7 @@ impl MonolithRain {
         let drawn_gen = &self.drawn_gen[..];
         for cell in &self.previous_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
-            if idx < drawn_gen.len() && drawn_gen[idx] == gen {
+            if idx < drawn_gen.len() && drawn_gen[idx] == r#gen {
                 continue;
             }
             clear_cell(frame, cleanup, cell.col, cell.line);

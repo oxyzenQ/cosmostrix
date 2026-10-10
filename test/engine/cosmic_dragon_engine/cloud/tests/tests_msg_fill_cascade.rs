@@ -128,11 +128,11 @@ fn cascade_drop_glyphs_visible_above_final_position_during_fall() {
     // The glyph 'h' must appear at an above row (line < mc.line).
     let mut found_above = false;
     for y in 0..mc.line {
-        if let Some(cell) = frame.get(mc.col, y) {
-            if cell.ch == mc.val {
-                found_above = true;
-                break;
-            }
+        if let Some(cell) = frame.get(mc.col, y)
+            && cell.ch == mc.val
+        {
+            found_above = true;
+            break;
         }
     }
     assert!(

@@ -88,12 +88,12 @@ use std::time::{Duration, Instant};
 
 use bitvec::prelude::BitVec;
 use crossterm::style::Color;
-use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, distr::Uniform, rngs::StdRng};
 use smallvec::SmallVec;
 
 use crate::constants::*;
 use crate::droplet::Droplet;
-use crate::palette::{build_palette, Palette};
+use crate::palette::{Palette, build_palette};
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSize, ShadingMode};
 
@@ -810,10 +810,10 @@ impl Cloud {
     /// so waiting out the lead is dead air). Past starts untouched.
     pub fn cut_message_intro_lead(&mut self) {
         let now = Instant::now();
-        if let Some(start) = self.message_start_time {
-            if start > now {
-                self.message_start_time = Some(now);
-            }
+        if let Some(start) = self.message_start_time
+            && start > now
+        {
+            self.message_start_time = Some(now);
         }
     }
 

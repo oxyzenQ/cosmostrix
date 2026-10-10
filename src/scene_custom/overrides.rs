@@ -53,7 +53,7 @@ use crate::constants::DENSITY_CLAMP_MAX;
 use super::helpers::{
     is_explicit, parse_f32_override, parse_f64_override, parse_speed_override, warn_invalid,
 };
-use super::{apply_glitch_level_preset_to_cloud_config, UserProfile};
+use super::{UserProfile, apply_glitch_level_preset_to_cloud_config};
 
 /// NIGHT-research-5: parse the scene-custom `rain` field's string value
 /// into a `RainStyle`. Returns `Some(style)` on a valid canonical label
@@ -87,15 +87,15 @@ pub(crate) fn apply_profile_overrides(
     // construction time, not at CLI parse time. The validation here is
     // still useful: it warns the user immediately at startup about a
     // typo'd label, instead of silently falling back to Glyph.
-    if let Some(value) = profile.rain.as_deref() {
-        if parse_rain_style_value(value).is_none() {
-            warn_invalid(
-                name,
-                "rain",
-                value,
-                crate::rain_style::RainStyle::valid_labels_hint(),
-            );
-        }
+    if let Some(value) = profile.rain.as_deref()
+        && parse_rain_style_value(value).is_none()
+    {
+        warn_invalid(
+            name,
+            "rain",
+            value,
+            crate::rain_style::RainStyle::valid_labels_hint(),
+        );
     }
     if let Some(value) = profile
         .color
@@ -128,37 +128,34 @@ pub(crate) fn apply_profile_overrides(
         .fps
         .as_deref()
         .filter(|_| !is_explicit(matches, "fps"))
+        && let Some(fps) = parse_f64_override(name, "fps", value, 1.0, 240.0)
     {
-        if let Some(fps) = parse_f64_override(name, "fps", value, 1.0, 240.0) {
-            args.fps = fps;
-            modified.insert("fps");
-            // v80.0.0-beta.2 fps-intent: a scene-custom block fps
-            // (including exactly 60) is explicit user intent — record it
-            // so main.rs's dynamic-default layer (144 on high-perf
-            // terminals) cannot stomp it (owner bug: cp77 with fps = 60
-            // showed `tgt: 144` on the HUD).
-            crate::record_fps_explicit("scene-custom");
-        }
+        args.fps = fps;
+        modified.insert("fps");
+        // v80.0.0-beta.2 fps-intent: a scene-custom block fps
+        // (including exactly 60) is explicit user intent — record it
+        // so main.rs's dynamic-default layer (144 on high-perf
+        // terminals) cannot stomp it (owner bug: cp77 with fps = 60
+        // showed `tgt: 144` on the HUD).
+        crate::record_fps_explicit("scene-custom");
     }
     if let Some(value) = profile
         .speed
         .as_deref()
         .filter(|_| !is_explicit(matches, "speed"))
+        && let Some(speed) = parse_speed_override(name, value)
     {
-        if let Some(speed) = parse_speed_override(name, value) {
-            args.speed = speed;
-            modified.insert("speed");
-        }
+        args.speed = speed;
+        modified.insert("speed");
     }
     if let Some(value) = profile
         .density
         .as_deref()
         .filter(|_| !is_explicit(matches, "density"))
+        && let Some(density) = parse_f32_override(name, "density", value, 0.01, DENSITY_CLAMP_MAX)
     {
-        if let Some(density) = parse_f32_override(name, "density", value, 0.01, DENSITY_CLAMP_MAX) {
-            args.density = density;
-            modified.insert("density");
-        }
+        args.density = density;
+        modified.insert("density");
     }
     if let Some(value) = profile
         .glitch_level
@@ -199,19 +196,20 @@ pub(crate) fn apply_profile_overrides(
             }
         }
     }
-    if let Some(value) = profile.charset_custom.as_deref() {
-        if !is_explicit(matches, "charset") && profile.charset.is_none() {
-            if crate::charset_custom::load_custom_charset_if_matches(cfg, value).is_some() {
-                args.charset = value.to_string();
-                modified.insert("charset");
-            } else {
-                warn_invalid(
-                    name,
-                    "charset-custom",
-                    value,
-                    "see [charset-custom.*] blocks",
-                );
-            }
+    if let Some(value) = profile.charset_custom.as_deref()
+        && !is_explicit(matches, "charset")
+        && profile.charset.is_none()
+    {
+        if crate::charset_custom::load_custom_charset_if_matches(cfg, value).is_some() {
+            args.charset = value.to_string();
+            modified.insert("charset");
+        } else {
+            warn_invalid(
+                name,
+                "charset-custom",
+                value,
+                "see [charset-custom.*] blocks",
+            );
         }
     }
 }

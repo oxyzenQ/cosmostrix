@@ -80,43 +80,43 @@ pub(crate) fn poll_ambient_events(ctx: &mut LoopCtx) -> Option<f64> {
             >= std::time::Duration::from_secs(GROUND_TRUTH_MIN_INTERVAL_SECS)
     {
         ctx.ambient.last_ground_truth_check = Instant::now();
-        if let Some(ref path) = ctx.ambient.path_for_ground_truth {
-            if let Ok(c) = crate::config_io::read_config_capped(path) {
-                let pv = &crate::configfile::parse_config_text(&c).values;
-                if crate::crystal_dragon_engine::ambient::collect_ambient_schedule(pv)
-                    .entries
-                    .is_empty()
-                {
-                    last_ambient_entry = None;
-                    // v80.0.0-beta.1: BEFORE clearing the tracker, capture whether the
-                    // current scene is ambient-owned — the nuke must revert
-                    // it (the overlay is lifting), not leave it stuck.
-                    if revert_ambient_owned_scene(ctx) {
-                        // v80.0.0-beta.2: the overlay lifted — the fps falls
-                        // back to the LOCKED startup resolution (CLI
-                        // --fps/config fps at startup), same as the rest of
-                        // the scene family.
-                        fps_intent = Some(ctx.config.startup.target_fps);
-                    }
-                    ctx.ambient.last_schedule.entries.clear();
-                    ctx.ambient.last_applied_entry = None;
-                    ctx.cloud.ambient_palette_locked = false;
-                    // v80.0.0-beta.1: do NOT fake `user_override_since_ambient = true`
-                    // here. The visual state is still ambient-owned until the
-                    // revert above (or a later rebuild) replaces it; faking
-                    // user ownership poisoned the next rebuild's ambient
-                    // overlay decision into SyncRuntime (scene stuck). The
-                    // flag stays honest: ambient applied last. Re-application
-                    // is already impossible via the other guards (empty
-                    // schedule + rx drain + snapback killed + tracker None).
-                    ctx.ambient.snapback_killed = true;
-                    ctx.ambient
-                        .handle
-                        .reload(crate::crystal_dragon_engine::ambient::AmbientSchedule::default());
-                    super::ambient_diag_schedule_empty();
-                    super::ambient_diag_schedule_reload();
-                    super::ambient_diag_snapback_killed();
+        if let Some(ref path) = ctx.ambient.path_for_ground_truth
+            && let Ok(c) = crate::config_io::read_config_capped(path)
+        {
+            let pv = &crate::configfile::parse_config_text(&c).values;
+            if crate::crystal_dragon_engine::ambient::collect_ambient_schedule(pv)
+                .entries
+                .is_empty()
+            {
+                last_ambient_entry = None;
+                // v80.0.0-beta.1: BEFORE clearing the tracker, capture whether the
+                // current scene is ambient-owned — the nuke must revert
+                // it (the overlay is lifting), not leave it stuck.
+                if revert_ambient_owned_scene(ctx) {
+                    // v80.0.0-beta.2: the overlay lifted — the fps falls
+                    // back to the LOCKED startup resolution (CLI
+                    // --fps/config fps at startup), same as the rest of
+                    // the scene family.
+                    fps_intent = Some(ctx.config.startup.target_fps);
                 }
+                ctx.ambient.last_schedule.entries.clear();
+                ctx.ambient.last_applied_entry = None;
+                ctx.cloud.ambient_palette_locked = false;
+                // v80.0.0-beta.1: do NOT fake `user_override_since_ambient = true`
+                // here. The visual state is still ambient-owned until the
+                // revert above (or a later rebuild) replaces it; faking
+                // user ownership poisoned the next rebuild's ambient
+                // overlay decision into SyncRuntime (scene stuck). The
+                // flag stays honest: ambient applied last. Re-application
+                // is already impossible via the other guards (empty
+                // schedule + rx drain + snapback killed + tracker None).
+                ctx.ambient.snapback_killed = true;
+                ctx.ambient
+                    .handle
+                    .reload(crate::crystal_dragon_engine::ambient::AmbientSchedule::default());
+                super::ambient_diag_schedule_empty();
+                super::ambient_diag_schedule_reload();
+                super::ambient_diag_snapback_killed();
             }
         }
     }
@@ -183,15 +183,15 @@ pub(crate) fn poll_ambient_events(ctx: &mut LoopCtx) -> Option<f64> {
         // when an rx event arrives).
         ctx.ambient.last_ground_truth_check = Instant::now();
         let mut empty = false;
-        if let Some(ref path) = ctx.ambient.path_for_ground_truth {
-            if let Ok(c) = crate::config_io::read_config_capped(path) {
-                let pv = &crate::configfile::parse_config_text(&c).values;
-                if crate::crystal_dragon_engine::ambient::collect_ambient_schedule(pv)
-                    .entries
-                    .is_empty()
-                {
-                    empty = true;
-                }
+        if let Some(ref path) = ctx.ambient.path_for_ground_truth
+            && let Ok(c) = crate::config_io::read_config_capped(path)
+        {
+            let pv = &crate::configfile::parse_config_text(&c).values;
+            if crate::crystal_dragon_engine::ambient::collect_ambient_schedule(pv)
+                .entries
+                .is_empty()
+            {
+                empty = true;
             }
         }
         empty

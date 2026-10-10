@@ -172,6 +172,7 @@ pub(crate) use watchdog::request_graceful_shutdown;
 // output/post_exit calls `crate::interactive::print_final_runtime_state`
 // + `SessionState`, and the #[path] test modules reach the accessors
 // through the facade (glob `super::super::*` and `super::fmt_opt_str`).
+pub(crate) use final_state::{SessionState, print_final_runtime_state, set_final_state};
 #[cfg(test)]
 pub(crate) use final_state::{
     fmt_opt_str, last_ambient_entries, last_ambient_snapback_secs, last_async_mode, last_bold_mode,
@@ -180,7 +181,6 @@ pub(crate) use final_state::{
     last_message, last_message_border, last_monolith_size, last_msg_fill_style, last_msg_mode,
     last_power_dragon, last_scene_name, last_shading_mode, last_speed,
 };
-pub(crate) use final_state::{print_final_runtime_state, set_final_state, SessionState};
 
 use std::sync::OnceLock;
 

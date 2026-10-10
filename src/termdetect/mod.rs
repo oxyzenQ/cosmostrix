@@ -42,7 +42,7 @@ pub(crate) use ancestor::set_ancestor_walk_inhibited;
 #[cfg(target_os = "linux")]
 pub(crate) use ancestor::{ancestor_matches_high_perf, ancestor_process_names};
 #[cfg(test)]
-pub(crate) use protocol::{known_xtermjs_hosts, RIS_RESET, VSCODE_FPS_CAP};
+pub(crate) use protocol::{RIS_RESET, VSCODE_FPS_CAP, known_xtermjs_hosts};
 
 // Re-export the NIGHT-research-1 truecolor TERM-hint table (and make it
 // reachable for the tests that iterate it). A pub(crate) `use` also

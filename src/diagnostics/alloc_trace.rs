@@ -100,7 +100,9 @@ unsafe impl GlobalAlloc for TraceAlloc {
             v.bytes_allocated = v.bytes_allocated.wrapping_add(layout.size() as u64);
             c.set(v);
         });
-        INNER.alloc(layout)
+        // SAFETY: caller contract of `GlobalAlloc::alloc` — layout has
+        // nonzero size and `INNER` is a sound allocator.
+        unsafe { INNER.alloc(layout) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
@@ -110,7 +112,9 @@ unsafe impl GlobalAlloc for TraceAlloc {
             v.bytes_deallocated = v.bytes_deallocated.wrapping_add(layout.size() as u64);
             c.set(v);
         });
-        INNER.dealloc(ptr, layout);
+        // SAFETY: caller contract of `GlobalAlloc::dealloc` — ptr was
+        // allocated by this allocator with the same layout.
+        unsafe { INNER.dealloc(ptr, layout) }
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
@@ -121,7 +125,9 @@ unsafe impl GlobalAlloc for TraceAlloc {
             v.bytes_deallocated = v.bytes_deallocated.wrapping_add(layout.size() as u64);
             c.set(v);
         });
-        INNER.realloc(ptr, layout, new_size)
+        // SAFETY: caller contract of `GlobalAlloc::realloc` — ptr was
+        // allocated by this allocator with the old layout, new_size > 0.
+        unsafe { INNER.realloc(ptr, layout, new_size) }
     }
 }
 
@@ -197,10 +203,10 @@ impl AllocMetrics {
         {
             if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
                 for line in status.lines() {
-                    if line.starts_with("VmData:") {
-                        if let Some(kib) = line.split_whitespace().nth(1) {
-                            self.heap_virtual_kib = kib.parse().unwrap_or(0);
-                        }
+                    if line.starts_with("VmData:")
+                        && let Some(kib) = line.split_whitespace().nth(1)
+                    {
+                        self.heap_virtual_kib = kib.parse().unwrap_or(0);
                     }
                 }
             }
@@ -213,8 +219,8 @@ impl AllocMetrics {
 #[cfg(test)]
 mod tests {
     use std::hint::black_box;
-    use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
     use super::*;
 

@@ -43,7 +43,7 @@
 
 use crate::cli::detect_color_mode_from_terms;
 use crate::runtime::{ColorMode, ColorPipeline};
-use crate::termdetect::{term_hints_truecolor, TRUECOLOR_TERM_HINTS};
+use crate::termdetect::{TRUECOLOR_TERM_HINTS, term_hints_truecolor};
 
 // ── 1. Truecolor-native TERM hints upgrade to TrueColor ─────────────────────
 

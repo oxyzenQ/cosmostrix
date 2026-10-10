@@ -28,7 +28,7 @@
 //!
 //! Border: lags word progress with the shared `t^1.5` ease-out curve.
 
-use super::{char_fade_in, lagged_border, CellReveal};
+use super::{CellReveal, char_fade_in, lagged_border};
 
 /// Per-word reveal stagger.
 pub(crate) const WORDS_PER_WORD_MS: usize = 200;
@@ -112,7 +112,7 @@ pub(super) fn text_progress(total_words: usize, elapsed_ms: Option<usize>) -> f3
 
 #[cfg(test)]
 mod tests {
-    use super::super::{content_reveal, text_progress, MsgFillStyle};
+    use super::super::{MsgFillStyle, content_reveal, text_progress};
     use super::*;
 
     #[test]

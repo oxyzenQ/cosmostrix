@@ -90,10 +90,11 @@ fn normal_exit_leaves_no_residue_on_frame() {
     let mut non_blank_bottom = 0usize;
     for line in bottom_start..cloud.lines {
         for col in 0..cloud.cols {
-            if let Some(cell) = frame.get(col, line) {
-                if cell.fg.is_some() && cell.ch != ' ' {
-                    non_blank_bottom += 1;
-                }
+            if let Some(cell) = frame.get(col, line)
+                && cell.fg.is_some()
+                && cell.ch != ' '
+            {
+                non_blank_bottom += 1;
             }
         }
     }
@@ -258,10 +259,11 @@ fn clean_exit_frame_has_no_persistent_ghost_in_bottom_rows() {
     let total = (cloud.cols as usize) * 5;
     for line in bottom_start..cloud.lines {
         for col in 0..cloud.cols {
-            if let Some(cell) = frame.get(col, line) {
-                if cell.ch != ' ' && cell.fg.is_some() {
-                    non_blank_count += 1;
-                }
+            if let Some(cell) = frame.get(col, line)
+                && cell.ch != ' '
+                && cell.fg.is_some()
+            {
+                non_blank_count += 1;
             }
         }
     }

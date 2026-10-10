@@ -15,12 +15,12 @@
 //! - INV-18 polar is sole production gradient path
 //! - INV-19 color pipeline disclosure routes correctly
 
-use super::lock::{all_schemes, CHROMA_DRAGON_ENGINE_VERSION};
+use super::lock::{CHROMA_DRAGON_ENGINE_VERSION, all_schemes};
 use crossterm::style::Color;
 
 use crate::chroma_dragon_engine::gradient::{gradient_from_stops_oklab, srgb_to_oklab};
 use crate::chroma_dragon_engine::palette::color_to_rgb;
-use crate::chroma_dragon_engine::shaders::transition::{apply_l_smoothing, TransitionLTable};
+use crate::chroma_dragon_engine::shaders::transition::{TransitionLTable, apply_l_smoothing};
 use crate::chroma_dragon_engine::tuning::{
     ABSOLUTE_MIN_FLOOR, BODY_TAIL_MAX_GAP_RATIO, GLOBAL_MAX_FLOOR, HEAD_HALO_FACTOR,
     PALETTE_FLOOR_RATIO, SUBPIXEL_JITTER_AMPLITUDE,

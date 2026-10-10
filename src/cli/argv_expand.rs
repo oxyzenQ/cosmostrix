@@ -103,14 +103,14 @@ pub(crate) fn expand_argv_shorthands(argv: &[std::ffi::OsString]) -> Vec<std::ff
                 i += 2;
                 continue;
             }
-        } else if let Some(s) = arg.to_str() {
-            if let Some(rest) = s.strip_prefix("-mb=") {
-                expanded.push("--message-border".into());
-                expanded.push("-m".into());
-                expanded.push(rest.into());
-                i += 1;
-                continue;
-            }
+        } else if let Some(s) = arg.to_str()
+            && let Some(rest) = s.strip_prefix("-mb=")
+        {
+            expanded.push("--message-border".into());
+            expanded.push("-m".into());
+            expanded.push(rest.into());
+            i += 1;
+            continue;
         }
 
         expanded.push(arg.clone());

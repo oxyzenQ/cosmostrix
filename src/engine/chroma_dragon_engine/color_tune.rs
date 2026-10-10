@@ -9,7 +9,7 @@
 
 use crossterm::style::Color;
 
-use crate::palette::{color_to_rgb, Palette};
+use crate::palette::{Palette, color_to_rgb};
 use crate::runtime::ColorMode;
 
 /// User-supplied color tuning parameters. All default to 1.0 (identity).
@@ -269,14 +269,16 @@ mod tests {
     #[test]
     fn identity_tune_detected() {
         assert!(ColorTune::IDENTITY.is_identity());
-        assert!(!ColorTune {
-            saturation: 1.1,
-            brightness: 1.0,
-            head: 1.0,
-            body: 1.0,
-            tail: 1.0
-        }
-        .is_identity());
+        assert!(
+            !ColorTune {
+                saturation: 1.1,
+                brightness: 1.0,
+                head: 1.0,
+                body: 1.0,
+                tail: 1.0
+            }
+            .is_identity()
+        );
     }
 
     #[test]

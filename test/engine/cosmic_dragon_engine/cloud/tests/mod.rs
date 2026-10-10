@@ -63,8 +63,8 @@ use std::time::{Duration, Instant};
 
 use crossterm::style::Color;
 
-use super::render::{DrawCtx, PaletteLadder};
 use super::Cloud;
+use super::render::{DrawCtx, PaletteLadder};
 // v50 (2026-08-17) border gradient fix: expose the interpolation helper to
 // the test submodule so tests/tests_border_gradient.rs can verify the smooth
 // gradient produces interpolated colors at non-integer `t` values.
@@ -187,10 +187,12 @@ fn color_transition_starts_immediately_and_completes() {
     );
 
     // All columns should already have adopted the new palette (wave is row-based)
-    assert!(cloud
-        .column_palette_slot
-        .iter()
-        .all(|slot| *slot == cloud.active_palette_slot));
+    assert!(
+        cloud
+            .column_palette_slot
+            .iter()
+            .all(|slot| *slot == cloud.active_palette_slot)
+    );
 
     cloud.transition_start = Some(now);
     cloud.rain_at(&mut frame, now);

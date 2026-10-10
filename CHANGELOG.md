@@ -33,6 +33,38 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### build: night-improve-4 — the Rust edition upgrades 2021 to 2024: the language bump lands across both crates with zero behavior change
+
+- Both Cargo.toml manifests (root crate and pgo-runner) move to
+  `edition = "2024"`. MSRV stays at 1.98 — the edition 2024 floor is
+  1.85, so the pinned toolchain and the rust-version sync gate are
+  untouched.
+- The `gen` reserved keyword collision: Frame's content-generation
+  field (`gen`), its local aliases, and the thirteen type_rain engine
+  consumers become the raw identifier `r#gen` (18 files, 80 tokens).
+  Compound names (`cell_gen`, `drawn_gen`, `gen_counter`) are
+  untouched by construction.
+- Edition 2024 marks `env::set_var` / `env::remove_var` unsafe: all
+  160 call sites in the test suite are wrapped in `unsafe` blocks with
+  house-style SAFETY comments (69 blocks across 10 test files). No
+  production call site exists.
+- Edition 2024 pattern ergonomics: the phosphor tests' tuple filters
+  take explicit reference patterns (`|&(&energy, &ch)|`), the config
+  drain drops the `ref` modifier, and two `contains(i)` calls gain the
+  now-explicit borrow.
+- `unsafe_op_in_unsafe_fn` hygiene: `hint_reclaim_pages` wraps its
+  `madvise` call and the `TraceAlloc` GlobalAlloc forwarding wraps its
+  `INNER` calls in inner `unsafe` blocks with SAFETY comments; the
+  `tzset` extern block becomes `unsafe extern "C"`.
+- Clippy's `collapsible_if` (if-let chains are stable in edition
+  2024) auto-collapsed across src and tests via `cargo clippy --fix`.
+- Verification: `cargo check --all-targets` green, `cargo clippy
+  --all-targets` zero warnings, `cargo fmt --all` clean, and the
+  standalone build-script suite passes 10/10 under
+  `rustc --edition 2024 --test build.rs`. Compiler-driven migration
+  end to end — no behavior change intended; the A/B benchmark pair
+  stays the next-task gate.
+
 ### docs: night-improve-5 — the v100.0.6 era trimmed to its archive file: the live CHANGELOG.md restarts fresh for the upcoming version
 
 - The post-stable maintenance arc (2026-09-14 to 2026-10-10: the

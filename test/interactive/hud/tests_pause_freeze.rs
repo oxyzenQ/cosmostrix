@@ -92,7 +92,7 @@ fn pause_freeze_duplicate_announcements_are_noops() {
 fn pause_freeze_uptime_excludes_paused_time() {
     let mut h = HudState::new();
     h.toggle(); // visible
-                // Backdate the session by 120 s: uptime should read "02:00".
+    // Backdate the session by 120 s: uptime should read "02:00".
     h.session_start = Instant::now()
         .checked_sub(Duration::from_secs(120))
         .expect("checked_sub on a 120 s backdate must succeed");

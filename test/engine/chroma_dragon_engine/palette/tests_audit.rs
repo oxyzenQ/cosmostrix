@@ -419,7 +419,7 @@ fn audit_near_duplicate_themes_act() {
 /// (floor / continuity / OKLab) free to evolve while the source values
 /// stay locked.
 fn raw_stops(scheme: ColorScheme) -> &'static [(u8, u8, u8)] {
-    use crate::chroma_dragon_engine::catalog::{ThemeColors, THEMES};
+    use crate::chroma_dragon_engine::catalog::{THEMES, ThemeColors};
     let theme = THEMES
         .iter()
         .find(|t| t.scheme == scheme)

@@ -625,10 +625,10 @@ pub(crate) fn resolve_rain_style(
     // Custom scene → consult the block's `rain` field.
     let normalized = name.trim().to_ascii_lowercase();
     let key = format!("scene-custom.{normalized}.rain");
-    if let Some(label) = cfg.get(&key) {
-        if let Some(style) = crate::rain_style::RainStyle::from_label(label) {
-            return style;
-        }
+    if let Some(label) = cfg.get(&key)
+        && let Some(style) = crate::rain_style::RainStyle::from_label(label)
+    {
+        return style;
     }
     // Fallback: Glyph (the default rain style).
     crate::rain_style::RainStyle::Glyph

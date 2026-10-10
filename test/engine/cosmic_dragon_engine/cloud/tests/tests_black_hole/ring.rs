@@ -64,18 +64,18 @@
 use std::collections::HashSet;
 
 use super::*;
-use crate::cloud::type_rain::black_hole::black_hole::{level_rank, CELL_ASPECT_DIVISOR};
+use crate::cloud::type_rain::black_hole::RollFrame;
+use crate::cloud::type_rain::black_hole::black_hole::{CELL_ASPECT_DIVISOR, level_rank};
 use crate::cloud::type_rain::black_hole::halo::{
-    halo_entry_radius_scale, halo_head_level, halo_mote_visible, project_halo_mote,
     HALO_STREAM_TAG_LOWER, HALO_STREAM_TAG_LOWER_OUTER, HALO_STREAM_TAG_UPPER,
-    HALO_STREAM_TAG_UPPER_OUTER, HALO_STREAM_TAG_UPPER_TOP,
+    HALO_STREAM_TAG_UPPER_OUTER, HALO_STREAM_TAG_UPPER_TOP, halo_entry_radius_scale,
+    halo_head_level, halo_mote_visible, project_halo_mote,
 };
 use crate::cloud::type_rain::black_hole::ring::{
     occludes_ring_cell, project_ring_mote, proximity_level, ring_head_base, rise_ladder_dist,
     soft_head_level,
 };
 use crate::cloud::type_rain::black_hole::roll::RingRoll;
-use crate::cloud::type_rain::black_hole::RollFrame;
 use crate::cloud::type_rain::monolith::BrightnessLevel;
 
 /// Shared geometry for the projection checks (mirrors the ball

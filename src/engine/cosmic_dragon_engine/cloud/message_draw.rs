@@ -423,20 +423,19 @@ impl super::Cloud {
                 // `chroma_dragon_engine::palette::blend_toward_bg_rgb`).
                 let tint = reveal.tint;
                 let cell_fg_tinted = |fg: Option<Color>| -> Option<Color> {
-                    if let Some((tr, tg, tb, blend)) = tint {
-                        if let Some(base) = fg {
-                            if let Some((br, bgc, bb)) = crate::palette::decode_color(base) {
-                                let (nr, ng, nb) =
-                                    crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
-                                        br, bgc, bb, tr, tg, tb, blend,
-                                    );
-                                return Some(Color::Rgb {
-                                    r: nr,
-                                    g: ng,
-                                    b: nb,
-                                });
-                            }
-                        }
+                    if let Some((tr, tg, tb, blend)) = tint
+                        && let Some(base) = fg
+                        && let Some((br, bgc, bb)) = crate::palette::decode_color(base)
+                    {
+                        let (nr, ng, nb) =
+                            crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                                br, bgc, bb, tr, tg, tb, blend,
+                            );
+                        return Some(Color::Rgb {
+                            r: nr,
+                            g: ng,
+                            b: nb,
+                        });
                     }
                     fg
                 };
@@ -545,20 +544,18 @@ impl super::Cloud {
                 continue;
             }
             let mut fg = scale_msg_content_fg(&self.color_pipeline, content_fg, factor);
-            if let Some((tr, tg, tb, blend)) = tint {
-                if let Some(base) = fg {
-                    if let Some((br, bgc, bb)) = crate::palette::decode_color(base) {
-                        let (nr, ng, nb) =
-                            crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
-                                br, bgc, bb, tr, tg, tb, blend,
-                            );
-                        fg = Some(Color::Rgb {
-                            r: nr,
-                            g: ng,
-                            b: nb,
-                        });
-                    }
-                }
+            if let Some((tr, tg, tb, blend)) = tint
+                && let Some(base) = fg
+                && let Some((br, bgc, bb)) = crate::palette::decode_color(base)
+            {
+                let (nr, ng, nb) = crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                    br, bgc, bb, tr, tg, tb, blend,
+                );
+                fg = Some(Color::Rgb {
+                    r: nr,
+                    g: ng,
+                    b: nb,
+                });
             }
             frame.set_force(
                 col,

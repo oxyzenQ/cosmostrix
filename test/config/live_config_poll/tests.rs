@@ -26,7 +26,12 @@ static ENV_VAR_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 #[test]
 fn env_poll_interval_ms_default_when_unset() {
     let _guard = ENV_VAR_TEST_LOCK.lock().unwrap();
-    std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
+    }
     assert_eq!(
         env_poll_interval_ms(),
         DEFAULT_POLL_INTERVAL_MS,
@@ -38,13 +43,23 @@ fn env_poll_interval_ms_default_when_unset() {
 #[test]
 fn env_poll_interval_ms_honors_valid_override() {
     let _guard = ENV_VAR_TEST_LOCK.lock().unwrap();
-    std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "300");
-    assert_eq!(env_poll_interval_ms(), 300, "300ms is within range");
-    std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "5000");
-    assert_eq!(env_poll_interval_ms(), 5000, "5000ms is the upper bound");
-    std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "50");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "300");
+        assert_eq!(env_poll_interval_ms(), 300, "300ms is within range");
+        std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "5000");
+        assert_eq!(env_poll_interval_ms(), 5000, "5000ms is the upper bound");
+        std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "50");
+    }
     assert_eq!(env_poll_interval_ms(), 50, "50ms is the lower bound");
-    std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
+    }
 }
 
 /// `env_poll_interval_ms` falls back to default on invalid input:
@@ -55,14 +70,24 @@ fn env_poll_interval_ms_honors_valid_override() {
 fn env_poll_interval_ms_falls_back_on_invalid() {
     let _guard = ENV_VAR_TEST_LOCK.lock().unwrap();
     for bad in &["not-a-number", "0", "49", "5001", "99999", "-1"] {
-        std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", bad);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", bad);
+        }
         assert_eq!(
             env_poll_interval_ms(),
             DEFAULT_POLL_INTERVAL_MS,
             "invalid value '{bad}' must fall back to default"
         );
     }
-    std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
+    }
 }
 
 /// v50: SHA-512 hash known-answer test against published NIST vectors.

@@ -1236,11 +1236,7 @@ impl super::Cloud {
                         let d = &mut self.droplets[i];
                         let adv_now = if let Some(last) = d.last_time {
                             let max_now = last + max_sim_delta;
-                            if now > max_now {
-                                max_now
-                            } else {
-                                now
-                            }
+                            if now > max_now { max_now } else { now }
                         } else {
                             now
                         };
@@ -1426,11 +1422,7 @@ impl super::Cloud {
                 .next_glitch_time
                 .saturating_duration_since(self.last_glitch_time)
                 .as_nanos() as f64;
-            if between > 0.0 {
-                1.0 / between
-            } else {
-                0.0
-            }
+            if between > 0.0 { 1.0 / between } else { 0.0 }
         };
 
         // PERF: precompute glitch bright/dim phase state once per frame.

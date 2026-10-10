@@ -23,8 +23,8 @@
 //! With clap's own suggestion engine there is no list to miss, and
 //! these tests lock that in.
 
-use clap::error::ContextKind;
 use clap::Parser;
+use clap::error::ContextKind;
 
 /// Extract the first suggested argument from a clap error's structured
 /// context (the render path reads the same context).

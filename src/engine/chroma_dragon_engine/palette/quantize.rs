@@ -499,11 +499,7 @@ impl SgrQuantizer {
 /// The Mono wire color: `White` for fg (a single honest color), `Reset`
 /// for bg (default background — never paint on dumb terminals).
 fn mono_wire_color(is_bg: bool) -> Color {
-    if is_bg {
-        Color::Reset
-    } else {
-        Color::White
-    }
+    if is_bg { Color::Reset } else { Color::White }
 }
 
 #[cfg(test)]

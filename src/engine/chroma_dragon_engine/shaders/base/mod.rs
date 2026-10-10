@@ -533,16 +533,16 @@ pub(crate) fn resolve_cell_color(
             // Offset is in {-2, -1, 0, +1, +2} — subtle enough to feel
             // atmospheric, visible enough to notice over the ~10-minute
             // drift cycle.
-            if let Some(offset) = shader.hue_drift_offset {
-                if !shader.shading_distance {
-                    color_idx = (color_idx + offset).clamp(0, last.max(0));
-                    // v50 (2026-08-17) LTS chroma dragon sync: mirror the
-                    // integer hue-drift offset on t_param as a fractional
-                    // delta. Offset ∈ {-2, -1, 0, +1, +2} — subtle enough
-                    // to feel atmospheric, visible enough to notice over the
-                    // ~10-minute drift cycle.
-                    t_param = (t_param + offset as f32 / palette_last_f32).clamp(0.0, 1.0);
-                }
+            if let Some(offset) = shader.hue_drift_offset
+                && !shader.shading_distance
+            {
+                color_idx = (color_idx + offset).clamp(0, last.max(0));
+                // v50 (2026-08-17) LTS chroma dragon sync: mirror the
+                // integer hue-drift offset on t_param as a fractional
+                // delta. Offset ∈ {-2, -1, 0, +1, +2} — subtle enough
+                // to feel atmospheric, visible enough to notice over the
+                // ~10-minute drift cycle.
+                t_param = (t_param + offset as f32 / palette_last_f32).clamp(0.0, 1.0);
             }
             // Phase 3-C (Chroma Dragon Innovation C): temporal column hue
             // coherence. For body cells (not Head/Tail — those need to stay
@@ -564,17 +564,17 @@ pub(crate) fn resolve_cell_color(
             // `sinf + round + cast`. The LUT is built once per frame in
             // `rain.rs`. Saves ~65-130M cycles/sec at 60 FPS on a 200-col
             // viewport.
-            if let Some(lut) = shader.column_coherence_lut {
-                if !shader.shading_distance {
-                    let perturbation = lut[col as usize];
-                    color_idx = (color_idx + perturbation).clamp(0, last.max(0));
-                    // v50 (2026-08-17) LTS chroma dragon sync: mirror the
-                    // integer column-coherence perturbation on t_param. A
-                    // single column now shimmers smoothly through adjacent
-                    // palette stops instead of jumping between discrete
-                    // color_idx values.
-                    t_param = (t_param + perturbation as f32 / palette_last_f32).clamp(0.0, 1.0);
-                }
+            if let Some(lut) = shader.column_coherence_lut
+                && !shader.shading_distance
+            {
+                let perturbation = lut[col as usize];
+                color_idx = (color_idx + perturbation).clamp(0, last.max(0));
+                // v50 (2026-08-17) LTS chroma dragon sync: mirror the
+                // integer column-coherence perturbation on t_param. A
+                // single column now shimmers smoothly through adjacent
+                // palette stops instead of jumping between discrete
+                // color_idx values.
+                t_param = (t_param + perturbation as f32 / palette_last_f32).clamp(0.0, 1.0);
             }
         }
     }
@@ -737,11 +737,11 @@ pub(crate) fn resolve_cell_color(
 // keep resolving).
 mod helpers;
 use helpers::{
-    apply_subpixel_jitter, bayer_threshold, cell_hash, SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD,
+    SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD, apply_subpixel_jitter, bayer_threshold, cell_hash,
 };
 pub(crate) use helpers::{
-    color_uses_previous_palette, column_coherence_perturbation, column_coherence_phase,
-    hue_drift_offset, TRAIL_EXP_LUT,
+    TRAIL_EXP_LUT, color_uses_previous_palette, column_coherence_perturbation,
+    column_coherence_phase, hue_drift_offset,
 };
 
 // Test-support helpers shared by the four #[path] test modules below.

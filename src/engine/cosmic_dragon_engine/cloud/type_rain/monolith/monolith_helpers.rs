@@ -28,8 +28,8 @@ use crate::terminal::blank_cell;
 
 use super::super::super::render::{DrawCtx, PaletteLadder};
 use super::monolith::{
-    ActivationParams, BrightnessLevel, DrawnCell, DrawnCellKind, MonolithCleanup, MonolithStream,
-    Segment, SegmentKind, SpineTone, MAX_SEGMENTS,
+    ActivationParams, BrightnessLevel, DrawnCell, DrawnCellKind, MAX_SEGMENTS, MonolithCleanup,
+    MonolithStream, Segment, SegmentKind, SpineTone,
 };
 use super::monolith_glyphs::{segment_char, spine_char};
 

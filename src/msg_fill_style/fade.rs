@@ -67,7 +67,7 @@ pub(super) fn text_progress() -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{border_progress, content_reveal, fade_block_alpha, MsgFillStyle};
+    use super::super::{MsgFillStyle, border_progress, content_reveal, fade_block_alpha};
 
     #[test]
     fn fade_block_alpha_ramps_over_800ms() {

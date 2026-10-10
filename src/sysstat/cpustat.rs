@@ -128,8 +128,8 @@ fn macos_cpu_ns() -> Option<u64> {
     // deprecated in favor of `mach2`, but still work on macOS 12+.
     #![allow(deprecated)]
     use libc::{
-        c_int, mach_task_basic_info, mach_task_self, task_info, task_info_t, KERN_SUCCESS,
-        MACH_TASK_BASIC_INFO,
+        KERN_SUCCESS, MACH_TASK_BASIC_INFO, c_int, mach_task_basic_info, mach_task_self, task_info,
+        task_info_t,
     };
     use std::mem;
 

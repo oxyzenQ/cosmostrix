@@ -27,10 +27,10 @@
 use std::sync::OnceLock;
 use std::time::Instant;
 
+use crate::CloudConfig;
 use crate::cloud::Cloud;
 use crate::color_tune::ColorTune;
 use crate::runtime::ColorScheme;
-use crate::CloudConfig;
 
 // Final runtime state — stored as Strings to avoid enum discriminant
 // issues with 52 ColorScheme variants. Set once by the event loop before
@@ -685,11 +685,7 @@ pub(crate) fn print_final_runtime_state(startup: &SessionState, start_time: Inst
     }
     if final_color_bg != startup.color_bg {
         let bg_label = |default: bool| {
-            if default {
-                "default"
-            } else {
-                "black"
-            }
+            if default { "default" } else { "black" }
         };
         crate::output::eprintln_verbose(
             "  color_bg:",

@@ -27,8 +27,8 @@
 
 use std::time::Instant;
 
-use crate::runtime::ColorScheme;
 use crate::CloudConfig;
+use crate::runtime::ColorScheme;
 
 /// Print the post-exit verbose dump (startup ambient info + final runtime
 /// state section).
@@ -106,23 +106,23 @@ pub(crate) fn handle_post_exit_errors(verbose: bool) {
     // errors set LIVE_RELOAD_EXIT_CODE=2, break the rain loop, print here
     // after Terminal::drop (no alt-screen leak).
     if crate::live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
-        if let Ok(guard) = crate::live_config::LIVE_RELOAD_ERROR.lock() {
-            if let Some(ref msg) = *guard {
-                // S-night-R4: the live-reload error text interpolates config
-                // values — escape before it reaches the terminal.
-                let msg = crate::output::escape_ctrl(msg);
-                crate::output::eprintln_safe!(
-                    "{} [live-reload] ERROR: {}{}",
-                    crate::output::error_bold_open(),
-                    msg,
-                    crate::output::reset()
-                );
-                crate::output::eprintln_safe!(
-                    "{}  Config NOT applied. Fix the error and restart cosmostrix.{}",
-                    crate::output::error_open(),
-                    crate::output::reset()
-                );
-            }
+        if let Ok(guard) = crate::live_config::LIVE_RELOAD_ERROR.lock()
+            && let Some(ref msg) = *guard
+        {
+            // S-night-R4: the live-reload error text interpolates config
+            // values — escape before it reaches the terminal.
+            let msg = crate::output::escape_ctrl(msg);
+            crate::output::eprintln_safe!(
+                "{} [live-reload] ERROR: {}{}",
+                crate::output::error_bold_open(),
+                msg,
+                crate::output::reset()
+            );
+            crate::output::eprintln_safe!(
+                "{}  Config NOT applied. Fix the error and restart cosmostrix.{}",
+                crate::output::error_open(),
+                crate::output::reset()
+            );
         }
         use std::io::Write;
         let _ = std::io::stderr().flush();

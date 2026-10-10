@@ -36,7 +36,7 @@ use rand::distr::Distribution;
 
 use crate::constants::{NEUR_CAPTURE_KICK, NEUR_POT_CAP};
 
-use super::network::{wire_path, NeuralGeom, NeuralRandom};
+use super::network::{NeuralGeom, NeuralRandom, wire_path};
 use super::neural::NeuralRain;
 
 impl NeuralRain {
@@ -71,27 +71,20 @@ impl NeuralRain {
         // cell in the deterministic build order (the input band
         // first, then the hidden layers, then the output — the
         // machine assembles top to bottom).
-        if self.node_active < self.nodes.len() {
-            if let Some(idx) = (0..self.nodes.len()).find(|&i| !self.nodes[i].active) {
-                let (layer, nx, ny, first_syn, is_output) = {
-                    let n = &self.nodes[idx];
-                    (n.layer, n.x, n.y, n.first_syn, n.is_output)
-                };
-                self.nodes[idx].activate(
-                    layer,
-                    nx,
-                    ny,
-                    first_syn,
-                    is_output,
-                    self.field_palette_slot,
-                );
-                // The birth flash: the fresh cell lights once (the
-                // capture's receipt — the light shows where the
-                // rain became the machine).
-                self.nodes[idx].flash = 0.8;
-                self.node_active += 1;
-                return;
-            }
+        if self.node_active < self.nodes.len()
+            && let Some(idx) = (0..self.nodes.len()).find(|&i| !self.nodes[i].active)
+        {
+            let (layer, nx, ny, first_syn, is_output) = {
+                let n = &self.nodes[idx];
+                (n.layer, n.x, n.y, n.first_syn, n.is_output)
+            };
+            self.nodes[idx].activate(layer, nx, ny, first_syn, is_output, self.field_palette_slot);
+            // The birth flash: the fresh cell lights once (the
+            // capture's receipt — the light shows where the
+            // rain became the machine).
+            self.nodes[idx].flash = 0.8;
+            self.node_active += 1;
+            return;
         }
         // Arm 2 — the steady feed: the nearest active input neuron
         // by column distance takes the kick.

@@ -7,7 +7,7 @@
 use std::time::Instant;
 
 use crate::cell::Cell;
-use crate::chroma_dragon_engine::post::anomaly::{anomaly_halo_target, AnomalyHaloMode};
+use crate::chroma_dragon_engine::post::anomaly::{AnomalyHaloMode, anomaly_halo_target};
 use crate::constants::*;
 
 use super::phosphor::anomaly_halo_blend;

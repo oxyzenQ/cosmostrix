@@ -20,7 +20,7 @@
 use std::time::{Duration, Instant};
 
 use rand::distr::Distribution;
-use rand::{rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, rngs::StdRng};
 
 use super::make_cloud;
 use crate::cloud::Cloud;

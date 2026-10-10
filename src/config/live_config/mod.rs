@@ -50,13 +50,13 @@ use crate::types::constants::MESSAGE_MAX_LEN;
 // Re-export everything so existing `live_config::LIVE_RELOAD_*` and
 // `live_config::push_*` references continue to resolve unchanged.
 #[cfg(test)]
-pub(crate) use crate::live_config_state::drain_validation_rejections;
-#[cfg(test)]
 pub(crate) use crate::live_config_state::MAX_REJECTION_LOG;
+#[cfg(test)]
+pub(crate) use crate::live_config_state::drain_validation_rejections;
 pub(crate) use crate::live_config_state::{
-    drain_runtime_diags, drain_runtime_warnings, interactive_session_active, push_runtime_diag,
-    push_runtime_warning, push_validation_rejection, set_interactive_session_active,
-    LIVE_RELOAD_ERROR, LIVE_RELOAD_EXIT_CODE,
+    LIVE_RELOAD_ERROR, LIVE_RELOAD_EXIT_CODE, drain_runtime_diags, drain_runtime_warnings,
+    interactive_session_active, push_runtime_diag, push_runtime_warning, push_validation_rejection,
+    set_interactive_session_active,
 };
 
 /// Live config event sent from watcher to render thread.
@@ -176,10 +176,10 @@ pub(crate) fn rebuild_cloud_config(
     // — that is CORRECT: it re-loads the palette from the (edited)
     // [colors-custom.<name>] block, which is the documented live-edit
     // feature for custom palettes.
-    if let Some(ref name) = new.custom_palette_name {
-        if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, name) {
-            new.custom_palette = Some(palette);
-        }
+    if let Some(ref name) = new.custom_palette_name
+        && let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, name)
+    {
+        new.custom_palette = Some(palette);
     }
 
     // Charset — config key present wins over the CLI lock (v80.0.0-beta.1); when
@@ -297,10 +297,10 @@ pub(crate) fn rebuild_cloud_config(
 
     // Crystal Dragon Engine — v80.0.0-beta.1: config key present wins over the CLI
     // lock; absent key falls back to the locked startup value in base.
-    if let Some(v) = cfg.get("crystal-dragon") {
-        if let Some(b) = crate::config_apply::parse_bool_config("crystal-dragon", v) {
-            new.crystal_dragon = b;
-        }
+    if let Some(v) = cfg.get("crystal-dragon")
+        && let Some(b) = crate::config_apply::parse_bool_config("crystal-dragon", v)
+    {
+        new.crystal_dragon = b;
     }
 
     // v80.0.0-alpha.1: crystal-dragon-secs live-reload — the online harmony
@@ -312,22 +312,21 @@ pub(crate) fn rebuild_cloud_config(
     // create_cloud (CloudConfig -> crystal_dragon_control.polling_secs);
     // inherit_ecosystem_state no longer copies the old cloud's control.
     // v80.0.0-alpha.2: human-duration forms accepted (45, 45s, 1m, 1h30m).
-    if let Some(v) = cfg.get("crystal-dragon-secs") {
-        if let Some(secs) =
+    if let Some(v) = cfg.get("crystal-dragon-secs")
+        && let Some(secs) =
             crate::config_apply::parse_secs_config("crystal-dragon-secs", v, 0.0, 86400.0)
-        {
-            new.crystal_dragon_secs = Some(secs);
-            crate::lr_trace!("crystal-dragon-secs: {}", secs);
-        }
+    {
+        new.crystal_dragon_secs = Some(secs);
+        crate::lr_trace!("crystal-dragon-secs: {}", secs);
     }
 
     // v50.0.0-alpha.7: Power Dragon live reload; v80.0.0-beta.1: config key present
     // wins over the CLI lock, absent key falls back to the locked startup
     // value in base. Mirrors crystal-dragon.
-    if let Some(v) = cfg.get("power-dragon") {
-        if let Some(b) = crate::config_apply::parse_bool_config("power-dragon", v) {
-            new.power_dragon = b;
-        }
+    if let Some(v) = cfg.get("power-dragon")
+        && let Some(b) = crate::config_apply::parse_bool_config("power-dragon", v)
+    {
+        new.power_dragon = b;
     }
 
     // (CLI-P-1): live-reload bold/shading-mode/async-mode (previously
@@ -367,10 +366,10 @@ pub(crate) fn rebuild_cloud_config(
     // v50.0.0-alpha.7: --async-mode CLI flag; v80.0.0-beta.1: config key present
     // wins over the CLI lock, absent key falls back to the locked startup
     // value in base. Mirrors crystal-dragon.
-    if let Some(v) = cfg.get("async-mode") {
-        if let Some(b) = crate::config_apply::parse_bool_config("async-mode", v) {
-            new.async_mode = b;
-        }
+    if let Some(v) = cfg.get("async-mode")
+        && let Some(b) = crate::config_apply::parse_bool_config("async-mode", v)
+    {
+        new.async_mode = b;
     }
 
     // v20: scene-custom live reload — re-apply fields if the custom scene
@@ -437,8 +436,16 @@ pub(crate) fn rebuild_cloud_config(
         {
             lr_trace!(
                 "apply color.tune live reload: sat={} bright={} head={} body={} tail={} (was sat={} bright={} head={} body={} tail={})",
-                new_tune.saturation, new_tune.brightness, new_tune.head, new_tune.body, new_tune.tail,
-                new.color_tune.saturation, new.color_tune.brightness, new.color_tune.head, new.color_tune.body, new.color_tune.tail
+                new_tune.saturation,
+                new_tune.brightness,
+                new_tune.head,
+                new_tune.body,
+                new_tune.tail,
+                new.color_tune.saturation,
+                new.color_tune.brightness,
+                new.color_tune.head,
+                new.color_tune.body,
+                new.color_tune.tail
             );
             new.color_tune = new_tune;
         } else {

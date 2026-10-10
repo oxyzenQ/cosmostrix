@@ -23,12 +23,22 @@ pub(crate) static ENV_LOCK: Mutex<()> = Mutex::new(());
 fn with_test_home<F: FnOnce()>(home: &str, f: F) {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let old_home = std::env::var("HOME").ok();
-    std::env::set_var("HOME", home);
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var("HOME", home);
+    }
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
     // Restore old HOME
-    match old_home {
-        Some(h) => std::env::set_var("HOME", h),
-        None => std::env::remove_var("HOME"),
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        match old_home {
+            Some(h) => std::env::set_var("HOME", h),
+            None => std::env::remove_var("HOME"),
+        }
     }
     if let Err(e) = result {
         std::panic::resume_unwind(e);
@@ -94,14 +104,24 @@ fn termux_prefix_etc_cosmostrix_is_safe() {
     // This test sets TERMUX_VERSION + PREFIX to simulate a Termux
     // environment and verifies the whitelist accepts $PREFIX/etc/cosmostrix/.
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    std::env::set_var("TERMUX_VERSION", "0.118.0");
-    std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var("TERMUX_VERSION", "0.118.0");
+        std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
+    }
     let result = is_safe_path("/data/data/com.termux/files/usr/etc/cosmostrix/config.toml");
     // Cleanup env vars (best-effort — don't leak the Termux simulation
     // to other tests). Use remove_var instead of unset because some
     // tests may have set TERMUX_VERSION earlier.
-    std::env::remove_var("TERMUX_VERSION");
-    std::env::remove_var("PREFIX");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::remove_var("TERMUX_VERSION");
+        std::env::remove_var("PREFIX");
+    }
     assert!(
         result,
         "Termux $PREFIX/etc/cosmostrix/ must be whitelisted when TERMUX_VERSION is set"
@@ -115,8 +135,13 @@ fn termux_prefix_etc_cosmostrix_rejected_when_prefix_unset() {
     // literal path that looks like a Termux path must be rejected.
     // This verifies the whitelist entry is conditional on PREFIX being set.
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    std::env::remove_var("TERMUX_VERSION");
-    std::env::remove_var("PREFIX");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::remove_var("TERMUX_VERSION");
+        std::env::remove_var("PREFIX");
+    }
     assert!(
         !is_safe_path("/data/data/com.termux/files/usr/etc/cosmostrix/config.toml"),
         "Termux system-wide path must be rejected when PREFIX env var is unset"
@@ -131,7 +156,12 @@ fn tmp_is_rejected_v14() {
     // NOTE: Other parallel tests set COSMOSTRIX_TEST_CONFIG_DIR=/tmp,
     // so we must explicitly clear it here to verify production behavior.
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    std::env::remove_var("COSMOSTRIX_TEST_CONFIG_DIR");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::remove_var("COSMOSTRIX_TEST_CONFIG_DIR");
+    }
     assert!(!is_safe_path("/tmp/test-config.toml"));
     assert!(!is_safe_path("/tmp/cosmostrix-chars.txt"));
 }
@@ -231,7 +261,12 @@ fn usr_paths_rejected_v14() {
 #[test]
 fn unexpanded_tilde_rejected_when_home_unset() {
     with_test_home("", || {
-        std::env::remove_var("HOME");
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::remove_var("HOME");
+        }
         // When HOME is unset, ~/... cannot expand. The literal "~/..."
         // must NOT be treated as a relative safe path.
         assert!(

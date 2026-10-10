@@ -33,8 +33,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use clap::parser::ValueSource;
 use clap::ValueEnum;
+use clap::parser::ValueSource;
 
 use crate::charset::charset_from_str;
 use crate::cli::parse_color_scheme;
@@ -43,7 +43,7 @@ use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 use crate::intro_style::IntroType;
 use crate::msg_fill_style::MsgFillStyle;
 use crate::runtime::MonolithSize;
-use crate::scene::{get_scene, DEFAULT_SCENE};
+use crate::scene::{DEFAULT_SCENE, get_scene};
 use crate::scene_custom::apply_scene_custom_layer;
 use crate::validation::{
     parse_canonical_f32_range, parse_canonical_f64_range, parse_canonical_speed,
@@ -261,30 +261,26 @@ pub(crate) fn apply_config_and_runtime_defaults(
     if !scene_is_cli && !scene_is_default {
         curated_modified.extend(apply_scene_values(matches, args, &config_touched)?);
     }
-    if !scene_custom_is_cli {
-        if let Some(scene_custom_name) = args.scene_custom.clone() {
-            curated_modified.extend(apply_scene_custom_layer(
-                matches,
-                args,
-                &cfg,
-                &scene_custom_name,
-                false,
-            )?);
-        }
+    if !scene_custom_is_cli && let Some(scene_custom_name) = args.scene_custom.clone() {
+        curated_modified.extend(apply_scene_custom_layer(
+            matches,
+            args,
+            &cfg,
+            &scene_custom_name,
+            false,
+        )?);
     }
     if scene_is_cli {
         curated_modified.extend(apply_scene_values(matches, args, &config_touched)?);
     }
-    if scene_custom_is_cli {
-        if let Some(scene_custom_name) = args.scene_custom.clone() {
-            curated_modified.extend(apply_scene_custom_layer(
-                matches,
-                args,
-                &cfg,
-                &scene_custom_name,
-                true,
-            )?);
-        }
+    if scene_custom_is_cli && let Some(scene_custom_name) = args.scene_custom.clone() {
+        curated_modified.extend(apply_scene_custom_layer(
+            matches,
+            args,
+            &cfg,
+            &scene_custom_name,
+            true,
+        )?);
     }
 
     apply_glitch_level_values(matches, args, &config_touched, &curated_modified);
@@ -312,35 +308,41 @@ fn apply_default_scene_values(
         return Ok(());
     };
     let cfg = scene.config;
-    if let Some(color) = cfg.color {
-        if !is_explicit(matches, "color") && !config_touched.contains("color") {
-            args.color = color.to_string();
-        }
+    if let Some(color) = cfg.color
+        && !is_explicit(matches, "color")
+        && !config_touched.contains("color")
+    {
+        args.color = color.to_string();
     }
-    if let Some(charset) = cfg.charset {
-        if !is_explicit(matches, "charset") && !config_touched.contains("charset") {
-            args.charset = charset.to_string();
-        }
+    if let Some(charset) = cfg.charset
+        && !is_explicit(matches, "charset")
+        && !config_touched.contains("charset")
+    {
+        args.charset = charset.to_string();
     }
-    if let Some(fps) = cfg.fps {
-        if !is_explicit(matches, "fps") && !config_touched.contains("fps") {
-            args.fps = fps;
-        }
+    if let Some(fps) = cfg.fps
+        && !is_explicit(matches, "fps")
+        && !config_touched.contains("fps")
+    {
+        args.fps = fps;
     }
-    if let Some(speed) = cfg.speed {
-        if !is_explicit(matches, "speed") && !config_touched.contains("speed") {
-            args.speed = speed;
-        }
+    if let Some(speed) = cfg.speed
+        && !is_explicit(matches, "speed")
+        && !config_touched.contains("speed")
+    {
+        args.speed = speed;
     }
-    if let Some(density) = cfg.density {
-        if !is_explicit(matches, "density") && !config_touched.contains("density") {
-            args.density = density;
-        }
+    if let Some(density) = cfg.density
+        && !is_explicit(matches, "density")
+        && !config_touched.contains("density")
+    {
+        args.density = density;
     }
-    if let Some(glitch_level) = cfg.glitch_level {
-        if !is_explicit(matches, "glitch_level") && !config_touched.contains("glitch_level") {
-            args.glitch_level = glitch_level;
-        }
+    if let Some(glitch_level) = cfg.glitch_level
+        && !is_explicit(matches, "glitch_level")
+        && !config_touched.contains("glitch_level")
+    {
+        args.glitch_level = glitch_level;
     }
     Ok(())
 }
@@ -414,29 +416,29 @@ fn apply_config_values(
             ));
         }
     }
-    if let Some(v) = config_value(matches, cfg, "fps", "fps") {
-        if let Some(f) = parse_f64_config("fps", &v, 1.0, 240.0) {
-            args.fps = f;
-            config_touched.insert("fps");
-            // v80.0.0-beta.2 fps-intent: a config-file fps (including
-            // exactly 60) is explicit user intent — record it so main.rs's
-            // dynamic-default layer (144 on high-perf terminals) cannot
-            // stomp it (the `!= 60.0` heuristic can't tell this 60 from
-            // the clap default).
-            crate::record_fps_explicit("config");
-        }
+    if let Some(v) = config_value(matches, cfg, "fps", "fps")
+        && let Some(f) = parse_f64_config("fps", &v, 1.0, 240.0)
+    {
+        args.fps = f;
+        config_touched.insert("fps");
+        // v80.0.0-beta.2 fps-intent: a config-file fps (including
+        // exactly 60) is explicit user intent — record it so main.rs's
+        // dynamic-default layer (144 on high-perf terminals) cannot
+        // stomp it (the `!= 60.0` heuristic can't tell this 60 from
+        // the clap default).
+        crate::record_fps_explicit("config");
     }
-    if let Some(v) = config_value(matches, cfg, "speed", "speed") {
-        if let Some(f) = parse_speed_config("speed", &v) {
-            args.speed = f;
-            config_touched.insert("speed");
-        }
+    if let Some(v) = config_value(matches, cfg, "speed", "speed")
+        && let Some(f) = parse_speed_config("speed", &v)
+    {
+        args.speed = f;
+        config_touched.insert("speed");
     }
-    if let Some(v) = config_value(matches, cfg, "density", "density") {
-        if let Some(f) = parse_f32_config("density", &v, 0.01, DENSITY_CLAMP_MAX) {
-            args.density = f;
-            config_touched.insert("density");
-        }
+    if let Some(v) = config_value(matches, cfg, "density", "density")
+        && let Some(f) = parse_f32_config("density", &v, 0.01, DENSITY_CLAMP_MAX)
+    {
+        args.density = f;
+        config_touched.insert("density");
     }
     if let Some(v) = config_value(matches, cfg, "monolith_size", "monolith-size") {
         match MonolithSize::from_str(&v, true) {
@@ -504,32 +506,32 @@ fn apply_config_values(
     }
     // v50-beta.3: msg-mode gate runs at end of this function (after
     // msg-mode itself is parsed) — see `apply_msg_mode_gate(...)` call.
-    if let Some(v) = config_value(matches, cfg, "bold", "bold") {
-        if let Some(n) = parse_u8_config("bold", &v, 0, 2) {
-            args.bold = n;
-            config_touched.insert("bold");
-        }
+    if let Some(v) = config_value(matches, cfg, "bold", "bold")
+        && let Some(n) = parse_u8_config("bold", &v, 0, 2)
+    {
+        args.bold = n;
+        config_touched.insert("bold");
     }
-    if let Some(v) = config_value(matches, cfg, "shading_mode", "shading-mode") {
-        if let Some(n) = parse_u8_config("shading-mode", &v, 0, 1) {
-            args.shading_mode = n;
-            config_touched.insert("shading_mode");
-        }
+    if let Some(v) = config_value(matches, cfg, "shading_mode", "shading-mode")
+        && let Some(n) = parse_u8_config("shading-mode", &v, 0, 1)
+    {
+        args.shading_mode = n;
+        config_touched.insert("shading_mode");
     }
-    if let Some(v) = config_value(matches, cfg, "color_bg", "color-bg") {
-        if let Some(bg) = parse_color_bg_config(&v) {
-            args.color_bg = bg;
-            config_touched.insert("color_bg");
-        }
+    if let Some(v) = config_value(matches, cfg, "color_bg", "color-bg")
+        && let Some(bg) = parse_color_bg_config(&v)
+    {
+        args.color_bg = bg;
+        config_touched.insert("color_bg");
     }
     // Crystal Dragon Engine config.
     // v50-beta.3: CLI --crystal-dragon=true|false wins over config.
     // Previously config-only; now both paths set args.crystal_dragon: Option<bool>.
-    if let Some(v) = config_value(matches, cfg, "crystal_dragon", "crystal-dragon") {
-        if let Some(b) = parse_bool_config("crystal-dragon", &v) {
-            args.crystal_dragon = Some(b);
-            config_touched.insert("crystal_dragon");
-        }
+    if let Some(v) = config_value(matches, cfg, "crystal_dragon", "crystal-dragon")
+        && let Some(b) = parse_bool_config("crystal-dragon", &v)
+    {
+        args.crystal_dragon = Some(b);
+        config_touched.insert("crystal_dragon");
     }
     // v80.0.0-alpha.1: crystal-dragon-secs — float in [0.0, 86400.0].
     // CLI --crystal-dragon-secs wins over the config key (config_value's
@@ -547,21 +549,21 @@ fn apply_config_values(
     // v50-beta.3: power-dragon CLI flag now exists (--power-dragon=true|false).
     // CLI wins over config (handled by config_value's is_explicit check).
     // Default when neither CLI nor config provides a value: true (main.rs).
-    if let Some(v) = config_value(matches, cfg, "power_dragon", "power-dragon") {
-        if let Some(b) = parse_bool_config("power-dragon", &v) {
-            args.power_dragon = Some(b);
-            config_touched.insert("power-dragon");
-        }
+    if let Some(v) = config_value(matches, cfg, "power_dragon", "power-dragon")
+        && let Some(b) = parse_bool_config("power-dragon", &v)
+    {
+        args.power_dragon = Some(b);
+        config_touched.insert("power-dragon");
     }
     // v50-beta.3: msg-mode CLI flag now exists (--msg-mode=true|false).
     // CLI wins over config. Default when neither provides a value: true (main.rs).
     // msg-mode=false disables BOTH default message AND any message/message-border
     // config key; CLI -m/-mb always wins (handled in main.rs).
-    if let Some(v) = config_value(matches, cfg, "msg_mode", "msg-mode") {
-        if let Some(b) = parse_bool_config("msg-mode", &v) {
-            args.msg_mode = Some(b);
-            config_touched.insert("msg-mode");
-        }
+    if let Some(v) = config_value(matches, cfg, "msg_mode", "msg-mode")
+        && let Some(b) = parse_bool_config("msg-mode", &v)
+    {
+        args.msg_mode = Some(b);
+        config_touched.insert("msg-mode");
     }
     // v80.0.0-beta.1 msg-fill-style: message overlay reveal style. Parsed with clap's
     // ValueEnum machinery so the accepted values stay in sync with the
@@ -582,11 +584,11 @@ fn apply_config_values(
     // v50-beta.3: --async-mode CLI flag now exists (replaces --uniform).
     // CLI flag wins over config key (handled by config_value's is_explicit).
     // Default: true (async variable pacing on) — applied in main.rs.
-    if let Some(v) = config_value(matches, cfg, "async_mode", "async-mode") {
-        if let Some(b) = parse_bool_config("async-mode", &v) {
-            args.async_mode = Some(b);
-            config_touched.insert("async_mode");
-        }
+    if let Some(v) = config_value(matches, cfg, "async_mode", "async-mode")
+        && let Some(b) = parse_bool_config("async-mode", &v)
+    {
+        args.async_mode = Some(b);
+        config_touched.insert("async_mode");
     }
 
     // v50-beta.3: msg-mode gate (runs AFTER all message/msg-mode parsing).

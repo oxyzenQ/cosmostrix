@@ -246,10 +246,10 @@ pub(super) fn sync_base_cfg_with_runtime_scene(
         return;
     };
     let sc = scene_info.config;
-    if let Some(color) = sc.color {
-        if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
-            base_cfg.color_scheme = scheme;
-        }
+    if let Some(color) = sc.color
+        && let Ok(scheme) = crate::cli::parse_color_scheme(color)
+    {
+        base_cfg.color_scheme = scheme;
     }
     if let Some(charset_name) = sc.charset {
         base_cfg.charset_preset = charset_name.to_string();

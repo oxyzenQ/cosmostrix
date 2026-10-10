@@ -30,7 +30,7 @@
 
 use unicode_width::UnicodeWidthChar;
 
-use crate::charset::{build_chars, Charset};
+use crate::charset::{Charset, build_chars};
 use crate::cloud::events::ghost::GHOST_CHARS;
 use crate::intro_style::cosmic::BURST_CHARS;
 

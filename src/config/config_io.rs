@@ -40,12 +40,12 @@ pub(crate) fn write_config_atomic(target_path: &str, text: &str) -> std::io::Res
         .unwrap_or_else(|| std::path::Path::new("."));
     // Create parent dir if missing — skip /etc/ and /var/ (system paths
     // should require explicit user creation to avoid wrong-permission auto).
-    if !parent.exists() {
-        if let Some(parent_str) = parent.to_str() {
-            if !parent_str.starts_with("/etc/") && !parent_str.starts_with("/var/") {
-                std::fs::create_dir_all(parent)?;
-            }
-        }
+    if !parent.exists()
+        && let Some(parent_str) = parent.to_str()
+        && !parent_str.starts_with("/etc/")
+        && !parent_str.starts_with("/var/")
+    {
+        std::fs::create_dir_all(parent)?;
     }
     let pid = std::process::id();
     let tmp_name = format!(

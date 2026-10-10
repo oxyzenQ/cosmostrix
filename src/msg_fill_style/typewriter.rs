@@ -13,7 +13,7 @@
 //! pin it via `-mfs typewriter` or `msg-fill-style = "typewriter"`.
 //! Border: lags text with the shared `t^1.5` ease-out curve.
 
-use super::{char_fade_in, index_fraction, index_pacing, lagged_border, CellReveal};
+use super::{CellReveal, char_fade_in, index_fraction, index_pacing, lagged_border};
 
 /// Per-character reveal stagger.
 pub(crate) const TYPEWRITER_CHAR_MS: usize = 80;
@@ -58,7 +58,7 @@ pub(super) fn text_progress(reveal_count: usize, total_text: usize) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{content_reveal, index_reveal_count, MsgFillStyle, FADE_IN_START};
+    use super::super::{FADE_IN_START, MsgFillStyle, content_reveal, index_reveal_count};
     use super::*;
 
     #[test]

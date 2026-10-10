@@ -147,8 +147,7 @@ mod tests {
             glitch_level: "subtle",
             glitch_pct: 3.0,
             color_pipeline: "chroma_dragon",
-            chroma_in_benchmark:
-                "chroma enabled (crystal_dragon OFF for determinism, climate_drift active)",
+            chroma_in_benchmark: "chroma enabled (crystal_dragon OFF for determinism, climate_drift active)",
             power_dragon: true,
             crystal_dragon: false,
             msg_mode: true,

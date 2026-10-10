@@ -69,7 +69,7 @@ pub(crate) fn local_tm() -> Option<LocalTm> {
     // on first wall-clock query so subsequent calls reuse cached tzdata.
     // Declared as direct extern because libc 0.2.x does not export tzset
     // in the top-level namespace on all targets.
-    extern "C" {
+    unsafe extern "C" {
         fn tzset();
     }
     static TZ_INIT: OnceLock<()> = OnceLock::new();

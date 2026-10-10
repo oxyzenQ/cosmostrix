@@ -22,4 +22,4 @@ pub(crate) mod flux_field;
 #[allow(unused_imports)]
 pub(crate) use flux::{FluxRain, FluxRandom, FluxSpawnParams, FluxStep};
 #[allow(unused_imports)]
-pub(crate) use flux_field::{FluxField, FluxVel, FLUX_GRID_SPACING};
+pub(crate) use flux_field::{FLUX_GRID_SPACING, FluxField, FluxVel};

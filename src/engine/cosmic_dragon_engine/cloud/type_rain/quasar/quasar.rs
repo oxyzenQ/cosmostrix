@@ -33,9 +33,9 @@ use crate::constants::{
     QUAS_SIM_TIME_PER_CPS, QUAS_SPAWN_RATE_FLOOR, QUAS_SPAWN_RATE_MULT, SPAWN_REMAINDER_CAP,
 };
 
-use super::ignition::{ignition_phase, ignition_total_secs, IgnitionPhase};
+use super::ignition::{IgnitionPhase, ignition_phase, ignition_total_secs};
 use super::particles::{
-    disk_step, halo_step, infall_step, jet_step, Particle, QuasGeom, QuasarRandom, StepFactors,
+    Particle, QuasGeom, QuasarRandom, StepFactors, disk_step, halo_step, infall_step, jet_step,
 };
 
 /// One drawn cell (col, line) — the diff-cleanup currency (same

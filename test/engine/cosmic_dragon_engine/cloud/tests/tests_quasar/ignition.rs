@@ -10,7 +10,7 @@
 use super::*;
 
 use crate::cloud::quasar::ignition::{
-    ignition_phase, ignition_total_secs, jet_front, luminosity, IgnitionPhase,
+    IgnitionPhase, ignition_phase, ignition_total_secs, jet_front, luminosity,
 };
 
 #[test]

@@ -73,7 +73,7 @@ fn macos_rss_kb() -> Option<u64> {
     // on macOS 12+ and the underlying Mach APIs are stable.
     #![allow(deprecated)]
     use libc::{
-        c_int, mach_task_basic_info, mach_task_self, task_info, task_info_t, MACH_TASK_BASIC_INFO,
+        MACH_TASK_BASIC_INFO, c_int, mach_task_basic_info, mach_task_self, task_info, task_info_t,
     };
     use std::mem;
 

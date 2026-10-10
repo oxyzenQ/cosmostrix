@@ -12,9 +12,9 @@
 //!
 //! Exit code 0 = PASS, 2 = FAIL (errors found).
 
+use crate::Args;
 use crate::configfile;
 use crate::output::{eprintln_safe, println_safe};
-use crate::Args;
 
 // v50.0.0-beta.7 LOC refactor: validate_field_value +
 // validate_field_value_with_cfg extracted to field_validation.rs to keep
@@ -93,7 +93,9 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             crate::output::eprintln_suggestion_line(
                 "testconf: hint: run `cosmostrix --config-path` to see the expected location",
             );
-            crate::output::eprintln_suggestion_line("testconf: hint: cosmostrix --dump-config <config-path>  (writes directly, whitelist-enforced)");
+            crate::output::eprintln_suggestion_line(
+                "testconf: hint: cosmostrix --dump-config <config-path>  (writes directly, whitelist-enforced)",
+            );
             std::process::exit(2);
         }
     };
@@ -119,15 +121,19 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
                     env!("CARGO_PKG_VERSION")
                 );
             } else {
-                println_safe!("testconf: template drift: detected — header fingerprint differs from built-in template");
+                println_safe!(
+                    "testconf: template drift: detected — header fingerprint differs from built-in template"
+                );
                 println_safe!("testconf:   built-in hash: {current_template_hash}");
                 crate::output::eprintln_suggestion_line(
-                    "testconf: hint: run `cosmostrix --dump-config <path> --force` to regenerate the template"
+                    "testconf: hint: run `cosmostrix --dump-config <path> --force` to regenerate the template",
                 );
             }
         }
         None => {
-            println_safe!("testconf: template-fingerprint: (not found in header — config may be hand-written or older)");
+            println_safe!(
+                "testconf: template-fingerprint: (not found in header — config may be hand-written or older)"
+            );
         }
     }
 
@@ -144,7 +150,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             errors += 1;
         }
         crate::output::eprintln_suggestion_line(
-            "testconf: hint: comment lines start with '#', blank lines are ignored, all other lines must be 'key = value'"
+            "testconf: hint: comment lines start with '#', blank lines are ignored, all other lines must be 'key = value'",
         );
     }
 
@@ -159,7 +165,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     }
     if !parsed.duplicate_keys.is_empty() || !parsed.duplicate_sections.is_empty() {
         crate::output::eprintln_suggestion_line(
-            "testconf: hint: TOML forbids redefining a key or a [section] — delete the duplicate line(s)/header(s)"
+            "testconf: hint: TOML forbids redefining a key or a [section] — delete the duplicate line(s)/header(s)",
         );
     }
 

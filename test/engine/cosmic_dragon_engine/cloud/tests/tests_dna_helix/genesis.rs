@@ -14,15 +14,15 @@
 use super::*;
 
 use crate::cloud::dna_helix::genesis::{
-    genesis_phase, genesis_radius_growth, genesis_total_secs, ladder_front, windup_front,
-    GenesisPhase,
+    GenesisPhase, genesis_phase, genesis_radius_growth, genesis_total_secs, ladder_front,
+    windup_front,
 };
 use crate::cloud::dna_helix::helix::{DnaGenome, DnaRandom, ForkPhase};
 use crate::constants::{
     DNA_CHARGE_MAX, DNA_GENESIS_LADDER_SECS, DNA_GENESIS_SOUP_SECS, DNA_GENESIS_WINDUP_SECS,
-    DNA_ROT_RATE, DNA_R_MIN,
+    DNA_R_MIN, DNA_ROT_RATE,
 };
-use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, distr::Uniform, rngs::StdRng};
 
 fn make_genome(cols: u16, lines: u16) -> DnaGenome {
     let mut g = DnaGenome::new();

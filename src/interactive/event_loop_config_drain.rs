@@ -28,7 +28,7 @@ pub(crate) fn drain_config_events(
     cloud: &mut Cloud,
 ) -> bool {
     // Live config reload: non-blocking check for config events.
-    if let Some(ref rx) = config_rx {
+    if let Some(rx) = config_rx {
         while let Ok(event) = rx.try_recv() {
             crate::lr_trace!("render thread received config event from watcher channel");
             match event {

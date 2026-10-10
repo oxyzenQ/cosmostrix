@@ -24,9 +24,9 @@ mod cases_v35 {
     use crate::cloud::Cloud;
     use crate::frame::Frame;
 
-    use crate::interactive::input::{handle_keybinding, should_auto_snapback, KeybindingCtx};
-    use crate::platform::{default_term_reinit, TermReinit};
     use crate::CloudConfig;
+    use crate::interactive::input::{KeybindingCtx, handle_keybinding, should_auto_snapback};
+    use crate::platform::{TermReinit, default_term_reinit};
 
     /// Duplicated from `tests.rs::mod cases::key()` (test fixture, stable).
     fn key(ch: char) -> KeyEvent {

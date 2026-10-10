@@ -11,8 +11,8 @@
 
 use std::time::{Duration, Instant};
 
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use super::Cloud;
 use crate::frame::Frame;

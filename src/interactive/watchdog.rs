@@ -106,116 +106,118 @@ pub(super) fn spawn_watchdog() {
     // for debugging, though this is rare since cosmostrix requires a TTY
     // for interactive mode).
     let stdout_was_terminal = stdout_is_terminal();
-    std::thread::spawn(move || loop {
-        // Check shutdown flag before each sleep cycle
-        if shutdown.load(Ordering::Acquire) {
-            return;
-        }
-        std::thread::sleep(Duration::from_secs(WATCHDOG_INTERVAL_SECS));
-        if shutdown.load(Ordering::Acquire) {
-            return;
-        }
+    std::thread::spawn(move || {
+        loop {
+            // Check shutdown flag before each sleep cycle
+            if shutdown.load(Ordering::Acquire) {
+                return;
+            }
+            std::thread::sleep(Duration::from_secs(WATCHDOG_INTERVAL_SECS));
+            if shutdown.load(Ordering::Acquire) {
+                return;
+            }
 
-        // ── Cross-platform dead-PTY probe ───────────────────────────
-        //
-        // Check if stdout is still a terminal. When the user force-closes
-        // the terminal, the PTY master disappears and stdout's fd is no
-        // longer connected to a tty. This is detectable via
-        // `std::io::IsTerminal` on ALL platforms (Unix + Windows),
-        // independent of crossterm's event source.
-        //
-        // This is the FIRST check because it catches the dead-PTY case
-        // even when crossterm 0.29's mio source is stuck spinning inside
-        // `read()` (EIO/EOF don't break the inner loop on Unix). The
-        // frame-counter check below only fires if crossterm returns, but
-        // crossterm may never return — so the isatty check is the
-        // reliable cross-platform signal.
-        //
-        // The check runs every WATCHDOG_INTERVAL_SECS (1s). Cost: one
-        // isatty syscall per second. Negligible.
-        //
-        // Platform notes:
-        // - Linux: isatty() succeeds when fd is a PTY, fails after force-close
-        // - macOS/BSD: same (kqueue-based, same behaviour)
-        // - Windows: ConPTY handle becomes invalid after force-close,
-        //   IsTerminal returns false
-        // - SSH disconnect: sshd closes the PTY master, same signal
-        //
-        // False-positive guard: only fire if stdout WAS a terminal at
-        // watchdog spawn time. If stdout was redirected from the start
-        // (rare for interactive mode, but possible), we don't fire —
-        // the user intentionally set up that redirection.
-        if stdout_was_terminal && !stdout_is_terminal() {
-            // stdout is no longer a terminal — terminal was force-closed
-            // or SSH disconnected. Exit immediately without waiting for
-            // the frame-counter check (which may never fire if crossterm
-            // is stuck).
+            // ── Cross-platform dead-PTY probe ───────────────────────────
             //
-            // NIGHT-termux-hang: the force-exit helper flips stdout AND
-            // stderr to O_NONBLOCK before the restore writes — the old
-            // inline path blocked on its own stderr/restore writes when
-            // the fd was jammed, deadlocking the watchdog that existed
-            // to break exactly that class of deadlock.
-            crate::terminal::force_exit_terminal_restored(
-                1,
-                "[watchdog] stdout no longer a terminal — restoring and exiting\n",
-            );
-        }
+            // Check if stdout is still a terminal. When the user force-closes
+            // the terminal, the PTY master disappears and stdout's fd is no
+            // longer connected to a tty. This is detectable via
+            // `std::io::IsTerminal` on ALL platforms (Unix + Windows),
+            // independent of crossterm's event source.
+            //
+            // This is the FIRST check because it catches the dead-PTY case
+            // even when crossterm 0.29's mio source is stuck spinning inside
+            // `read()` (EIO/EOF don't break the inner loop on Unix). The
+            // frame-counter check below only fires if crossterm returns, but
+            // crossterm may never return — so the isatty check is the
+            // reliable cross-platform signal.
+            //
+            // The check runs every WATCHDOG_INTERVAL_SECS (1s). Cost: one
+            // isatty syscall per second. Negligible.
+            //
+            // Platform notes:
+            // - Linux: isatty() succeeds when fd is a PTY, fails after force-close
+            // - macOS/BSD: same (kqueue-based, same behaviour)
+            // - Windows: ConPTY handle becomes invalid after force-close,
+            //   IsTerminal returns false
+            // - SSH disconnect: sshd closes the PTY master, same signal
+            //
+            // False-positive guard: only fire if stdout WAS a terminal at
+            // watchdog spawn time. If stdout was redirected from the start
+            // (rare for interactive mode, but possible), we don't fire —
+            // the user intentionally set up that redirection.
+            if stdout_was_terminal && !stdout_is_terminal() {
+                // stdout is no longer a terminal — terminal was force-closed
+                // or SSH disconnected. Exit immediately without waiting for
+                // the frame-counter check (which may never fire if crossterm
+                // is stuck).
+                //
+                // NIGHT-termux-hang: the force-exit helper flips stdout AND
+                // stderr to O_NONBLOCK before the restore writes — the old
+                // inline path blocked on its own stderr/restore writes when
+                // the fd was jammed, deadlocking the watchdog that existed
+                // to break exactly that class of deadlock.
+                crate::terminal::force_exit_terminal_restored(
+                    1,
+                    "[watchdog] stdout no longer a terminal — restoring and exiting\n",
+                );
+            }
 
-        let current = counter.load(Ordering::Relaxed);
-        // Arm the watchdog once the main loop has rendered at least one
-        // frame. Before that, the counter is 0 (intro playing or startup
-        // in progress) — a "stuck" reading would be a false positive.
-        if !armed {
-            if current > 0 {
-                armed = true;
+            let current = counter.load(Ordering::Relaxed);
+            // Arm the watchdog once the main loop has rendered at least one
+            // frame. Before that, the counter is 0 (intro playing or startup
+            // in progress) — a "stuck" reading would be a false positive.
+            if !armed {
+                if current > 0 {
+                    armed = true;
+                    last_counter = current;
+                    last_progress = std::time::Instant::now();
+                }
+                continue;
+            }
+            if current != last_counter {
+                // Progress observed — reset the stuck clock.
                 last_counter = current;
                 last_progress = std::time::Instant::now();
+                continue;
             }
-            continue;
+            // No progress since the last sample. This alone is NOT proof of
+            // a stuck loop: NIGHT-ultimate-1, `--fps 1` has a legal 1.0s
+            // frame period (power manager floors effective fps at 1.0), so
+            // the kill threshold is adaptive — ceil(3 / target_fps)
+            // seconds, min 1s (see WATCHDOG_STUCK_THRESHOLD_SECS). Only a
+            // gap that no legitimate cadence can explain fires the exit.
+            let threshold_secs = WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire);
+            if last_progress.elapsed().as_secs() < threshold_secs {
+                continue;
+            }
+            // Main loop has not advanced the frame counter in
+            // `threshold_secs` seconds — far beyond any legal frame period
+            // (pause mode renders at 250ms; --fps 1 at 1.0s) — the main
+            // loop is definitely stuck.
+            //
+            // The most common cause is crossterm 0.29's mio source
+            // spinning forever inside `read()` on a dead PTY: EIO and EOF
+            // don't break the inner loop (only WouldBlock/Interrupted do),
+            // so once the user force-closes the terminal, the main thread
+            // is trapped inside `crossterm::event::read()` and never
+            // returns to check `GRACEFUL_SHUTDOWN`. The watchdog is the
+            // only escape — restore the terminal and force-exit.
+            //
+            // NIGHT-termux-hang: "stuck" also covers the jammed-PTY case
+            // (Termux screen lock: the PTY reader stops draining, the
+            // frame flush blocks in write()). The old exit path could
+            // block on its own restore write into that same full PTY,
+            // wedging the watchdog — the owner's unkillable process
+            // (`pkill` dead, only `kill -9` worked). The nonblocking
+            // force-exit guarantees the process dies here.
+            crate::terminal::force_exit_terminal_restored(
+                1,
+                &format!(
+                    "[watchdog] main loop stuck for {threshold_secs}s — restoring terminal and exiting\n"
+                ),
+            );
         }
-        if current != last_counter {
-            // Progress observed — reset the stuck clock.
-            last_counter = current;
-            last_progress = std::time::Instant::now();
-            continue;
-        }
-        // No progress since the last sample. This alone is NOT proof of
-        // a stuck loop: NIGHT-ultimate-1, `--fps 1` has a legal 1.0s
-        // frame period (power manager floors effective fps at 1.0), so
-        // the kill threshold is adaptive — ceil(3 / target_fps)
-        // seconds, min 1s (see WATCHDOG_STUCK_THRESHOLD_SECS). Only a
-        // gap that no legitimate cadence can explain fires the exit.
-        let threshold_secs = WATCHDOG_STUCK_THRESHOLD_SECS.load(Ordering::Acquire);
-        if last_progress.elapsed().as_secs() < threshold_secs {
-            continue;
-        }
-        // Main loop has not advanced the frame counter in
-        // `threshold_secs` seconds — far beyond any legal frame period
-        // (pause mode renders at 250ms; --fps 1 at 1.0s) — the main
-        // loop is definitely stuck.
-        //
-        // The most common cause is crossterm 0.29's mio source
-        // spinning forever inside `read()` on a dead PTY: EIO and EOF
-        // don't break the inner loop (only WouldBlock/Interrupted do),
-        // so once the user force-closes the terminal, the main thread
-        // is trapped inside `crossterm::event::read()` and never
-        // returns to check `GRACEFUL_SHUTDOWN`. The watchdog is the
-        // only escape — restore the terminal and force-exit.
-        //
-        // NIGHT-termux-hang: "stuck" also covers the jammed-PTY case
-        // (Termux screen lock: the PTY reader stops draining, the
-        // frame flush blocks in write()). The old exit path could
-        // block on its own restore write into that same full PTY,
-        // wedging the watchdog — the owner's unkillable process
-        // (`pkill` dead, only `kill -9` worked). The nonblocking
-        // force-exit guarantees the process dies here.
-        crate::terminal::force_exit_terminal_restored(
-            1,
-            &format!(
-                "[watchdog] main loop stuck for {threshold_secs}s — restoring terminal and exiting\n"
-            ),
-        );
     });
 }
 

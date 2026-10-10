@@ -20,7 +20,7 @@ use crate::rain_style::RainStyle;
 
 use crate::scene;
 
-use super::super::{cycle_charset_preset, cycle_color_scheme, CloudConfig};
+use super::super::{CloudConfig, cycle_charset_preset, cycle_color_scheme};
 use super::event_loop_ctx::LoopCtx;
 
 const PASTE_BURST_SUPPRESS_MS: u64 = 50;
@@ -180,12 +180,11 @@ pub(super) fn normalize_shifted_char(
     modifiers: crossterm::event::KeyModifiers,
 ) -> crossterm::event::KeyCode {
     use crossterm::event::{KeyCode, KeyModifiers};
-    if modifiers == KeyModifiers::SHIFT {
-        if let KeyCode::Char(c) = code {
-            if c.is_ascii_lowercase() {
-                return KeyCode::Char(c.to_ascii_uppercase());
-            }
-        }
+    if modifiers == KeyModifiers::SHIFT
+        && let KeyCode::Char(c) = code
+        && c.is_ascii_lowercase()
+    {
+        return KeyCode::Char(c.to_ascii_uppercase());
     }
     code
 }

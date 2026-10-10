@@ -248,19 +248,19 @@ impl PerformanceSelfHealer {
         }
 
         // ── P2: health mitigation (orthogonal to P1 state) ──
-        if let Some(score) = health_score {
-            if score < self.thresholds.health_investigate {
-                let cooldown_ok = match self.last_health_mitigation {
-                    None => true,
-                    Some(last) => {
-                        now.saturating_duration_since(last).as_secs_f64()
-                            >= self.thresholds.health_cooldown_secs
-                    }
-                };
-                if cooldown_ok {
-                    self.last_health_mitigation = Some(now);
-                    return SelfHealAction::TriggerHealthMitigation;
+        if let Some(score) = health_score
+            && score < self.thresholds.health_investigate
+        {
+            let cooldown_ok = match self.last_health_mitigation {
+                None => true,
+                Some(last) => {
+                    now.saturating_duration_since(last).as_secs_f64()
+                        >= self.thresholds.health_cooldown_secs
                 }
+            };
+            if cooldown_ok {
+                self.last_health_mitigation = Some(now);
+                return SelfHealAction::TriggerHealthMitigation;
             }
         }
 

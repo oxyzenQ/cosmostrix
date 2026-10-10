@@ -22,12 +22,12 @@ use crate::output::eprintln_safe;
 // never-panic stderr macro as the Windows handler.
 #[cfg(unix)]
 use crate::output::eprintln_safe;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::platform::TermReinit;
 
-use super::watchdog::{spawn_watchdog, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
+use super::watchdog::{GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN, spawn_watchdog};
 
 // restore_terminal_best_effort is used by the Windows Ctrl+Break
 // handler only (the Unix SIGTSTP arm below uses the nonblocking

@@ -21,8 +21,8 @@ use crate::cinematic::{
 use crate::constants::*;
 use crate::frame::Frame;
 use crate::theme::canonical_name_for_scheme;
+use crate::{CloudConfig, effective_density};
 use crate::{bench_cpu::CpuTracker, bench_progress::BenchProgress};
-use crate::{effective_density, CloudConfig};
 
 pub(crate) use crate::bench_helpers::{
     median_sorted, resolve_bench_duration, validate_bench_scene,
@@ -70,10 +70,10 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
     cloud.crystal_dragon = false; // drift spike protection: palette drift in benchmark
-                                  // mode corrupts p99/max metrics with palette-rebuild cost.
-                                  // Climate drift (luminance/saturation/hue modulation) still runs
-                                  // because it is deterministic (fixed RNG seed) and has no
-                                  // rebuild cost.
+    // mode corrupts p99/max metrics with palette-rebuild cost.
+    // Climate drift (luminance/saturation/hue modulation) still runs
+    // because it is deterministic (fixed RNG seed) and has no
+    // rebuild cost.
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 
@@ -563,11 +563,7 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let median_fps = if !sorted_ft.is_empty() {
         let med = median_sorted(&sorted_ft);
-        if med > 0.0 {
-            1000.0 / med
-        } else {
-            0.0
-        }
+        if med > 0.0 { 1000.0 / med } else { 0.0 }
     } else {
         0.0
     };

@@ -71,9 +71,9 @@ fn hud_maybe_sample_cpu_keeps_baseline_warm_when_invisible() {
     let now = Instant::now();
     let diff = now.duration_since(h.last_cpu_sample);
     assert!(
-            diff.as_millis() < 1000,
-            "maybe_sample_cpu must run even when invisible (warm baseline) — last_cpu_sample was not updated"
-        );
+        diff.as_millis() < 1000,
+        "maybe_sample_cpu must run even when invisible (warm baseline) — last_cpu_sample was not updated"
+    );
 }
 
 #[test]
@@ -134,9 +134,9 @@ fn hud_cpu_line_renders_dash_when_unsupported() {
     // convention: active before passive.)
     let mut h = HudState::new();
     h.toggle(); // visible
-                // Force-update metrics without sampling — cpu_percent stays None.
-                // We need to bypass the rate-limit by directly calling update_metrics
-                // with an empty palette (the function recomputes cached_lines).
+    // Force-update metrics without sampling — cpu_percent stays None.
+    // We need to bypass the rate-limit by directly calling update_metrics
+    // with an empty palette (the function recomputes cached_lines).
     h.update_metrics(&[]);
     assert!(
         h.cpu_percent.is_none(),
@@ -309,10 +309,10 @@ fn refresh_colors_updates_colors_without_touching_text() {
     // palette change without re-running the expensive format! calls.
     let mut h = HudState::new();
     h.toggle(); // visible
-                // Seed the cached_lines with sentinel text so we can verify it
-                // survives refresh_colors. (In production, update_metrics writes
-                // the real text — here we just verify refresh_colors doesn't
-                // touch it.)
+    // Seed the cached_lines with sentinel text so we can verify it
+    // survives refresh_colors. (In production, update_metrics writes
+    // the real text — here we just verify refresh_colors doesn't
+    // touch it.)
     for slot in &mut h.cached_lines {
         slot.1 = "SENTINEL".to_string();
     }
@@ -898,7 +898,7 @@ fn compute_chroma_gradient_25_sweeps_full_palette_range() {
 fn hud_write_to_frame_clears_trailing_cells_when_width_shrinks() {
     let mut h = HudState::new();
     h.toggle(); // make visible
-                // 14-char string ending in "idle" (mirrors owner repro: " tgt: 144 idle").
+    // 14-char string ending in "idle" (mirrors owner repro: " tgt: 144 idle").
     h.cached_lines[1].1 = " tgt: 144 idle".to_string();
     h.current_width = 14;
     h.prev_width = 14;
@@ -1058,19 +1058,18 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
             "bottom border at col {} must be faded toward bg (not full head_color)",
             col
         );
-        if let Some(Color::Rgb { r, g, b }) = cell.fg {
-            if let Color::Rgb {
+        if let Some(Color::Rgb { r, g, b }) = cell.fg
+            && let Color::Rgb {
                 r: hr,
                 g: hg,
                 b: hb,
             } = head_color
-            {
-                assert!(
-                    r <= hr && g <= hg && b <= hb,
-                    "faded bottom color at col {} must be <= head_color on each channel",
-                    col
-                );
-            }
+        {
+            assert!(
+                r <= hr && g <= hg && b <= hb,
+                "faded bottom color at col {} must be <= head_color on each channel",
+                col
+            );
         }
     }
 

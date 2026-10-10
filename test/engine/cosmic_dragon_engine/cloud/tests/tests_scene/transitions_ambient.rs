@@ -202,7 +202,7 @@ fn apply_ambient_entry_unknown_scene_is_noop() {
 // result: ambient never applied at startup until the user touched
 // config.toml (which triggered live-reload, which DOES pass the real cfg).
 
-use crate::crystal_dragon_engine::ambient::{apply_startup_ambient, AmbientSchedule};
+use crate::crystal_dragon_engine::ambient::{AmbientSchedule, apply_startup_ambient};
 
 #[test]
 fn apply_startup_ambient_with_empty_cfg_is_noop_for_custom_scene() {

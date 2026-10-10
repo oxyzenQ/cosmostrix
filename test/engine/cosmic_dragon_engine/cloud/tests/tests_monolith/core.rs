@@ -7,8 +7,8 @@
 use std::time::{Duration, Instant};
 
 use super::{
-    average_head_delta, make_monolith_cloud, run_frames, segment_draw_count, visible_chars, Frame,
-    MonolithSize,
+    Frame, MonolithSize, average_head_delta, make_monolith_cloud, run_frames, segment_draw_count,
+    visible_chars,
 };
 use crate::rain_style::RainStyle;
 
@@ -140,9 +140,9 @@ fn monolith_segment_ladder_never_lands_core_standing() {
     // position in the ladder may land Core. The masterclass audit's
     // monolith finding: the standing Hero head read Core (the 55%
     // white blend) for every frame of the cascade's fall.
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
     use crate::cloud::type_rain::monolith::monolith::SegmentKind;
     use crate::cloud::type_rain::monolith::monolith_helpers::segment_level;
-    use crate::cloud::type_rain::monolith::BrightnessLevel;
 
     for kind in [
         SegmentKind::Micro,
@@ -184,9 +184,9 @@ fn monolith_hero_reveal_flashes_core_only_in_the_head_rung() {
     // window). The flag must touch only the Hero head rung: every
     // other cell of every kind reads the same level with the
     // window open or closed.
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
     use crate::cloud::type_rain::monolith::monolith::SegmentKind;
     use crate::cloud::type_rain::monolith::monolith_helpers::segment_level;
-    use crate::cloud::type_rain::monolith::BrightnessLevel;
 
     assert_eq!(
         soft_rank(segment_level(SegmentKind::Hero, 0, true)),

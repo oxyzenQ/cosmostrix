@@ -109,7 +109,7 @@ fn phosphor_ghost_cells_use_original_character() {
         .phosphor
         .iter()
         .zip(cloud.phosphor_base_ch.iter())
-        .filter(|(&energy, &ch)| energy > 0 && ch != '\0')
+        .filter(|&(&energy, &ch)| energy > 0 && ch != '\0')
         .count();
     assert!(
         cells_with_char_and_energy > 0,
@@ -287,7 +287,7 @@ fn paste_discard_does_not_increase_background_ghost_fill() {
         .phosphor_base_ch
         .iter()
         .enumerate()
-        .filter(|(i, &ch)| ch != '\0' && !active_before.contains(i))
+        .filter(|&(i, &ch)| ch != '\0' && !active_before.contains(&i))
         .count();
 
     // Trigger force_draw_everything (simulating paste/focus event)
@@ -303,7 +303,7 @@ fn paste_discard_does_not_increase_background_ghost_fill() {
         .phosphor_base_ch
         .iter()
         .enumerate()
-        .filter(|(i, &ch)| ch != '\0' && !active_after.contains(i))
+        .filter(|&(i, &ch)| ch != '\0' && !active_after.contains(&i))
         .count();
 
     // The stale (non-active) ghost fill after should be LESS than or equal
@@ -841,7 +841,7 @@ fn phosphor_full_grid_scan_unchanged_when_dims_match() {
     // the guards are dead branches in the paired-dimension world and must
     // not alter capture behavior. Production order inside one frame is
     // clear_with_bg (semantic invalidation) -> draw pass writes cells
-    // (fresh dirty stamps + fresh content gen) -> phosphor_decay_pass
+    // (fresh dirty stamps + fresh content r#gen) -> phosphor_decay_pass
     // scans. rain_at owns the draw + internal decay pass, so the frame is
     // pre-cleared and rain_at is invoked on it; its internal pass takes
     // the FULL-GRID branch (dirty_all set, dirty list never populated

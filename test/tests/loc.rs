@@ -104,23 +104,22 @@ mod tests {
                     continue;
                 }
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                if matches!(ext, "rs" | "toml" | "md" | "sh") {
-                    if let Ok(text) = fs::read_to_string(&path) {
-                        for (i, line) in text.lines().enumerate() {
-                            let trimmed = line.trim();
-                            // Skip SPDX copyright headers
-                            if trimmed.starts_with("// Copyright") {
-                                continue;
-                            }
-                            // Flag lines containing the wrong-cased repo owner
-                            // that do NOT also contain the canonical "oxyzenQ".
-                            // This catches pure-lowercase references while
-                            // allowing lines with the correct casing.
-                            if trimmed.contains(concat!("oxyzen", "q"))
-                                && !trimmed.contains("oxyzenQ")
-                            {
-                                out.push(format!("{}:{}: {}", path.display(), i + 1, trimmed));
-                            }
+                if matches!(ext, "rs" | "toml" | "md" | "sh")
+                    && let Ok(text) = fs::read_to_string(&path)
+                {
+                    for (i, line) in text.lines().enumerate() {
+                        let trimmed = line.trim();
+                        // Skip SPDX copyright headers
+                        if trimmed.starts_with("// Copyright") {
+                            continue;
+                        }
+                        // Flag lines containing the wrong-cased repo owner
+                        // that do NOT also contain the canonical "oxyzenQ".
+                        // This catches pure-lowercase references while
+                        // allowing lines with the correct casing.
+                        if trimmed.contains(concat!("oxyzen", "q")) && !trimmed.contains("oxyzenQ")
+                        {
+                            out.push(format!("{}:{}: {}", path.display(), i + 1, trimmed));
                         }
                     }
                 }

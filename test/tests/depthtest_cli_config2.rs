@@ -45,10 +45,15 @@ static TEMP_FILE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 /// below either run before that guard (read errors) or follow the
 /// strict_mode.rs tolerant-match convention for the layers inside it.
 fn unique_temp_toml(label: &str) -> std::path::PathBuf {
-    std::env::set_var(
-        "COSMOSTRIX_TEST_CONFIG_DIR",
-        std::env::temp_dir().to_string_lossy().into_owned(),
-    );
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var(
+            "COSMOSTRIX_TEST_CONFIG_DIR",
+            std::env::temp_dir().to_string_lossy().into_owned(),
+        );
+    }
     let mut path = std::env::temp_dir();
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -88,12 +88,12 @@ use rand::{
 };
 
 use super::super::monolith::BrightnessLevel;
+use super::RollFrame;
 use super::black_hole::CELL_ASPECT_DIVISOR;
 use super::ring::{
-    floor_head_base_at_hot, level_for_ring_z, proximity_level, ring_r_norm, rk4_lorenz_step,
-    soft_head_level, RingMote,
+    RingMote, floor_head_base_at_hot, level_for_ring_z, proximity_level, ring_r_norm,
+    rk4_lorenz_step, soft_head_level,
 };
-use super::RollFrame;
 
 /// Stream tag: the inner upper halo stream (the rider draws on the
 /// upper semicircle of the 1.30-radius lensing circle over the

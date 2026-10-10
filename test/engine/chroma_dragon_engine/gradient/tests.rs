@@ -185,10 +185,10 @@ fn grayscale_endpoint_falls_back_to_cartesian() {
 
     let expected_mid_chroma = (c0 + c1) / 2.0;
     assert!(
-            (c_mid - expected_mid_chroma).abs() < 0.01,
-            "grayscale fallback midpoint chroma {c_mid:.4} should equal linear average {expected_mid_chroma:.4} \
+        (c_mid - expected_mid_chroma).abs() < 0.01,
+        "grayscale fallback midpoint chroma {c_mid:.4} should equal linear average {expected_mid_chroma:.4} \
              (Cartesian fallback contract)"
-        );
+    );
 
     // Sanity: midpoint should be a desaturated red (R > G, R > B), not
     // pure gray and not a hue-rotated saturated color.
@@ -307,10 +307,10 @@ fn polar_chroma_lerp_opposing_hues_stay_saturated() {
     let pol_chroma = (pa * pa + pb * pb).sqrt();
 
     assert!(
-            pol_chroma > cart_chroma,
-            "Polar midpoint chroma {pol_chroma:.4} should exceed Cartesian midpoint chroma {cart_chroma:.4} \
+        pol_chroma > cart_chroma,
+        "Polar midpoint chroma {pol_chroma:.4} should exceed Cartesian midpoint chroma {cart_chroma:.4} \
              for opposing hues — polar must stay saturated"
-        );
+    );
 }
 
 /// Peak optimization: precomputed `PolarSegment` produces identical

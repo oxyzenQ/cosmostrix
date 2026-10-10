@@ -28,15 +28,15 @@ use rand::{
 
 use crate::constants::{
     DNA_BOW_MAX, DNA_CHARGE_DECAY, DNA_CHARGE_LEVEL_BLINK, DNA_CHARGE_LEVEL_HOT,
-    DNA_CHARGE_LEVEL_MID, DNA_CHARGE_MAX, DNA_FORK_GAP, DNA_FORK_RATE, DNA_REPLICATION_CLOCK_MEAN,
-    DNA_ROT_RATE, DNA_RUNG_STEP, DNA_R_FRAC, DNA_R_MAX, DNA_R_MIN, DNA_TURN_LINES,
+    DNA_CHARGE_LEVEL_MID, DNA_CHARGE_MAX, DNA_FORK_GAP, DNA_FORK_RATE, DNA_R_FRAC, DNA_R_MAX,
+    DNA_R_MIN, DNA_REPLICATION_CLOCK_MEAN, DNA_ROT_RATE, DNA_RUNG_STEP, DNA_TURN_LINES,
 };
 
 use super::super::monolith::BrightnessLevel;
 
 use super::genesis::{
-    genesis_phase, genesis_radius_growth, genesis_total_secs, ladder_front, windup_front,
-    GenesisPhase,
+    GenesisPhase, genesis_phase, genesis_radius_growth, genesis_total_secs, ladder_front,
+    windup_front,
 };
 
 /// RNG bundle (the advance pass is a stochastic pass in the family

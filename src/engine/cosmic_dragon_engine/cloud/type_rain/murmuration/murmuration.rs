@@ -34,7 +34,7 @@ use crate::constants::{
 };
 
 use super::boids::{
-    flock_forces, integrate_bird, startle, Anchor, Bird, BirdRandom, Edge, FlockCtx, MurmHash,
+    Anchor, Bird, BirdRandom, Edge, FlockCtx, MurmHash, flock_forces, integrate_bird, startle,
 };
 
 /// Phase wrap threshold for the breathing oscillator (radians, 64

@@ -398,9 +398,9 @@ fn phase7_no_global_min_rgb_sum_constant_in_pipeline() {
     // If this fails with sum == 180, the v17 global MIN_RGB_SUM was
     // re-introduced AND continuity was lost.
     assert!(
-            trail_sum > 250,
-            "trail sum {trail_sum} — if this is 180, v17 global MIN_RGB_SUM was re-introduced; if < 250, continuity was lost"
-        );
+        trail_sum > 250,
+        "trail sum {trail_sum} — if this is 180, v17 global MIN_RGB_SUM was re-introduced; if < 250, continuity was lost"
+    );
     assert!(
         trail_sum < head_sum,
         "trail sum {trail_sum} must be < head sum {head_sum} (hierarchy preserved)"

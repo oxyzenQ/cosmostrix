@@ -22,11 +22,11 @@
 use std::io::Result;
 
 use crossterm::{
-    style::{Color, SetBackgroundColor},
     QueueableCommand,
+    style::{Color, SetBackgroundColor},
 };
 
-use crate::bolt::{BOLD_ESCAPES, BOLD_ESCAPE_LENS};
+use crate::bolt::{BOLD_ESCAPE_LENS, BOLD_ESCAPES};
 use crate::constants::DIRTY_THRESHOLD_RATIO;
 use crate::frame::Frame;
 use crate::sgr_format::push_u16;

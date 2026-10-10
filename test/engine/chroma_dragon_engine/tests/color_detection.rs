@@ -25,11 +25,16 @@ static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// returns `/var/cache/makepkg-build/tmp/` rather than `/tmp`, causing
 /// path validation to reject config files in the "wrong" temp location.
 fn ensure_test_config_dir_allowed() {
-    std::env::set_var("COSMOSTRIX_SKIP_STARTUP_VALIDATION", "1");
-    std::env::set_var(
-        "COSMOSTRIX_TEST_CONFIG_DIR",
-        std::env::temp_dir().to_string_lossy().into_owned(),
-    );
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var("COSMOSTRIX_SKIP_STARTUP_VALIDATION", "1");
+        std::env::set_var(
+            "COSMOSTRIX_TEST_CONFIG_DIR",
+            std::env::temp_dir().to_string_lossy().into_owned(),
+        );
+    }
 }
 
 fn args_from_empty_config(cli: &[&str]) -> Args {

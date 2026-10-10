@@ -246,22 +246,22 @@ use super::super::monolith::monolith_helpers::{
     clear_cell, clear_phosphor_metadata, pick_pool_char,
 };
 use super::super::monolith::{BrightnessLevel, MonolithCleanup};
+use super::RollFrame;
 use super::ball_helpers::{bump_level, conveyor_char, draw_ball_cell, level_for_ring_band};
 use super::formation::{
-    cross_active, formation_phase, horizon_visibility, seed_center_level, seed_cross_level,
-    FormationPhase,
+    FormationPhase, cross_active, formation_phase, horizon_visibility, seed_center_level,
+    seed_cross_level,
 };
 use super::halo::{
     activate_halo_mote, advance_halo_mote, halo_head_level, halo_mote_visible, project_halo_mote,
 };
 use super::infall::InfallStream;
 use super::ring::{
-    activate_ring_mote, advance_ring_mote, occludes_ring_cell, project_ring_mote, proximity_level,
-    ring_head_base, rise_ladder_dist, soft_head_level, step_down_level, BlackHoleRandom,
-    BlackHoleSpawnParams, BlackHoleStep, RingMote,
+    BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep, RingMote, activate_ring_mote,
+    advance_ring_mote, occludes_ring_cell, project_ring_mote, proximity_level, ring_head_base,
+    rise_ladder_dist, soft_head_level, step_down_level,
 };
 use super::roll::RingRoll;
-use super::RollFrame;
 
 /// One drawn ball cell: grid position plus its radial brightness band.
 /// Own struct instead of reusing monolith's `DrawnCell` because the ball
@@ -1551,11 +1551,11 @@ impl BlackHoleRain {
             self.drawn_gen_dims = need_dims;
         }
         self.drawn_gen_counter = self.drawn_gen_counter.wrapping_add(1);
-        let gen = self.drawn_gen_counter;
+        let r#gen = self.drawn_gen_counter;
         for cell in &self.current_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
             if idx < self.drawn_gen.len() {
-                self.drawn_gen[idx] = gen;
+                self.drawn_gen[idx] = r#gen;
             }
             // NIGHT-hunter-29 (the phosphor ownership rule — the doc
             // on clear_phosphor_metadata): a cell drawn this frame is
@@ -1574,7 +1574,7 @@ impl BlackHoleRain {
         let drawn_gen = &self.drawn_gen[..];
         for cell in &self.previous_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
-            if idx < drawn_gen.len() && drawn_gen[idx] == gen {
+            if idx < drawn_gen.len() && drawn_gen[idx] == r#gen {
                 continue;
             }
             clear_cell(frame, cleanup, cell.col, cell.line);

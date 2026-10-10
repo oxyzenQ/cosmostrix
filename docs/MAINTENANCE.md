@@ -14,7 +14,7 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 | Build (optimized, AVX-512) | `cargo pro-native` |
 | Build (PGO nitro) | `./scripts/build/build.sh pgo` |
 | Test (full suite) | `cargo test --all --locked` |
-| Test (build-script suite) | `rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests && /tmp/cosmostrix-build-script-tests` |
+| Test (build-script suite) | `rustc --edition 2024 --test build.rs -o /tmp/cosmostrix-build-script-tests && /tmp/cosmostrix-build-script-tests` |
 | Gatekeeper (all checks) | `./scripts/build/build.sh check-all` |
 | Format check | `cargo fmt --all --check` |
 | Lint | `cargo clippy -- -D warnings` |
@@ -114,7 +114,7 @@ two constants silently disagreed with their claimed calendar dates
 because nothing ever ran the suite. Run it standalone instead:
 
 ```sh
-rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests
+rustc --edition 2024 --test build.rs -o /tmp/cosmostrix-build-script-tests
 /tmp/cosmostrix-build-script-tests
 ```
 
@@ -135,7 +135,7 @@ After 5-10 years of dormancy, external services may be unavailable. The pinned t
 
 - `cargo build --release` compiles with zero warnings on the pinned toolchain.
 - `cargo test --all --locked` passes all tests.
-- The standalone build-script suite passes: `rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests && /tmp/cosmostrix-build-script-tests`.
+- The standalone build-script suite passes: `rustc --edition 2024 --test build.rs -o /tmp/cosmostrix-build-script-tests && /tmp/cosmostrix-build-script-tests`.
 - `./scripts/build/build.sh check-all -q` passes all quality gates.
 - `cargo deny check all` reports no advisories (or is skipped if offline).
 - `cosmostrix --testconf` validates the default config without errors.

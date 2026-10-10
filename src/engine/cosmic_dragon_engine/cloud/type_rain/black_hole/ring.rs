@@ -137,9 +137,9 @@ use rand::{
 };
 
 use super::super::monolith::BrightnessLevel;
+use super::RollFrame;
 use super::ball_helpers::bump_level;
 use super::black_hole::CELL_ASPECT_DIVISOR;
-use super::RollFrame;
 
 /// One orbital mote: a glyph riding a Keplerian ring whose turbulence
 /// is the RK4-integrated Lorenz state (x, y, z). Same field set as

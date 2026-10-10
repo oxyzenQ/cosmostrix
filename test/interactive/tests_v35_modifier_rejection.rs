@@ -25,11 +25,11 @@ mod cases_modifier_rejection {
     use crate::cloud::Cloud;
     use crate::frame::Frame;
 
-    use crate::interactive::input::{
-        handle_keybinding, is_unmodified, is_unmodified_or_shift, KeybindingCtx,
-    };
-    use crate::platform::{default_term_reinit, TermReinit};
     use crate::CloudConfig;
+    use crate::interactive::input::{
+        KeybindingCtx, handle_keybinding, is_unmodified, is_unmodified_or_shift,
+    };
+    use crate::platform::{TermReinit, default_term_reinit};
 
     /// Duplicated from `tests.rs::mod cases::key()` (test fixture, stable).
     fn key(ch: char) -> KeyEvent {

@@ -7,8 +7,8 @@
 //! concerns. These track the ambient apply path, snapback behavior,
 //! schedule reloads, and consistency fixes.
 
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 static AMBIENT_SNAPBACK_COUNT: AtomicU64 = AtomicU64::new(0);
 static AMBIENT_RX_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -83,6 +83,17 @@ pub(crate) fn ambient_diag_summary() -> String {
         .unwrap_or_else(|| "none".to_string());
     format!(
         "ambient_diag: startup={} rx={} reapply={} snapback={} cfg_rebuilds={} sked_reloads={} sked_empties={} consistency_fixes={} snapback_killed={} snapback_guard_sked_len={} snapback_guard_last_applied={} last_scene_change={}",
-        startup, rx, reapply, snap, cfg_rebuilds, reloads, empties, consistency_fixes, snapback_killed, guard_sked_len, guard_last, last
+        startup,
+        rx,
+        reapply,
+        snap,
+        cfg_rebuilds,
+        reloads,
+        empties,
+        consistency_fixes,
+        snapback_killed,
+        guard_sked_len,
+        guard_last,
+        last
     )
 }

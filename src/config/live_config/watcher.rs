@@ -20,17 +20,17 @@ use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use notify::{event::EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher, event::EventKind};
 
 use crate::configfile;
 use crate::live_config_poll::{
-    env_poll_interval_ms, polling_heartbeat, snapshot_file_state, snapshot_file_state_cached,
-    FileStateSnapshot,
+    FileStateSnapshot, env_poll_interval_ms, polling_heartbeat, snapshot_file_state,
+    snapshot_file_state_cached,
 };
 
 use super::LiveConfigEvent;
 use super::{
-    push_runtime_warning, push_validation_rejection, LIVE_RELOAD_ERROR, LIVE_RELOAD_EXIT_CODE,
+    LIVE_RELOAD_ERROR, LIVE_RELOAD_EXIT_CODE, push_runtime_warning, push_validation_rejection,
 };
 
 /// Spawn a config file watcher on a background thread.
@@ -462,7 +462,9 @@ fn handle_notify_event(
             );
             if parsed.values.is_empty() && parsed.malformed_lines.is_empty() {
                 if !zero_key_is_deliberate(&content) {
-                    lr_trace!("empty parse (whitespace-only file — transient atomic save) — skipping event");
+                    lr_trace!(
+                        "empty parse (whitespace-only file — transient atomic save) — skipping event"
+                    );
                     return true;
                 }
                 lr_trace!(

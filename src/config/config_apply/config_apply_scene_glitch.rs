@@ -35,41 +35,47 @@ pub(crate) fn apply_scene_values(
         // in config.toml. This mirrors the apply_default_scene_values
         // pattern: config-set keys win over scene defaults. CLI flags
         // still win over both (checked via is_explicit).
-        if let Some(color) = cfg.color {
-            if !is_explicit(matches, "color") && !config_touched.contains("color") {
-                args.color = color.to_string();
-                scene_modified.insert("color");
-            }
+        if let Some(color) = cfg.color
+            && !is_explicit(matches, "color")
+            && !config_touched.contains("color")
+        {
+            args.color = color.to_string();
+            scene_modified.insert("color");
         }
-        if let Some(charset) = cfg.charset {
-            if !is_explicit(matches, "charset") && !config_touched.contains("charset") {
-                args.charset = charset.to_string();
-                scene_modified.insert("charset");
-            }
+        if let Some(charset) = cfg.charset
+            && !is_explicit(matches, "charset")
+            && !config_touched.contains("charset")
+        {
+            args.charset = charset.to_string();
+            scene_modified.insert("charset");
         }
-        if let Some(fps) = cfg.fps {
-            if !is_explicit(matches, "fps") && !config_touched.contains("fps") {
-                args.fps = fps;
-                scene_modified.insert("fps");
-            }
+        if let Some(fps) = cfg.fps
+            && !is_explicit(matches, "fps")
+            && !config_touched.contains("fps")
+        {
+            args.fps = fps;
+            scene_modified.insert("fps");
         }
-        if let Some(speed) = cfg.speed {
-            if !is_explicit(matches, "speed") && !config_touched.contains("speed") {
-                args.speed = speed;
-                scene_modified.insert("speed");
-            }
+        if let Some(speed) = cfg.speed
+            && !is_explicit(matches, "speed")
+            && !config_touched.contains("speed")
+        {
+            args.speed = speed;
+            scene_modified.insert("speed");
         }
-        if let Some(density) = cfg.density {
-            if !is_explicit(matches, "density") && !config_touched.contains("density") {
-                args.density = density;
-                scene_modified.insert("density");
-            }
+        if let Some(density) = cfg.density
+            && !is_explicit(matches, "density")
+            && !config_touched.contains("density")
+        {
+            args.density = density;
+            scene_modified.insert("density");
         }
-        if let Some(glitch_level) = cfg.glitch_level {
-            if !is_explicit(matches, "glitch_level") && !config_touched.contains("glitch_level") {
-                args.glitch_level = glitch_level;
-                scene_modified.insert("glitch_level");
-            }
+        if let Some(glitch_level) = cfg.glitch_level
+            && !is_explicit(matches, "glitch_level")
+            && !config_touched.contains("glitch_level")
+        {
+            args.glitch_level = glitch_level;
+            scene_modified.insert("glitch_level");
         }
     }
 

@@ -39,8 +39,8 @@ use crate::chroma_dragon_engine::intro_colors::{COSMIC_COLORS_RGB, SINGULARITY_R
 use crate::chroma_dragon_engine::palette::color_to_rgb;
 
 use super::{
-    end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
-    should_skip, IntroOutcome, Particle, ParticlePaint, ParticlePool, XorShift,
+    IntroOutcome, Particle, ParticlePaint, ParticlePool, XorShift, end_frame, lerp, lerp_rgb,
+    palette_target_rgb, rain_chars, render_particle_cell, seed_rng, should_skip,
 };
 
 /// Phase boundaries (milliseconds from intro start).

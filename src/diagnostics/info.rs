@@ -371,7 +371,7 @@ pub(crate) fn check_cpu_features() {
     // \x1b[1m wrapper (output.rs only exposes semantic colors, not generic
     // bold, since bold-without-color is rare in CLI output).
     let print_fatal = |feature: &str, target: &str| {
-        use crate::output::{color_capability, error_bold, reset, ColorCapability};
+        use crate::output::{ColorCapability, color_capability, error_bold, reset};
         let (bold_on, bold_off) = if color_capability() == ColorCapability::Mono {
             ("", "")
         } else {

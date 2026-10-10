@@ -339,12 +339,11 @@ impl Droplet {
             }
         }
 
-        if !self.is_tail_crawling {
-            if let Some(stop) = self.head_stop_time {
-                if now.saturating_duration_since(stop) >= self.time_to_linger {
-                    self.is_tail_crawling = true;
-                }
-            }
+        if !self.is_tail_crawling
+            && let Some(stop) = self.head_stop_time
+            && now.saturating_duration_since(stop) >= self.time_to_linger
+        {
+            self.is_tail_crawling = true;
         }
 
         if self.tail_put_line == Some(self.head_put_line) {

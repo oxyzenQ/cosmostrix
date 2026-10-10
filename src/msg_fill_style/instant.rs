@@ -42,7 +42,7 @@ pub(super) fn text_progress() -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{border_progress, content_reveal, MsgFillStyle};
+    use super::super::{MsgFillStyle, border_progress, content_reveal};
     use super::*;
 
     #[test]

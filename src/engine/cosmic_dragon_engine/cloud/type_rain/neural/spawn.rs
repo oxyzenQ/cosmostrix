@@ -21,7 +21,7 @@ use rand::distr::Distribution;
 
 use crate::constants::{NEUR_SPAWN_RATE_FLOOR, NEUR_SPAWN_RATE_MULT, SPAWN_REMAINDER_CAP};
 
-use super::network::{fall_speed, NeuralRandom};
+use super::network::{NeuralRandom, fall_speed};
 use super::neural::NeuralRain;
 
 impl NeuralRain {

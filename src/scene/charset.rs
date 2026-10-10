@@ -137,10 +137,10 @@ pub(crate) fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Cha
             // "unknown charset".
             let limit_note = if spec.len() > crate::charset_custom::CHARSET_CUSTOM_MAX_NAME_LEN {
                 format!(
-                        "\n  note: the name is {} chars — over the {}-char custom-charset limit, so no [charset-custom.<name>] block can ever define it",
-                        spec.chars().count(),
-                        crate::charset_custom::CHARSET_CUSTOM_MAX_NAME_LEN
-                    )
+                    "\n  note: the name is {} chars — over the {}-char custom-charset limit, so no [charset-custom.<name>] block can ever define it",
+                    spec.chars().count(),
+                    crate::charset_custom::CHARSET_CUSTOM_MAX_NAME_LEN
+                )
             } else {
                 String::new()
             };

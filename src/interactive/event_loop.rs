@@ -25,13 +25,13 @@ use crossterm::event::{Event, KeyCode, KeyEventKind};
 use crate::color_cache::ColorCache;
 use crate::constants::*;
 use crate::frame::Frame;
-use crate::terminal::{is_terminal_gone, Terminal};
+use crate::terminal::{Terminal, is_terminal_gone};
 
-use super::super::{effective_density, CloudConfig};
+use super::super::{CloudConfig, effective_density};
 use super::activity::{register_activity, spin_wait};
 use super::event_loop_ctx::{FrameObs, LoopCtx, LoopCtxCore, SceneIdentity};
 use super::event_loop_finalize::finalize_session;
-use super::input::{handle_keybinding, hud_toggle_accepted, is_unmodified, KeybindingCtx};
+use super::input::{KeybindingCtx, handle_keybinding, hud_toggle_accepted, is_unmodified};
 use super::watchdog::{GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {

@@ -240,9 +240,9 @@ fn dragon_state_machine_visits_both_states() {
 /// terms vanish at t = 0, so the turn rate is exactly zero and the
 /// heading cannot drift during the measured step).
 fn make_pace_probe_rain() -> crate::cloud::dragon::DragonRain {
+    use rand::SeedableRng;
     use rand::distr::Uniform;
     use rand::rngs::StdRng;
-    use rand::SeedableRng;
 
     let mut rain = crate::cloud::dragon::DragonRain::new();
     rain.reset(80);

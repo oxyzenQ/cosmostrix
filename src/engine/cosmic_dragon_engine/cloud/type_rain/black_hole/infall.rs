@@ -71,11 +71,11 @@ use rand::{
 };
 
 use super::super::super::render::DrawCtx;
-use super::super::monolith::monolith_helpers::pick_pool_char;
 use super::super::monolith::BrightnessLevel;
+use super::super::monolith::monolith_helpers::pick_pool_char;
 use super::ball_helpers::draw_ball_cell;
 use super::black_hole::{BlackHoleCell, CELL_ASPECT_DIVISOR};
-use super::ring::{proximity_level, step_down_level, BlackHoleRandom, BlackHoleSpawnParams};
+use super::ring::{BlackHoleRandom, BlackHoleSpawnParams, proximity_level, step_down_level};
 use crate::frame::Frame;
 
 /// Maximum physics substep in sim-seconds (numerical hygiene, not a

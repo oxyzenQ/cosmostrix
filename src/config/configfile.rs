@@ -125,9 +125,9 @@ const AMBIENT_CONFIG_KEY_HINT: &str = "ambient.<HH-MM> = <scene-name>";
 // NIGHT-depthtest-2: ParsedConfig extracted to configfile_parsed.rs
 // (800-LOC cap), re-exported here (+ the NIGHT-hunt-37 test-only predicate).
 mod configfile_parsed;
+pub(crate) use configfile_parsed::ParsedConfig;
 #[cfg(test)]
 pub(crate) use configfile_parsed::is_custom_block_section;
-pub(crate) use configfile_parsed::ParsedConfig;
 
 #[must_use]
 pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
@@ -446,16 +446,14 @@ pub(crate) fn default_config_file_path() -> PathBuf {
         // XDG_CONFIG_HOME may point to $PREFIX/etc (a system location),
         // which is NOT where users put their config. Always prefer $HOME
         // on Termux, regardless of XDG_CONFIG_HOME.
-        if is_termux {
-            if let Some(home) = home.as_deref().filter(|v| !v.is_empty()) {
-                return PathBuf::from(home)
-                    .join(".config")
-                    .join(CONFIG_DIR_NAME)
-                    .join(CONFIG_FILE_NAME);
-            }
-            // $HOME unset on Termux is extremely unusual (Termux always
-            // sets it). Fall through to XDG resolution as a safety net.
+        if is_termux && let Some(home) = home.as_deref().filter(|v| !v.is_empty()) {
+            return PathBuf::from(home)
+                .join(".config")
+                .join(CONFIG_DIR_NAME)
+                .join(CONFIG_FILE_NAME);
         }
+        // $HOME unset on Termux is extremely unusual (Termux always
+        // sets it). Fall through to XDG resolution as a safety net.
 
         config_file_path_from_env(xdg.as_deref(), home.as_deref(), CONFIG_FILE_NAME)
     }

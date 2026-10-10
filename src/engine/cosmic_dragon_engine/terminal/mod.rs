@@ -26,9 +26,9 @@
 //! A fork-based SIGKILL guard (Linux) provides a last-resort safety net
 //! for cases where the process is killed with signal 9.
 
-use std::io::{stdout, BufWriter, Result, Stdout, Write};
-use std::sync::atomic::AtomicBool;
+use std::io::{BufWriter, Result, Stdout, Write, stdout};
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 #[cfg(unix)]
 use std::fs::File;
@@ -56,9 +56,9 @@ use std::fs::File;
 pub(crate) static TERMINAL_RESTORED_BY_PANIC: AtomicBool = AtomicBool::new(false);
 
 use crossterm::{
-    cursor, event,
+    ExecutableCommand, cursor, event,
     style::{Attribute, Color, ResetColor, SetAttribute},
-    terminal as crossterm_terminal, ExecutableCommand,
+    terminal as crossterm_terminal,
 };
 
 use crate::color_cache::ColorCache;
@@ -103,8 +103,8 @@ pub(crate) mod tier2;
 // the allow(unused_imports).
 #[allow(unused_imports)]
 pub(crate) use restore::{
-    blank_cell, force_exit_terminal_restored, reset_terminal_emergency,
-    restore_terminal_best_effort, TERMINAL_RESET_SEQUENCE, TERMINAL_RESTORE_SEQUENCE,
+    TERMINAL_RESET_SEQUENCE, TERMINAL_RESTORE_SEQUENCE, blank_cell, force_exit_terminal_restored,
+    reset_terminal_emergency, restore_terminal_best_effort,
 };
 // NIGHT-termux-hang: unix-only sibling (O_NONBLOCK wrap) used by the
 // SIGTSTP suspend handler.
@@ -590,11 +590,11 @@ impl Terminal {
             Some(q) => (q.quantize_fg(fg), q.quantize_bg(bg)),
             None => (fg, bg),
         };
-        if let Some(cache) = cache {
-            if let Some(cached) = cache.sgr_for_cell(fg, bg) {
-                buf.extend_from_slice(cached);
-                return;
-            }
+        if let Some(cache) = cache
+            && let Some(cached) = cache.sgr_for_cell(fg, bg)
+        {
+            buf.extend_from_slice(cached);
+            return;
         }
         write_sgr_colors_buf(buf, fg, bg);
     }

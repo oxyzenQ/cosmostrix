@@ -20,7 +20,7 @@
 //!
 //! "Lock" means: every invariant below MUST keep holding. If a future
 //! commit changes the dirty-tracking contract, the diff threshold, the
-//! semantic-gen protocol, or the SGR cache format in a way that breaks
+//! semantic-r#gen protocol, or the SGR cache format in a way that breaks
 //! one of these invariants, this module's tests fail and the commit is
 //! rejected at review. The engine is deliberately done.
 //!
@@ -38,9 +38,9 @@
 //! | INV-8 | dirty_all flag       | `clear_with_bg` sets `dirty_all=true` + clears dirty   |
 //! | INV-9 | Semantic invalidation| `invalidate_semantic` bumps `semantic_gen`             |
 //! | INV-10| set_force bypasses   | `set_force` writes without equality check              |
-//! | INV-11| gen overflow safety  | `clear_with_bg` u32 wrap resets `cell_gen` to 0        |
+//! | INV-11| r#gen overflow safety  | `clear_with_bg` u32 wrap resets `cell_gen` to 0        |
 //! | INV-12| dirty_gen overflow   | `clear_dirty` u32 wrap resets `dirty_cell_gen` to 0    |
-//! | INV-13| blank fallback       | `cell_at_index` returns blank when gen doesn't match   |
+//! | INV-13| blank fallback       | `cell_at_index` returns blank when r#gen doesn't match   |
 //! | INV-14| ColorCache Rgb       | `ColorCache` produces non-empty SGR bytes for Rgb      |
 //! | INV-15| ColorCache miss      | `ColorCache::sgr_for_cell` returns None for unknown idx|
 //! | INV-16| Lock report          | Sentinel test prints the engine report                 |
@@ -402,21 +402,21 @@ fn lock_inv10_set_force_bypasses_equality_check() {
 // INV-11 & INV-12: Generation overflow safety
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// INV-11: When `Frame::clear_with_bg` causes `gen` to wrap past u32::MAX,
-/// the overflow handler resets `cell_gen` to all-zeros and bumps `gen` to 1.
+/// INV-11: When `Frame::clear_with_bg` causes `r#gen` to wrap past u32::MAX,
+/// the overflow handler resets `cell_gen` to all-zeros and bumps `r#gen` to 1.
 /// This prevents the case where a cell's `cell_gen` happens to equal the
-/// wrapped `gen` and falsely appears "live".
+/// wrapped `r#gen` and falsely appears "live".
 ///
 /// At 60 FPS this fires once every ~2 years. Cost: one O(N) memset.
 #[test]
 fn lock_inv11_clear_with_bg_gen_overflow_resets_cell_gen() {
     let mut f = Frame::new(4, 4, None);
-    // Force gen to u32::MAX so the next clear_with_bg wraps to 0.
-    f.gen = u32::MAX;
+    // Force r#gen to u32::MAX so the next clear_with_bg wraps to 0.
+    f.r#gen = u32::MAX;
 
     f.clear_with_bg(None);
 
-    assert_eq!(f.gen, 1, "after wrap, gen must restart at 1 (not 0)");
+    assert_eq!(f.r#gen, 1, "after wrap, gen must restart at 1 (not 0)");
     assert!(
         f.cell_gen.iter().all(|&g| g == 0),
         "after wrap, all cell_gen entries must be 0 (so no cell falsely matches gen=1)"
@@ -447,11 +447,11 @@ fn lock_inv12_clear_dirty_gen_overflow_resets_dirty_cell_gen() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// INV-13: Blank fallback when gen doesn't match
+// INV-13: Blank fallback when r#gen doesn't match
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// INV-13: `cell_at_index` (and `cell_at_index_ref`) returns the blank cell
-/// when the cell's `cell_gen` doesn't match the current `gen`. This is the
+/// when the cell's `cell_gen` doesn't match the current `r#gen`. This is the
 /// "logically cleared" property — after `clear_with_bg`, all cells appear
 /// blank without being physically overwritten.
 #[test]
@@ -470,7 +470,7 @@ fn lock_inv13_cell_at_index_returns_blank_when_gen_mismatches() {
     let read = f.cell_at_index(idx);
     assert_eq!(read.ch, 'x', "live cell must be returned when gen matches");
 
-    // Bump gen via clear_with_bg — cell is now "logically cleared".
+    // Bump r#gen via clear_with_bg — cell is now "logically cleared".
     f.clear_with_bg(None);
 
     // Reading the same index must return the blank cell, not the stale 'x'.
@@ -670,8 +670,12 @@ fn lock_inv16_engine_lock_report() {
     eprintln!("═══════════════════════════════════════════════════════════════");
     eprintln!("  Version:            {COSMIC_DRAGON_ENGINE_VERSION}");
     eprintln!("  Invariants:         17 (INV-01 through INV-17)");
-    eprintln!("  Frame clamp:        [{MIN_TERMINAL_COLS},{MAX_TERMINAL_COLS}] × [{MIN_TERMINAL_LINES},{MAX_TERMINAL_LINES}]");
-    eprintln!("  Bench clamp:        [{MIN_TERMINAL_COLS},{BENCH_MAX_COLS}] × [{MIN_TERMINAL_LINES},{BENCH_MAX_LINES}]");
+    eprintln!(
+        "  Frame clamp:        [{MIN_TERMINAL_COLS},{MAX_TERMINAL_COLS}] × [{MIN_TERMINAL_LINES},{MAX_TERMINAL_LINES}]"
+    );
+    eprintln!(
+        "  Bench clamp:        [{MIN_TERMINAL_COLS},{BENCH_MAX_COLS}] × [{MIN_TERMINAL_LINES},{BENCH_MAX_LINES}]"
+    );
     eprintln!("  Dirty tracking:     double-buffered generation (O(1) clear_dirty)");
     eprintln!("  Idle-frame fast path: skip render body when dirty_count==0 & can_reuse_last");
     eprintln!("  Semantic invalidation: semantic_gen counter (stale-glyph guard)");

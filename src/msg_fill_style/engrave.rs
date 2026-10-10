@@ -67,7 +67,7 @@ use std::time::Instant;
 use crossterm::style::Color;
 use rand::distr::Distribution;
 
-use super::{index_fraction, index_pacing, lagged_border, CellReveal};
+use super::{CellReveal, index_fraction, index_pacing, lagged_border};
 use crate::cell::Cell;
 use crate::constants::PARTICLE_MAX_FRAME_DT_SECS;
 use crate::frame::Frame;
@@ -267,25 +267,24 @@ impl crate::cloud::Cloud {
         // "half little reload" on resize. last_head == usize::MAX is
         // the fresh-reveal sentinel: the first burst of a fresh reveal
         // still fires.
-        if let (Some((col, line)), Some(_)) = (head_pos, elapsed_ms) {
-            if head_idx != self.engrave.last_head
-                && (self.engrave.last_head == usize::MAX || head_idx > self.engrave.last_head)
-            {
-                self.engrave.last_head = head_idx;
-                if self.effects_enabled {
-                    // Palette head color (near-white on most schemes):
-                    // white-hot sparks that follow the active theme.
-                    // Same panic-safe snapshot chain as
-                    // detect_border_touch — never `.last().unwrap()`.
-                    let head_rgb = self
-                        .palette
-                        .colors
-                        .last()
-                        .copied()
-                        .and_then(crate::palette::decode_color)
-                        .unwrap_or((255, 255, 255));
-                    self.spawn_engrave_burst(col, line, head_rgb, now);
-                }
+        if let (Some((col, line)), Some(_)) = (head_pos, elapsed_ms)
+            && head_idx != self.engrave.last_head
+            && (self.engrave.last_head == usize::MAX || head_idx > self.engrave.last_head)
+        {
+            self.engrave.last_head = head_idx;
+            if self.effects_enabled {
+                // Palette head color (near-white on most schemes):
+                // white-hot sparks that follow the active theme.
+                // Same panic-safe snapshot chain as
+                // detect_border_touch — never `.last().unwrap()`.
+                let head_rgb = self
+                    .palette
+                    .colors
+                    .last()
+                    .copied()
+                    .and_then(crate::palette::decode_color)
+                    .unwrap_or((255, 255, 255));
+                self.spawn_engrave_burst(col, line, head_rgb, now);
             }
         }
         self.draw_engrave_sparks(frame, now);
@@ -423,7 +422,7 @@ impl crate::cloud::Cloud {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{content_reveal, index_reveal_count, MsgFillStyle};
+    use super::super::{MsgFillStyle, content_reveal, index_reveal_count};
     use super::*;
 
     #[test]

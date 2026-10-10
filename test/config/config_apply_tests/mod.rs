@@ -27,12 +27,17 @@ static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// path validation to reject config files in the "wrong" temp location.
 /// Idempotent — safe to call from parallel test threads.
 pub(super) fn ensure_test_config_dir_allowed() {
-    std::env::set_var("COSMOSTRIX_SKIP_STARTUP_VALIDATION", "1");
-    // Setting the same value repeatedly is benign even under race conditions.
-    std::env::set_var(
-        "COSMOSTRIX_TEST_CONFIG_DIR",
-        std::env::temp_dir().to_string_lossy().into_owned(),
-    );
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var("COSMOSTRIX_SKIP_STARTUP_VALIDATION", "1");
+        // Setting the same value repeatedly is benign even under race conditions.
+        std::env::set_var(
+            "COSMOSTRIX_TEST_CONFIG_DIR",
+            std::env::temp_dir().to_string_lossy().into_owned(),
+        );
+    }
 }
 
 pub(super) fn args_with_config(config: &str, cli: &[&str]) -> Args {

@@ -12,8 +12,8 @@
 //!   from the live-reload path (e.g. deprecated `.stops` alias). Buffered
 //!   during the rain loop to avoid alt-screen leak (AB-10), drained post-exit.
 
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 /// Global exit code set by live-reload when invalid config is detected.
 /// 0 = no error (default), 2 = live-reload validation failure.
@@ -155,10 +155,10 @@ pub(crate) fn drain_runtime_diags() -> Vec<String> {
 pub(crate) fn push_validation_rejection(msg: &str) {
     let ts = crate::output::now_hhmm();
     let entry = format!("{ts} {msg}");
-    if let Ok(mut guard) = LIVE_RELOAD_VALIDATION_REJECTIONS.lock() {
-        if guard.len() < MAX_REJECTION_LOG {
-            guard.push(entry);
-        }
+    if let Ok(mut guard) = LIVE_RELOAD_VALIDATION_REJECTIONS.lock()
+        && guard.len() < MAX_REJECTION_LOG
+    {
+        guard.push(entry);
     }
 }
 

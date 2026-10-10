@@ -8,11 +8,11 @@
 //! re-synthesis mutation, and the fork clock's re-arm cycle.
 
 use crate::cloud::dna_helix::helix::{
-    charge_level, rung_count_for_lines, BasePair, DnaGenome, DnaRandom, ForkPhase,
+    BasePair, DnaGenome, DnaRandom, ForkPhase, charge_level, rung_count_for_lines,
 };
 use crate::cloud::monolith::BrightnessLevel;
 use crate::constants::{DNA_CHARGE_DECAY, DNA_CHARGE_MAX, DNA_ROT_RATE};
-use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, distr::Uniform, rngs::StdRng};
 
 fn make_genome(cols: u16, lines: u16) -> DnaGenome {
     let mut g = DnaGenome::new();

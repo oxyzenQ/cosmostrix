@@ -204,17 +204,17 @@ use clap::{CommandFactory, FromArgMatches};
 use std::env;
 
 use crate::charset::{build_chars, charset_from_str};
-use crate::config::{color_enabled_stdout, Args, ColorBg};
+use crate::config::{Args, ColorBg, color_enabled_stdout};
 use crate::constants::*;
 use crate::runtime::{BoldMode, ColorScheme, ShadingMode};
 use crate::validation::{
     prevalidate_cli_args, validate_f32_range, validate_f64_range, validate_speed,
-    validate_u16_range, validate_u8_range,
+    validate_u8_range, validate_u16_range,
 };
 
 // Re-exports: items moved to submodules but still accessed by sibling
 // modules via `super::`.
-pub use app::{auto_density_factor, effective_density, CloudConfig};
+pub use app::{CloudConfig, auto_density_factor, effective_density};
 pub use cli::{
     color_mode_label, cycle_charset_preset, cycle_color_scheme, default_to_ascii,
     detect_color_mode, detect_color_mode_auto, normalize_charset_preset_name, parse_color_scheme,

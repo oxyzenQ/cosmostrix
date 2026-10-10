@@ -20,8 +20,8 @@ mod transitions;
 // Re-exports for submodule access via `super::`
 pub(crate) use super::make_cloud;
 pub(crate) use crate::charset::{build_chars, charset_from_str};
-pub(crate) use crate::cloud::monolith::DrawnCellKind;
 pub(crate) use crate::cloud::Cloud;
+pub(crate) use crate::cloud::monolith::DrawnCellKind;
 pub(crate) use crate::constants::CHARSET_TRANSITION_DURATION_MS;
 pub(crate) use crate::frame::Frame;
 pub(crate) use crate::rain_style::RainStyle;

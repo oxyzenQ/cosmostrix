@@ -379,10 +379,10 @@ impl StorytellingState {
         self.last_tick = now;
 
         // Check cooldown
-        if let Some(until) = self.cooldown_until {
-            if now < until {
-                return None;
-            }
+        if let Some(until) = self.cooldown_until
+            && now < until
+        {
+            return None;
         }
 
         // Check max moments

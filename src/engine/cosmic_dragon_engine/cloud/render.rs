@@ -15,7 +15,7 @@ use bitvec::prelude::BitSlice;
 use crossterm::style::Color;
 
 use crate::chroma_dragon_engine::shaders::base::{
-    color_uses_previous_palette, resolve_cell_color, ShaderCtx,
+    ShaderCtx, color_uses_previous_palette, resolve_cell_color,
 };
 use crate::constants::*;
 use crate::runtime::BoldMode;

@@ -75,25 +75,50 @@ impl Drop for EnvGuard {
         // thread-local, so this is only relevant for nested guards on
         // the same thread, but the ordering is still correct.)
         set_ancestor_walk_inhibited(self.prev_ancestor_inhibit);
-        match self.prev_term.take() {
-            Some(v) => env::set_var("TERM", v),
-            None => env::remove_var("TERM"),
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            match self.prev_term.take() {
+                Some(v) => env::set_var("TERM", v),
+                None => env::remove_var("TERM"),
+            }
         }
-        match self.prev_tp.take() {
-            Some(v) => env::set_var("TERM_PROGRAM", v),
-            None => env::remove_var("TERM_PROGRAM"),
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            match self.prev_tp.take() {
+                Some(v) => env::set_var("TERM_PROGRAM", v),
+                None => env::remove_var("TERM_PROGRAM"),
+            }
         }
-        match self.prev_konsole_version.take() {
-            Some(v) => env::set_var("KONSOLE_VERSION", v),
-            None => env::remove_var("KONSOLE_VERSION"),
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            match self.prev_konsole_version.take() {
+                Some(v) => env::set_var("KONSOLE_VERSION", v),
+                None => env::remove_var("KONSOLE_VERSION"),
+            }
         }
-        match self.prev_wt_session.take() {
-            Some(v) => env::set_var("WT_SESSION", v),
-            None => env::remove_var("WT_SESSION"),
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            match self.prev_wt_session.take() {
+                Some(v) => env::set_var("WT_SESSION", v),
+                None => env::remove_var("WT_SESSION"),
+            }
         }
-        match self.prev_vte_version.take() {
-            Some(v) => env::set_var("VTE_VERSION", v),
-            None => env::remove_var("VTE_VERSION"),
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            match self.prev_vte_version.take() {
+                Some(v) => env::set_var("VTE_VERSION", v),
+                None => env::remove_var("VTE_VERSION"),
+            }
         }
     }
 }
@@ -155,8 +180,13 @@ fn sync_output_disabled_for_linux_console() {
 fn alternate_screen_enabled_for_linux_console() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "linux");
-    env::remove_var("TERM_PROGRAM");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "linux");
+        env::remove_var("TERM_PROGRAM");
+    }
     let caps = detect();
     assert!(
         caps.has_alternate_screen,
@@ -180,8 +210,13 @@ fn alternate_screen_enabled_for_linux_console() {
 fn alternate_screen_disabled_for_dumb_terminal() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "dumb");
-    env::remove_var("TERM_PROGRAM");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "dumb");
+        env::remove_var("TERM_PROGRAM");
+    }
     let caps = detect();
     assert!(
         !caps.has_alternate_screen,
@@ -197,8 +232,13 @@ fn alternate_screen_disabled_for_dumb_terminal() {
 fn alternate_screen_enabled_for_xterm() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::remove_var("TERM_PROGRAM");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+    }
     let caps = detect();
     assert!(
         caps.has_alternate_screen,
@@ -219,8 +259,13 @@ fn alternate_screen_enabled_for_xterm() {
 fn vscode_detection_when_term_program_is_vscode() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "vscode");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "vscode");
+    }
     let caps = detect();
     assert!(caps.xtermjs_host, "xtermjs_host must be true for VSCode");
     assert!(
@@ -247,8 +292,13 @@ fn xtermjs_host_detection_for_all_known_hosts() {
     let _guard = ENV_LOCK.lock().unwrap();
     for &host in known_xtermjs_hosts() {
         let _env = EnvGuard::capture();
-        env::set_var("TERM", "xterm-256color");
-        env::set_var("TERM_PROGRAM", host);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            env::set_var("TERM", "xterm-256color");
+            env::set_var("TERM_PROGRAM", host);
+        }
         let caps = detect();
         assert!(
             caps.xtermjs_host,
@@ -276,8 +326,13 @@ fn kitty_keyboard_enabled_for_alacritty_term_program() {
     // kitty keyboard protocol enablement fix.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "Alacritty");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "Alacritty");
+    }
     let caps = detect();
     assert!(
         caps.kitty_keyboard,
@@ -289,8 +344,13 @@ fn kitty_keyboard_enabled_for_alacritty_term_program() {
 fn kitty_keyboard_enabled_for_kitty_term_program() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-kitty");
-    env::set_var("TERM_PROGRAM", "kitty");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-kitty");
+        env::set_var("TERM_PROGRAM", "kitty");
+    }
     let caps = detect();
     assert!(
         caps.kitty_keyboard,
@@ -302,8 +362,13 @@ fn kitty_keyboard_enabled_for_kitty_term_program() {
 fn kitty_keyboard_enabled_for_wezterm_term_program() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "wezterm");
-    env::set_var("TERM_PROGRAM", "WezTerm");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "wezterm");
+        env::set_var("TERM_PROGRAM", "WezTerm");
+    }
     let caps = detect();
     assert!(
         caps.kitty_keyboard,
@@ -315,8 +380,13 @@ fn kitty_keyboard_enabled_for_wezterm_term_program() {
 fn kitty_keyboard_enabled_for_ghostty_term_program() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-ghostty");
-    env::set_var("TERM_PROGRAM", "ghostty");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-ghostty");
+        env::set_var("TERM_PROGRAM", "ghostty");
+    }
     let caps = detect();
     assert!(
         caps.kitty_keyboard,
@@ -328,8 +398,13 @@ fn kitty_keyboard_enabled_for_ghostty_term_program() {
 fn kitty_keyboard_enabled_for_foot_term_program() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "foot-extra");
-    env::set_var("TERM_PROGRAM", "foot");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "foot-extra");
+        env::set_var("TERM_PROGRAM", "foot");
+    }
     let caps = detect();
     assert!(
         caps.kitty_keyboard,
@@ -342,9 +417,14 @@ fn kitty_keyboard_enabled_for_konsole_via_env_var() {
     // KDE Konsole doesn't set TERM_PROGRAM; it sets KONSOLE_VERSION.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::remove_var("TERM_PROGRAM");
-    env::set_var("KONSOLE_VERSION", "230804");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::set_var("KONSOLE_VERSION", "230804");
+    }
     let caps = detect();
     assert!(
         caps.kitty_keyboard,
@@ -358,8 +438,13 @@ fn kitty_keyboard_enabled_for_term_substring_hint() {
     // as a substring in TERM (e.g., `xterm-ghostty`, `alacritty`).
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-ghostty");
-    env::remove_var("TERM_PROGRAM");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-ghostty");
+        env::remove_var("TERM_PROGRAM");
+    }
     let caps = detect();
     assert!(
         caps.kitty_keyboard,
@@ -375,8 +460,13 @@ fn kitty_keyboard_disabled_for_iterm_app() {
     // not understand it.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "iTerm.app");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "iTerm.app");
+    }
     let caps = detect();
     assert!(
         !caps.kitty_keyboard,
@@ -388,8 +478,13 @@ fn kitty_keyboard_disabled_for_iterm_app() {
 fn kitty_keyboard_disabled_for_apple_terminal() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "Apple_Terminal");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "Apple_Terminal");
+    }
     let caps = detect();
     assert!(
         !caps.kitty_keyboard,
@@ -404,8 +499,13 @@ fn kitty_keyboard_case_insensitive_term_program_match() {
     let _guard = ENV_LOCK.lock().unwrap();
     for &tp in &["alacritty", "ALACRITTY", "Alacritty", "aLaCrItTy"] {
         let _env = EnvGuard::capture();
-        env::set_var("TERM", "xterm-256color");
-        env::set_var("TERM_PROGRAM", tp);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            env::set_var("TERM", "xterm-256color");
+            env::set_var("TERM_PROGRAM", tp);
+        }
         let caps = detect();
         assert!(
             caps.kitty_keyboard,
@@ -423,8 +523,13 @@ fn vscode_alias_false_for_non_vscode_xtermjs_hosts() {
     let _guard = ENV_LOCK.lock().unwrap();
     for &host in known_xtermjs_hosts().iter().filter(|&&h| h != "vscode") {
         let _env = EnvGuard::capture();
-        env::set_var("TERM", "xterm-256color");
-        env::set_var("TERM_PROGRAM", host);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            env::set_var("TERM", "xterm-256color");
+            env::set_var("TERM_PROGRAM", host);
+        }
         let caps = detect();
         assert!(caps.xtermjs_host, "xtermjs_host must be true for {host}");
         assert!(
@@ -438,8 +543,13 @@ fn vscode_alias_false_for_non_vscode_xtermjs_hosts() {
 fn detection_false_for_native_terminals() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "alacritty");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "alacritty");
+    }
     let caps = detect();
     assert!(!caps.xtermjs_host);
     assert!(!caps.vscode_integrated);
@@ -454,8 +564,13 @@ fn detection_false_for_native_terminals() {
 fn detection_false_when_term_program_unset() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::remove_var("TERM_PROGRAM");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+    }
     let caps = detect();
     assert!(!caps.xtermjs_host);
     assert!(!caps.vscode_integrated);
@@ -469,8 +584,13 @@ fn detection_false_for_unknown_electron_hosts() {
     // on the side of full performance (no cap, sync_output on).
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "SomeUnknownElectronApp");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "SomeUnknownElectronApp");
+    }
     let caps = detect();
     assert!(!caps.xtermjs_host);
     assert!(caps.sync_output);
@@ -481,8 +601,13 @@ fn detection_false_for_unknown_electron_hosts() {
 fn detect_does_not_panic_with_empty_term() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::remove_var("TERM");
-    env::remove_var("TERM_PROGRAM");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::remove_var("TERM");
+        env::remove_var("TERM_PROGRAM");
+    }
     let caps = detect();
     assert!(!caps.xtermjs_host);
     assert!(caps.sync_output, "empty TERM should still enable sync");
@@ -535,8 +660,13 @@ fn dynamic_default_fps_high_perf_terminal_gets_144() {
         "WindowsTerminal",
     ] {
         let _env = EnvGuard::capture();
-        env::set_var("TERM", "xterm-256color");
-        env::set_var("TERM_PROGRAM", term);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            env::set_var("TERM", "xterm-256color");
+            env::set_var("TERM_PROGRAM", term);
+        }
         let caps = detect();
         assert_eq!(
             caps.dynamic_default_fps, 144.0,
@@ -558,8 +688,13 @@ fn dynamic_default_fps_case_insensitive_match_gets_144() {
     let _guard = ENV_LOCK.lock().unwrap();
     for &term in &["alacritty", "Kitty", "WEZTERM", "GHOSTTY"] {
         let _env = EnvGuard::capture();
-        env::set_var("TERM", "xterm-256color");
-        env::set_var("TERM_PROGRAM", term);
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            env::set_var("TERM", "xterm-256color");
+            env::set_var("TERM_PROGRAM", term);
+        }
         let caps = detect();
         assert_eq!(
             caps.dynamic_default_fps, 144.0,
@@ -578,10 +713,15 @@ fn dynamic_default_fps_term_substring_fallback_gets_144() {
     let _guard = ENV_LOCK.lock().unwrap();
     for &term in &["xterm-ghostty", "alacritty", "xterm-kitty"] {
         let _env = EnvGuard::capture();
-        env::set_var("TERM", term);
-        env::remove_var("TERM_PROGRAM");
-        env::remove_var("KONSOLE_VERSION");
-        env::remove_var("WT_SESSION");
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            env::set_var("TERM", term);
+            env::remove_var("TERM_PROGRAM");
+            env::remove_var("KONSOLE_VERSION");
+            env::remove_var("WT_SESSION");
+        }
         let caps = detect();
         assert_eq!(
             caps.dynamic_default_fps, 144.0,
@@ -600,9 +740,14 @@ fn dynamic_default_fps_konsole_via_env_var_is_cpu_rendered_60() {
     // instead of the 144 FPS high-perf tier.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::remove_var("TERM_PROGRAM");
-    env::set_var("KONSOLE_VERSION", "230400");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::set_var("KONSOLE_VERSION", "230400");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_default_fps, 60.0,
@@ -623,10 +768,15 @@ fn dynamic_default_fps_windows_terminal_via_env_var_gets_144() {
     // hotfix: Windows Terminal sets WT_SESSION (not TERM_PROGRAM).
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::remove_var("TERM_PROGRAM");
-    env::remove_var("KONSOLE_VERSION");
-    env::set_var("WT_SESSION", "abc-123");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::remove_var("KONSOLE_VERSION");
+        env::set_var("WT_SESSION", "abc-123");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_default_fps, 144.0,
@@ -641,9 +791,14 @@ fn dynamic_default_fps_tmux_passthrough_outer_terminal() {
     // An Alacritty user inside tmux must still get 144 FPS.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "tmux-256color");
-    env::set_var("TERM_PROGRAM", "Alacritty");
-    env::set_var("TMUX", "/tmp/tmux-1000/default,12345,0");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "tmux-256color");
+        env::set_var("TERM_PROGRAM", "Alacritty");
+        env::set_var("TMUX", "/tmp/tmux-1000/default,12345,0");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_default_fps, 144.0,
@@ -655,10 +810,15 @@ fn dynamic_default_fps_tmux_passthrough_outer_terminal() {
 fn dynamic_default_fps_standard_terminal_gets_60() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "gnome-terminal");
-    env::remove_var("KONSOLE_VERSION");
-    env::remove_var("WT_SESSION");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "gnome-terminal");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_default_fps, 60.0,
@@ -670,10 +830,15 @@ fn dynamic_default_fps_standard_terminal_gets_60() {
 fn dynamic_default_fps_unknown_terminal_gets_60() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::remove_var("TERM_PROGRAM");
-    env::remove_var("KONSOLE_VERSION");
-    env::remove_var("WT_SESSION");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_default_fps, 60.0,
@@ -685,10 +850,15 @@ fn dynamic_default_fps_unknown_terminal_gets_60() {
 fn dynamic_default_fps_xtermjs_host_gets_30() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "vscode");
-    env::remove_var("KONSOLE_VERSION");
-    env::remove_var("WT_SESSION");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "vscode");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_default_fps, XTERMJS_FPS_CAP,

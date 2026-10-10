@@ -60,8 +60,7 @@ fn cli_color_wins_over_scene_custom_colors_custom() {
     // (apply_scene_custom_field_to_cloud_config) has always gated on
     // cli_explicit.color; the startup path documented the same layering
     // but never implemented the gate.
-    let config =
-        "[scene-custom.cp77]\nbase-scene = \"storm\"\ncolors-custom = \"cyberpunk_2077\"\n\
+    let config = "[scene-custom.cp77]\nbase-scene = \"storm\"\ncolors-custom = \"cyberpunk_2077\"\n\
 [colors-custom.cyberpunk_2077]\nbg = \"#0a0a12\"\nrain = \"#00fff7,#ff003c\"\n";
     let args = args_with_config(config, &["--scene-custom", "cp77", "-c", "cosmos"]);
     assert!(
@@ -75,8 +74,7 @@ fn cli_color_wins_over_scene_custom_colors_custom() {
 fn scene_custom_colors_custom_applies_without_cli_color() {
     // Without an explicit -c, the block's palette reference flows into
     // args.colors_custom (the pre-beta.2 behavior — unchanged).
-    let config =
-        "[scene-custom.cp77]\nbase-scene = \"storm\"\ncolors-custom = \"cyberpunk_2077\"\n\
+    let config = "[scene-custom.cp77]\nbase-scene = \"storm\"\ncolors-custom = \"cyberpunk_2077\"\n\
 [colors-custom.cyberpunk_2077]\nbg = \"#0a0a12\"\nrain = \"#00fff7,#ff003c\"\n";
     let args = args_with_config(config, &["--scene-custom", "cp77"]);
     assert_eq!(

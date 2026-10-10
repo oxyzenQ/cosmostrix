@@ -344,8 +344,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     },
     SceneInfo {
         name: "monolith",
-        description:
-            "Signature structured segmented rain — dense zen pillars with premium pacing",
+        description: "Signature structured segmented rain — dense zen pillars with premium pacing",
         config: SceneConfig {
             color: Some("energy-zen"),
             charset: Some("zen"),

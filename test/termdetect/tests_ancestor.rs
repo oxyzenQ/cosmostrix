@@ -5,7 +5,7 @@
 //! attribution. Extracted from `tests.rs` to keep the source file
 //! under the 800-LOC cap. Pure code motion — no behavior change.
 
-use super::tests::{EnvGuard, ENV_LOCK};
+use super::tests::{ENV_LOCK, EnvGuard};
 use super::*;
 use std::env;
 
@@ -185,10 +185,15 @@ fn ancestor_process_names_stops_at_init() {
 fn dynamic_fps_source_records_term_program_layer() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "Alacritty");
-    env::remove_var("KONSOLE_VERSION");
-    env::remove_var("WT_SESSION");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "Alacritty");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_fps_source, "TERM_PROGRAM",
@@ -203,11 +208,16 @@ fn dynamic_fps_source_konsole_now_standard_tier() {
     // fallback with the effects auto-gate armed via KONSOLE_VERSION.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::remove_var("TERM_PROGRAM");
-    env::set_var("KONSOLE_VERSION", "230400");
-    env::remove_var("WT_SESSION");
-    env::remove_var("VTE_VERSION");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::set_var("KONSOLE_VERSION", "230400");
+        env::remove_var("WT_SESSION");
+        env::remove_var("VTE_VERSION");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_fps_source, "standard/unknown fallback",
@@ -221,10 +231,15 @@ fn dynamic_fps_source_konsole_now_standard_tier() {
 fn dynamic_fps_source_records_term_substring_layer() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-ghostty");
-    env::remove_var("TERM_PROGRAM");
-    env::remove_var("KONSOLE_VERSION");
-    env::remove_var("WT_SESSION");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-ghostty");
+        env::remove_var("TERM_PROGRAM");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_fps_source, "TERM substring",
@@ -236,10 +251,15 @@ fn dynamic_fps_source_records_term_substring_layer() {
 fn dynamic_fps_source_records_fallback() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "gnome-terminal");
-    env::remove_var("KONSOLE_VERSION");
-    env::remove_var("WT_SESSION");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "gnome-terminal");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+    }
     let caps = detect();
     assert_eq!(
         caps.dynamic_fps_source, "standard/unknown fallback",

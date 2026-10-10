@@ -7,12 +7,12 @@
 //! roam, and the wall banking's steering.
 
 use crate::cloud::murmuration::boids::{
-    clamp_speed, flock_forces, integrate_bird, startle, Anchor, Bird, BirdRandom, Edge, FlockCtx,
-    MurmHash,
+    Anchor, Bird, BirdRandom, Edge, FlockCtx, MurmHash, clamp_speed, flock_forces, integrate_bird,
+    startle,
 };
 use crate::cloud::murmuration::murmuration::MurmurationRain;
 use crate::constants::{MURM_NEIGHBOR_R, MURM_PANIC_IMPULSE, MURM_SPEED_MAX};
-use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, distr::Uniform, rngs::StdRng};
 
 fn fixed_random(seed: u64) -> (StdRng, Uniform<f32>) {
     (

@@ -8,8 +8,8 @@
 use std::time::{Duration, Instant};
 
 use super::{
-    make_cloud, make_monolith_cloud, run_frames, visible_cell_count, visible_chars, DrawnCellKind,
-    Frame,
+    DrawnCellKind, Frame, make_cloud, make_monolith_cloud, run_frames, visible_cell_count,
+    visible_chars,
 };
 use crate::cloud::monolith::BrightnessLevel;
 use crate::cloud::render::{DrawCtx, PaletteLadder};

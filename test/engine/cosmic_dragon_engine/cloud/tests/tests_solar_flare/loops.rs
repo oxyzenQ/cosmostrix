@@ -9,11 +9,11 @@
 //! NIGHT-research-24 arc-composition soft-light contracts (the
 //! standing ceiling and the flash windows).
 
-use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, distr::Uniform, rngs::StdRng};
 
 use crate::cloud::solar_flare::loops::{
-    apex_step_level, arc_cell_level, granule_level, height_band, loop_count_for_cols, loop_level,
-    step_up_level, width_band, CoronaArcade, LoopPhase, SolarRandom,
+    CoronaArcade, LoopPhase, SolarRandom, apex_step_level, arc_cell_level, granule_level,
+    height_band, loop_count_for_cols, loop_level, step_up_level, width_band,
 };
 use crate::constants::{
     SOLAR_DRIFT_MAX, SOLAR_EMERGE_SECS, SOLAR_ERUPT_SECS, SOLAR_FLASH_SECS, SOLAR_FLUX_LEVEL_CORE,

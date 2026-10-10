@@ -6,7 +6,7 @@
 //! hard cap (see `src/RULES_LOC.md`). Pure test motion — same fixtures
 //! via `super::tests::EnvGuard`.
 
-use super::tests::{EnvGuard, ENV_LOCK};
+use super::tests::{ENV_LOCK, EnvGuard};
 use super::*;
 use std::env;
 
@@ -23,11 +23,16 @@ fn cpu_rendered_gate_vte_version_env() {
     // VTE_VERSION is the only reliable marker. Effects must auto-disable.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::remove_var("TERM_PROGRAM");
-    env::remove_var("KONSOLE_VERSION");
-    env::remove_var("WT_SESSION");
-    env::set_var("VTE_VERSION", "7603");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+        env::set_var("VTE_VERSION", "7603");
+    }
     let caps = detect();
     assert!(
         caps.cpu_rendered,
@@ -46,14 +51,24 @@ fn cpu_rendered_gate_foot_term() {
     let _guard = ENV_LOCK.lock().unwrap();
     for (term, tp) in [("foot", None), ("foot-extra", Some("foot"))] {
         let _env = EnvGuard::capture();
-        env::set_var("TERM", term);
-        match tp {
-            Some(v) => env::set_var("TERM_PROGRAM", v),
-            None => env::remove_var("TERM_PROGRAM"),
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            env::set_var("TERM", term);
+            match tp {
+                Some(v) => env::set_var("TERM_PROGRAM", v),
+                None => env::remove_var("TERM_PROGRAM"),
+            }
+            env::remove_var("KONSOLE_VERSION");
         }
-        env::remove_var("KONSOLE_VERSION");
-        env::remove_var("WT_SESSION");
-        env::remove_var("VTE_VERSION");
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            env::remove_var("WT_SESSION");
+            env::remove_var("VTE_VERSION");
+        }
         let caps = detect();
         assert!(
             caps.cpu_rendered,
@@ -74,9 +89,14 @@ fn cpu_rendered_gate_console_tty_linux() {
     // effects hard-off regardless of any other env marker.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "linux");
-    env::remove_var("TERM_PROGRAM");
-    env::set_var("VTE_VERSION", "7603"); // even with VTE markers, console wins
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "linux");
+        env::remove_var("TERM_PROGRAM");
+        env::set_var("VTE_VERSION", "7603"); // even with VTE markers, console wins
+    }
     let caps = detect();
     assert!(caps.console_tty, "TERM=linux must flag console_tty");
     assert!(caps.cpu_rendered, "console tty implies cpu_rendered");
@@ -87,9 +107,14 @@ fn cpu_rendered_gate_console_tty_linux() {
 fn cpu_rendered_gate_dumb_terminal() {
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "dumb");
-    env::remove_var("TERM_PROGRAM");
-    env::remove_var("VTE_VERSION");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "dumb");
+        env::remove_var("TERM_PROGRAM");
+        env::remove_var("VTE_VERSION");
+    }
     let caps = detect();
     assert!(caps.console_tty, "TERM=dumb must flag console_tty");
     assert!(caps.cpu_rendered);
@@ -101,10 +126,15 @@ fn cpu_rendered_gate_xtermjs_host() {
     // effects gate must honor it.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
-    env::set_var("TERM", "xterm-256color");
-    env::set_var("TERM_PROGRAM", "vscode");
-    env::remove_var("VTE_VERSION");
-    env::remove_var("KONSOLE_VERSION");
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "vscode");
+        env::remove_var("VTE_VERSION");
+        env::remove_var("KONSOLE_VERSION");
+    }
     let caps = detect();
     assert!(caps.xtermjs_host);
     assert!(caps.cpu_rendered, "xterm.js host must flag cpu_rendered");
@@ -124,11 +154,16 @@ fn cpu_rendered_gate_gpu_terminals_stay_enabled() {
         "xterm-256color",
     ] {
         let _env = EnvGuard::capture();
-        env::set_var("TERM", term);
-        env::remove_var("TERM_PROGRAM");
-        env::remove_var("VTE_VERSION");
-        env::remove_var("KONSOLE_VERSION");
-        env::remove_var("WT_SESSION");
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            env::set_var("TERM", term);
+            env::remove_var("TERM_PROGRAM");
+            env::remove_var("VTE_VERSION");
+            env::remove_var("KONSOLE_VERSION");
+            env::remove_var("WT_SESSION");
+        }
         let caps = detect();
         assert!(
             !caps.cpu_rendered,

@@ -19,8 +19,8 @@ use crate::frame::Frame;
 use crate::interactive::hud::HudState;
 use crate::theme::canonical_name_for_scheme;
 use crate::{
-    bench_helpers::resolve_bench_duration, bench_report::BenchReportData,
-    bench_report::CosmeticsReport, effective_density, CloudConfig,
+    CloudConfig, bench_helpers::resolve_bench_duration, bench_report::BenchReportData,
+    bench_report::CosmeticsReport, effective_density,
 };
 
 use super::premium::FRAME_TIME_SAMPLES;
@@ -49,10 +49,10 @@ pub(crate) fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result
     cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
     cloud.crystal_dragon = false; // drift spike protection: palette drift in benchmark
-                                  // mode corrupts p99/max metrics with palette-rebuild cost.
-                                  // Climate drift (luminance/saturation/hue modulation) still runs
-                                  // because it is deterministic (fixed RNG seed) and has no
-                                  // rebuild cost.
+    // mode corrupts p99/max metrics with palette-rebuild cost.
+    // Climate drift (luminance/saturation/hue modulation) still runs
+    // because it is deterministic (fixed RNG seed) and has no
+    // rebuild cost.
 
     // NIGHT-perf-2 (owner-approved 2026-09-24): the dedicated cosmetics
     // harness for the paths the Z-6 bench-mode contract skips. Default
@@ -288,16 +288,16 @@ pub(crate) fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result
     // (elapsed = 0.0). The silent capture path does not collect frame_times,
     // so peak_fps is always 0.0 here.
     let peak_fps = 0.0; // not measured: silent capture has no frame_times array
-                        // v50 LTS audit fix: previously this was
-                        // `perf_work_sum_s * 1000.0 / total_frames`, where `perf_work_sum_s`
-                        // was the sum of per-frame `frame_start.elapsed()` measurements. That
-                        // had the same FreeBSD `clock_gettime` syscall bias as the visible
-                        // path: the ~10 µs/frame of loop bookkeeping was missed, so
-                        // `avg_frame_time` came out ~28 % low and inconsistent with
-                        // `avg_fps`. The dead `perf_work_sum_s` / `perf_work_max_s` collectors
-                        // and the redundant second `frame_start.elapsed()` call per frame
-                        // were removed at the same time — they were never read by any
-                        // downstream consumer and only added measurement overhead.
+    // v50 LTS audit fix: previously this was
+    // `perf_work_sum_s * 1000.0 / total_frames`, where `perf_work_sum_s`
+    // was the sum of per-frame `frame_start.elapsed()` measurements. That
+    // had the same FreeBSD `clock_gettime` syscall bias as the visible
+    // path: the ~10 µs/frame of loop bookkeeping was missed, so
+    // `avg_frame_time` came out ~28 % low and inconsistent with
+    // `avg_fps`. The dead `perf_work_sum_s` / `perf_work_max_s` collectors
+    // and the redundant second `frame_start.elapsed()` call per frame
+    // were removed at the same time — they were never read by any
+    // downstream consumer and only added measurement overhead.
     let avg_frame_time = if total_frames > 0 {
         elapsed_s * 1000.0 / total_frames as f64
     } else {

@@ -94,7 +94,7 @@ pub(super) fn pin_one_particle(
     p.vx = vx;
     p.vy = vy;
     p.birth = spawn_time; // reset birth so age is small at frame_time
-                          // Anchor the quantum update clock so dt is deterministic.
+    // Anchor the quantum update clock so dt is deterministic.
     cloud.last_quantum_update_time = spawn_time;
     cloud.last_phosphor_time = spawn_time;
     // Deactivate all other active particles so only the pinned one
@@ -644,10 +644,10 @@ fn quantum_brightness_curve_is_monotonically_non_increasing() {
     // white * tone_down = 184 (.round()) or 183 (chroma integer math).
     // The tolerance in the assertion covers this ±1 difference.
     let target_r = (255.0 * QUANTUM_BODY_TONE_DOWN).round() as u8; // = 184
-                                                                   // Base color distinct from target so blend produces observable
-                                                                   // brightness variation. For white*tone_down, target_r ≈ 184 < BASE_R=220,
-                                                                   // so as brightness DECREASES, rendered.r moves toward BASE (higher).
-                                                                   // This preserves the original non-decreasing logic.
+    // Base color distinct from target so blend produces observable
+    // brightness variation. For white*tone_down, target_r ≈ 184 < BASE_R=220,
+    // so as brightness DECREASES, rendered.r moves toward BASE (higher).
+    // This preserves the original non-decreasing logic.
     const BASE_R: u8 = 220;
 
     // Initialize to BASE_R (the value rendered approaches as brightness → 0).
