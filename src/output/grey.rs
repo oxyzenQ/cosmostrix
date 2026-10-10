@@ -12,7 +12,7 @@
 //! example lines stay the bold Matrix green tier (NIGHT-boost-2), and
 //! section headings stay the bold brand purple tier.
 
-use super::{ColorCapability, color_capability, reset};
+use super::{ColorCapability, color_capability};
 
 /// Calm grey open sequence, capability-parameterized (unit-testable
 /// without env sniffing — the same four-rung ladder as
@@ -23,7 +23,7 @@ use super::{ColorCapability, color_capability, reset};
 /// per capability — 256-color index 245 (the same rung zelynic pins
 /// for its grey tier), ANSI bright black (90) as the classic 16-color
 /// grey anchor, and plain text on mono.
-pub(crate) fn grey_open_for(cap: ColorCapability) -> &'static str {
+fn grey_open_for(cap: ColorCapability) -> &'static str {
     match cap {
         ColorCapability::TrueColor => "\x1b[38;2;139;139;139m",
         ColorCapability::Color256 => "\x1b[38;5;245m",
@@ -35,11 +35,6 @@ pub(crate) fn grey_open_for(cap: ColorCapability) -> &'static str {
 /// Calm grey open sequence for the active capability.
 pub(crate) fn grey_open() -> &'static str {
     grey_open_for(color_capability())
-}
-
-/// Wrap `msg` in calm grey. Plain text when off.
-pub(crate) fn grey(msg: &str) -> String {
-    format!("{}{msg}{}", grey_open(), reset())
 }
 
 #[cfg(test)]
@@ -58,14 +53,5 @@ mod tests {
         assert_eq!(grey_open_for(ColorCapability::Color256), "\x1b[38;5;245m");
         assert_eq!(grey_open_for(ColorCapability::Color16), "\x1b[90m");
         assert_eq!(grey_open_for(ColorCapability::Mono), "");
-    }
-
-    /// grey() wraps in open + reset and degrades to plain on mono.
-    #[test]
-    fn grey_wraps_and_degrades_to_plain() {
-        assert_eq!(
-            grey("--list-colors"),
-            format!("{}--list-colors{}", grey_open(), reset())
-        );
     }
 }
