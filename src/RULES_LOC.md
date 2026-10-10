@@ -65,7 +65,7 @@ All `.rs` files under `src/`, plus `build.rs`.
    cargo fmt --all --check
    cargo clippy --all-targets -- -D warnings
    cargo test
-   ./scripts/gates/gate-keepers.sh
+   ./scripts/gate-keepers.sh
    ./scripts/gates/check-rs-loc.sh   # must show 0 files > 800
    ```
 
@@ -107,7 +107,7 @@ Never `chmod 777` or `chmod 755 -R`. Use `git update-index --chmod=-x
 
 ## Enforcement
 
-- **CI**: `scripts/gates/check-rs-loc.sh` runs in `./scripts/build/build.sh check-all`
+- **CI**: `scripts/gates/check-rs-loc.sh` runs in `./scripts/build.sh check-all`
   and in the gatekeeper. Fails the build if any `.rs` file exceeds 800.
 - **PR review**: reviewers should reject PRs that add files >800
   without a `// LOC_EXEMPT:` marker comment containing a justification.

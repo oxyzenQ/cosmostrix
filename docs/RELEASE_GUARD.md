@@ -18,7 +18,7 @@ depend on their output.
 Verify the version is correct across all metadata files:
 
 ```bash
-./scripts/release/version-to.sh --check <VERSION>
+./scripts/dev/version-to.sh --check <VERSION>
 ```
 
 This validates `Cargo.toml`, `Cargo.lock`, `PKGBUILD`, and `.SRCINFO`
@@ -32,8 +32,8 @@ Run the complete check suite:
 cargo fmt --all -- --check
 cargo test --all --locked
 cargo clippy --locked --all-targets --all-features -- -D warnings
-./scripts/build/build.sh check-all -q
-./scripts/gates/gate-keepers.sh
+./scripts/build.sh check-all -q
+./scripts/gate-keepers.sh
 ./scripts/release/verify-release-build.sh
 ```
 

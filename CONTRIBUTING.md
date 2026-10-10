@@ -20,14 +20,14 @@ cargo build --release      # optimized release build
 
 ```bash
 cargo test --all --locked      # run full test suite
-./scripts/build/build.sh check-all   # full gatekeeper (fmt + clippy + test + audit)
+./scripts/build.sh check-all   # full gatekeeper (fmt + clippy + test + audit)
 ```
 
 **Fast local test runs (optional, 2026-09-20)**: install
 [cargo-nextest](https://nexte.st) once (`cargo install cargo-nextest
 --locked`) and every build.sh test invocation automatically upgrades to
 it — the runner detects `cargo-nextest` on PATH and prefers it
-(`scripts/build/build.sh`, `NEXTEST_AVAILABLE`), with the plain `cargo test`
+(`scripts/build.sh`, `NEXTEST_AVAILABLE`), with the plain `cargo test`
 path kept as the zero-dependency fallback. nextest schedules tests
 better and compiles with the same `[profile.test]` (opt-level 1, see
 Cargo.toml). CI runs the suite through nextest in two parallel
@@ -46,9 +46,9 @@ All gatekeeper checks must pass before any commit.
 
 **Python scripts**: all `scripts/**/*.py` must pass `ruff check` + `ruff format --check`.
 
-**File permissions (2026-09-13 owner rule)**: git-tracked files are 644, git-tracked executables (any file with a shebang, plus already-executable tools) and every repository directory are 755. The gatekeeper enforces this (`scripts/gates/check-permissions.sh`, check 14). A umask 002 checkout materializes 664/775 bits, which the guard flags; `./scripts/gates/gate-keepers.sh --fix-all` restores the canonical modes. All repo scripts are optimized for Unix-like systems (Linux, macOS, BSD) — on Windows use WSL or Git Bash (each script header carries the platform note).
+**File permissions (2026-09-13 owner rule)**: git-tracked files are 644, git-tracked executables (any file with a shebang, plus already-executable tools) and every repository directory are 755. The gatekeeper enforces this (`scripts/gates/check-permissions.sh`, check 14). A umask 002 checkout materializes 664/775 bits, which the guard flags; `./scripts/gate-keepers.sh --fix-all` restores the canonical modes. All repo scripts are optimized for Unix-like systems (Linux, macOS, BSD) — on Windows use WSL or Git Bash (each script header carries the platform note).
 
-**Language (pure English, 2026-09-11 owner rule)**: commit messages, code comments, strings, docs, and diagnostic output are English only. The gatekeeper enforces this (`scripts/audit/language_audit.py`, check 13) — it fails on human-language content (non-Latin letter runs of two or more characters, and Latin-script words with diacritics outside the scientific proper-noun allowlist). Functional categories are kept by design: isolated math/unit letters (µs, π/2, Δx), charset glyph data lines (the themed presets are data, not prose), and the unicode-stress fixture files listed with reasons inside the script. New non-English prose must be translated before commit; new glyph-data contexts get a documented exemption entry in the script, never a silent pass.
+**Language (pure English, 2026-09-11 owner rule)**: commit messages, code comments, strings, docs, and diagnostic output are English only. The gatekeeper enforces this (`scripts/gates/language_audit.py`, check 13) — it fails on human-language content (non-Latin letter runs of two or more characters, and Latin-script words with diacritics outside the scientific proper-noun allowlist). Functional categories are kept by design: isolated math/unit letters (µs, π/2, Δx), charset glyph data lines (the themed presets are data, not prose), and the unicode-stress fixture files listed with reasons inside the script. New non-English prose must be translated before commit; new glyph-data contexts get a documented exemption entry in the script, never a silent pass.
 
 **Naming**: the project name is always lowercase `cosmostrix` — never any capitalized or mixed-case form — including at the start of sentences, in headings, and in file paths (lowercase-brand convention, like `iPhone`). This matches the binary name, the Cargo package name, and the repository URL. The gatekeeper enforces this (`scripts/gates/check-name-case.py`, check 18): every tracked file and path is scanned with nothing excluded — `docs/archive/` included; the only uppercase survivors are the `COSMOSTRIX_*`/`COSMOSTRIX-*` identifier family, the `scripts/` banner titles, and the all-caps display banners the binary prints (see `docs/BRANDING.md` section 2). Dragon names are separate proper nouns and keep their capitals: Cosmic Dragon, Chroma Dragon, Crystal Dragon.
 
@@ -74,12 +74,12 @@ while you keep full copyright to your Contribution. PRs without a
 sign-off can instead post the comment `I have read the CLA and I agree`
 on the PR itself.
 
-**Before committing**: (1) Run `./scripts/build/build.sh check-all` — all checks must pass; (2) Run `cargo fmt --all` if formatting issues; (3) Verify no debug `eprintln!` / `println!` in production code paths (use `push_runtime_warning` for diagnostics during rain — see AB-10).
+**Before committing**: (1) Run `./scripts/build.sh check-all` — all checks must pass; (2) Run `cargo fmt --all` if formatting issues; (3) Verify no debug `eprintln!` / `println!` in production code paths (use `push_runtime_warning` for diagnostics during rain — see AB-10).
 
 **Pull request checklist**:
 
 - [ ] All tests pass (`cargo test --all --locked`)
-- [ ] Gatekeeper passes (`./scripts/build/build.sh check-all`)
+- [ ] Gatekeeper passes (`./scripts/build.sh check-all`)
 - [ ] No new `unwrap()` in non-test code
 - [ ] No new `unsafe` without SAFETY comment
 - [ ] No `eprintln!`/`write_fmt` in rain-active code paths (use buffer)

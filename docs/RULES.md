@@ -9,7 +9,7 @@ All Rust source files under `src/` must stay **under 800 gross lines** (hard lim
 
 ## Scripts file size
 
-All shell and Python scripts under `scripts/` (any depth — subdirectories such as `scripts/depthbore/` included) must stay **at or below 1000 gross lines** (hard limit, enforced by `scripts/gates/check-scripts-loc.sh`, wired into `gate-keepers.sh` as check 17 and `build.sh check-all`). A script that legitimately cannot be split self-declares with a `# LOC_EXEMPT: <one-line justification>` marker comment — tracked migration debt, the same semantics as the Rust `// LOC_EXEMPT:` mechanism (see `src/RULES_LOC.md`). Removing the marker re-enforces the cap on that script; no guard-side list edits are ever needed.
+All shell and Python scripts under `scripts/` (any depth — subdirectories such as `scripts/depth/` included) must stay **at or below 1000 gross lines** (hard limit, enforced by `scripts/gates/check-scripts-loc.sh`, wired into `gate-keepers.sh` as check 17 and `build.sh check-all`). A script that legitimately cannot be split self-declares with a `# LOC_EXEMPT: <one-line justification>` marker comment — tracked migration debt, the same semantics as the Rust `// LOC_EXEMPT:` mechanism (see `src/RULES_LOC.md`). Removing the marker re-enforces the cap on that script; no guard-side list edits are ever needed.
 
 ## Module organization
 
@@ -26,7 +26,7 @@ scripts/gates/check-headers.sh
 cargo fmt --all
 cargo test --all --locked
 cargo clippy --locked --all-targets --all-features -- -D warnings
-./scripts/build/build.sh check-all
+./scripts/build.sh check-all
 ```
 
 ## License headers
@@ -81,7 +81,7 @@ icon-glyph warning-sign prefix in verbose output (owner proof:
 `! [live-reload] native watcher silent 852s ...` after the fix).
 
 **Symbol vocabulary** (mirrors `src/output/mod.rs` print helpers and
-`scripts/build/build.sh` log badges):
+`scripts/build.sh` log badges):
 
 | Meaning | Symbol | Where |
 |---|---|---|
@@ -118,7 +118,7 @@ short, and justified in the script: the check script itself (it embeds
 the denylist) and `src/output/message.rs` (sanitizer test INPUT needs a
 real emoji as data to verify replacement). Doc-prose styling was out of
 scope for this gate until NIGHT-hunt-48 (owner rule 2026-09-14): the
-project carries no emoji anywhere, so `scripts/audit/emoji-audit.py` became a
+project carries no emoji anywhere, so `scripts/gates/emoji-audit.py` became a
 strict repo-wide detector wired into `gate-keepers.sh` as check #15 —
 it scans every git-tracked file that decodes as strict UTF-8 (`*.md`,
 `*.rs`, `*.sh`, `*.py`, `*.yml`, `*.toml`, extensionless text; binaries
@@ -210,7 +210,7 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 
 **Verbose**: startup dumps full config to stderr (no borders, purple brand color). Runtime: changes tracked silently (no eprintln during rain — causes flicker). After exit: final runtime state section always prints (v50.0.0-beta.6) — first line is `exit_time: <YYYY-MM-DD HH:MM:SSZ>` (UTC, ISO 8601) and `duration: <Xm Ys>` showing the total process lifetime. UTC chosen for LTS stability (no DST transitions, no tzdata drift). Changed live-reload fields follow (only if any value changed during the session). Format: `[verbose] field: value (was old_value)`. v80.0.0-beta.2 (S-master-LOGIC-1): the tracked set is COMPLETE — every live-reload-able dimension gets a line when it changed (fps, glitch_level, bold, shading, monolith, color_bg, color_tune joined the pre-v80 set; glitch_level is derived from the live Cloud so ambient applies are reflected). The section closes with the ambient diagnostics summary.
 
-**Install**: `./scripts/setup/install.sh` auto-detects CPU — AVX-512 -> pro-linux-amd64-v4-gnu, AVX2 -> pro-linux-amd64-v3-gnu, baseline -> release. `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
+**Install**: `./scripts/package/install.sh` auto-detects CPU — AVX-512 -> pro-linux-amd64-v4-gnu, AVX2 -> pro-linux-amd64-v3-gnu, baseline -> release. `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
 
 ### Naming Collision Policy (v50.0.0-beta.6 Option D)
 

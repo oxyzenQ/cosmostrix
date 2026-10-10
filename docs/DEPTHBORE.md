@@ -10,17 +10,17 @@ combinations nobody imagined, and drift that only shows up after hours.
 The bore attacks all five classes against the real binary, from a
 clean-slate zero state to a fully loaded hero state.
 
-Harness: `scripts/depthbore/depthbore.py` (Python 3, stdlib only, Unix-only
+Harness: `scripts/depth/depthbore.py` (Python 3, stdlib only, Unix-only
 like every harness in this repo). Binary resolution: `--bin` flag, then
 `COSMOSTRIX_BIN`, then `target/release`, then `target/debug`.
 
 ## Usage
 
 ```bash
-python3 scripts/depthbore/depthbore.py             # full bore (~3 min)
-python3 scripts/depthbore/depthbore.py --quick     # smoke bore (~2 min)
-python3 scripts/depthbore/depthbore.py --parts 15  # only RACE + DRIFT parts
-python3 scripts/depthbore/depthbore.py --soak-secs 120 --seed 7
+python3 scripts/depth/depthbore.py             # full bore (~3 min)
+python3 scripts/depth/depthbore.py --quick     # smoke bore (~2 min)
+python3 scripts/depth/depthbore.py --parts 15  # only RACE + DRIFT parts
+python3 scripts/depth/depthbore.py --soak-secs 120 --seed 7
 ```
 
 **Pre-push drill (owner rule, 2026-09-14):** before every big push, run

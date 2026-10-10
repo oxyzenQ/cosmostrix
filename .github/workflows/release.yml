@@ -29,7 +29,7 @@ jobs:
   # tagged SHA and requires conclusion=success (docs-only commits that
   # ci.yml's paths filter skips pass after a grace period; a cancelled
   # or failed CI blocks the release with a recovery hint). Full
-  # contract: scripts/release/wait-for-ci.sh. docs/workflow/ABOUT_CI.md
+  # contract: scripts/ci/wait-for-ci.sh. docs/workflow/ABOUT_CI.md
   # documents the serialized release flow.
   ci_gate:
     name: Cosmic Dragon - CI gate (commit+tag push)
@@ -53,7 +53,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: ./scripts/release/wait-for-ci.sh
+        run: ./scripts/ci/wait-for-ci.sh
 
   build_packages:
     name: Cosmic Dragon - Build packages (${{ matrix.platform }})
@@ -670,7 +670,7 @@ jobs:
           # no "latest" support (it splices the value literally into the
           # download URL -> 404), so resolve the newest stable-final NDK
           # from Google's repository manifest at run time.
-          echo "ndk=$(python3 scripts/build/resolve-latest-ndk.py)" >> "$GITHUB_OUTPUT"
+          echo "ndk=$(python3 scripts/ci/resolve-latest-ndk.py)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Android NDK
         id: ndk
@@ -859,7 +859,7 @@ jobs:
           # and the runner lacks AVX-512. Profile data is CPU-feature-
           # independent (it captures branch frequencies, not SIMD
           # codegen), so v3 instrumentation + v4 final is sound.
-          ./scripts/build/build.sh pgo
+          ./scripts/build.sh pgo
 
       - name: Verify PGO binary
         shell: bash

@@ -22,7 +22,7 @@
 #   # LOC_EXEMPT: <one-line justification>
 #
 # The scan is recursive (find scripts/ -name '*.sh' -o -name
-# '*.py'), so scripts/depthbore/ and any future category directory
+# '*.py'), so scripts/depth/ and any future category directory
 # inherit the cap automatically. For any script over the limit, the
 # marker greps as tracked debt; without it the check FAILS.
 #

@@ -3,7 +3,7 @@
 #
 # Cosmic Dragon Guard — unified lint/format/license gate.
 # Replaces the former shellcheck.yml and docs-ci.yml with a single
-# workflow that runs scripts/gates/gate-keepers.sh (the one-script gate-keeper).
+# workflow that runs scripts/gate-keepers.sh (the one-script gate-keeper).
 #
 # Checks performed by gate-keepers.sh:
 #   1.  Shell triad    - bash -n + shellcheck + shfmt -d on all .sh files
@@ -23,7 +23,7 @@
 #  14.  Permissions    - tracked files 644, executables + dirs 755,
 #                       shebang parity (scripts/gates/check-permissions.sh)
 #  15.  Emoji sweep    - no emoji-class codepoints in any tracked
-#                       text file (scripts/audit/emoji-audit.py, hunt-48)
+#                       text file (scripts/gates/emoji-audit.py, hunt-48)
 #  16.  CI path-filter - workflow paths entries inside a directory
 #                       are globs, never hardcoded filenames
 #                       (scripts/gates/check-ci-path-filters.py, boost-1)
@@ -86,7 +86,7 @@ jobs:
           # from the GitHub releases API (owner policy: no hardcoded dep
           # versions). If a future shfmt release changes style rules, the
           # gate-keepers diff shows it and one
-          # `./scripts/gates/gate-keepers.sh --fix-all` refresh lands the new canonical formatting. Binary download
+          # `./scripts/gate-keepers.sh --fix-all` refresh lands the new canonical formatting. Binary download
           # instead of `go install` (no compile time) or apt (lags far
           # behind upstream).
           # NIGHT-dinner-1: both the version resolve and the binary
@@ -110,7 +110,7 @@ jobs:
           shfmt --version
 
       - name: Run gate-keepers.sh
-        run: bash scripts/gates/gate-keepers.sh
+        run: bash scripts/gate-keepers.sh
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

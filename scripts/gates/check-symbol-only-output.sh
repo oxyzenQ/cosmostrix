@@ -55,7 +55,7 @@
 #                                        emoji as data to verify replacement
 #
 # Companion tools:
-#   scripts/audit/emoji-audit.py  — doc-prose sweep (manual, non-blocking)
+#   scripts/gates/emoji-audit.py  — doc-prose sweep (manual, non-blocking)
 #   this gate               — output surface (hard fail, gate-keepers + CI)
 #
 # Usage: bash scripts/gates/check-symbol-only-output.sh

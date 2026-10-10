@@ -65,6 +65,39 @@ when the version line closes.
   end to end — no behavior change intended; the A/B benchmark pair
   stays the next-task gate.
 
+### infra: night-improve-1 — the scripts/ tree adopts the zelynic shape: root entry points, category directories, zero reference drift
+
+- The scripts/ tree reorganizes to the zelynic layout (git mv, history
+  and exec-bit preserved): `build.sh` and `gate-keepers.sh` become the
+  two flat root entry points; `build/lib/` rises to `lib/`; the strict
+  CI wrapper, the NDK resolver, and the tag-pipeline CI waiter group
+  under `ci/`; version bumping (`version-to.sh`,
+  `rust-version-to.sh`, `bump-rust-to.sh`) and the visual-preset
+  battle tool group under `dev/`; `depthbore/` and the stress/e2e/hang
+  harnesses merge under `depth/`; `setup/` becomes `package/`
+  (install/uninstall — zelynic's package shape); the five corpus
+  audits join their checker siblings in `gates/`. The zelynic folders
+  with no cosmostrix counterpart (`sandbox/`, `supermassive/`,
+  `setup.sh`) are deliberately not invented.
+- Reference drift: zero. 64 live files rewired (5 workflows, build
+  pipeline internals, gates, src doc comments, test path pins, and
+  20+ live docs) via ordered longest-first replacements with a
+  post-pass stale scan — archive changelogs, docs/audits, and
+  docs/research keep their historical paths untouched by design.
+- scripts/README.md rewritten for the new tree (root entry points +
+  nine category directories, every file listed and accounted for).
+- Verification: build.sh help + version-sync green from the new
+  location; check-ci-path-filters (9 workflows), check-scripts-loc,
+  check-name-case, check-headers, check-rs-loc, comment-style, emoji,
+  language, and disclaimer gates all green; docs_tests 21 passed; a
+  follow-up gate repair carried the documentation disclaimer into the
+  v100.0.6 era archive file (the one .md the disclaimer gate caught).
+  Render-path sanity bench unchanged (fps in band, alloc_calls 563
+  identical, entropy and gini identical — no runtime surface moved).
+- Known-local-only: check-permissions reports the cloud checkout's
+  umask artifact (664/775 vs 644/755) across the whole tree; git blob
+  modes remain canonical 644/755 and CI runners verify them.
+
 ### cli: night-improve-2 — the calm grey grammar tier for the -h/--help output: every flag spelling (definition rows and inline prose mentions) rides the zelynic grey law
 
 - Flags are grammar — "context, not content" (the zelynic flag-row

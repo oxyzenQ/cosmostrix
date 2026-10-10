@@ -73,7 +73,7 @@ semantic events (intro rain after the logo, old-scene glyphs after
 live-reloading `color-bg`). The shadow now re-emits the full frame
 once whenever its knowledge of the physical screen is discarded —
 all four owner scenarios are covered by the PTY E2E harness
-(`scripts/harness/night_cbg34_e2e.py`). `black` mode was never affected
+(`scripts/depth/night_cbg34_e2e.py`). `black` mode was never affected
 (the reset cell differs from the black blank, forcing a full repaint
 by accident — which is why the bug family survived black-mode
 testing).
@@ -96,7 +96,7 @@ no OS APIs), verified per platform:
   `default-background` on FreeBSD exercises the fixed rebuild path.
 - Runtime residue checks on real Termux/FreeBSD devices remain
   owner-side (no CI runners for those platforms); re-run
-  `scripts/harness/night_cbg34_e2e.py` there if residue is ever suspected —
+  `scripts/depth/night_cbg34_e2e.py` there if residue is ever suspected —
   it needs only Python 3 + the release binary.
 
 ## Reset Behavior

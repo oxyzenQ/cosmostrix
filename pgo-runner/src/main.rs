@@ -3,7 +3,7 @@
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // PLATFORM: UNIX-only (Linux, macOS, BSD).
-//   Invokes `bash scripts/build/build.sh pgo --auto` which uses /proc/cpuinfo
+//   Invokes `bash scripts/build.sh pgo --auto` which uses /proc/cpuinfo
 //   (Linux) or sysctl (macOS) for CPU detection. The build itself runs on
 //   any platform cargo supports, but this runner assumes a bash-invocable
 //   shell. Not for Windows cmd.exe.
@@ -22,7 +22,7 @@
 //! When the user runs `cargo use-pgo`, cargo compiles this tiny binary
 //! (cached after the first invocation) and executes it. This binary then
 //! locates the project root (one level up from `pgo-runner/`),
-//! invokes `./scripts/build/build.sh pgo --auto`, and forwards its exit code.
+//! invokes `./scripts/build.sh pgo --auto`, and forwards its exit code.
 //!
 //! The `--auto` flag triggers `detect_cpu_target()` inside build.sh, which
 //! probes /proc/cpuinfo (Linux) or sysctl (macOS) and selects the best

@@ -20,7 +20,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 Job naming: the ci.yml keystone job (id `build_test`, the strict debug
 build gate every downstream job depends on) is displayed as
 "build.sh -q" after the local command it mirrors,
-`./scripts/build/build.sh check-all -q` (NIGHT-boost-5, 2026-09-24).
+`./scripts/build.sh check-all -q` (NIGHT-boost-5, 2026-09-24).
 
 ## Path filters (what triggers a CI run)
 
@@ -75,14 +75,14 @@ Zero hardcoded dependency versions in `.github/*`. The rule is
   resolve their latest upstream release at run time. shfmt is fetched
   from the `mvdan/sh` GitHub releases API; pip/npm/go/apt installs are
   unpinned; the Android NDK is resolved by
-  `scripts/build/resolve-latest-ndk.py` (see the correction below).
+  `scripts/ci/resolve-latest-ndk.py` (see the correction below).
 - **Android NDK correction (2026-08-30, same day)**: `nttld/setup-ndk`
   has NO `latest` support — it splices the value literally into the
   download URL, so `ndk-version: latest` produced
   `android-ndk-latest-linux-x86_64.zip` → 404 and turned the
   `android-aarch64` job red on three consecutive pushes before it was
   noticed. The policy now holds via
-  `scripts/build/resolve-latest-ndk.py`: it reads Google's official SDK
+  `scripts/ci/resolve-latest-ndk.py`: it reads Google's official SDK
   repository manifest (`repository2-3.xml`, the same source
   `sdkmanager` uses), keeps stable-channel packages with final
   (non-beta/rc/canary) Linux archives, picks the highest revision, and
@@ -107,14 +107,14 @@ Zero hardcoded dependency versions in `.github/*`. The rule is
   floating. `rust-toolchain.toml` is the single source of truth; CI jobs
   that pass an explicit version use the `RUST_VERSION` env, which gate
   check 9 (`check-rust-version-sync.sh`) keeps in lockstep. Bumping is
-  one command: `./scripts/release/bump-rust-to.sh X.Y.Z` (the owner-facing entry
-  point; it forwards to `scripts/release/rust-version-to.sh`, the implementation).
+  one command: `./scripts/dev/bump-rust-to.sh X.Y.Z` (the owner-facing entry
+  point; it forwards to `scripts/dev/rust-version-to.sh`, the implementation).
   A floating Rust toolchain can silently break the build the day a new
   stable ships; the lock is what makes CI boring.
 
 Trade-off accepted by the owner: a future tool release with new default
 rules (e.g. ruff, shfmt formatting) can turn the gate red. The fix is a
-one-commit tree refresh (`./scripts/gates/gate-keepers.sh
+one-commit tree refresh (`./scripts/gate-keepers.sh
 --fix-all`, fix new lint findings), which is cheaper than carrying version pins for every tool
 and bumping them forever.
 
@@ -139,7 +139,7 @@ not "later" (later never comes).
    build jobs each set their own `RUSTFLAGS` env (which REPLACES the
    global one), so each override string has `-D warnings` appended
    to preserve strictness alongside the target-cpu tuning.
-4. **`scripts/build/ci-strict-build.sh` wrapper** — a belt-and-suspenders
+4. **`scripts/ci/ci-strict-build.sh` wrapper** — a belt-and-suspenders
    post-build scanner. Every `cargo build` invocation in a bash-shell
    CI step runs through this wrapper, which:
    - Captures the full cargo output to a temp log.
@@ -161,14 +161,14 @@ A PR that introduces a new warning (unused import, dead code, missing
 pushing — do not suppress with `#[allow(...)]` unless there is a
 documented reason in the commit message and a follow-up issue.
 
-The local equivalent: `./scripts/build/build.sh check-all` runs
+The local equivalent: `./scripts/build.sh check-all` runs
 `cargo clippy -- -D warnings` (clippy is already strict pre-v80.0.0-beta.1).
 To check `cargo build` locally with the same strictness as CI:
 
 ```bash
 RUSTFLAGS="-D warnings" cargo build --profile dev --locked
 # or via the wrapper:
-bash scripts/build/ci-strict-build.sh -- build --profile dev --locked
+bash scripts/ci/ci-strict-build.sh -- build --profile dev --locked
 ```
 
 ## Release channels (tag conventions)
@@ -184,7 +184,7 @@ tag-triggered workflows (release.yml, crates-io.yml) started building
 and publishing while the branch CI (`ci.yml`) was still running the
 same SHA, so a broken commit could ship a release — and a bad crates.io
 version (irreversible) — before CI passed judgment. Both tag pipelines
-now open with a `ci_gate` job (`scripts/release/wait-for-ci.sh`) that
+now open with a `ci_gate` job (`scripts/ci/wait-for-ci.sh`) that
 polls the Actions API until the `ci.yml` push-run for the exact tagged
 SHA completes, then requires `conclusion=success` before any build or
 publish step runs. A cancelled or failed CI blocks the release with a
@@ -227,7 +227,7 @@ class:
    release.yml, cosmic-dragon-guard.yml) — a flaky mirror fetch must
    not read as a code failure.
 3. **The ci_gate itself classifies before blocking**
-   (`scripts/release/wait-for-ci.sh`): on a red waited run it fetches
+   (`scripts/ci/wait-for-ci.sh`): on a red waited run it fetches
    the failed jobs' logs and hunts known infra signatures (curl
    transport errors, 5xx texts, download faults, DNS/route failures,
    runner eviction, apt fetch faults). When every failed job carries
@@ -276,15 +276,15 @@ sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
 
 ## Version bump
 
-Single source of truth: `Cargo.toml` `[package] version`. Every other active version reference is derived from it — via `env!("CARGO_PKG_VERSION")` at compile time, or `./scripts/release/version-to.sh` for files that must contain a literal version string.
+Single source of truth: `Cargo.toml` `[package] version`. Every other active version reference is derived from it — via `env!("CARGO_PKG_VERSION")` at compile time, or `./scripts/dev/version-to.sh` for files that must contain a literal version string.
 
 ### Bump + build
 
 ```bash
-./scripts/release/version-to.sh X.Y.Z        # bump across all active files
-./scripts/build/build.sh release           # build a release binary
-./scripts/build/build.sh pgo --auto        # or a PGO nitro build
-./scripts/build/build.sh version-sync      # verify all version refs agree (no build)
+./scripts/dev/version-to.sh X.Y.Z        # bump across all active files
+./scripts/build.sh release           # build a release binary
+./scripts/build.sh pgo --auto        # or a PGO nitro build
+./scripts/build.sh version-sync      # verify all version refs agree (no build)
 ```
 
 If the repo is already at the requested version, `version-to.sh` is a no-op.
@@ -292,7 +292,7 @@ If the repo is already at the requested version, `version-to.sh` is a no-op.
 ### What `version-to.sh` updates
 
 ```bash
-./scripts/release/version-to.sh X.Y.Z
+./scripts/dev/version-to.sh X.Y.Z
 git diff
 git commit -m "chore: bump version to vX.Y.Z"
 git tag vX.Y.Z
@@ -320,12 +320,12 @@ tagged SHA via the NIGHT-improve-1 gate.
 Verify the current version without changes:
 
 ```bash
-./scripts/release/version-to.sh --check X.Y.Z
+./scripts/dev/version-to.sh --check X.Y.Z
 ```
 
 ## CI fail-fast guard
 
-CI runs `./scripts/build/build.sh version-sync` as a dedicated job **before** any Rust build, so a version desync fails the pipeline in seconds. `scripts/gates/check-version-anti-patterns.sh` blocks re-introduction of hardcoded version assertions in `src/`. The compile-time guard in `test/docs_tests/metadata.rs` asserts `Cargo.toml`, `PKGBUILD`, `.SRCINFO`, and the README install tag all agree with `env!("CARGO_PKG_VERSION")`.
+CI runs `./scripts/build.sh version-sync` as a dedicated job **before** any Rust build, so a version desync fails the pipeline in seconds. `scripts/gates/check-version-anti-patterns.sh` blocks re-introduction of hardcoded version assertions in `src/`. The compile-time guard in `test/docs_tests/metadata.rs` asserts `Cargo.toml`, `PKGBUILD`, `.SRCINFO`, and the README install tag all agree with `env!("CARGO_PKG_VERSION")`.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

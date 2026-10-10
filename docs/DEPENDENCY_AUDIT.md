@@ -172,7 +172,7 @@ sits at the latest version its Cargo.toml constraint allows. Full policy:
 | Usage depth | Low — `src/interactive/signal_handlers.rs` + `src/bench/bench_progress.rs` (5 call sites: consts, `Signals::new`/`.forever`, `low_level::raise`, `flag::register`) |
 | Breaking changes | **None on this project's surface.** The earlier "0.4 changed the iterator::Signals API and low_level module / flag::register signature may have changed" assessment in this table was unverified — signal-hook 0.4.0's single breaking change is `low_level::pipe` taking `OwnedFd` instead of `IntoRawFd` (signal-hook#196), a call site this project does not have. Verified empirically: `cargo check --locked --all-targets` and clippy `--all-features -D warnings` clean with ZERO source changes |
 | Migration | Pin bump only. Lockfile delta: signal-hook 0.4.4 added; 0.3.18 stays in the graph transitively (crossterm 0.29 pins the 0.3 line via signal-hook-mio) → deny.toml gains a documented signal-hook 0.3.18 skip (the windows-sys pattern). Both versions share the signal-hook-registry 1.4.x backend |
-| Risk | Low — 2983/2983 tests pass, clippy clean, gate-keepers 21/21, and `scripts/harness/signal_smoke.py` (8-check PTY harness, spawn recipe from termux_hang_harness) shows identical behavior vs the 0.3.18 baseline binary: startup liveness, Ctrl+C keystroke ignored (only-q policy), SIGTSTP suspend (state T), SIGCONT resume, SIGTERM graceful exit inside the 3s grace window, terminal-restore escapes (alt-screen/cursor/mouse), bench liveness, bench SIGINT abort (exit 0, `was_interrupted: true` in the JSON report) |
+| Risk | Low — 2983/2983 tests pass, clippy clean, gate-keepers 21/21, and `scripts/depth/signal_smoke.py` (8-check PTY harness, spawn recipe from termux_hang_harness) shows identical behavior vs the 0.3.18 baseline binary: startup liveness, Ctrl+C keystroke ignored (only-q policy), SIGTSTP suspend (state T), SIGCONT resume, SIGTERM graceful exit inside the 3s grace window, terminal-restore escapes (alt-screen/cursor/mouse), bench liveness, bench SIGINT abort (exit 0, `was_interrupted: true` in the JSON report) |
 | Status | **APPLIED** — Cargo.toml migrated, `cargo update -p signal-hook` run, lockfile + deny.toml committed |
 
 ### DONE (migrated under the NIGHT relax policy)
@@ -207,7 +207,7 @@ automatically via the weekly maintenance.yml cron.
 | Priority | Dep | Est. effort | Dependency |
 |----------|-----|-------------|------------|
 | 1 | notify 8 | **DONE 2026-09-29** (pin bump only — zero source changes; the 2-4 h estimate was based on unverified breaking-change claims) | — |
-| 2 | signal-hook 0.4 | **DONE 2026-09-30** (pin bump only, zero source changes — the third unverified-breaking-change claim corrected; 8-check PTY signal parity harness vs the 0.3.18 baseline binary: `scripts/harness/signal_smoke.py`) | None (independent) |
+| 2 | signal-hook 0.4 | **DONE 2026-09-30** (pin bump only, zero source changes — the third unverified-breaking-change claim corrected; 8-check PTY signal parity harness vs the 0.3.18 baseline binary: `scripts/depth/signal_smoke.py`) | None (independent) |
 | 3 | rand 0.10 | **DONE 2026-09-30** (2 import lines + pin bump — the fourth unverified-breaking-change estimate corrected; dragon-heart determinism proven bit-identical by a 16,000-draw parity probe, then the A/B campaign) | Isolate from other visual-affecting changes (A/B benchmark campaign) |
 | 4 | sha2 0.11 | **DONE 2026-09-30** (one function rewritten + pin bump — the fifth unverified-breaking-change estimate corrected; three-way identity proof, zero frame-path impact) | Was HOLD; owner lifted it via the quarterly-revisit clause |
 
@@ -217,9 +217,9 @@ Each major update PR MUST:
 3. Fix all compilation errors (migration work).
 4. Run `cargo test --all --locked` (all tests pass).
 5. Run `cargo clippy -- -D warnings` (no new lints).
-6. For notify: run `scripts/harness/cli_config_stresstest.sh` (live-reload PTY proof).
+6. For notify: run `scripts/depth/cli_config_stresstest.sh` (live-reload PTY proof).
 7. For rand: DONE 2026-09-30 — determinism parity probe (bit-identical across 16,000 draws × 8 engine patterns, rand 0.9.5 vs 0.10.3) plus the post-commit A/B benchmark campaign recorded in [bench-labs/night_dinner8](../bench-labs/night_dinner8/AB_REPORT.md).
-8. For signal-hook: DONE 2026-09-30 — `scripts/harness/signal_smoke.py` (8 checks: Ctrl+C keystroke, SIGTSTP/SIGCONT, SIGTERM, bench SIGINT) run against BOTH the 0.3.18 baseline and 0.4.4 migrated binaries with identical results. SIGHUP/SIGQUIT share SIGTERM's registered handler arm (one `Signals::new` list, one `forever()` loop), so the mechanism is covered by the SIGTERM proof.
+8. For signal-hook: DONE 2026-09-30 — `scripts/depth/signal_smoke.py` (8 checks: Ctrl+C keystroke, SIGTSTP/SIGCONT, SIGTERM, bench SIGINT) run against BOTH the 0.3.18 baseline and 0.4.4 migrated binaries with identical results. SIGHUP/SIGQUIT share SIGTERM's registered handler arm (one `Signals::new` list, one `forever()` loop), so the mechanism is covered by the SIGTERM proof.
 9. For sha2: DONE 2026-09-30 — three-way identity proof (twin parity probe / NIST vectors in-suite / GNU sha512sum end-to-end), see [NIGHT_DINNER_9_SHA2_0_11.md](research/NIGHT_DINNER_9_SHA2_0_11.md).
 
 ### Step 3: Ongoing maintenance
