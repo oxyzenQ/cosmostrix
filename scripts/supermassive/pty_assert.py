@@ -15,7 +15,10 @@ The color-tier names mirror the capability-aware palette contract in
 src/output/mod.rs (truecolor / 256-color / 16-color / Mono):
 
 - alt-enter / alt-leave   alternate screen enter and leave
-- mouse-off               the mouse-tracking disable group
+- mouse-off               mouse tracking disable (single canonical
+                          token, order-independent: the restore stack
+                          emits the tracking disables in reverse order
+                          on optimized builds)
 - paste-off               bracketed paste disable
 - focus-off               focus-events disable
 - sgr-truecolor           a 38;2 / 48;2 direct-color SGR
@@ -37,7 +40,7 @@ ESC = b"\x1b"
 SEQ_TABLE: dict[str, bytes] = {
     "alt-enter": ESC + b"[?1049h",
     "alt-leave": ESC + b"[?1049l",
-    "mouse-off": ESC + b"[?1000l" + ESC + b"[?1002l" + ESC + b"[?1003l",
+    "mouse-off": ESC + b"[?1000l",
     "paste-off": ESC + b"[?2004l",
     "focus-off": ESC + b"[?1004l",
     "sgr-truecolor": ESC + b"[38;2",
