@@ -65,6 +65,37 @@ when the version line closes.
   end to end — no behavior change intended; the A/B benchmark pair
   stays the next-task gate.
 
+### cli: night-improve-2 — the calm grey grammar tier for the -h/--help output: every flag spelling (definition rows and inline prose mentions) rides the zelynic grey law
+
+- Flags are grammar — "context, not content" (the zelynic flag-row
+  law): every flag spelling in the help now renders in the calm grey
+  #8B8B8B tier. Definition rows (`-c, --color <name>` — the whole
+  spelling including its value hint rides inside the span, the indent
+  never does) and inline prose mentions ("See --list-colors.",
+  "(e.g. -mfss) is rejected") share one tier, so both help surfaces
+  (the clap-rendered short help and the colorize_help full reference)
+  agree: clap's literal style joins the same tier.
+- New `src/output/grey.rs` module (one concern, one module —
+  `output/mod.rs` sits 7 lines under its hard LOC cap): the
+  four-rung capability ladder pins truecolor #8B8B8B, 256-color
+  index 245 (the same rung zelynic pins), ANSI bright black (90) on
+  16-color terminals, and plain text on mono/piped (piped bytes stay
+  plain — verified: the piped --help carries zero escape bytes).
+- The inline matcher is a hand-rolled scanner, not a regex (no new
+  dependency): word-boundary anchored, letter required after the
+  dashes — kill -9, ranges like 0.0-3.0, and undashed names never
+  grey. Splice indices land on ASCII boundaries, so the em-dash-rich
+  prose splices UTF-8-safe.
+- Section headings keep bold brand purple, runnable examples keep
+  bold Matrix green (NIGHT-boost-2) — one tier per semantic, no
+  mixed inline paint.
+- Verification: cargo check --all-targets green, clippy --all-targets
+  zero warnings, fmt clean; 8 colorize_help + 2 grey + 4 help_detail
+  honesty + 36 output tests pass; check-rs-loc / check-comment-style
+  / check-headers / emoji / language audits green; render-path sanity
+  bench unchanged (fps in band, alloc_calls 563 identical, entropy
+  and gini identical — the change never touches the rain path).
+
 ### docs: night-improve-5 — the v100.0.6 era trimmed to its archive file: the live CHANGELOG.md restarts fresh for the upcoming version
 
 - The post-stable maintenance arc (2026-09-14 to 2026-10-10: the

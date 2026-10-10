@@ -4,8 +4,11 @@
 //! Help text colorizer — extracted from `config/mod.rs` to keep that
 //! file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
-//! Owns `colorize_help()` — applies brand purple bold to --flag names
-//! + section headers in the --help output.
+//! Owns `colorize_help()` — paints the --help output with the
+//! three-tier semantic grammar: section headings in bold brand
+//! purple, flag spellings (definition rows and inline prose
+//! mentions) in the calm grey grammar tier, and runnable example
+//! command lines in bold Matrix green.
 //!
 //! NIGHT-boost-2 (2026-09-24): example command lines (indented
 //! `cosmostrix ...` invocations) render in bold Matrix green so
@@ -87,26 +90,104 @@ pub(crate) fn colorize_help(text: &str) -> String {
         }
 
         if let Some(rest) = line.strip_prefix("  -") {
-            // Bold white for short flags (-c, -S, etc.)
-            out.push_str("  \x1b[1m-");
+            // Calm grey for the flag spelling (night-improve-2
+            // grey law: flags are grammar — "context, not
+            // content", the zelynic flag_row tier). The spelling
+            // covers the whole definition line ("-c, --color
+            // <name>"): value hints ride inside the span.
+            out.push_str("  ");
+            out.push_str(crate::output::grey_open());
+            out.push('-');
             out.push_str(rest);
-            out.push_str("\x1b[0m");
+            out.push_str(crate::output::reset());
             out.push_str(nl);
             continue;
         }
 
         if let Some(rest) = line.strip_prefix("  --") {
-            // Bold white for long flags (--color, --fps, etc.)
-            out.push_str("  \x1b[1m--");
+            // Calm grey for the long spelling — same tier, same
+            // span law as the short branch above.
+            out.push_str("  ");
+            out.push_str(crate::output::grey_open());
+            out.push_str("--");
             out.push_str(rest);
-            out.push_str("\x1b[0m");
+            out.push_str(crate::output::reset());
             out.push_str(nl);
             continue;
         }
 
-        out.push_str(line);
+        // night-improve-2: inline flag mentions inside prose
+        // ("See --list-colors.", "(e.g. -mfss) is rejected")
+        // ride the same grey grammar tier — a flag spelling is
+        // grammar wherever it appears. The matcher anchors on a
+        // word boundary and requires a letter after the dashes, so
+        // kill -9, ranges like 0.0-3.0, and undashed names stay
+        // plain. Lines painted above (headings, examples, spelling
+        // rows) never reach this branch.
+        out.push_str(&grey_inline_mentions(line));
         out.push_str(nl);
     }
+    out
+}
+
+/// Wrap every inline flag spelling in `line` with the calm grey tier.
+///
+/// Scanner, not regex (no new dependency): a candidate starts at a
+/// word boundary, carries one or two ASCII dashes, then a LETTER
+/// (digits-only tails like `-9` and hyphenated numbers like `0.0-3.0`
+/// can never match), and the body runs over letters, digits, and
+/// dashes with trailing dashes trimmed back out of the span. Splice
+/// indices land on ASCII boundaries, so the `&str` slicing stays
+/// UTF-8-safe even though the prose carries em-dashes.
+fn grey_inline_mentions(line: &str) -> String {
+    let open = crate::output::grey_open();
+    if open.is_empty() {
+        return line.to_string();
+    }
+    let bytes = line.as_bytes();
+    let mut spans: Vec<(usize, usize)> = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        let boundary = i == 0
+            || !(bytes[i - 1].is_ascii_alphanumeric()
+                || bytes[i - 1] == b'_'
+                || bytes[i - 1] == b'-');
+        if boundary && bytes[i] == b'-' {
+            let mut j = i;
+            while j < bytes.len() && bytes[j] == b'-' {
+                j += 1;
+            }
+            if j - i <= 2 && j < bytes.len() && bytes[j].is_ascii_alphabetic() {
+                let mut k = j;
+                while k < bytes.len() && (bytes[k].is_ascii_alphanumeric() || bytes[k] == b'-') {
+                    k += 1;
+                }
+                let mut end = k;
+                while end > j && bytes[end - 1] == b'-' {
+                    end -= 1;
+                }
+                if end > j {
+                    spans.push((i, end));
+                    i = end;
+                    continue;
+                }
+            }
+        }
+        i += 1;
+    }
+    if spans.is_empty() {
+        return line.to_string();
+    }
+    let mut out = String::with_capacity(line.len() + spans.len() * (open.len() + 8));
+    let mut last = 0;
+    for (s, e) in spans {
+        out.push_str(&line[last..s]);
+        out.push_str(open);
+        out.push_str(&line[s..e]);
+        out.push_str(crate::output::reset());
+        last = e;
+    }
+    out.push_str(&line[last..]);
     out
 }
 
@@ -174,15 +255,57 @@ mod tests {
         assert_eq!(colorize_help(annotation), annotation);
     }
 
-    /// Headings and flag lines keep their pre-boost styles: a heading
-    /// is brand-bold-wrapped and a short flag line is bold white.
+    /// Headings stay brand-bold-wrapped (unchanged pre/post grey).
     #[test]
-    fn heading_and_flag_styles_are_unchanged() {
+    fn heading_stays_brand_bold() {
         let heading = colorize_help("DIAGNOSTICS:\n");
         assert!(heading.starts_with(crate::output::brand_bold_open()));
         assert!(heading.ends_with(":\n"));
+    }
 
+    /// Flag definition lines render the whole spelling in the calm
+    /// grey grammar tier (night-improve-2): the spelling including its
+    /// value hint rides inside the span, the two-space indent never
+    /// does. Expected values build from the live capability so the
+    /// pin holds on every rung (mono included).
+    #[test]
+    fn flag_spellings_render_grey() {
+        let g = crate::output::grey_open();
+        let r = crate::output::reset();
         let flag = colorize_help("  -c, --color <name>\n");
-        assert_eq!(flag, "  \x1b[1m-c, --color <name>\x1b[0m\n");
+        assert_eq!(flag, format!("  {g}-c, --color <name>{r}\n"));
+        let long = colorize_help("  --charset [--charset-custom] <name>\n");
+        assert_eq!(
+            long,
+            format!("  {g}--charset [--charset-custom] <name>{r}\n")
+        );
+    }
+
+    /// Inline flag mentions inside prose ride the same grey tier; the
+    /// surrounding prose and the trailing period stay plain.
+    #[test]
+    fn inline_flag_mentions_render_grey() {
+        let g = crate::output::grey_open();
+        let r = crate::output::reset();
+        let line = "      Color theme or custom palette name. See --list-colors.\n";
+        let out = colorize_help(line);
+        assert_eq!(
+            out,
+            format!("      Color theme or custom palette name. See {g}--list-colors{r}.\n")
+        );
+    }
+
+    /// The inline matcher is conservative: digit tails (kill -9),
+    /// hyphenated numeric ranges (0.0-3.0), and undashed names never
+    /// grey — lines pass through byte-identical.
+    #[test]
+    fn inline_matcher_conservative_cases_stay_plain() {
+        for line in [
+            "      a kill -9 TUI death (sudo-safe, works blind-typed)\n",
+            "      Range 0.0-3.0 (1.0 = no change).\n",
+            "      Tune theme colors. Accepted keys: sat/saturation.\n",
+        ] {
+            assert_eq!(colorize_help(line), line, "must stay plain: {line}");
+        }
     }
 }
