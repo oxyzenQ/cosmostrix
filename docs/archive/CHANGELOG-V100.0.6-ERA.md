@@ -1,0 +1,2395 @@
+# Changelog — v100.0.6 Era
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
+The v100.0.6 era: every entry, verbatim, of the post-stable
+maintenance arc that carried v100.0.0 stable through v100.0.6
+(2026-09-14 to 2026-10-10) — the NIGHT-dinner release-craft series
+(the stable-cut pre-flight, CI status-field polling, the dependency
+rounds, the release-notes shape-contract gate), the NIGHT-security,
+NIGHT-lts, NIGHT-perf, and NIGHT-boost hardening and campaign lines,
+and the post-v100 hunt, audit, docs, and cybersecurity rounds. These
+entries accumulated under the live [CHANGELOG.md](CHANGELOG.md)
+Unreleased section and were moved here unchanged in night-improve-5
+— the live CHANGELOG.md restarts fresh for the next release cycle.
+Immutable historical record, original order preserved.
+
+### infra: NIGHT-diner-11 — the stable-cut pre-flight: cosmostrix audited against zelynic's v11.0.0 generator incident (dinner-26, commit 6cb6f83), the exact v100.0.6 shapes verified green locally, and the release-notes generator gains a shape-contract gate
+
+- The second zelynic reference in the rc.1 arc: zelynic's v11.0.0
+  STABLE publish died 11 seconds into the Create GitHub Release job
+  because its release-notes generator's flag parser used `${2:?}`
+  guards that reject a present-but-empty value as hard as a missing
+  one — and a stable release legitimately arrives with
+  `--since-stable ""` (LAST_STABLE == PREV_TAG, no distance to
+  render). The rc series never tripped it: pre-releases always
+  carry a real distance. The bug was invisible until the first
+  stable cut switched the code path.
+- cosmostrix's generator is structurally immune to that exact bug:
+  it is a POSITIONAL parser guarded by `$# -lt 4` (counts
+  arguments, cannot reject an empty-but-present one), and the
+  workflow call site passes every argument quoted. The two
+  generators diverged before zelynic's flag era.
+- The stable-only paths are production-proven, not first-run code:
+  v100.0.0 through v100.0.5 (2026-09-14 to 09-26) each ran the full
+  stable geometry — generator stable branch, make_latest, the AUR
+  repository_dispatch, aur.yml runs 51-56, crates.io publish.
+  Diffing the release tooling v100.0.5..HEAD found the real delta:
+  the ci_gate job (new since v100.0.5, proven by the re-triggered
+  rc.1 runs 110/13 green through the dinner-10 fix), the
+  dinner-1 retry hardening (same runs), and the PKGBUILD's new
+  `--retry-all-errors` (first AUR push pending).
+- Pre-flight with the exact v100.0.6 geometry, all green: the
+  generator's stable body (v100.0.5..HEAD range, PREV ==
+  LAST_STABLE, [!TIP], single "6 commits since v100.0.5" line, no
+  dual-range), the pre-release and initial-release legal-empty
+  shapes through the real CLI, the usage error, and a verbatim
+  9-point aur.yml simulation (resolve seds, bash -n, .SRCINFO
+  validation, prepare() asset URLs, curl 8.x flag-set acceptance
+  for the hardened PKGBUILD).
+- The gap the audit DID find: the generator had zero automated
+  coverage — a regression would surface at the next tag, in the
+  publish job (the exact zelynic geometry). Closed with gate 19,
+  `scripts/gates/check-release-notes-shapes.sh`: the generator is
+  re-executed through its real positional CLI against a hermetic
+  temp git repo for every documented shape — stable single-range
+  (and no dual line for PREV == LAST_STABLE), pre-release WARNING,
+  dual range with both distances, initial-release legal-empty,
+  missing-argument usage error, classifier bucketing. Hermetic
+  because the CI gate-keepers checkout is depth-1 without tags.
+  Gate battery: 22 passed / 0 failed.
+- Verdict: the v100.0.6 stable cut flies a proven pipeline; no
+  zelynic-class rock exists in the stable path. The owner's
+  five-file release-commit pattern is unchanged. Full record:
+  docs/research/NIGHT_DINNER_11_STABLE_CUT_PRE_FLIGHT.md.
+
+### infra: NIGHT-diner-10 — the CI gate reads the status FIELD, not the summary prefix: v100.0.6-rc.1's two tag pipelines stop polling an already-green CI into their own timeout (zelynic NIGHT-dinner-25 lineage, same bug found there first)
+
+- The v100.0.6-rc.1 tag push left both tag pipelines (Guard -
+  Release run 109, crates.io publish run 12) stuck in the gate job
+  polling "ci.yml run is completed (conclusion so far: success)"
+  while the ci.yml run for the tagged SHA (d959449) had already
+  passed — the exact symptom the owner had just fixed in zelynic
+  (NIGHT-dinner-25, commit 834aeb0): the gate shipped in 041b470
+  with the run id already prepended to newest_run's output (dinner-1
+  re-run targeting) while the poll loop's branch still tested the
+  pre-prepend prefix `completed|*`. Dead code from birth: the
+  summary starts with the numeric run id, so every completed run —
+  green or red — fell into the waiting branch and polled straight
+  into the 1800 s budget timeout. rc.1 was simply the first tag
+  push through the regressed script.
+- Fix (zelynic's, applied verbatim in spirit): the four fields are
+  parsed once at the top of the poll loop and the branch tests the
+  status FIELD — `elif [[ "${status}" == "completed" ]]` — which
+  restores the whole documented decision table: success passes on
+  the first poll, failure/timed_out goes to the dinner-1 infra
+  classifier, cancelled keeps its recovery hint, in_progress keeps
+  polling. The two in-branch duplicate parses are gone. Diff: one
+  comment block, one parse line, one branch rewrite (+17/-3).
+- Verification (the zelynic method, harness session-side at
+  scripts/ci-gate-test/): a local mock of the Actions API served
+  the exact rc.1 shape. The pre-fix script reproduces the failure
+  byte-for-byte — "run is completed (conclusion so far: success)"
+  polling into its own timeout, exit 1 — while the fixed script
+  prints "PASS: ci.yml completed with conclusion=success" and
+  exits 0 on the first poll with zero waiting lines; an
+  in_progress run still polls (no premature pass) and the no-run
+  docs-only grace path still passes. bash -n, shellcheck, and
+  shfmt -d are clean on the canonicalized script.
+- Recovery for the stuck tag: the doomed runs were left to their
+  own budget (they cannot be saved — they execute the tag's old
+  script), the fix landed on main, and the rc tag was re-pointed
+  at the fix commit so both pipelines re-trigger through the
+  repaired gate (an rc tag under rapid testing is movable; the
+  annotated message is preserved).
+- Test-infrastructure change only: no production code path is
+  touched, the release binary is bit-identical, so the 10 s render
+  benchmark is skipped (nothing to A/B).
+
+### deps: NIGHT-diner-9 — sha2 0.11.0 takes the last Unchanged line with it: one function rewritten, identity proven three ways, and the wall-of-Unchanged is gone (eight lines -> four -> two -> zero in two days)
+
+- sha2 0.10.9 → 0.11.0 (owner-approved via the quarterly-revisit
+  clause; the last HOLD on the audit). The 2026-09-02 audit claims
+  ("Digest trait restructured, `Sha512::new()` → `new_with_prefix()`,
+  four call sites, medium effort, high risk to live-reload") were
+  wrong in every particular — the fifth consecutive unverified
+  breaking-change estimate corrected in this project's history.
+  Verified by compiler: `new()`/`update()`/`finalize()` and
+  `Into<[u8; 64]>` all survived untouched; the ONE real break is
+  digest 0.11's hybrid-array output dropping the `LowerHex` impl
+  generic-array had, which killed exactly one formatting call —
+  `sha512_hex`'s `format!("{:0128x}", finalize())`. The migration
+  rewrote that one function (convert to `[u8; 64]` first, hand
+  hex-encode) and updated one comment; the three test sites and
+  `hash_file_prefix` compile unchanged. sha2 never touches the frame
+  path — it hashes config bytes only (live-reload change detection
+  every 750 ms on the watcher thread, `--dump-config` and
+  `--testconf` fingerprints).
+- Identity proven three ways, because "it's just SHA-512" is an
+  assumption and assumptions are what produced the five wrong
+  estimates: (1) twin parity probe — the exact repo call patterns
+  (new/update/finalize, both conversion paths) on sha2 0.10.9 with
+  the old formatting vs sha2 0.11.0 with the new path, 10 vectors
+  (NIST FIPS 180-4 empty/abc/2-block, block-boundary edges
+  127/128/129, config-shaped TOML, 1 MB million-'a' stress, chunked
+  3,333-byte feeds like `hash_file_prefix` partial reads) —
+  bit-for-bit identical; (2) the suite's hardcoded NIST vectors pass
+  on 0.11.0 (2983/2983, clippy clean); (3) end-to-end: the migrated
+  binary's `--testconf` file-sha512 output equals GNU coreutils
+  `sha512sum` on the same file byte-for-byte.
+- Graph consequence: the migration retired the last two Unchanged
+  lines in one stroke. generic-array 0.14.7 + version_check left
+  entirely (crypto-common 0.1.7's exact `=0.14.7` pin was the chain;
+  the 0.11 line's crypto-common 0.2.2 doesn't use generic-array at
+  all), and the cpufeatures 0.2.17 duplicate left by unifying with
+  rand's 0.3.1. Arrivals: digest 0.11.3, hybrid-array 0.4.15,
+  block-buffer 0.12.1, const-oid 0.10.2. `cargo update --verbose`
+  now prints ZERO Unchanged lines — the wall that started at eight
+  (2026-09-29) is gone; every dependency sits at the latest version
+  its constraint allows, and the quarterly round finds nothing to
+  do. deny.toml unchanged (no new duplicates).
+- Post-commit A/B benchmark (n=3 per scene per side, baseline
+  5a4f1e6 worktree vs the migration commit): monolith gini flat to
+  four decimals on every run, entropy and dirty cells flat to the
+  third decimal, cinematic wobbles inside its own run-to-run
+  spreads, fps deltas two-sided (-1.8% / +2.4%) with each produced
+  by a single outlier run on opposite sides — performance-neutral
+  and visual-identical, as the structure predicts (the render loop
+  executes zero digest instructions). Record:
+  benchmark/bench-labs/night_dinner9/AB_REPORT.md.
+- Docs: DEPENDENCY_AUDIT.md (sha2 row DONE with the corrected
+  claims, generic-array section RESOLVED, zero-line current state,
+  priority table row 4), SUPPLY_CHAIN.md sha2 row, DINNER_5
+  strictness doc (fourth-relaxation section, one-glance table,
+  counts), and the full research record
+  [NIGHT_DINNER_9_SHA2_0_11.md](docs/research/NIGHT_DINNER_9_SHA2_0_11.md).
+
+### deps: NIGHT-dinner-8 (part 2) — rand 0.10.3 crosses the dragon's heart in two import lines: the 4-6 h estimate dies by compiler, and 16,000 parity draws prove the heart's sequences never moved a bit
+
+- rand 0.9.5 → 0.10.3 (owner-approved relax policy, the dragon
+  skin-not-heart rule — rand being the one crate whose output IS the
+  picture on screen). The 0.10 line's single breaking change on this
+  project's surface: rand_core 0.10 renamed RngCore -> Rng, so rand's
+  extension trait moved Rng -> RngExt. The full migration is TWO
+  import lines (ghost.rs: `use rand::RngExt`; living_rain.rs:
+  `use rand::{Rng, RngExt}` — the low-level Rng stays as the minimal
+  bound for the file's 7 generic rng plumbs, Distribution::sample
+  needing exactly that in 0.10). The audit table's "reworked
+  Rng/distr traits / StdRng API changed / seed_from_u64 may change
+  signature" claims join the corrected-overestimate pile;
+  distr::{Distribution, Uniform} (identical Result constructors),
+  rngs::StdRng, seed_from_u64, rand::rng(), and .random_range are all
+  unchanged — `cargo check --locked --all-targets` clean beyond those
+  two lines.
+- The dragon-heart proof, because passing tests alone cannot certify
+  sequence identity: rand 0.10 swapped StdRng's backend rand_chacha ->
+  chacha20 claiming identical output, and a parity probe ran the
+  engine's exact patterns (seeded StdRng + Uniform sampling across
+  u8/u16/u32/usize/i64/f32/f64, new + new_inclusive, both sample
+  call directions, multiple seeds; 16,000 draws) on rand 0.9.5 and
+  rand 0.10.3 side by side: bit-for-bit identical. Same seeds -> same
+  sequences -> same picture. 2983/2983 tests (engine invariant sweeps
+  included), clippy clean, gate-keepers 21/21.
+- Graph consequence: proptest 1.11.0 (dev-dependency, already the max
+  stable line) still pins rand 0.9, so rand 0.9.5 + rand_core 0.9.5 +
+  rand_chacha 0.9.0 stay in the DEV graph only — never compiled into
+  a release binary — and deny.toml gains documented rand/rand_core
+  0.9.5 skips with the leave-condition recorded (proptest's own
+  migration). Release-graph additions: rand 0.10.3, rand_core 0.10.1,
+  chacha20 0.10.2, cpufeatures 0.3.1, getrandom 0.4.3, r-efi 6.0.0
+  (the latter lockfile-only on non-UEFI targets).
+- Post-commit A/B campaign (10 s, release profile, cinematic +
+  monolith vs the signal-hook binary, monolith locked at n=3):
+  visual-identical (guaranteed by the bit-identical parity proof,
+  confirmed by gini/entropy flat to the fourth decimal) and
+  performance-neutral-to-positive — monolith, the RNG-heaviest
+  scene, runs +3.6% faster on means with a ~24x tighter run spread
+  (the chacha20 + cpufeatures backend at work), cinematic flat at
+  +0.25%. Recorded in benchmark/bench-labs/night_dinner8/.
+- The actionable major-bump backlog is now EMPTY: `cargo update
+  --verbose` prints two Unchanged lines, both by design (generic-array
+  upstream-pinned, sha2 0.11 HOLD per owner decision).
+
+### deps: NIGHT-dinner-8 (part 1) — signal-hook 0.4.4 lands as a compiler-proven pure pin bump, and the Unix signal contract gets an 8-check PTY parity harness to prove the dragon's exit paths never moved
+
+- signal-hook 0.3.18 → 0.4.4 (owner-approved relax policy, the
+  dragon skin-not-heart rule: the crate never touches the render
+  path). The 0.4 line's only breaking change is `low_level::pipe`
+  taking `OwnedFd` instead of `IntoRawFd` (signal-hook#196) — a call
+  site cosmostrix does not have. `cargo check --locked --all-targets`
+  and clippy `--all-features -D warnings` pass with ZERO source
+  changes; the dependency-audit table's earlier "Signals iterator API
+  changed / flag::register signature may have changed" claim joins
+  the notify-8 Event-API claim in the corrected-overestimate pile.
+- One graph consequence: crossterm 0.29 still pins the 0.3 line via
+  signal-hook-mio, so 0.3.18 remains transitively — deny.toml gains a
+  documented signal-hook 0.3.18 skip (the windows-sys pattern), and
+  both versions share the signal-hook-registry 1.4.x backend.
+- Proof beyond the compiler: the new `scripts/harness/signal_smoke.py`
+  (spawn recipe from termux_hang_harness.py) runs the migrated binary
+  and the 0.3.18 baseline side by side — 8/8 identical checks:
+  startup liveness, Ctrl+C keystroke ignored (the only-q policy,
+  bug #15), SIGTSTP suspend (kernel state T) + SIGCONT resume, SIGTERM
+  graceful exit inside the 3s grace window with full terminal-restore
+  escapes (alt-screen, cursor, mouse), benchmark liveness, and the
+  benchmark SIGINT abort (exit 0, was_interrupted:true in the JSON —
+  the signal-hook 0.4 flag::register path). 2983/2983 tests,
+  gate-keepers 21/21.
+- Post-commit A/B bench (10 s, release profile, cinematic + monolith,
+  2 runs each, vs the 6e3d718 baseline binary): performance-neutral
+  and visual-identical within run noise — monolith flat to four
+  decimals on gini, fps two-sided around zero (means -0.67%, median
+  -0.18%, peak +0.95%), the frame path never enters signal-hook.
+  Recorded in benchmark/bench-labs/night_dinner8/AB_REPORT.md.
+- Backlog after this entry: rand 0.10 (the 4-6 h visual-risk item,
+  next in this task) and sha2 0.11 (HOLD). Research record:
+  docs/research/NIGHT_DINNER_8_MAJOR_BUMP_BACKLOG.md.
+
+### security: NIGHT-critical-infra-1 & think-like-light-years-1 — the AI-agent-scale threat model: every standing wall re-verified live, the prompt-injection surface gets its process rules, and the honest limits at 10k/1M/1B agents go on record
+
+- New audit: docs/audits/NIGHT_CRITICAL_INFRA_1_AUDIT_2026-09-29.md.
+  The classical security record (SECURITY_AUDIT, NIGHT-long-horizon-1
+  phase 4 at peak) answered one-adversary, human-speed attacks; this
+  layer re-reads the same walls under collapsed attacker marginal
+  cost — 10k agents today, 1M mid-term, 1B speculative. The scale
+  math is stated honestly first: cosmostrix has no secrets, no auth
+  surface, no listener, one opt-in outbound GET — so "brute force"
+  decomposes into four real targets (input surfaces, repo/CI, the
+  maintainer's AI workflow, project economics), each audited with
+  walls, verification, and residual risk per tier.
+- Live verification this round: safepath 33/33, validation 26/26,
+  escape-gate 19/19, testconf 94/94 (172 green), gate-keepers 16/16,
+  clippy -D warnings clean; sweep confirms no pull_request_target and
+  no github.event.pull_request interpolation in any workflow;
+  crates.io name registration, release.yml GPG + SHA-512 sidecars,
+  and aur.yml checksum verification confirmed present. No fresh gap
+  found that a code change would improve — the walls' structural
+  property is that attack surface does not grow with attacker count.
+- The genuinely new surface — prompt injection aimed at the
+  maintainer's own AI agents (hostile PRs/issues addressing the agent
+  directly) — gets process rules, now on record in the audit: repo
+  content is data never instruction; agents never merge (the agent
+  PAT is single-repo push-only); immune-system paths (.github/
+  workflows/**, scripts/gates/**, scripts/audit/**, deny.toml, the
+  Cargo.toml dependency table) get human byte-level review; agents
+  cite runnable evidence, not conclusions. Deliberately skipped, with
+  reasons recorded: prompt-injection "detectors" (theater), in-binary
+  rate limiting (no listener exists), further CI hardening beyond
+  current permissions (remaining vectors are platform-owned) — the
+  no-over-engineering rule applies; adding wall where there is no
+  door is how LTS projects rot.
+- docs/SECURITY_AUDIT.md cross-references the new audit as the
+  AI-agent-scale companion to the classical model.
+
+### deps: NIGHT-dinner-5 & research-1 — the strictness policy lands: clap relaxes to 4.6.7, notify migrates to 8.2.0 and clears RUSTSEC-2024-0384, the generic-array mystery is solved upstream, and the Unchanged list gets its decoder ring
+
+- The clap pin relaxes from `>=4.5, <4.6` to `>=4.5, <4.7` with a
+  rationale comment in Cargo.toml: 4.6 is a minor release inside the
+  stable clap 4 line, no API removals on the derive surface this
+  project uses, and the old pin blocked semver-compatible updates for
+  no stability gain. `cargo update -p clap` moves the lockfile to
+  4.6.7 (clap + clap_builder + clap_derive, plus syn 3.0.6 arriving
+  with clap_derive 4.6 — the entire lockfile delta). The ceiling
+  stays at `<4.7` so a future clap 5 or removal-carrying 4.7+ still
+  cannot enter the lockfile silently. Verified locally: cargo check
+  --locked clean, clippy --all-targets --all-features -D warnings
+  clean, gate-keepers 16/16; the full suite runs in CI on push. The
+  10 s A/B bench (release profile, baseline 579de6a vs after eb18b31,
+  cinematic + monolith controls) is performance-neutral and
+  visual-identical within run noise — monolith flat to four decimals
+  on entropy and gini — recorded in
+  benchmark/bench-labs/night_dinner5/AB_REPORT.md.
+- The generic-array 0.14.7 "Unchanged" line is root-caused and it is
+  not cosmostrix strictness: crypto-common 0.1.7 (transitive via
+  sha2 0.10 to digest 0.10.7) declares `generic-array = "=0.14.7"`
+  — an exact upstream pin, verified against the crates.io registry
+  API. Neither 0.14.8 nor 0.14.9 is yanked; they are excluded by the
+  upstream requirement, so no cosmostrix constraint change can move
+  it. The only path out is the sha2 0.11 migration (HOLD per the
+  audit framework). This also corrects the 2026-09-02 audit's
+  "UPDATE NOW via cargo update -p generic-array" recommendation —
+  that command cannot succeed under the sha2 0.10 line.
+- The policy is documented in a new research doc,
+  docs/research/NIGHT_DINNER_5_DEPENDENCY_STRICTNESS.md, answering
+  the owner's question directly: which deps auto-flow (everything
+  caret-style, pushed weekly by maintenance.yml), which are
+  boundary-pinned on purpose (notify, rand, sha2, signal-hook — every
+  one a migration job, not an update), which was too strict (clap,
+  now fixed), and which is upstream-owned (generic-array).
+  docs/DEPENDENCY_AUDIT.md gets the refreshed 2026-09-29 state table
+  with the three-class decoding, the corrected generic-array verdict,
+  and the closed Step 1 action plan; docs/SUPPLY_CHAIN.md's dependency
+  table follows the new clap constraint. The point of the paper
+  trail: the next person who runs `cargo update --verbose` and sees
+  eight Unchanged lines knows exactly which lines mean what, and that
+  none of them means the project is rotting.
+- Follow-up (same day, owner-approved relax policy): notify migrates
+  7.0.0 → 8.2.0, the one major bump that pays for itself. The owner
+  approved relaxed dependency headroom with one hard boundary, in his
+  own words: the dragon's skin may be upgraded, the heart is never
+  edited — a dependency upgrade must never touch the critical core
+  engine. notify passes that bar: the watcher API surface cosmostrix
+  uses (RecommendedWatcher::new, Config::default, the
+  Event{kind,paths,attrs} literal, EventKind::Modify/Create/Remove
+  matching — two src files, one test file) is identical across the
+  7→8 boundary, so the migration is a pure pin bump (`>=7, <8` to
+  `>=8, <9`, three target sections) with zero source changes,
+  verified by cargo check --locked --all-targets, clippy
+  --all-features -D warnings, the full 2983-test suite, and the PTY
+  config stresstest. The audit table's earlier "notify 8 reworked the
+  Event API" claim was an unverified overestimate — corrected in
+  docs/DEPENDENCY_AUDIT.md with the empirical result. Lockfile delta:
+  notify 8.2.0, notify-types 2.1.0, inotify 0.11.5, windows-sys
+  0.60.2, and three crates leave the graph — instant 0.1.13
+  (RUSTSEC-2024-0384, the unmaintained-advisory suppress since
+  v50.0.0-beta.7, retired from deny.toml now the crate is gone),
+  bitflags 1.3.2 (the inotify-0.10 duplicate; inotify 0.11 sits on
+  bitflags 2), and filetime (dropped upstream). deny.toml's skip list
+  loses the bitflags entry and re-pins the windows-sys skip to
+  0.60.2. The wall-of-Unchanged shrinks from eight lines to four —
+  every remaining line is classified in the strictness policy. The
+  10 s A/B bench (release profile, baseline d533c98 vs the migration
+  commit, cinematic + monolith controls, 2 runs each) is
+  performance-neutral and visual-identical within run noise — the
+  monolith control flat to four decimals on gini and flat on entropy
+  with fps within 0.21% on run means, and the structural argument is
+  airtight: the bench frame path never enters notify, and the watcher
+  thread is idle in both binaries. Recorded in
+  benchmark/bench-labs/night_dinner5/AB_REPORT.md.
+
+### license: NIGHT-dinner-6 — the value-price realignment: Business and Company tiers rise to $5,000 and $50,199 a year, the unauthorized-use warning lands, and the piracy position goes on record
+
+- The Business tier moves from $1,000/year to $5,000/year and the
+  Company tier from $9,900/year to $50,199/year. The Personal tier
+  stays free and the Individual tier stays $99/year — the raise only
+  touches business and enterprise buyers. The rationale is now
+  documented as a Pricing Philosophy section in COMMERCIAL_LICENSE.md:
+  cosmostrix is priced as a masterpiece-grade renderer, and every
+  hardening pass, dependency audit, and LTS release compounds the
+  codebase's value year by year, which the paid tiers deliberately
+  track. Today's price is the lowest it will ever be.
+- A new Unauthorized Use section in COMMERCIAL_LICENSE.md states the
+  anti-piracy position in plain terms: taking the source code — or any
+  fork, copy, or derivative of it — into a closed-source commercial
+  product without contacting the owner rezky_nightky (oxyzenQ) and
+  paying for the license is theft, not a gray area. README.md carries
+  the short form next to the pricing table, TRADEMARK.md sections 1
+  and 5 name unlicensed closed-source commercial use explicitly, and
+  docs/LICENSING_FAQ.md gains two Q&As (why prices rose, what happens
+  on unlicensed commercial use) so no reader is left confused.
+
+### ux: NIGHT-dinner-3 — the CLI output depth audit: six fixes land, style and data sharpness unified across every diagnostics surface
+
+- The audit walked every user-facing CLI surface live (--doctor,
+  --benchmark text + JSON, --perf-stats under a PTY, -V, --help,
+  error and suggestion paths, --list-scenes, --list-charsets,
+  --list-colors, --config-path) hunting two defect classes: style
+  drift between surfaces that report the same fact, and data output
+  too blunt to read at a glance. Six fixes land:
+- Style fix 1 — the -V Build-time line now renders ISO 8601
+  (`2026-09-28 20:06Z`) instead of the US-ambiguous `9/28/2026
+  19:55 (UTC)`. The project's own verbose contract (RULES.md:
+  `exit_time: <YYYY-MM-DD HH:MM:SSZ>`, "UTC chosen for LTS
+  stability") is now followed by every timestamp the binary prints;
+  build.rs's formatter and all five of its date-pinned unit tests
+  updated (epoch, leap-day, truncation, minute-roll, negative-epoch
+  cases; the standalone runner executes them, 10/10 green).
+- Style fix 2 — gpu_basis is now one sentence on every surface: the
+  bench report and bench JSON previously said "cosmostrix is a CPU +
+  stdout renderer; ..." while the doctor said "CPU+stdout renderer;
+  ...". The tighter doctor phrasing wins everywhere; the JSON key is
+  unchanged (bench-labs parses keys, not prose).
+- Style fix 3 — --list-scenes columns finally align. The listing
+  format carried a hardcoded 10-wide name column that predates the
+  13- and 22-char scene names (cosmic_dragon,
+  sorgonemous_intrascals); every longer name broke the description
+  column. The width is now computed from the actual scene names.
+- Style fix 4 — the --perf-stats BACKPRESSURE section's bare
+  `avg: 0.000` / `peak: 0.000` keys carried no scope (average of
+  WHAT?). They are now `pressure_avg` / `pressure_peak`, matching
+  their budget_* siblings; the basis and advice lines updated to
+  the new names.
+- Data fix 1 — share_percent precision unified: COMPONENT TIMING
+  printed the sim/render/io shares at two decimals (44.99) while
+  CELL EFFICIENCY printed the same conceptual shares at one (45.0)
+  — two precisions for one quantity reads as two different
+  measurements. Both now carry two decimals.
+- Data fix 2 — the doctor BUILD section's `commit` and `rustc` keys
+  are now `git_sha` and `rustc_version`, aligning the doctor with
+  the bench report and the bench JSON (the machine contract
+  bench-labs parses wins; the doctor is prose and follows).
+- Checked and deliberately NOT changed (honest reporting kept): the
+  smt_active "off" reading is a genuine sysfs observation, not a
+  fallback guess; the perf-stats `avg_dirty_cells` vs bench
+  `avg_dirty_cells_per_frame` names describe different measurement
+  contexts; the PERFORMANCE / CELL EFFICIENCY dirty-cell companions
+  are an owner-requested readable pair (2026-08-23), kept with
+  precision now consistent.
+- Verification: cargo fmt clean; clippy --all-targets --all-features
+  clean; cargo test --locked 2983 passed / 0 failed / 2 ignored;
+  build-script standalone tests 10/10 (including the three
+  date-format tests). A/B benchmark (10 s, 100x30, dry) against a
+  pre-change baseline saved via --save-baseline: every metric OK —
+  avg_fps +2.54%, dirty cells/frame -0.23%, density_gini 0.8959 ->
+  0.8962, frame_entropy 3.63 -> 3.63, color_transition_delta 0.00 ->
+  0.00. Zero render-path code touched; the deltas are debug-build
+  noise.
+
+### ci: NIGHT-dinner-1 — infra flakes can't read as code failures: the curl retry contract, apt retries, and the ci_gate infra carve-out keep a GitHub-side 500 from stalling a release
+
+- The hazard: GitHub's own infrastructure fails sometimes — a
+  release-asset URL answering 500 mid-download (observed in the
+  owner's fleet: the shfmt install step, `curl: (22)`, the run dying
+  before a single gate executed), a runner evicted mid-job, a
+  workflow that never started. A red gate that is GitHub's fault must
+  never read as a code fault, and an IRREVERSIBLE release or
+  crates.io publish must not stall on it. Four layers, each aimed at
+  an observed failure class:
+- Layer 1 — the curl retry contract (`--retry 6 --retry-all-errors
+  --retry-delay 10 --retry-max-time 300 --connect-timeout 15`, `-f`
+  normalized) on every tool download in the workflows: the shfmt
+  version resolve + binary download (cosmic-dragon-guard.yml — the
+  exact observed 500 class), both rustup.rs downloads (the FreeBSD
+  lanes of ci.yml and release.yml), the crates.io idempotency probe
+  (crates-io.yml — a flaky 5xx there reads "not published", falls
+  through to cargo publish, and dies as a duplicate-version error:
+  an infra flake perfectly disguised as a code failure), and the AUR
+  repository_dispatch POST (safe to re-attempt: aur.yml's per-tag
+  concurrency group plus the idempotent AUR push make a duplicate
+  dispatch a no-op sync of the same state). Without
+  --retry-all-errors, curl's --retry refuses exit-22 re-attempts (the
+  class --fail produces from a 5xx); without -f, a 5xx error page
+  lands in the file and dies later inside tar/shfmt with a misleading
+  error.
+- Layer 2 — apt rides its own knob (-o Acquire::Retries=5) on every
+  apt-get update/install in the workflows: the shellcheck install
+  (cosmic-dragon-guard.yml), the musl-tools and aarch64 linker
+  installs (release.yml), and the ci.yml aarch64 linker lane.
+- Layer 3 — scripts/release/wait-for-ci.sh, the release pipeline's
+  serializer, gains the infra-failure carve-out: on a red waited run
+  it fetches the failed jobs' logs and hunts known infra signatures
+  (curl transport errors, 5xx texts, download faults, DNS/route
+  failures, runner eviction, apt fetch faults); when EVERY failed job
+  carries one it requests one re-run of the failed jobs and keeps
+  polling, up to WAIT_INFRA_RETRIES (default 2) times. Safety
+  property: classification only ever BUYS A RE-RUN — a real code
+  failure fails the re-run too, burns the budget, and blocks exactly
+  as before; unfetchable logs block (never auto-retry what cannot be
+  seen). Both ci_gate jobs (release.yml, crates-io.yml) now carry
+  permissions: actions: write — the job's ephemeral github.token can
+  re-run this repo's CI and nothing else.
+- Layer 4 — the user-facing downloads carry the same contract: the
+  README manual-install snippet (which also gains -f, so a 5xx error
+  page can no longer masquerade as the tarball and die confusingly
+  inside sha512sum) and the AUR PKGBUILD's curl_flags (gains
+  --retry-all-errors to complete its existing --retry 3 for the
+  exit-22 class).
+- Docs: docs/workflow/ABOUT_CI.md gains the Infra-failure carve-out
+  section documenting all four layers. Verified locally: bash -n,
+  shellcheck, shfmt -d clean on wait-for-ci.sh; yamllint, actionlint
+  clean on all four workflows; the name-case and language gates stay
+  green. No benchmark per house rule — CI orchestration only, zero
+  render-path code.
+
+### gate: NIGHT-dinner-2 — the name-case gate: the lowercase rule becomes a machine-enforced tripwire, every tracked file and path scanned, nothing excluded
+
+- New `scripts/gates/check-name-case.py` as gate-keepers section 18:
+  a `git ls-files` walk over every tracked file and path (the
+  `.cargo/` and `.github/` hidden trees included — nothing excluded,
+  `docs/archive/` included), case-by-case classification, and
+  `file:line:token` failures. Legal families only: lowercase, plus
+  the identifier family (`COSMOSTRIX_*` environment variables, the
+  `COSMOSTRIX-DISCLAIMER` marker and its `COSMOSTRIX-*` siblings),
+  the all-caps banner comment titles heading the `scripts/` gate
+  files, and the all-caps display banners the binary prints
+  (`COSMOSTRIX BENCHMARK`, `COSMOSTRIX DIAGNOSTICS REPORT`,
+  `COSMOSTRIX PERFORMANCE REPORT`) plus the em-dash hero line.
+  Self-clean by construction: the all-caps form is built at runtime
+  from the lowercase name.
+- The 17 wrong-case remainings the scan found are retired: 14 in
+  archived historical documents (reworded to the lowercase form,
+  case-only edits, content otherwise untouched) and 3 in
+  `docs/BRANDING.md` (the old section 2 described the banned
+  spellings as literal exhibits and allowed a README hero that no
+  longer exists). The old section 6c naming check is superseded and
+  removed: it caught one casing, exempted the archive, and never
+  looked at paths.
+- Docs: BRANDING section 2 rewritten (the lowercase rule, the
+  surviving uppercase families, the machine-enforcement note), a new
+  Project Name Casing section in `docs/RULES.md`, the CONTRIBUTING
+  naming paragraph, and the workflow gate list. Verified live:
+  1111 tracked files and paths, 3140 name tokens — 2551 lowercase,
+  589 identifier/banner/display family, 0 violations.
+
+### docs: NIGHT-dinner-4 — the era changelogs move to docs/archive/: the root keeps one live CHANGELOG.md, nothing else
+
+- `CHANGELOG-V100-ERA.md`, `CHANGELOG-V80-ERA.md`, and
+  `CHANGELOG-V50-ERA.md` moved verbatim to `docs/archive/` via
+  `git mv` (100644 mode preserved, history follows the rename) —
+  they are completed historical records, exactly like the pre-v13
+  archive that already lives there, so the repo root now carries a
+  single live `CHANGELOG.md` and the archive holds every frozen
+  era. Zero content edits inside the moved files: byte-identical
+  blobs, rename-only in the index.
+- Every reference updated so no link goes stale: the era index at
+  the top of this file (links now resolve to `docs/archive/`),
+  this file's NIGHT-docs-1 entry (paths annotated with the new
+  location), `docs/HUD.md` (expansion-history links),
+  `docs/FUTURE_BACKLOG.md` (the never-rewritten corpus list — the
+  three files now literally sit under `docs/archive/**`, the rule
+  they were already equated to), and `src/RULES_LOC.md` (the
+  refactor-policy pointer).
+- No packaging impact: `Cargo.toml`'s `exclude` list already drops
+  `docs/archive/*` from the shipped crate, so the crate tarball
+  shrinks by the three era files (the root copies were previously
+  packaged as dead weight — 578 KB of frozen history riders).
+
+### audit: NIGHT-long-horizon-1 — the five-phase long-horizon depth audit: stability, hygiene, optimization, security, and LTS all verified at peak, zero code changes
+
+- Fresh scripted evidence (full report: docs/audits/NIGHT_LONG_HORIZON_1_AUDIT_2026-09-26.md):
+  a brace-aware production panic-site analyzer (tracks #[cfg(test)]
+  scopes through brace depth) proves ZERO raw production unwrap()
+  across the 306-file src/ tree — every unwrap sits inside a test
+  scope; the 27 expect() sites each carry a documented invariant
+  string; the 49 unsafe sites are all SAFETY-documented (matching
+  the NIGHT-lts-1 inventory); 123 defensive-arithmetic sites vs 38
+  deliberate wrapping sites (hash mixing, generation counters); every
+  cols-1-class subtraction sits inside .min()/.clamp() guards, with
+  69 saturating_sub sites in the cloud engine alone.
+- Optimization phase verified at code level: zero per-frame heap
+  allocations in the two hottest files (frame.rs, terminal/draw.rs),
+  pre-sized ByteWindow encoding windows — consistent with the
+  documented 0.002 allocs/frame and the prior "early-return paths
+  already at peak" verdicts; skipped per the if-peak-skip rule.
+- Security phase: zero env-var writes, process execution limited to
+  unix terminal-restore plus one test-only simulation, whitelist-only
+  path security (safepath), strict exit-2 config validation, locked
+  Cargo.lock + deny.toml in CI — at peak.
+- Hygiene phase (near-peak by design): zero commented-out zombie
+  blocks; 19 allow(dead_code) all documented; 9 cross-file duplicate
+  groups are the cost of the self-contained-subsystem architecture —
+  the four owner-directed deprecated constants (style_rain.rs x3,
+  intro_colors.rs x1) are registered as v101 cleanup candidates, not
+  removed unilaterally.
+- Methodology note recorded for future auditors: a suspected legacy.rs
+  syntax error (#ust_use]) was debunked by od -c — the file contains
+  the correct #[must_use]; the corruption was a display-layer
+  artifact. Byte-level check before byte-level verdict.
+
+### audit: NIGHT-lts-1 & NIGHT-safety-1 — depth security/safety audit: all surfaces verified at peak, zero code changes
+
+- Unsafe inventory (the whole of `src/`, 19 files): every `unsafe`
+  block lives behind an FFI/seam boundary — sysstat (libc
+  /proc readers), clock (localtime_r/gmtime_r), terminal TTY raw-mode
+  and io_recovery, watchdog, fork/root guards, alloc_trace,
+  termdetect host fingerprinting, bench_perf (perf_event_open),
+  reclaim_state, config_io — and the render/shader/rain engine has
+  ZERO unsafe code. This matches the audited methodology in
+  docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md plus the weekly Miri
+  CI job.
+- Panic surface in the hot path: rain_at.rs, render.rs, and the shader
+  helpers carry zero `unwrap()`/`expect()`; computed-index lookups are
+  bounds-checked with defensive fallbacks (`color_map[idx]` is guarded
+  with an explicit egg-#15 bounds check; `glitch_map[idx]` guards
+  length before read).
+- Untrusted-input surfaces: the strict config parser (validation order,
+  strict-mode, and typo-rejection test families), the root-usage guard
+  (NIGHT-security-4 + the euid-0 hard refuse on --check-update),
+  safepath canonicalization tests, and the terminal
+  raw-mode/alternate-screen teardown contracts (panic = unwind by
+  design so the RAII guard + panic hook restore the terminal; SIGCONT
+  double-teardown was closed as P0 in NIGHT-ultimate-1) are all
+  present and pinned by tests.
+- Overflow class: release profiles ship `overflow-checks = false`, and
+  the audited arithmetic on user-controlled values (density scaling,
+  cols×lines products, u8 color saturation casts) operates in
+  usize/u32/f32 domains where terminal-bounded values cannot wrap;
+  screen sizes are clamped (NIGHT-ultimate-1) before any geometry math.
+- Verdict: the safety/security surface is at peak — the comprehensive
+  audit trail (NIGHT-ultimate-1, NIGHT-security-4 family, the mirrored
+  test tree's guard suites) held up under independent re-verification;
+  no new mitigations needed, none added (owner's
+  don't-over-engineer-at-peak rule).
+
+### perf: NIGHT-lts-2 & NIGHT-perf-1 — depth performance audit: every overhead class verified at peak, zero code changes (fresh 10 s A/B evidence captured during the lts-3 run)
+
+- Allocation: 563 total allocs over a 119 K-frame 10 s run (0.0047
+  allocs/frame) with `heap_retained` flat and the zero-alloc cosmetics
+  tripwire already pinning the overlay + HUD paths — the render + I/O
+  hot path is zero-alloc, and the 168-byte total-allocation delta
+  between the two A/B runs is git-sha string noise, not engine state.
+- Per-frame syscalls: every `Instant::now()` in rain_at.rs /
+  post_rain.rs is conditional on component-timing mode (benchmark or
+  --perf-stats only) — interactive mode captures `now` once at frame
+  start and injects it everywhere (the v30 + P1 passes already removed
+  the hidden per-wave and per-frame calls; verified all 8 sites).
+- Locks: the engine tree has no Mutex/RwLock — the only locks in the
+  codebase sit in cold terminal-restore/TTY paths.
+- Transcendentals: the single remaining `exp()` in the shader helpers
+  is inside a `LazyLock` LUT initializer; per-cell math is LUT reads
+  and integer adds (TRAIL_EXP_LUT, rain-shadow, vignette, edge-fade,
+  column-coherence, head-bloom — the Phase D/C hot-path LUT family).
+- String work: zero `format!`/`to_string`/`to_owned` in rain_at.rs and
+  render.rs; HUD updates are 1 Hz-gated with pre-computed strings.
+- I/O: ~1.7 µs of write time per frame at 80×24 (one batched write;
+  29.8 ns/cell I/O) — the diff engine holds its O(1) 1,463 ns/cell
+  total with the dirty ratio at ~6%, matching the documented v30-class
+  reference behavior.
+- Fresh A/B evidence (dev profile, same host, 10 s, 80×24):
+  avg_fps 11,927 → 12,046 (+1.0 %, run noise in B's favor), jitter
+  std 0.0195 → 0.0107 ms, p99.9 frame time 0.318 → 0.126 ms,
+  density_gini 0.8964 → 0.8962, frame_entropy 3.2908 → 3.2932 bits,
+  dirty_cells_per_frame 56.74 → 56.75 — the objective visual metrics
+  are identical to the 4th decimal. Verdict: the performance engine is
+  at peak; skipping further investment per the owner's
+  don't-over-engineer-at-peak rule.
+
+### lts: NIGHT-lts-3 — ultra-long-endurance depth audit: the column-coherence shimmer phase no longer quantizes on multi-day runs (f64 + wrap to [0, 2π))
+
+- The one real defect found in the endurance sweep: the column-coherence
+  hue shimmer derived its temporal phase from the process-lifetime
+  elapsed via `as_secs_f32()` — an f32 ULP reaches a full 16.7 ms frame
+  period after ~36 h (31 ms after ~3 days, 62 ms after ~9 days), so the
+  intended ~60 s shimmer cycle progressively froze on ultra-long runs,
+  and the unbounded `sin()` argument (~1.7M rad after a month) quantized
+  the perturbation into temporal noise at multi-week ages. New
+  `shaders::base::column_coherence_phase()` computes the phase in f64
+  and wraps it to [0, 2π) before the f32 handoff: `sin` is 2π-periodic,
+  so the wrapped phase is mathematically identical and stays small
+  forever — the shimmer keeps its full drift resolution at any session
+  age, for one f64 mul + rem per frame (the `cols`-length LUT fill it
+  feeds costs far more).
+- Regression tests: the phase advances at the tuned rate at a 30-day
+  elapsed (the pre-fix path produced zero advance per 16 ms step there),
+  stays inside [0, 2π) at ages up to a year, and matches the legacy
+  unwrapped computation at short elapsed (the first hours behave
+  identically — no visual change for normal sessions).
+- The rest of the endurance surface verified at peak, zero changes
+  needed: frame scheduling uses absolute deadlines with `checked_add`
+  plus a monotonic clock-jump guard (drift-free, VM-safe); every easing
+  anchor (pause/resume/glyph-entry) is settle-and-clear bounded; the
+  EnduranceHealth signals are bounded ring buffers (60 RSS samples) and
+  init-flagged EMAs; all elapsed reads go through
+  `saturating_duration_since` (no Instant subtraction panics); counters
+  are u64; the restart-consistency contract (fresh-start state on 'r')
+  is already pinned by tests_restart_lts3.rs.
+
+### ci: NIGHT-improve-1 — the commit+tag collision gate: both tag pipelines now serialize behind the branch CI on the tagged SHA, so `git push origin main vX.Y.Z` is safe
+
+- The documented release recipe (docs/workflow/ABOUT_CI.md, the
+  version-to.sh summary) is `git push origin main vX.Y.Z` — commit and
+  tag in one push — but the tag-triggered workflows raced the branch
+  CI: release.yml started its 8-platform build (and crates-io.yml its
+  IRREVERSIBLE `cargo publish`) while ci.yml was still running the
+  same SHA, so a broken commit could ship a release and a yank-only
+  crates.io version before CI passed judgment. The owner hit exactly
+  this pushing a commit and immediately pushing its tag.
+- New `scripts/release/wait-for-ci.sh` (first-party, curl + jq, zero
+  new actions): polls the Actions API for the ci.yml push-run on the
+  exact tagged SHA (`event=push&branch=main&head_sha=<sha>`, filtered
+  by workflow path so PR runs never satisfy the gate) until it
+  completes, then requires conclusion=success. Cancelled/failed CI
+  blocks the release with a recovery hint; docs-only commits that
+  ci.yml's paths filter skips pass after a 90 s grace period (the
+  unconditional gate-keepers workflow covered that push).
+- release.yml and crates-io.yml each open with a `ci_gate` job
+  (permissions tightened to actions:read + contents:read at the job
+  level); all four release build jobs and the crates.io publish now
+  `needs: ci_gate`, so publish_release and the AUR dispatch gate
+  transitively too. Concurrency blocks unchanged (distinct groups per
+  workflow name — no cross-cancellation existed to fix).
+- Docs swept: ABOUT_CI.md (trigger table rows, a new "Commit + tag
+  pushed together" section, the manual-tag sentence now states the
+  combined push is safe) and README.md's Release Process intro.
+  Cost documented honestly: the release now serializes behind CI
+  (total wall time = CI + release instead of max of the two).
+- Hunt note: while mapping the trigger graph, the path-filter audit
+  surfaced that ci.yml's paths list is unchanged in spirit —
+  Cargo.toml/Cargo.lock are in the filter, so every release commit
+  (version bump always touches them) produces a CI run for the gate
+  to wait on; the docs-only-release path (no CI run) is the designed
+  grace-period pass, not a hole.
+
+### build: NIGHT-blade-1 — cargo alias rename: the Linux x86_64 build family now names arch + baseline + libc (pro-linux-amd64-v3/v4-gnu, pro-linux-amd64-v3/v4-musl)
+
+- `cargo pro-linux-v3` / `pro-linux-v4` / `pro-linux-musl` are renamed to
+  `cargo pro-linux-amd64-v3-gnu` / `pro-linux-amd64-v4-gnu` /
+  `pro-linux-amd64-v3-musl` (the musl alias always pinned
+  `target-cpu=x86-64-v3`, so its name now says so), and
+  `pro-linux-amd64-v4-musl` joins the family for local builds (the
+  release matrix is unchanged: v3-gnu, v4-gnu, v3-musl). Profile names
+  mirror the aliases 1:1 (zelynic pro-linux lineage), so binaries land
+  in `target/<triple>/<alias-name>/cosmostrix`.
+- The musl build id becomes `linux-amd64-v3-musl` (was
+  `linux-amd64-musl`), aligning the embedded `--doctor` label with the
+  v3 codegen it ships; the runtime AVX2 guard in
+  `info.rs::check_cpu_features` now covers musl binaries too (the old
+  id hid the v3 token from the guard).
+- Hunt fixes riding the rename: release.yml's verify-build-metadata
+  case labels now match the matrix build ids verbatim (the pre-blade-1
+  labels dropped the -gnu suffix, so the v3/v4 baseline verification
+  silently never matched — only the musl leg exercised the case); the
+  non-AVX2 rebuild guidance no longer suggests the musl v3 build (same
+  baseline — it would SIGILL too) and points at the generic release
+  profile; SUPPLY_CHAIN.md's maintenance step list matches the
+  workflow's plain `pro` build again (2026-08-23 owner directive);
+  RULES.md's install path repointed at scripts/setup/install.sh.
+- All live references updated: .cargo/config.toml, Cargo.toml profiles,
+  build.rs (baseline-claim matching for the new name shapes + a
+  regression test), install.sh autodetect, verify-release-build.sh,
+  version-to.sh, benchmark.sh, compare_renderers.py, release/ci/
+  maintenance workflows, README.md + 9 docs. Historical records
+  (benchmark/HIST_BENCH.md, bench-labs sweeps, docs/archive/)
+  intentionally keep the old names — they document what was actually
+  run.
+
+### docs: NIGHT-master-2 — dual-licensing model: GPL-3.0-only + Commercial License (Individual $99/yr, Business $1K/yr, Company $9.9K/yr)
+
+- cosmostrix is now dual-licensed: GPL-3.0-only for open-source use (the
+  existing license, unchanged) plus a Commercial License for
+  proprietary/commercial use. See COMMERCIAL_LICENSE.md for details.
+- New COMMERCIAL_LICENSE.md: who needs a license, tier pricing (Personal
+  free under GPL-3.0-only, Individual $99/year, Business $1,000/year,
+  Company $9,900/year), crypto payment instructions (Solana, Ethereum,
+  Bitcoin Taproot) with inline QR codes, the USD-peg policy, the on-chain
+  verification workflow, and contact channels.
+- New docs/LICENSING_FAQ.md: the five recurring licensing questions (free
+  company use, tier selection, payment, hobby use, rebranding).
+- New assets/qr/: payment QR codes for the three owner-verified addresses
+  (error correction level M, ~200 px, <5 KB each; decode round-trip
+  verified equal to the exact address strings, and the addresses
+  re-validated: base58 32-byte ed25519 key, EIP-55 checksum, bech32m
+  taproot witness program).
+- LICENSE now opens with a dual-license notice above the GPL-3.0-only
+  text; README.md gained a Commercial Licensing section plus doc-list
+  entries; TRADEMARK.md and NOTICE cross-reference the commercial
+  offering; docs/README.md indexes the new FAQ.
+
+### fix: NIGHT-perf-2 - thread-attributed alloc counting: the cosmetics zero-alloc tripwire measured process-global counters, so libtest's parallel shared-process execution attributed concurrent tests' allocations to the cosmetics path (FreeBSD CI: 16.3 allocs/frame of cross-thread noise)
+
+- **Root cause** (FreeBSD CI failure on the NIGHT-perf-2 harness commit,
+  2026-09-25): `cargo test --all` runs every test in ONE process on
+  parallel threads (libtest), while TraceAlloc counted with
+  process-global atomics. Any benchmark window open while other tests
+  ran absorbed their allocations: the FreeBSD job measured 16.3050
+  allocs/frame on `cosmetics_harness_measures_overlay_and_hud` and
+  failed the zero-alloc tripwire — the cosmetics path itself allocated
+  nothing (0.0006/frame measured in isolation). Linux CI never saw it
+  because nextest isolates each test in its own process, and targeted
+  local runs have no concurrent load; the full-suite parallel run was
+  never executed locally (check-all's 2-minute budget kills it before
+  the test phase). Reproduced deterministically: the full bin suite at
+  8 test threads measures 20.75 allocs/frame, at 16 threads 72.85.
+- **Fix**: TraceAlloc now counts per thread (const-initialized
+  thread-local `Cell<ThreadCounters>` - no lazy-init allocation, no
+  destructor, so the allocator never re-enters itself; wrapping
+  arithmetic keeps it panic-free under dev-profile overflow checks).
+  `AllocSnapshot::now()` reads the measuring thread's counters, so a
+  window delta covers exactly the allocations the measured code path
+  performed. The production bench binary is single-threaded, so its
+  numbers are unchanged byte for byte; under the test harness the
+  metrics finally measure the bench loop instead of the whole process.
+  The five statics' unsafe surface and the no-reentrancy/no-sync
+  argument are unchanged (SECURITY_AUDIT.md updated accordingly).
+- **Tests pin the contract**: `src/diagnostics/alloc_trace.rs` gains
+  unit tests (other-thread allocations must not move this thread's
+  snapshot; this thread's own allocations must be counted), and
+  `test/bench/tests_bench_cosmetics.rs` gains the incident pin:
+  a deliberate cross-thread allocation storm runs through the whole
+  bench window while the tripwire must still hold (< 1.0
+  allocs/frame). Post-fix, the full parallel suite passes at 8 and 16
+  test threads (2980 passed, 0 failed).
+
+### perf: NIGHT-perf-2 - dedicated bench harness for the Z-6-skipped paths: --bench-cosmetics measures the message overlay + per-frame HUD block; bring-up found and killed the last per-frame heap alloc in draw_message (visible_border Vec)
+
+- **Change** (owner-approved 2026-09-24): the paths --benchmark skips
+  by design (Z-6, critical-path-only) are now measurable with a
+  dedicated harness: `--benchmark --bench-cosmetics`. The run routes
+  through the same silent measurement loop --bench-all uses, clears
+  bench_mode after reset_bench (the message overlay renders inside
+  rain_at, so its cost lands in avg_render_ms and end-to-end in fps /
+  dirty cells / alloc counters), and drives the production HUD block
+  against a real HudState in the exact event-loop call order
+  (refresh_colors -> write_to_frame pre-draw; push_frame_time,
+  RSS/CPU sampling, update_metrics, set_dirty_cell_stats post-draw
+  tick). The message start time is rewound past MESSAGE_INTRO_LEAD +
+  the reveal so frame one renders a fully revealed overlay - the
+  harness measures the SUSTAINED cost, not the one-shot choreography.
+  Default bench is untouched: the plain premium loop, --bench-all and
+  --bench-frames never measure cosmetics (Z-6 contract intact; the
+  spawn.rs comment records the exception).
+- **Fix found by the harness itself**: during bring-up it measured
+  exactly 1.0006 allocs/frame in cosmetics mode vs the plain bench's
+  0.009 - the BN-01/02 visible-border bit-set
+  (`vec![false; message.len()]` in draw_message) allocated one Vec per
+  frame; the Dragon Hunt v3 fix had replaced a per-frame HashSet with
+  a per-frame Vec. Hoisted as `visible_border_scratch` (Z-5
+  clear()+resize pattern, sibling of border_gradient_scratch);
+  post-fix measurement: 0.0006 allocs/frame. The zero-alloc state is
+  pinned by a test so the class cannot silently return.
+- **Reporting**: COMPONENT TIMING gains avg_hud_ms / max_hud_ms /
+  hud_frames / message_active / hud_meaning / cosmetics_mode when the
+  harness runs; the component_timing JSON object gains hud_avg_ms,
+  hud_max_ms, hud_frames, cosmetics_mode, message_active (uniform
+  schema - always emitted, zero/false when the harness did not run,
+  per the JSON stability contract's add-only rule). The accounting is
+  disjoint: sim + render + io + hud_pre = frame_time; the post-draw
+  tick is reported separately (mirrors the event loop's work/post-draw
+  split). Config section carries the new flag; --help groups it under
+  DIAGNOSTICS; clap `requires = "benchmark"` fails fast on the flag
+  alone; the bench noop-warn matrix covers the precedence shadows
+  (--bench-all / --bench-frames win dispatch).
+- **LOC refactor en route** (the fps_intent.rs precedent):
+  config/mod.rs sat at exactly the 800-line cap, so the CLI value
+  types (ColorBg, GlitchLevel, U16Range) + the explicit-bool
+  parse_true_false value_parser moved verbatim to
+  config/cli_value_types.rs with full re-exports (every existing
+  `crate::config::X` path resolves unchanged); premium.rs's report
+  emission (json/text + baseline save/compare) moved verbatim to
+  bench_cosmetics::emit_report_output so the harness and the premium
+  runner share one emission path (premium.rs 799 -> 758).
+- **Tests**: 3 new tests in test/bench/tests_bench_cosmetics.rs -
+  the clap requires-wiring, the harness measurement contract (mode,
+  message_active, hud_frames == total_frames, hud timings positive,
+  the zero-alloc tripwire < 1.0 allocs/frame, JSON field emission),
+  and the idle-fields contract for plain runs (default behavior
+  unchanged). 14 test-side CloudConfig literals gained the
+  bench_cosmetics field; the BenchReportData compile-check literal
+  gained the cosmetics field.
+- **Docs**: docs/BENCHMARKING.md - "The cosmetics harness" section
+  (usage, what is measured, the disjoint accounting, the A/B
+  protocol, the found-and-fixed allocation story); the Z-6 spawn.rs
+  comment notes the harness exception; hud module is pub(crate) so
+  the bench can drive the production HudState (not a re-implementation).
+- **Verification**: fmt + clippy --all-targets -D warnings clean;
+  targeted suites green (tests_bench_cosmetics 3, msg_fill 135, hud
+  84, message 58, bench_report 6, glitch 27, color_bg 9, clap 13,
+  parse_true_false, u16); LOC guards OK (config/mod.rs 740,
+  bench files all under cap); docs-audit + stale-hunt clean; local
+  smoke runs: message_active true, hud timings populated, allocs/frame
+  0.0006 (was 1.0006 pre-fix). The 10s release-profile A/B
+  (plain vs cosmetics, matrix scene) runs post-commit per protocol and
+  is recorded in benchmark/HIST_BENCH.md.
+
+### boost: NIGHT-boost-6 — cross-doc stale-data sweep: 23 flat-path citations repointed at the post-reorg script homes, the half-stale NIGHT-lts-1 debt record made truthful, HUD.md post-NIGHT-perf-1 mechanism drift repaired
+
+- **Change**: owner mandate (2026-09-24) — stale/outdated data and
+  info across cross docs and commented code removed or repointed.
+  The scripts reorganization (flat `scripts/*.sh|py` → `gates/`,
+  `audit/`, `build/`, `bench/`, `harness/`, `release/`, `setup/`) and
+  the NIGHT-lts-2 build.sh split left citations behind: docs-audit
+  flagged 8 (7 in the Unreleased CHANGELOG body + the
+  `scripts/run_scaling_benchmarks.py` ref in benchmark/HIST_BENCH.md,
+  now `scripts/bench/`), and a manual existence sweep over every
+  `scripts/X.sh|py` mention in the live corpus caught 6 more that the
+  audit's history-context exemption had accidentally absorbed (the
+  words "Removed"/"removal" in nearby prose about a different subject
+  exempted run-it citations: `scripts/inject-disclaimer.sh` x2,
+  `scripts/check-ci-path-filters.py`, `scripts/generate-release-notes.sh`
+  x2, `scripts/visual-mode-audit.py` — all repointed at their current
+  homes). In total 23 flat-path mentions were repointed or
+  deliberately history-framed.
+- **Stale-info repairs beyond paths**: the NIGHT-lts-1 debt record
+  claimed "two scripts exceed the cap today" — half-stale since
+  NIGHT-lts-2 paid the build.sh half; it now records the split as
+  paid and names depthbore.py (1514 lines) as the one live LOC_EXEMPT.
+  The NIGHT-boost-4 `calculate_jobs()` citation now carries both homes
+  ("previously in the flat scripts/build.sh, since the NIGHT-lts-2
+  split in scripts/build/lib/common.sh"). docs/HUD.md carried
+  post-NIGHT-perf-1 mechanism drift: the "Instant palette refresh"
+  section still quoted the pre-chroma "4 brighten_color calls ≈ 2 µs"
+  cost and an unconditional "runs every frame" recompute; it now
+  documents the `Cloud::palette_gen` early-return gate (steady frames
+  pay one integer compare) and the cid: line description says the
+  color refreshes when the palette generation changes.
+- **Commented-code verification**: stale-hunt over src/ + test/
+  reports 0 stale flags/paths/modules (the 223 duplicate-comment
+  groups are the intentional mirror-test narration); .sh/.py comment
+  surfaces hold only usage examples; no old flat paths anywhere in
+  scripts/, workflows, or pgo-runner comments.
+- **Kept by design (adjudicated)**: the section-2 intentional-history
+  register is untouched (ENDURANCE/RELEASE_GUARD/RULES/
+  THREE_DRAGON_ENGINES removed-script mentions, the
+  never-committed `ab_compare_nr7_dna.py` record, the
+  illustrative `scripts/example*.sh` names, and the two
+  deliberately history-framed then-flat `scripts/build.sh`
+  mentions this pass added).
+- **Verification**: `python3 scripts/audit/docs-audit.py` — all four
+  sections clean over the 56-file live corpus; a scratch existence
+  sweep over every `scripts/X.sh|py` mention in the live corpus now
+  resolves everything except the adjudicated history register;
+  stale-hunt 0; markdownlint clean on both touched files. Docs-only
+  change — no benchmark run (owner rule).
+
+### refactor: NIGHT-lts-2 — build.sh de-monolithed: the 2187-line single-entry orchestrator split into 7 sourced lib/ modules; the NIGHT-lts-1 LOC_EXEMPT debt is paid
+
+- **Change**: owner-approved follow-up to the scripts LOC hard limit
+  (NIGHT-lts-1 tracked the split as "a standalone risk-balanced task"
+  in build.sh's LOC_EXEMPT marker). `scripts/build/build.sh` was 2187
+  gross lines — 2.2x the 1000-line cap — carrying dispatch, arg
+  parsing, logging, the build commands, every check command, the help
+  text, version-sync, Miri and the full PGO pipeline in one file. It
+  is now a 282-line entry (header, `set -euo pipefail`, SCRIPT_DIR
+  resolution, the seven `source` lines, option-state init + arg-parse
+  loop, `main()` dispatch) plus seven function-library modules under
+  `scripts/build/lib/`: `common.sh` (logging, colors + QUIET_CHECK
+  gate, toolchain check, build-cache detection, hardened RUSTFLAGS,
+  shared readonly config), `builds.sh` (debug/release/release-debug
+  builds, update, clean, stats, bench, verify-release),
+  `quality.sh` (fmt, clippy, tests, cross-platform, every gate-check,
+  check-all/quick aggregates), `help.sh`, `version-sync.sh`,
+  `miri.sh` (stamp contract, status banner, nightly runner) and
+  `pgo.sh` (the 3-stage instrument/train/optimize pipeline). The
+  LOC_EXEMPT marker is removed — check-scripts-loc now enforces the
+  cap on build.sh like every other script; the debt is closed, no
+  guard-side list edits were needed (the marker travelled with the
+  file, as designed).
+- **Risk control (behavior-identical split)**: the split was performed
+  mechanically, not hand-copied — every function body is a byte
+  identical line-range move from the former monolith, verified by a
+  reconstruction check (coverage, contiguity, quote-site count,
+  directive count). Two inert transformations are the only content
+  changes inside moved bodies: 16 unquoted `${QUIET_CHECK}` reads in
+  the check family are now quoted (arithmetic-context quoting is
+  behavior-identical; it restores the zero-findings shellcheck state
+  the single file had because the assignment lived in the same
+  translation unit), and 11 `# shellcheck disable=SC2034` directives
+  with per-site justifications document the cross-file state contract
+  (8 option vars assigned in the entry and read by lib/pgo.sh +
+  lib/miri.sh + lib/common.sh; PROJECT_NAME and NEXTEST_AVAILABLE in
+  lib/common.sh read by other modules), plus one file-level SC1091
+  disable in the entry (lib modules are analyzed standalone by
+  design). Sourcing happens before option parsing; lib files contain
+  only function definitions and static readonly constants, so
+  execution semantics are unchanged (definitions are inert; the only
+  top-level code still runs in the entry, in the original order).
+- **Verification**: functional A/B against the pre-split script on
+  identical commit + machine — `help`, `version-sync`, `stats`, the
+  unknown-command and extra-argument error paths, `--filter` without
+  argument, `--quiet` gating, and the full `check` command (fmt +
+  clippy, cargo output) are byte-identical modulo cargo timing lines;
+  invoked from a non-project CWD both variants reject identically.
+  bash -n, shellcheck 0.10.0 (zero findings, matching the monolith's
+  zero-findings state) and shfmt v3.12.0 -d (no diff) pass on the
+  entry and all seven modules — the same shell triad the
+  cosmic-dragon-guard CI job runs. gate-keepers 17/17 with shellcheck
+  and shfmt installed locally (previous runs skipped them as
+  missing): scripts LOC guard now passes with NO exemption on file.
+  `check-all -q` hit the 2-minute local budget during the cold
+  test-profile compile and was killed per protocol; tests,
+  cross-platform checks and audit remain CI's job. No benchmark run:
+  the change touches build tooling only — the shipped engine binary
+  compiles from identical Rust sources, so a bench A/B would compare
+  the same binary against itself.
+- **References**: `scripts/README.md` build/ row now documents the
+  lib/ modules (single canonical layout reference); every doc that
+  names build.sh commands (`docs/MAINTENANCE.md`, `docs/RULES.md`
+  validation block, CI workflows, pgo-runner) is unchanged because
+  the entry point path and the full command surface are identical.
+
+### perf: NIGHT-perf-1 — depth performance audit: message-overlay zero-alloc (6 scratch buffers), HUD per-frame work gates (palette_gen + compare-first setters), phase-predictor FFI skip, head-bloom LUT, per-line rain-shadow LUT
+
+- **Message overlay: 6 per-frame heap allocations hoisted** —
+  `draw_message` allocated `pulse_factor`/`pulse_color` (message.len),
+  `halo_factor`/`halo_color` (cols), `alive_pulses`
+  (with_capacity) and `slide_cells` (Vec::new) EVERY frame while a
+  `-m` message was displayed — invisible to `--benchmark` because
+  bench mode skips the message path, so the bench's clean 0.0142
+  allocs/frame counter never saw them. All six are now Cloud scratch
+  fields with the established Z-5 clear()+reuse contract (the
+  pulse/halo arrays resize-in-place; the alive-pulse drain now swaps
+  two persistent Vecs; slide_cells is taken, drained, and returned).
+  Zero allocs per message frame after the first.
+- **HUD identity setters gated**: `set_custom_palette_name` allocated
+  and dropped a fresh String EVERY frame with `--colors-custom` active
+  (even HUD-hidden); `set_scene_name`/`set_charset_preset` re-copied
+  up to 58 UTF-8 chars per frame. All three now compare the truncated
+  forms first and only copy on an actual change (values change on
+  keypress / live-reload, not per frame).
+- **HUD chroma gradient: palette-generation counter** —
+  `refresh_colors` recomputed the 25-stop gradient (interpolations +
+  HSV brightens, ~1-3 microseconds) every visible frame. Cloud now
+  carries `palette_gen: u32`, bumped at the single palette choke
+  point `apply_new_palette` (set_color_scheme, set_palette,
+  live-reload rebuilds, ambient drift and scene-runtime switches all
+  funnel through it); the HUD recomputes only when the generation
+  changes. First refresh always computes (None sentinel).
+- **Phase-predictor wall-clock FFI gated**: `begin_frame` called
+  `local_secs_since_midnight()` (time(NULL) + localtime_r,
+  ~100-300ns) every frame, yet `predicts_active` returns None until
+  two phase transitions are observed — most sessions never use the
+  value. New `PhasePredictor::is_trained()` short-circuits the FFI
+  (and refactors `predicts_active`'s own guard onto the same
+  predicate).
+- **Head-bloom exp() replaced by a LUT** — the gaussian
+  `exp(-d^2/2sigma^2)` per bloom-eligible Middle cell is now a
+  LazyLock table over the fixed `1..HEAD_BLOOM_CELLS` range (same
+  pattern as TRAIL_EXP_LUT). Equivalence pinned by test.
+- **Rain-shadow per-cell call replaced by a per-line LUT** —
+  `rain_shadow_factor(line, lines)` recomputed its threshold (float
+  multiply + cast) and quadratic fade per CELL; the factors are
+  line-only, so `rain_shadow_lut: Vec<f32>` is built on resize in
+  Cloud::reset alongside edge_fade_lut and threaded through DrawCtx
+  (`ctx.rain_shadow(line)`), mirroring the edge-fade/vignette LUT
+  lifecycle. Equivalence pinned by test for every line.
+- **HUD row width: chars().count() hoisted** — the padding pass
+  re-scanned each row's full UTF-8 per frame; the write loop now
+  captures the written length as it goes (overflow-truncation case is
+  provably equivalent — the padding loop breaks at the same column).
+- **Deliberately NOT changed** (audit findings, LTS-first decisions):
+  the SGR cache hit/miss atomics stay AtomicU64 — they feed
+  `--perf-stats`, and Cell would trade a documented thread-safety
+  margin for ~1 microsecond; TraceAlloc stays always-on (exit-report
+  observability); the 500 microsecond frame-spin budget and the ~3
+  crossterm polls/frame remain (measured tradeoffs, documented); the
+  12x per-cell `is_chroma()` branch symmetry stays (branch-predictor
+  friendly, kept for audit symmetry).
+- **Verification**: 6 new regression tests pin every equivalence
+  (LUT values vs formulas, palette_gen bump contract, scratch
+  capacity reuse across draws, is_trained precondition) — full inline
+  suite 2974 passed / 0 failed; cargo fmt + clippy clean incl. the
+  x86_64-pc-windows-gnu cross-target (`-D warnings`); gate-keepers
+  21/21; build.sh check-all -q green in the 2-minute local budget
+  (cargo-audit left to CI — local install exceeded the energy
+  budget). Bench A/B (matrix + monolith, 10s) run post-commit per
+  protocol.
+
+### lts: NIGHT-ultimate-1 — depth security/LTS audit: SIGCONT double-teardown (P0), adaptive watchdog threshold, screen-size clamp, signal-install surfacing, wedged-cleanup exit code
+
+- **P0 fix — SIGCONT reinit double-teardown**: on Ctrl+Z the suspend
+  handler restores the terminal via raw-fd writes (bypassing the
+  `Terminal` struct's flags), and on `fg` the event loop assigned a
+  fresh `Terminal` into `ctx.term`. Rust drops the overwritten value
+  only AFTER the assignment's RHS succeeds, so the old value's
+  `Drop` ran after the replacement had already entered raw mode +
+  alt screen — and its `cleanup_terminal()` emitted
+  LeaveAlternateScreen + disable_raw_mode + cursor Show, silently
+  undoing the reinit. Post-Ctrl+Z/fg sessions rendered on the MAIN
+  screen in cooked mode (echoed keys, shell overwritten). Fixed with
+  `Terminal::mark_externally_restored()` (flips every enable-flag +
+  `cleaned_up` to mirror the external restore) called before the
+  reassignment; `Drop` now also skips the shutdown-guard thread spawn
+  for an already-neutralized value (no 2s sleeper thread leaked per
+  suspend/resume cycle). docs/TERMINAL_LIFECYCLE_MATRIX.md sections
+  5/6 still documented the pre-NIGHT-termux-hang design ("no custom
+  SIGTSTP handler", "no restoration needed") — rewritten to match
+  the handler + reinit flow that actually ships.
+- **Watchdog false-kill at --fps 1**: the stuck-loop check killed the
+  session after one 1s sample without frame progress, but `--fps 1`
+  is a legal cadence with a 1.0s frame period (power manager floors
+  effective fps at 1.0) — zero margin. The threshold is now adaptive:
+  ceil(3 / target_fps) seconds, min 1s (fast sessions keep the 1s
+  detection latency; --fps 1 gets 3s), retuned by
+  `PowerManager::new` + `set_target_fps` so live-reloaded fps values
+  stay in lockstep (`note_target_fps` re-exported at the interactive
+  facade; unit test pins the formula incl. NaN/0 clamping).
+- **--screen-size clamp**: the parse range spans u16 (up to
+  65535x65535) and Frame/Cloud clamp their own buffers, but the raw
+  (w, h) flowed unclamped into ctx dims, `effective_density()`, and
+  the HUD readout — the HUD reported 5000x3000 behind a 1024x500
+  grid. Clamped once at setup, mirroring `Terminal::size()`.
+- **Signal-install failures surfaced**: both `Signals::new` failures
+  (graceful SIGTERM/SIGHUP/SIGQUIT source, SIGTSTP/SIGCONT source)
+  were silently swallowed — the session degraded to default-kill
+  SIGTERM and Ctrl+Z-without-restore with no diagnostic. Both now
+  emit a pre-alt-screen stderr warning + an AB-10 buffered runtime
+  warning (drained post-exit); the watchdog/fork-guard backstops and
+  the independent second source are unaffected.
+- **Wedged-cleanup exit code**: the shutdown-guard thread in
+  `Terminal::drop` force-exited with 0 after the 2s budget — telling
+  monitoring scripts a wedged cleanup was success. It now preserves
+  the live-reload fatal code (2) when set and exits 1 otherwise (any
+  guard firing is abnormal termination by construction).
+- **P2 hardening (all verified)**: build.rs `normalize_short_sha`
+  byte-sliced before the hex check — a multi-byte-UTF-8 `GITHUB_SHA`
+  panicked the build script at a non-char-boundary; now `get(..n)`
+  falls through like any non-hex value. Two
+  `scene_custom` `.expect()`s on `split_once`/`rsplit_once` (guarded
+  today only by parallel guards in `is_*_config_key`) and the
+  live-reload watcher's `.expect("checked is_err above")` replaced
+  with let-else/match so no future refactor can turn them into
+  config-file-triggerable panics. `drain_config_events` returned
+  `true` unconditionally while its doc + caller expected `false` on
+  validation-fatal — the code now honors the contract and breaks the
+  loop immediately instead of rendering one extra frame. The
+  full-redraw loop gained the O(1) `debug_assert!` (last-frame dims
+  match frame dims) that the diff path already had.
+  SECURITY_AUDIT.md section 3 gained the symlink-scope note (lexical
+  whitelist by design; planting a symlink inside the user's own
+  config dir already implies stronger primitives).
+- **Verification**: full inline suite 2968 passed / 0 failed (incl.
+  the new threshold test); cargo fmt + clippy clean; gate-keepers
+  21/21 green; `build.sh check-all -q` green inside the 2-minute
+  local budget. The SIGCONT fix is language-semantics-verified (drop
+  ordering) + guard-rail-verified via the cleaned_up early-return;
+  interactive Ctrl+Z/fg smoke on a real terminal remains with the
+  owner's environment.
+
+### refactor: NIGHT-refactor-1 — scripts/ de-flattened: every script now lives in a category directory (build/gates/release/audit/bench/harness/setup)
+
+- **Change**: owner mandate (2026-09-24) — the 34 flat scripts under
+  `scripts/` moved into seven category directories by job: `build/`
+  (build.sh, ci-strict-build.sh, resolve-latest-ndk.py), `gates/`
+  (gate-keepers.sh + the nine check-* guards + inject-disclaimer.sh),
+  `release/` (version-to.sh, rust-version-to.sh, bump-rust-to.sh,
+  generate-release-notes.sh, verify-release-build.sh), `audit/`
+  (docs-audit.py, stale-hunt.py, language_audit.py, emoji-audit.py,
+  visual-mode-audit.py), `bench/` (bench-runner.py,
+  run_scaling_benchmarks.py), `harness/` (the stress/e2e harnesses +
+  apply-visual-preset.sh), and `setup/` (install.sh, uninstall.sh);
+  the pre-existing `depthbore/` category is unchanged. The
+  `scripts/` root now contains only `README.md` and category
+  directories. `scripts/README.md` is the single canonical layout
+  reference (category table, entry points, size-policy pointer).
+- **References**: 73 live files rewritten (9 workflows — minus the
+  four that had no script references — plus scripts themselves, 21
+  live docs, README, CONTRIBUTING, src/test comment references,
+  Cargo.toml, build.rs, rust-toolchain.toml, .cargo/config.toml,
+  pgo-runner). The 618-file live corpus holds zero old-path
+  references after the sweep. Changelogs, docs/archive, docs/audits,
+  docs/research and bench-labs evidence are historical records and
+  stay as written (docs-audit's 8 broken-ref hits there are
+  history-framed by contract).
+- **Hardening found during the move (all verified)**: build.sh
+  check-all's shellcheck scope was the non-recursive `scripts/*.sh`
+  glob and ruff was `scripts/*.py` — both silently skipped every
+  subdirectory script (gate-keepers was already recursive;
+  check-all was not). Both are now recursive (find-based shellcheck
+  list, `ruff check scripts` directory arg). pgo-runner located
+  build.sh via `join("scripts").join("build.sh")` — invisible to
+  text rewrites and a silent `cargo use-pgo` breakage; fixed to
+  `join("scripts").join("build").join("build.sh")`. 12
+  self-locating scripts had their REPO_ROOT resolution deepened
+  (`/..` -> `/../..`, `$0` and `BASH_SOURCE` variants), 4 python
+  audits `parents[1]` -> `parents[2]`, and
+  run_scaling_benchmarks.py reworked to `SCRIPT_DIR.parents[1]`.
+  Seven stale glob-mentions in live docs/comments updated
+  (CONTRIBUTING shell/python rules, ABOUT_CI shfmt refresh hint,
+  TERMINAL_COMPATIBILITY scope, cosmic-dragon-guard ruff/shfmt
+  comments, check-symbol-only-output scope note); three
+  history/negation-context mentions deliberately kept.
+- **Verification**: git rename detection intact for all 34 moves
+  (100755 modes preserved); gate-keepers 21/21 green from its new
+  `scripts/gates/` home (bash -n/shellcheck/shfmt over all 35 .sh
+  files, actionlint+yamllint on the rewritten workflows, markdownlint
+  incl. the new scripts/README.md, permissions 644/755 incl. the new
+  category directories); build.sh version-sync passes end-to-end
+  through the new chain (build/build.sh -> release/version-to.sh ->
+  gates/check-rust-version-sync.sh, v100.0.3 consistent);
+  bump-rust-to.sh --help forwarder chain works; ruff directory-arg
+  and find-based shellcheck verified directly; scripts LOC guard
+  green from its new home (35 scripts, 2 exemptions); docs-audit
+  stale-path section clean; stale-hunt 0 stale references;
+  check-all -q killed at the 2-minute local budget during the cold
+  clippy compile (light checks passed silently before the kill,
+  heavy left to CI per owner rule).
+
+### lts: NIGHT-lts-1 — scripts 1K LOC hard limit: gate-keepers check 17 + check-all wiring; gatekeeper LOC-guard silent-death fix
+
+- **Change**: owner mandate (2026-09-24) — every shell and Python
+  script under `scripts/` (recursive, subdirectories included) is now
+  capped at 1000 gross lines by
+  `scripts/gates/check-scripts-loc.sh`, a faithful mirror of
+  `scripts/gates/check-rs-loc.sh` (the Rust 800 cap):
+  same `wc -l` gross-line counting, same self-declaring exemption
+  marker (`# LOC_EXEMPT:`, the shell/Python comment form of
+  `// LOC_EXEMPT:`), same fail / OK-with-debt exit semantics, and the
+  same no-hardcoded-file-list design (new subdirectories inherit the
+  cap automatically). Wired as gate-keepers.sh check 17 and as
+  `run_scripts_loc_check` in `build.sh check-all` (after
+  `run_loc_check`), so both CI guard paths (cosmic-dragon-guard and
+  the build.sh -q keystone) enforce it. Policy stated once in
+  docs/RULES.md "Scripts file size".
+- **Fix**: check 8 (Rust LOC guard) carried a latent silent-death
+  bug since NIGHT-enhanced-hunt-F — the bare top-level
+  `LOC_OUTPUT=$(bash scripts/gates/check-rs-loc.sh 2>&1)`
+  capture under
+  `set -euo pipefail` let errexit kill the gatekeeper the moment the
+  check failed, so the else-branch that was supposed to surface the
+  full per-file output was dead code and the COMMIT BLOCKED summary
+  never printed. Verified with a minimal errexit reproducer before
+  fixing. The capture now sits in the if-test position (errexit-exempt
+  by POSIX rule), so a real violation prints the VIOLATES lines and
+  the FAIL summary before the exit. Check 17 uses the same safe
+  pattern from birth. (build.sh's quiet-mode captures are unaffected:
+  its check functions are invoked as `func || ((failed++))`, which
+  suppresses errexit inside the function body — verified by the same
+  reproducer.)
+- **Debt**: two scripts exceeded the cap at the time and
+  self-declared: the then-flat `scripts/build.sh` (2140 lines —
+  single-entry orchestrator; the tracked split landed later the
+  same day as NIGHT-lts-2: a 282-line entry + seven
+  `scripts/build/lib/` modules, marker removed, debt paid) and
+  `scripts/depthbore/depthbore.py` (1513 lines then, 1514 today —
+  self-contained LTS depth-bore probe file, still the one live
+  LOC_EXEMPT). The depthbore marker carries its justification in
+  place; the remaining debt is visible in every guard run.
+- **Verification**: clean tree passes with 2 exemptions listed
+  (35 scripts scanned); a synthetic 1001-line script without a marker
+  fails with the named file and exit 1, and passes once the marker is
+  added (both paths tested, then the synthetic file removed);
+  bash -n / shellcheck / shfmt clean on the new script and both
+  patched scripts; full gate-keepers run green including the new
+  check 17 (17/17 with tools present).
+
+### docs: NIGHT-docs-1 — tell once, don't double: README + docs dedup, and the disclaimer gate now catches duplicates
+
+- **Change**: owner mandate (2026-09-24) — the same data is no
+  longer told twice. README.md: the paused-mode contract was told
+  three times (Smooth pause bullet, Runtime controls bullet, and
+  the Runtime Controls section) — the section is now the single
+  canonical telling and both feature bullets point to it; the
+  120×40 ~360-vs-4,800 (13× I/O) stat was told in both the Cosmic
+  Dragon section and the Architecture list — it stays in the Cosmic
+  Dragon section and the Architecture item points up; the
+  0.0/~1.1 allocs numbers were told in both Philosophy and the
+  Features bullet — Philosophy keeps them; the ~100K avg_fps
+  measured setup (2-vCPU cloud Xeon, pro-linux build, headless dry
+  I/O) was fully told in both Philosophy and Limitations — the full
+  provenance now lives once in Limitations and Philosophy cites the
+  figure with a pointer; Philosophy's "this is what makes the
+  cinematic effects affordable" tail (a restatement of the Cosmic
+  Dragon section's claim) and one of two consecutive
+  identical "Invariant tests lock the engine's contract" bullets
+  were dropped. docs/BENCHMARK_ADVANCED.md no longer inlines the
+  full /etc/tmpfiles.d/rapl.conf block — RAPL_ACCESS.md Method 2
+  is the single canonical copy (the pointer already existed; the
+  inlined config was the duplicate).
+- **Fix**: docs/LIVE_RELOAD_BEHAVIOR.md carried the disclaimer block
+  TWICE — a stray hand-pasted unmarked copy above the injected
+  marker. The injector's --check verified marker presence, not
+  uniqueness, so the duplicate survived every gate. Removed, and
+  scripts/gates/inject-disclaimer.sh hardened: it now counts the
+  "Documentation Disclaimer" header line per file (exactly one
+  required, marker-adjacent or not) and fails with a named-file
+  DUPLICATE error in both check and inject mode — the failure class
+  cannot silently recur.
+- **Verification**: synthetic test — appending a second disclaimer
+  header to docs/FAQ.md fails the hardened injector with exit 1
+  ("DUPLICATE disclaimer (2 copies)") naming the file; clean tree
+  passes (214 .md files). bash -n / shellcheck / shfmt clean on the
+  patched injector. Sentence- and shingle-level duplicate sweeps
+  over the 55-file live corpus confirm no other cross-file or
+  within-file data duplication remains (per-record protocol
+  headers in BENCHMARKING.md, per-dependency table-cell values in
+  DEPENDENCY_AUDIT.md and per-issue closing refrains in
+  TERMINAL_COMPATIBILITY.md are structure, not data duplication).
+  README tripwires (tagline, install tag) untouched and green;
+  docs-audit.py 0/0/0/0; gate-keepers green. check-all -q killed
+  at the 2-minute local budget on the cold cache (fmt passed
+  before the kill; clippy/test left to CI per owner policy).
+
+### build: NIGHT-boost-4 — max-muscle job calculation: every build uses 100% of detected cores
+
+- **Change**: owner mandate (2026-09-24) — `calculate_jobs()`
+  (previously in the flat `scripts/build.sh`, since the NIGHT-lts-2
+  split in `scripts/build/lib/common.sh`) returns all detected
+  cores (4-core machine =
+  4 parallel jobs), dropping the former 75%-of-cores / max-8
+  "heat control" throttle that silently under-used both CI runners
+  and workstations. The throttle was the single remaining core cap
+  in the project: every CI job that compiles already runs at full
+  core count (the seven ci.yml/release.yml build jobs set
+  `--jobs` from `getconf _NPROCESSORS_ONLN`/`nproc`/`sysctl
+  hw.ncpu`, the FreeBSD job from `hw.ncpu`, and cargo's own default
+  — used by test_partitions, fmt_clippy, msrv, crates-io publish
+  and CodeQL autobuild — is all logical CPUs). The build.sh path
+  was the exception: it throttled the miri.yml workflow (build.sh
+  miri) and the release.yml PGO nitro job (build.sh pgo), the most
+  compute-heavy builds, to 75%/8. A machine that needs a thermal or
+  load cap sets `COSMOSTRIX_JOBS` explicitly (the override is
+  unchanged and remains documented). Bonus fix while verifying: the
+  header comment always claimed `sysctl -n hw.logicalcpu` was used
+  on macOS when `nproc` is absent, but the code never implemented
+  the fallback — it does now, so local macOS builds detect real
+  core counts instead of assuming 4.
+- **Verification**: `calculate_jobs()` extracted and executed on a
+  2-core host returns 2 (the old arithmetic returned 1); bash -n,
+  shellcheck, shfmt -d all clean; `--jobs`/`CARGO_BUILD_JOBS`/
+  `COSMOSTRIX_JOBS` grep across scripts/, pgo-runner/ and build.rs
+  confirms no other core cap exists. Help text updated
+  ("default: all detected cores"). No binary output change:
+  parallelism affects build wall-time only, the compiled binary is
+  identical, so the visual/perf A/B benchmark is not applicable.
+
+### ci: NIGHT-boost-5 — the build_test keystone job is displayed as "build.sh -q", the local command it mirrors
+
+- **Change**: owner mandate (2026-09-24) — the ci.yml job id
+  `build_test` (born "Test + Build (debug)"; tests moved to
+  test_partitions in NIGHT-perf-2, leaving the compound name stale)
+  is now displayed as "Cosmic Dragon Guard - build.sh -q" so the
+  Actions UI names the canonical local verification entry point:
+  green on this job means the tree compiles clean under
+  `-D warnings`, the same contract
+  `./scripts/build/build.sh check-all -q` verifies locally. The job
+  id is unchanged — the six downstream
+  `needs: build_test` references are untouched. Caveat recorded in
+  the ci.yml comment and below: required status checks key on the
+  display name, so any branch-protection rule pinned to the old
+  "Build (debug)" name needs a one-time update.
+- **Verification**: pure display-name change — job graph, steps,
+  commands and triggers byte-identical (yaml structure diff-checked:
+  only the `name:` line and its comment block changed). No other
+  job, workflow, doc table, script or test references the old
+  display name (repo-wide grep; CHANGELOG history entries are a
+  historical record and stay). docs/workflow/ABOUT_CI.md documents
+  the naming in one place.
+
+### cli: NIGHT-boost-3 — --verbose implies the full session telemetry (exit performance report); one flag, complete debugging instrument
+
+- **Change**: owner mandate (2026-09-24) — `-v/--verbose` is critical
+  infrastructure for matrix-rain debugging, not a config dump: one
+  flag now covers the complete debugging arc — config at startup
+  (the existing dump), behavior during the run (the verbose-gated
+  self-heal diagnostics), and telemetry at exit. New
+  `build_cloud_cfg::effective_perf_stats` resolves the flag:
+  `--verbose` implies the per-frame performance accounting (drawn/idle
+  frames, dirty cells, work time, pressure, utilization) AND the exit
+  PERFORMANCE REPORT (timing, frames, motion/dirty-cell stats,
+  backpressure, terminal encoding stats) that `--perf-stats` prints.
+  Benchmark mode is excluded — it emits its own comprehensive report
+  and would only double-report (`bench_helpers` warns on the explicit
+  flag for the same reason). The most valuable debugging artifact a
+  verbose session produces — what the engine actually DID, not just
+  what it was configured to do — was previously buried behind a
+  second, hidden flag.
+- **Disclosure**: the startup dump gains a `perf_report:` line in the
+  Config section (before `commit:`) stating the resolved state and
+  its provenance — "enabled (implied by --verbose; full session
+  telemetry at exit)" / "enabled (--perf-stats; ...)" / "disabled
+  (benchmark mode emits its own report)" — computed from the same
+  inputs as the resolution so the label and the behavior cannot drift
+  apart. clap's `-v` help string, the --help manual (-v section +
+  --perf-stats section), and the README flag table now document the
+  implication from both ends.
+- **Verification**: 7 new tests — 6 truth-table rows pinning every
+  arm of `effective_perf_stats` (explicit alone, verbose interactive,
+  verbose bench, explicit bench, neither, both) and 1 help-text
+  tripwire asserting both manual sections disclose the contract.
+  Full suite 2967 passing. End-to-end pty runs of the real binary:
+  `-v --duration 2` shows the disclosure line + the final FPS line +
+  the full PERFORMANCE REPORT; `--perf-stats` alone reports without
+  the verbose dump; `-v --benchmark` prints the bench report with
+  zero interactive reports and the honest "disabled" disclosure; a
+  plain run prints neither. fmt / clippy `-D warnings` /
+  build.sh check-all -q / gate-keepers 14/14 green.
+
+### cli: NIGHT-boost-2 — --help example lines render bold Matrix green; `#` annotations moved above their example
+
+- **Change**: owner mandate (2026-09-24) — the `--help` reference
+  manual's example usage CLI lines (every indented `cosmostrix ...`
+  invocation: the USAGE line, the COMMON OPTIONS examples, the inline
+  6-space examples, and the 8-space `--dump-config` block) now render
+  in bold Matrix green instead of bold white, so runnable commands are
+  visually distinct from option definitions (bold white) and section
+  headings (bold brand purple). The green is the default Green theme's
+  body stop (80, 255, 110) from the chroma catalog, quantized per
+  terminal capability (truecolor RGB / 256-color index 84 / ANSI green
+  32 / plain on mono) — the same four-rung ladder as the brand purple.
+  The help colorizer (`config/colorize_help.rs`) now wraps the whole
+  example line (previously only the binary name was bold), and its
+  green-open helper is capability-parameterized for deterministic unit
+  testing. The `#` annotation comments that annotated examples as
+  misaligned right-side comments (drifting away from their command at
+  every terminal width) moved to a line ABOVE their example — 11
+  annotations across the color, color-tune, charset, and dump-config
+  entries; position, not color, marks them as commentary (they stay
+  plain).
+- **Refactor**: the manual text moved from a `print_help` local to the
+  module-level `HELP_TEXT` constant (`cli/help_detail.rs`) so the new
+  layout-contract tests can assert on it directly. No output change:
+  `print_help` prints the same string through the same colorize path.
+- **Verification**: 7 new unit tests — 5 in `colorize_help.rs` (green
+  capability ladder, whole-line green wrap at all three indent levels,
+  prose-mention non-match, annotation passthrough, unchanged
+  heading/flag styles) and 2 layout-contract tests in `help_detail.rs`
+  (no right-side `#` comment on any example line; annotations sit
+  directly above their examples). Full suite 2960 passing. End-to-end
+  pty run of the real binary (TERM=xterm-truecolor, NO_COLOR/CLICOLOR
+  cleared) byte-verified 8/8 checks: exact green-open + verbatim body +
+  reset wrapping on example lines at every indent, plain annotations
+  above their green examples, and prose mentions left untouched.
+
+### ci: NIGHT-boost-1 — glob-only CI path-filter policy codified as gate-keepers check 16
+
+- **Change**: owner mandate (2026-09-24) — workflow `paths:` /
+  `paths-ignore:` entries that point inside a directory must be
+  directory globs (`scripts/**`, `src/**`, `docs/**`), never hardcoded
+  filenames (`scripts/example.sh`): a filename entry silently rots the
+  moment the file is renamed and the workflow stops triggering while
+  the filter still looks alive (the 2026-09-13 `test/**` filter
+  incident class). Full-repo audit found zero existing violations
+  (every entry across the 9 workflows is glob-form or an exempt
+  root-level build file), so the mandate is codified as a permanent
+  gate: new `scripts/gates/check-ci-path-filters.py` (indentation-aware
+  block scanner, root-level entries exempt), wired as gate-keepers
+  check 16. The `cosmic-dragon-guard.yml` check inventory comment was
+  synced (check 15, the emoji sweep, was stale-missing) and the policy
+  documented in `docs/workflow/ABOUT_CI.md`.
+- **Verification**: synthetic-violation test (a scratch
+  `scripts/example-wrong.sh` entry) fails with exit 1 naming the entry
+  and suggesting the glob; clean state passes all 9 workflows;
+  gate-keepers 14/14 green; clippy `-D warnings` clean.
+
+### security: NIGHT-security-4 follow-up — hard refuse `--check-update` at euid 0: network egress denied at root (exit 2)
+
+- **Change**: owner follow-up — the NIGHT-security-4 warning alone left
+  the root network fetch alive: `sudo cosmostrix -v --check-update`
+  still ran the full curl/wget spawn with uid 0 privileges after the
+  warning. The guard is now two-tier: LOCAL surfaces (interactive
+  loop, config, `--version`, `--doctor`, `--help`, benchmark) stay
+  advisory — container defaults legitimately run as euid 0 — while
+  NETWORK egress, the one root surface with no legitimate container
+  case, hard-refuses. At euid 0 the `--check-update` dispatch arm
+  (`cli/early_returns.rs`, the sole caller of
+  `platform/update.rs::check_update`) emits one stderr refusal block
+  and exits 2 (the `cli/ux.rs` fatal-CLI contract: every fatal CLI
+  error exits 2) BEFORE any curl/wget spawn — stdout is never touched
+  and no fetcher process is ever created. No override exists: no
+  flag, no env var. Forced-root environments check releases from a
+  user shell or the manual releases URL. `sudo -u <user>` targets
+  (effective UID non-zero), regular users, and non-Unix platforms are
+  unaffected.
+- **Docs**: `docs/SECURITY_AUDIT.md` section 11 updated to the
+  two-tier runtime-guard contract (advisory local / hard-refused
+  network), risk item 2 marked closed, forced-root mitigation item 3
+  marked enforced, honest limits refined. Exit-code row added to
+  `docs/USAGE_PIPE_REDIRECT.md`; README Requirements and
+  `docs/SYSTEM_REQUIREMENTS.md` root bullets updated for accuracy
+  (cite-only, NIGHT-docs-8 tell-once).
+- **Verification**: 6 new unit tests in `root_guard.rs` (refusal
+  headline contract, no-override hard-refuse tripwire, correction +
+  manual-URL alternative, canonical-doc citation, 80-column
+  formatting, exit-code contract); simulated-root build (temporary
+  euid-0 patch, reverted) verified `--check-update` exits 2 with zero
+  stdout bytes and zero fetcher spawn after the warning block;
+  non-root run verified unchanged (exit 0, clean stderr, normal
+  report).
+
+### security: NIGHT-security-4 — root-usage guard: loud stderr warning when running as root (euid 0), plus the canonical "Running as Root" policy
+
+- **Change**: owner report — `sudo cosmostrix -vV` and `sudo cosmostrix
+  --check-update` ran silently: the config path switched to
+  `/root/.config/cosmostrix/config.toml` and the update check performed
+  its network fetch with uid 0 privileges, with zero indication that
+  the trust boundary had changed. Root execution is a wrong use case:
+  cosmostrix is designed for regular (non-root) users. New
+  `src/platform/root_guard.rs` reads the effective UID via
+  `libc::geteuid()` (same libc-FFI family as `clock/posix_time.rs`,
+  SAFETY-commented, no new dependency — libc is already the unix
+  target-gated dependency) and, on every euid-0 invocation, emits one
+  warning block to stderr: after argument parsing (clap error output
+  stays clean) and before any command output, so `--version`,
+  `--check-update`, `--doctor`, `--help`, benchmark, and the interactive
+  loop are all covered. stdout is never touched — piped output stays
+  clean. Advisory, never blocking: container defaults legitimately run
+  as euid 0, and `sudo -u <user>` targets (effective UID non-zero)
+  correctly do not warn. Non-Unix (Windows) is a no-op stub — no euid,
+  no root concept. Warning text pins the doc pointer as a contract:
+  it cites `docs/SECURITY_AUDIT.md` "Running as Root" exactly once
+  (NIGHT-docs-8 tell-once rule).
+- **Docs**: `docs/SECURITY_AUDIT.md` new section 11 "Running as Root —
+  Wrong Use Case" — the canonical policy: why root execution is
+  high-risk (root-owned config trust, network fetch in the root trust
+  domain, uid 0 terminal escape output on shared sessions, root-owned
+  `--dump-config`/`--save-baseline` artifacts), the runtime guard
+  contract, forced-root mitigation guidance (drop back to a user,
+  container/sandbox, never `--check-update` as root), and honest limits
+  (unix-only, advisory-not-blocking). Cite-only pointers added to
+  README Requirements and SYSTEM_REQUIREMENTS "What's NOT Required" —
+  policy text lives in SECURITY_AUDIT.md alone.
+- **Verification**: 5 new unit tests in `root_guard.rs` (headline
+  trigger contract, canonical-doc citation, non-root-design teaching,
+  80-column formatting, cross-platform callability); manual
+  non-root run verified warning-free with clean stderr; simulated-root
+  build (temporary euid-0 patch, reverted) verified the full warning
+  block renders before command output with stdout untouched.
+
+### docs: NIGHT-docs-8 — usage deduplication across README and living docs (tell once, don't double)
+
+- **Change**: owner report — README.md carries duplicated usage info,
+  and the duplication crosses `*.md` files ("tell once don't double,
+  not just one docs but cross *.md and all existing files"). Audit
+  method: distinctive-string sweeps (checksum/GPG commands, wet-I/O
+  explanation, report-field lists, whitelist directories, recovery
+  phrasing, runtime-control tables) across the 55-file live corpus
+  (archive/research/audit snapshots excluded per the docs-audit
+  corpus rules). Findings and fixes:
+  (1) README Installation re-stated the full three-checksum command
+  block and the whole GPG key-import/verify subsection that
+  docs/VERIFY_RELEASE.md already documents — replaced with a compact
+  verify pointer (the quick install flow keeps one inline SHA-512
+  check); (2) README Benchmarking duplicated the wet-I/O explanation,
+  the `--bench-scene` lean/production-draw table, the report-field
+  inventory, and the strict-validation note from
+  docs/BENCHMARKING.md — slimmed to the honesty lines plus one quick
+  command and a mode-catalog pointer; (3) README Runtime Controls
+  enumerated the 19-line HUD metric list and the five-line paused
+  contract that docs/HUD.md owns, and the key table itself carried a
+  literal double entry (`Up / Down Speed` listed twice, `X` split
+  into its own row) — table deduped and metric/pause details now
+  point at HUD.md; (4) docs/RULES.md re-enumerated the config path
+  whitelist directories — now cites the README Configuration section
+  as the single enumeration site plus the safepath source, with the
+  tell-once rule recorded for contributors. Scope honesty: index
+  one-liners (docs/README.md), audit-evidence tables
+  (SECURITY_AUDIT.md, SCREENSAVER_MODE.md), issue workarounds
+  (KNOWN_ISSUES.md), and historical snapshots (archive/**) reference
+  the same facts in their own context and were deliberately left —
+  they are navigation or evidence, not usage re-telling. Also
+  repaired the two live-corpus broken refs docs-audit flagged in
+  CHANGELOG.md (historical moved-doc citations re-framed from "still
+  pointed at" to "previously pointed at" so the history marker
+  parses). Verification: scripts/audit/docs-audit.py fully green
+  post-edit (0 broken refs, 0 stale paths, 0 stale counts, 0 duplicate
+  candidates); README metadata guards (canonical tagline, TAG=
+  current-release install example, --list-colors pointer, demo
+  assets) all preserved. Docs-only change — no benchmark run (owner
+  rule).
+- **Verification**: docs-audit.py green across all four sections;
+  gate-keepers full suite green; no code paths touched.
+
+### audit: NIGHT-ultimate-1 — comprehensive peak audit (security / mitigation / LTS / robustness): remaining surfaces verified at peak, zero code changes
+
+- **Change**: owner umbrella request for comprehensive peak coverage
+  ("security, mitigate, LTS, and other comprehensive aspects —
+  should be complete peak"). This closes every robustness surface
+  NOT already covered by the prior dedicated audits (record:
+  `docs/audits/NIGHT_ULTIMATE_1_AUDIT_2026-09-21.md`): runtime panic
+  paths, integer division/modulo, narrowing casts, unsafe-block
+  soundness, and allocation explode-at-the-limit guards. Method:
+  automated runtime-vs-test classification of every panic-adjacent
+  token across all 303 files under `src/` (brace-matched
+  `#[cfg(test)]` region tracking), then site-level reads of every
+  surviving runtime candidate. Verdict: everything is already at
+  peak — of 222 runtime panic-class hits, ~170 are compile-time
+  `const _: () = assert!` physics locks (the hardening technique
+  itself), the rest are infallible `Uniform` range constructions,
+  dev-build-only `debug_assert!` tripwires, predicate-gated expects
+  (`scene_custom` split_once behind `is_profile_config_key`'s
+  identical split), dispatch-gated expects (`run_bench`'s
+  `bench_frames` behind the `if let Some` dispatch arm), flow
+  invariants ("set above" / "checked above"), a set-union structural
+  unreachable, and a boot-time static-table fail-fast. Zero
+  literal-zero divisors exist anywhere in runtime code; every
+  variable divisor is guarded by the family-wide
+  `find_inactive_*` len==0 early-exit contract (verified
+  member-by-member across quasar/physarum/lorenz/solar-flare/
+  dna-helix/neural/aeolian/dragon/flux/vortex/black-hole/infall),
+  loop-range guards (monolith), explicit zero guards (neural
+  `wire_dst`), `.max(1)` floors, or validated/constant divisors.
+  All narrowing casts are validation-gated, saturating, bounded, or
+  modulo-bounded; the three unsafe blocks (allocator trace, fork
+  guard, sysctl) are SAFETY-documented and sound, with the fork
+  guard covering the fork-vs-prctl race and kernel reparent window;
+  allocation sizing is clamped at both ends (floor
+  `MIN_TERMINAL_COLS = 1`, interactive 1024x500 cap, bench 8K
+  ceiling via the Frame constructor and mirrored on reset). Per the
+  owner's audit-if-peak-skip rule, zero over-engineering was
+  applied: no dead `ok_or` plumbing on unreachable-by-predicate
+  expects, no `checked_div` on already-guarded hot loops, no
+  restructuring of compile-time locks. Docs-only change — no
+  benchmark run (owner rule).
+- **Verification**: automated classifier (1,354 test vs 222 runtime
+  hits) plus source-level reads of every runtime candidate; no code
+  paths touched; gate-keepers full suite green.
+
+### audit: NIGHT-improve-10 / security-3 — overflow & explode-data endurance audit: all surfaces verified at peak, zero code changes
+
+- **Change**: owner request to mitigate overflow/explode-data when
+  limits are reached, for long-endurance LTS operation. A
+  surface-by-surface audit (record:
+  `docs/audits/OVERFLOW_ENDURANCE_AUDIT_2026-09-21.md`) covered
+  every counter, accumulator, buffer, time computation, and
+  floating-point drift
+  state a running session advances. Verdict: everything is already
+  at peak — per-frame integer accumulators are u64 with saturating
+  adds (shortest wrap horizon ~42,700 years at the worst documented
+  byte rate) or u32 generation counters with the wraparound-safe
+  `GEN_RESET_THRESHOLD` proactive reset (~2.1 years at 60 FPS) and a
+  lock-test-verified invariant; every session-grown container is
+  bounded (fixed 60-slot frame-time ring, `ANOMALY_MAX_ZONES` cap +
+  expiry, phosphor BitVec dedup + swap_remove, moments expiry +
+  cooldown, 64-slot deduped warning/diag logs, droplet free-list
+  recycle); the 24 h duration ceiling is enforced inside the f64
+  parser (is_finite per component and on the total — a hostile
+  `99999999h` saturates to inf and is rejected, integer overflow
+  structurally unreachable); every `Duration::from_secs_f64(1.0/fps)`
+  site is floored upstream (base fps `max(1.0)` at construction and
+  in the setter, constant pause branch, explicit drain floor,
+  non-configurable 0.5 idle const) so the inf-panic path is
+  unreachable; the entropy drift phase is wrapped (`%= 1.0`) before
+  every sin evaluation and renderer-memory pressures are derived
+  from bounded history averages, not accumulated — no f32 drift
+  state can explode over months of uptime. Per the owner's
+  audit-if-peak-skip rule, zero over-engineering was applied: no
+  u128 widening, no checked arithmetic on the hot generation path,
+  no ring-buffer restructuring of the capped warning log. Docs-only
+  change — no benchmark run (owner rule).
+- **Verification**: source-verified per surface with worst-case
+  long-session math (24 h capped paths; indefinite screensaver runs
+  elsewhere); no code paths touched; gate-keepers full suite green.
+
+### security: NIGHT-improve-8 follow-up — gesture-level selection-bypass hardening: the whole Down/Drag/Up/Moved motion family now gets zero acknowledgment plus per-event selection-clearing churn
+
+- **Change**: owner follow-up report — rendered text was still copyable
+  ("include even shift+click and any"). The re-audit found the first
+  pass covered only the anchor click of a selection gesture:
+  `is_modifier_click()` classified modified Down events, but modified
+  Drag/Up/Moved events fell through to the plain path — the hover glow
+  tracked the bypass drag (`set_mouse_position` ran before the modifier
+  check in the mouse arm), and no selection-clearing churn happened
+  while the selection extended. The predicate is now
+  `is_selection_bypass_event()` (`src/interactive/input.rs`): every
+  modifier combination on the full selection-motion family (Down,
+  Drag, Up, Moved) is a bypass attempt. The mouse arm in
+  `event_loop_mouse.rs` checks the predicate BEFORE the hover-position
+  update, so a forwarded shift+drag gesture gets zero visual
+  acknowledgment end to end (hover glow frozen, no click wave) plus a
+  full-frame redraw per bypass event — erasing freshly painted native
+  selection highlights in terminals that clear selection state on grid
+  updates, and keeping the grid churning under the whole gesture so
+  position-anchored selection copies (xterm-style: copy reads CURRENT
+  cell content) capture moving rain glyphs, not the text the user
+  highlighted. Modified scroll deliberately stays on the plain path
+  (the wheel is not a selection primitive; no spurious full redraws).
+  The honest trust boundary in `docs/SECURITY_AUDIT.md` is
+  strengthened with a two-class terminal matrix: bypass terminals
+  (mainstream default) intercept modified clicks locally and never
+  forward them — no escape sequence can revoke a terminal's own
+  selection engine, select-all, Ctrl+Shift+C, screenshots, or
+  multiplexer copy-mode, so "still able to copy" there is terminal
+  physics, not an app gap; forwarding terminals (minority; legacy
+  Windows console input is the notable case) are covered by the
+  gesture-level policy above. `docs/SCREENSAVER_MODE.md` interaction
+  table resynced to the new predicate.
+- **Verification**: `test/interactive/tests_night_improve8.rs`
+  rewritten to pin the gesture-level contract — every modifier bit and
+  combination (9 combos) on every motion kind (Down/Drag/Up/Moved),
+  a full shift+drag gesture sequence (Down -> Drag x3 -> Up), plain
+  unmodified events on all three buttons plus Moved stay on the normal
+  path, and all four scroll kinds with modifiers stay excluded;
+  `cargo fmt --check` + `cargo clippy --all-targets` clean; interactive
+  suite 221/221; gate-keepers 13/13 (fresh-clone 664 permission
+  artifacts auto-normalized to the canonical 644/755, no tracked
+  mode-bit changes); runtime surface is event-path only (render
+  pipeline untouched, steady-state frame content identical), benchmark
+  A/B recorded post-commit.
+
+### security: NIGHT-improve-8 — modified-click selection-bypass hardening: shift+click and any modifier combination produce zero feedback plus a selection-clearing redraw
+
+- **Change**: owner request to disable copy/paste — rendered text/info
+  must not be extractable, including via shift+click. The audit found the
+  copy surface already closed everywhere except the terminal's local
+  selection bypass: mouse capture is held for the entire session
+  (startup enable, SIGCONT re-assert, exit/suspend-only release), no
+  clipboard crate or OSC 52 write exists, and pasted content is
+  structurally discarded (`Event::Paste(_)` never read). The one gap:
+  modified clicks (shift+click and any other modifier combination) are
+  reserved by terminals for their local selection engine, and the
+  minority of terminals that forward them previously triggered the same
+  click-wave arm as plain clicks. Now `is_modifier_click()`
+  (`src/interactive/input.rs`) classifies every modifier combination on
+  a mouse Down as a selection-bypass attempt: zero visual acknowledgment
+  (no click wave, no idle click wake) plus an immediate full-frame
+  redraw that erases the freshly painted native selection highlight in
+  terminals that clear selection state when grid content underneath
+  updates. Plain unmodified clicks keep the exact hover/click-wave
+  behavior; modifier bits on drag/move/up/scroll kinds do not trigger
+  spurious redraws. The trust boundary is documented honestly in
+  `docs/SECURITY_AUDIT.md` (new anti-copy/interaction-surface
+  paragraph): terminal-side features (select-all shortcuts, Ctrl+Shift+C,
+  screen capture, post-exit scrollback) are outside any TUI
+  application's control — no escape sequence can revoke them.
+- **Verification**: 4 new unit tests
+  (`test/interactive/tests_night_improve8.rs`, wired in
+  `src/interactive/mod.rs`) pin the classification contract — every
+  modifier bit and combination on Down is a modifier click, plain Down
+  on all three buttons stays on the normal path, non-Down kinds with
+  SHIFT never classify; `cargo fmt --check` + `cargo clippy` clean;
+  gate-keepers full suite green; runtime surface is event-path only
+  (render pipeline untouched), benchmark run post-commit as A/B record.
+
+### ci: unify all scheduled workflow crons at 00:00 UTC (07:00 WIB) — owner call closing the decision parked by NIGHT-hunt-6
+
+- **Change**: `maintenance.yml` fired Monday 07:00 UTC (14:00 WIB) while
+  the daily `gitbot-audit.yml` already fired at 00:00 UTC (07:00 WIB) —
+  the two security bots ran 7 hours apart, and the weekly `codeql.yml`
+  (Mon 03:00 UTC) + `miri.yml` (Sun 03:00 UTC) drifted further behind.
+  All four scheduled workflows now share one clock: `maintenance.yml`
+  `0 7 * * 1` -> `0 0 * * 1` (Mon 14:00 -> 07:00 WIB), `codeql.yml`
+  `0 3 * * 1` -> `0 0 * * 1` (Mon 10:00 -> 07:00 WIB), `miri.yml`
+  `0 3 * * 0` -> `0 0 * * 0` (Sun 10:00 -> 07:00 WIB); `gitbot-audit.yml`
+  unchanged (`0 0 * * *`) with its header + cron annotation carrying the
+  WIB offset. Doc resync: the "Monday 00:00 UTC" statements in
+  `docs/workflow/ABOUT_CI.md` and `docs/SUPPLY_CHAIN.md` — left stale by
+  the `b0a70ebd` cron rotation, flagged and parked (not silently fixed)
+  by NIGHT-hunt-6 — are now true again, with the WIB offset annotated in
+  both plus 4 trigger-table rows in `docs/MAINTENANCE.md` and the
+  `miri.yml` / `codeql.yml` workflow headers.
+- **Verification**: all four `cron:` expressions re-parsed via
+  `yaml.safe_load` (`0 0 * * 1`, `0 0 * * 1`, `0 0 * * 0`, `0 0 * * *`);
+  corpus re-sweep for the old schedule strings (`0 7 * * 1`, `0 3 * * 1`,
+  `0 3 * * 0`, `Mon 03:00`, `Mon 07:00`, `Sun 03:00`, `14:00 WIB`) hits
+  only framed-historical CHANGELOG text; actionlint + yamllint clean on
+  the four edited workflows; gate-keepers full suite green; zero Rust
+  surface touched (workflows + docs only, no benchmark run required).
+
+### cleanup: NIGHT-hunt-6 (post v100.0.2) — second-sweep staleness hunt: key-details truth, CI-trigger table, dep counts, moved-doc citations
+
+- **Change**: a second, independent audit pass over axes the repo's own
+  tooling does not cover (key IDs, workflow triggers, dependency counts,
+  non-`*.md` commented code) — source files were parsed as the truth column
+  and every divergent doc line was rewritten to match reality.
+  `docs/VERIFY_RELEASE.md`: the key-details line listed `56B96F3109F4B924`
+  in the active signing set with no role; keyserver ground truth (live
+  fetch) plus `gpg --list-packets` over every published release `.asc`
+  shows it is the pre-rotation artifact subkey — it last signed the
+  v50.0.0-rc.1 artifacts and was superseded by `3C9EB25BF0407781` from
+  v80.0.0-beta.1 onward — now labeled as such (still carried on the
+  master key, expires 2028-08-14, signs nothing in the current pipeline).
+  The tag subkey role now also names maintainer git commits (verified
+  Good on a84016ac, c110affc, 6c511477, 27f7d4f5).
+  `docs/MAINTENANCE.md`: dependency line corrected from "64 direct deps /
+  98 total crates" to the real 11 unique runtime direct deps (8
+  cross-platform + `signal-hook`/`libc` unix + `ctrlc` windows; `proptest`
+  dev-only) / 105 crates in the lock; the CI/CD table rows now state the
+  real triggers (Miri/CodeQL/Security Audit also run on push/PR, not
+  cron-only; `ci.yml` paths include `test/**` per its own standing rule;
+  `aur.yml` is `repository_dispatch`-triggered by `release.yml`, not
+  "release tag"; Release builds 11 archives across 7 OS/arch targets, not
+  "10 platform binaries"; Maintenance cron is Mon 07:00 UTC + manual
+  dispatch, not "Mon 07:00 WIB").
+  `maintenance.yml`: both schedule comments still said "Monday 00:00 UTC"
+  — stale since the deliberate cron change `0 0 * * 1` -> `0 7 * * 1` in
+  b0a70ebd ("maintenance cron 7AM Monday"); now "Monday 07:00 UTC
+  (14:00 WIB)" matching the expression. Behavior untouched: the cron
+  itself was NOT changed — if the original intent was 07:00 WIB
+  (= 00:00 UTC), the expression needs a separate one-character change
+  and that decision stays with the owner.
+  Moved-doc citations repaired: `.cargo/config.toml` previously pointed at
+  `docs/audits/LTS_BUILD_AUDIT_v50.0.0-beta.7.md` and `release.yml`
+  previously pointed at `docs/research/PLATFORM_EXPANSION_IOS_WIN_ARM64.md`
+  — both live under `docs/archive/` since the docs restructure; paths
+  updated.
+  `scripts/audit/visual-mode-audit.py`: the constants-mirror comment named
+  `src/central_control_rains.rs` (a file that no longer exists — it is a
+  module directory); now names the real homes (`atmosphere.rs` for
+  `CRT_VIGNETTE_*`, `mod.rs` for `EDGE_FADE_*`).
+- **Verification**: keyserver re-fetch of the master key + `gpg
+  --list-packets` on the v50.0.0-rc.1 / v80.0.0-beta.1 / v100.0.0-
+  nightly.1 / rc.1 / v100.0.0 / v100.0.1 artifact signatures (rotation
+  boundary pinned between Aug 24-31); `git verify-commit` on four
+  maintainer commits (all Good from the tag subkey); trigger blocks
+  re-parsed from all 9 workflow files; dependency counts recounted from
+  `Cargo.toml` sections + `Cargo.lock` packages; dead-script sweep found
+  zero unreferenced scripts (33/33 referenced; `nh2_shift_harness.py` is
+  a live shared library — `night_cbg34_e2e.py` imports `Screen` from
+  it); repo-path existence check over the 52 non-`*.md` script/workflow/
+  toml files found 4 unframed stale paths (the 2 fixed citations, the
+  mirror comment, and one properly-framed `was previously` note left
+  as-is); gate-keepers all green; docs-audit + stale-hunt still clean.
+
+### cleanup: NIGHT-hunt-5 (post v100.0.2) — total staleness cross-audit of docs and commented code
+
+- **Change**: live-corpus sweep (55 .md files at audit time; `docs/archive/`,
+  `docs/research/`, `docs/audits/`, the CHANGELOG era files, bench-lab A/B
+  artifacts, and `CHANGELOG.md` below `## Unreleased` are historical
+  snapshots outside the sweep) eliminating stale data, dead how-to burden,
+  and stale commented-code references. Fixed: `docs/ENDURANCE.md` dropped
+  ~127 lines of present-tense how-to guidance for the removed
+  `monitor-cosmostrix.sh`/`endurance-summary.sh` helpers (the historical
+  record — CSV format spec, acceptance criteria, past results, run
+  template — is kept, reframed past tense); the chroma lock-suite header
+  still said "Phase 9-C" while `CHROMA_DRAGON_ENGINE_VERSION` is
+  "9-D (locked)" — aligned; the chroma README 9-C phase row now names both
+  removed variants (Cartesian + sRGB-linear) per commit `2e20f6cc`;
+  `docs/THREE_DRAGON_ENGINES.md` lock-suite sentence pointed at a wrong
+  glob — it now names the two real lock suites (19 + 17 invariants) and
+  the Crystal per-subsystem suites; `docs/VERIFY_RELEASE.md` key-details
+  line refreshed from the v100.0.1 to the v100.0.2 release signatures;
+  the `aur.yml` `repository_dispatch` trigger comment described a
+  superseded "backward compat, keep until" state — rewritten to describe
+  the live mechanism (release.yml posts the event after a release
+  publishes).
+- **Tooling** (`scripts/audit/docs-audit.py`): truth notes
+  refreshed (2952 `#[test]` fns = 2418 in `test/` + 534 in `src/`;
+  was 2947), the corpus
+  rules encoded (historical snapshots excluded per
+  `docs/FUTURE_BACKLOG.md` section 1), and sections 1-3 gained
+  negation/history context awareness (line window + enclosing-section
+  markers, the same philosophy `scripts/audit/stale-hunt.py` applies
+  to Rust comments) so intentional-history records are no longer
+  tool noise.
+  `docs/FUTURE_BACKLOG.md` rewritten as the standing ledger: corpus
+  rules, the intentional-history register, and current counts.
+- **Verification**: `python3 scripts/audit/docs-audit.py` — all
+  four sections clean over the 55-file live corpus, and a
+  scratch-file self-test
+  proved both directions (an unframed stale ref is flagged;
+  removal/move/example-framed refs are exempt); `python3
+  scripts/audit/stale-hunt.py` — 0 stale flags/paths/modules (the 223
+  duplicate-comment groups are the heuristic mirror-test narration
+  pattern, unchanged); `bash scripts/gates/inject-disclaimer.sh
+  --check` — 212/212 files carry the marker; ruff + rustfmt clean; gate-keepers
+  all green.
+
+### fix: the release-note commit classifier never fired — case-sensitive prefix vs the capitalized history
+
+- **Change** (scripts/release/generate-release-notes.sh): every classifier stage
+  (`grep -qE '^internal research:...'` detection, verb extraction sed,
+  `scan_text` prefix stripper, and the display-text prefix stripper) matched
+  the prefix lowercase-only, while the entire commit history writes
+  `Internal research:` (capital I; 7/7 such subjects in the log). Result: the
+  verb table never fired and every prefixed commit fell into "others" — the
+  published v100.0.1 note shows `others x 13` of 18 commits, and entry
+  display kept the full `Internal research: ...` prefix. All six pattern
+  sites now match case-tolerantly (`[Ii]nternal [Rr]esearch:`), portable
+  POSIX classes only (no GNU-only operators, BSD-sed safe).
+- **Proof**: regeneration over `v100.0.0..v100.0.1` reclassifies the visible
+  commits into `ci x 1`, `chore x 1`, `docs x 1` (previously all "others");
+  the remaining `others x 3` are by-design falls (verbs "retire"/"accelerate"
+  are outside the verb table; the bare `release:` conventional type is
+  unknown to the map). The `v100.0.1..main` preview with TAG=v100.0.2 now
+  renders `fix x 1, chore x 1` with the process prefix stripped from the
+  entry display, exactly as the design notes intend.
+- **Verification**: bash -n + shellcheck + shfmt clean; release bodies
+  generated locally and diffed against the published classification;
+  gate-keepers all green.
+
+### fix: the release-note GPG example shipped wrong asset names — missing `v` prefix + spurious `-gnu` (caught in the published v100.0.1 body)
+
+- **Change** (scripts/release/generate-release-notes.sh): the verification example in the
+  generated release body read `gpg --verify cosmostrix-${TAG#v}-linux-amd64-v3-gnu.tar.gz.asc`
+  — two wrongs on one line, first shipped in the v100.0.1 release (this script's
+  debut release; every note before v100.0.1 was generated by the old inline
+  template). `${TAG#v}` stripped the `v` prefix, but release archives are named
+  `cosmostrix-vX.Y.Z-<platform>.tar.gz` — the published note told users to verify
+  a file that cannot exist. The `-gnu` suffix is the internal build ID (what
+  `--version` prints via `infer_build_id()`), never part of a release archive
+  name. Fixed to `cosmostrix-${TAG}-linux-amd64-v3.tar.gz.asc`, so the v100.0.2
+  note renders `cosmostrix-v100.0.2-linux-amd64-v3.tar.gz.asc` — a byte-for-byte
+  real asset name.
+- **Stale-docs companion** (docs/VERIFY_RELEASE.md): the Key details line still
+  named `56B96F3109F4B924` with a 2029-08-09 expiry — both stale. The v100.0.1
+  artifacts are signed by the rotated subkey `3C9EB25BF0407781` (expires
+  2028-08-23) and the tag by `2B52187D2AB618A7591D45C9C7F8B07418899C4E` (expires
+  2031-08-23), all verified against the keyserver and the published `.asc`
+  files. The line now lists the active set with an as-of date and defers to the
+  keyserver after future rotations; the expiry-policy paragraph now describes
+  the real bounded cycles (~2-year artifact subkeys, 5-year tag subkey) instead
+  of the stale singular 1-year claim.
+- **Hunt scope**: repo-wide sweep for the same pattern family — `${TAG#v}`,
+  `cosmostrix-` asset names without the `v`, and `-gnu` in asset-name
+  positions. Every other live reference is correct (README.md install examples,
+  docs/VERIFY_RELEASE.md command blocks, AUR PKGBUILD asset selection); the
+  remaining `-gnu` hits are the legitimate build ID in `--version` docs and
+  era-archive historical snapshots, both intentionally untouched.
+- **Verification**: generated the release body locally over the v100.0.0..v100.0.1
+  range with TAG=v100.0.2 and confirmed the rendered example matches the real
+  asset names character-for-character (all 11 v100.0.1 archives cross-checked
+  from the published release); shellcheck + shfmt clean; gate-keepers all green.
+
+### perf: NIGHT-perf-2 (post v100) — CI runs the suite through cargo-nextest in two parallel partitions
+
+- **Change** (ci.yml): the full-suite `cargo test --all --locked` step
+  moved out of the build_test job into a new `test_partitions` job —
+  a 2-way, count-balanced cargo-nextest matrix (`--partition
+  count:<i>/2`, `fail-fast: false`). Each partition restores the
+  shared rust-cache, compiles the same test build, and executes its
+  half; the run stage halves and now OVERLAPS the debug build instead
+  of sequencing after it. The build_test job id is unchanged, so the
+  six downstream `needs: build_test` references are untouched (its
+  display name is now "Build (debug)" — that is all it does).
+- **Why nextest**: per-test process isolation, better scheduling, and
+  first-class partition support. `--retries 1` gives one retry for
+  tests that flake on a loaded shared runner (the suite carries 486
+  sleep/duration-based timing tests); nextest reports any retried test
+  as "flaky", so the signal is never silently lost.
+- **Dependency policy compliant**: cargo-nextest installs via
+  taiki-e/install-action@v2 unpinned — latest upstream release resolved
+  at run time, same as cargo-audit in the security job (owner policy
+  2026-08-30, docs/workflow/ABOUT_CI.md).
+- **Doc-test contract documented**: nextest does not execute doc
+  tests; the crate has zero compiled doc tests today (all fenced doc
+  blocks are `text`/`ignore`). The ci.yml job comment states that a
+  compiled doc test must come with a `cargo test --doc` step.
+- **Local story documented** (CONTRIBUTING.md):
+  `scripts/build/build.sh` already auto-detects `cargo-nextest` on
+  PATH (`NEXTEST_AVAILABLE`)
+  and prefers it over plain `cargo test` — a one-time
+  `cargo install cargo-nextest --locked` upgrades every local
+  build.sh/check-all test run with zero workflow change.
+- **Verification**: yamllint + actionlint clean on the restructured
+  ci.yml; gate-keepers 19 passed / 0 failed; no Rust source, script,
+  or manifest change — CI + docs only, no benchmark per house rule.
+
+### perf: NIGHT-perf-1 (post v100) — the test suite accelerated: opt-level 1 test profile + the MSRV full-suite duplicate retired
+
+- **Problem**: the full suite (about 2950 tests; 2418 in the `test/**`
+  mirror wired via 48 `#[path]` includes, 534 inline) executed at
+  `profile.dev`'s opt-level = 0 because `profile.test` inherits dev.
+  The CPU-heavy simulation tests (engine invariant sweeps across all
+  44 themes, black-hole spin math, benchmark statistics) ran 10-30x
+  slower than optimized code, and 486 sleep/duration-based timing
+  tests padded the wall clock on top. CI made it worse: the msrv and
+  build_test jobs pin the SAME RUST_VERSION toolchain, so the complete
+  suite ran twice back-to-back on every push (msrv full run, then
+  build_test full run on a warm cache).
+- **Fix 1 — `[profile.test] opt-level = 1`** (Cargo.toml): the whole
+  test build now optimizes at level 1. Compile cost rises ~20-30%;
+  runtime drops hard on the compute-bound tests. Debug info, unpacked
+  split-debuginfo, incremental compilation, and codegen-units stay
+  inherited from dev, so backtraces and rebuild speed are unchanged.
+  `profile.dev` (cargo run / cargo build) and every release/pro
+  profile are untouched — zero production-surface change.
+- **Fix 2 — MSRV smoke** (ci.yml): the msrv job now runs
+  `cargo test --all --locked lock_` — the full test tree still
+  COMPILES on the MSRV toolchain (the MSRV contract), plus the ~175
+  engine invariant lock-suite tests (the `lock_` prefix families
+  across all three dragon engines) as the runtime smoke. The complete
+  suite runs exactly once per push, on the stable build_test job.
+  FreeBSD keeps its full run (cross-platform validation; a different
+  OS surface is a different contract).
+- **Test count unchanged**: nothing was deleted, skipped, or gated
+  behind features — this is pure execution speed. Zero compiled doc
+  tests exist (all 40 fenced doc blocks are `text`/`ignore`), so the
+  suite is exactly the bin-target unit tests.
+- **Verification**: manifest parsed and build-graph constructed under
+  the new profile (cargo test --no-run progress observed); yamllint +
+  actionlint clean on ci.yml; gate-keepers 19 passed / 0 failed
+  (incl. the version-sync guard that scans ci.yml for RUST_VERSION
+  drift — untouched).
+
+### cleanup: NIGHT-cleanup-2 (post v100) — the dragon engine lock protocol retired: RULES.md/KEY.md/dragon-history.sh removed, engine READMEs simplified
+
+- **Owner decision (2026-09-20)**: the per-engine LOCK/UNLOCK protocol
+  was too strict a maintenance burden. Every engine change had to
+  carry an UNLOCK entry in the touched engine's `KEY.md` + `RULES.md`,
+  and the `dragon-history.sh --since-lock` audit trail had to be
+  re-anchored on every lock round. The engines keep their LTS quality
+  the simple way: the CI invariant suites (the `lock.rs` test families
+  under `test/engine/*/`) already assert each engine's public contract
+  on every commit — the protocol layered ceremony on top of what CI
+  enforces mechanically.
+- **Removed (7 files, ~2.4k lines)**: `src/engine/{cosmic,chroma,crystal}_dragon_engine/RULES.md`
+  (the full UNLOCK protocol + logs), the matching per-engine
+  `KEY.md` signature logs, and `scripts/dragon-history.sh` (the
+  history wrapper whose `LOCK_AT` boundary needed manual updates).
+  Historical content is preserved in the era changelogs and archived
+  audits, which follow the historical-snapshot contract and stay
+  untouched.
+- **Engine READMEs simplified**: each dragon engine README dropped the
+  lock ceremony (KEY.md/RULES.md callouts, Modification Protocol,
+  UNLOCK History, Documentation Lock, lock signature blocks) and keeps
+  the engineering reference: audit findings, A/B benchmark tables,
+  topology, phase history, and owner decisions. The "What This Lock
+  Means" framing became "Stability Status" pointing at the CI
+  invariant suites as the enforcement mechanism.
+- **Live references re-anchored**: `docs/THREE_DRAGON_ENGINES.md` lock
+  status section rewritten as "Engine history" (the plain
+  `git log --oneline -- src/engine/...` command stays as the history
+  method); `docs/FUTURE_BACKLOG.md` ACCEPTED-tool-noise note updated
+  for the removed KEY.md/RULES.md snapshots; `src/diagnostics/info.rs`
+  chroma phase-history pointer re-anchored to the engine README (2
+  comment sites); the chroma `colors_custom/strictness.rs` module doc
+  dropped its stale KEY.md UNLOCK reference. Historical mentions in
+  CHANGELOG era files, docs/archive, and docs/audits stay verbatim
+  (timestamped records).
+- **Not touched**: `docs/RULES.md` (project conventions), `src/RULES.md`
+  (module policy), and `src/RULES_LOC.md` (LOC cap) are separate live
+  files that share the name but not the protocol; the `lock.rs`
+  invariant suites themselves remain fully in force.
+
+### cleanup: NIGHT-cleanup-1 (post v100) — dead-script sweep: 27 retired one-off hunt harnesses removed, live references re-anchored
+
+- **Method**: a full reference map of every tracked file (CI workflows,
+  build.sh + gate-keepers.sh wiring, install/release scripts, active
+  docs, Rust tests, and the script-to-script Python import graph)
+  classified all 61 scripts by reference class. One-off hunt/repro
+  harnesses with zero live wiring — their contracts already locked
+  in-tree as Rust regression tests and their evidence already recorded
+  in docs/research, docs/audits, CHANGELOG, and benchmark/bench-labs —
+  were removed; every removal was individually verified against the
+  map before deletion.
+- **Removed (27 scripts, ~330 KB; scripts/ now 34 files)**: the
+  depthtest e2e family (depthtest-2 through -8 plus the shared
+  depth-test-config.py generator), the PTY helper cluster that nothing
+  live imports (ansi_screen.py, nh2_pty_harness.py, nh2_raw_capture.py,
+  nh15_restart_e2e.py), the NIGHT-hunt repro harnesses
+  (night_h34_style_sweep, night_h38_force_repaint_classifier,
+  night_h38_supermassive_testconf_repro, night_h41_msg_modey_repro,
+  night_h40_entry_budget_e2e, nh32_crown_blink_audit,
+  custom_features_stresstest.sh), the scene smoke probes
+  (genesis/neural/quasar_smoke), the HUD e2e island
+  (hud_long_scene_e2e, hud_order_e2e, intro_lead_e2e), and the
+  remaining one-offs (endurance_probe, stress_test_bounds).
+- **Hunt-beyond-the-signal catches**: (a) nh2_shift_harness.py was
+  initially dead-classified but the import graph showed the live
+  night_cbg34_e2e.py imports its Screen class — KEPT and re-documented
+  as the shared PTY Screen library; (b) ansi_screen.py looked wired
+  (two in-scripts references) but both referrers were themselves dead —
+  transitively dead, removed; (c) the depthtest family's "formal E2E
+  pin" claims inside Rust comments were stale the moment the harnesses
+  went away — the in-tree Rust locks are now named as the pins.
+- **Live references updated (stale-path domain)**: KNOWN_ISSUES.md
+  workaround section, docs/LIVE_RELOAD_BEHAVIOR.md sections 19-20
+  (four backticked harness citations reworded with removal notes),
+  tests_monolith/residue.rs and config_apply_tests/strict_mode.rs
+  comments (the stale-hunt.py file-path contract), and the
+  nh2_shift_harness.py module docstring. Historical records were left
+  untouched per the FUTURE_BACKLOG contract (era changelogs,
+  docs/research and docs/audits snapshots, KEY.md dated signoffs,
+  bench-labs AB evidence).
+- **Scope**: no production Rust code touched; the binary is bit-for-bit
+  unaffected, so no benchmark A/B was run per the house rule for
+  docs/scripts-only changes. Verification: docs-audit.py (no new
+  live-doc broken refs), stale-hunt.py (0 stale paths), ruff +
+  shellcheck on the surviving scripts, permissions/headers checks, and
+  the build.sh check-all gate.
+
+### audit: NIGHT-optimized-1 (post v100) — the master optimization audit: peak verified across ten dimensions, no change warranted
+
+- **Method**: dimension-by-dimension sweeps with on-host evidence,
+  each probed for a >5 % measurable gain (the cosmic-dragon UNLOCK
+  bar) or a zero-cost redundancy removal. None qualified; per the
+  owner's standing rule (already-peak = skip, no over-engineering)
+  the correct deliverable is the verification record.
+- **Verdicts (evidence in
+  `benchmark/bench-labs/night_optimized1/AUDIT_REPORT.md`)**:
+  hot-path allocation PEAK (0 allocs/frame steady-state); per-frame
+  clock discipline PEAK (per-frame/event only — the hidden per-cell
+  now() was hunted out long ago); frame pacing PEAK (hybrid
+  spin-sleep + dead-PTY/clock-jump/resize guards); release profile
+  PEAK (o3/lto-fat/cgu-1/strip; `panic=unwind` deliberate for the
+  catch_unwind containment contract); PGO PRESENT (+4.5 % median
+  fps on record); dead code MINIMAL + DELIBERATE (13 documented
+  allows; the unused_imports sites are LOC-split re-export
+  patterns); redundant functions INTENTIONAL PARALLELISM (the
+  13-scene / 12-style architecture, adjudicated); dependency surface
+  PEAK (11 direct deps, all production-used per-crate, minimal
+  features); cold start PEAK (`-V` in ~1 ms); long-run stability
+  PEAK (drift is warm-up, endurance machinery in place).
+- **Fresh HEAD measurements** captured on this host (cinematic
+  ≈ 28.9–29.2 K fps, monolith ≈ 85.3–85.9 K fps; gini/entropy/dirty
+  cells in the report table) sit on the historical regression line —
+  no drift since the last LTS round. The same-session
+  cybersecurity-1 commit is A/B-verified noise-neutral, so the
+  verdict carries forward.
+- **Scope**: documentation only (this entry + the bench-labs audit
+  record). No production code touched, no benchmark run per house
+  rule (docs-only); the cited measurements were already captured as
+  the cybersecurity A/B baseline.
+
+### security: NIGHT-cybersecurity-1 (post v100) — the master security audit: report-family escape injection closed, unsafe inventory re-verified
+
+- **Method**: full capability-class re-sweeps (secrets, spawn sites,
+  env surface, filesystem, panic vectors, dependency sources,
+  pipe-to-shell) plus a line-by-line soundness re-review of every
+  production `unsafe` site, and a sink-coverage analysis of every raw
+  `print!`/`println!`/`println_safe!` site in the tree.
+- **Finding (proven with a hostile-config PoC)**: the
+  `--list-*`/`--show-scene` report family interpolated user-derived
+  config strings RAW. `--show-scene` echoed a live `ESC [2J` byte
+  (od-verified `033`) from an unvalidated `scene-custom.<name>.rain`
+  VALUE — config VALUES are not charset-gated at collection (source
+  validation happens later, at cloud-config build time), and the
+  custom charset/palette name loops plus the hidden-block warning
+  lines held the same class (their collectors gate name length and
+  key shape, not name charset). Same shared-config threat model the
+  S-night-R4 diagnostic guard closed; this family was missed then.
+- **Fix (sink guards, S-night-R4 architecture)**: `escape_ctrl`
+  routing at the report sinks — `show_custom_scene_text` /
+  `list_custom_scenes_text` (whole-string sink, robust to future
+  field additions) in `src/scene_custom/display.rs`; the custom
+  charset + palette name loops and `hidden_block_warning_lines`
+  (truncate-first-then-escape, so a `\u00XX` literal can never split
+  across the 24-char cut) in `src/config/list_printers.rs`. Post-fix
+  the PoC renders as the visible `glyph\u001b[2Jx` literal. Scene
+  NAMES were already source-gated (`is_valid_profile_name`) and the
+  parser rejects control bytes in KEYS (name-vector probes did not
+  pass end-to-end) — the name-side guards are defense-in-depth,
+  pinned by unit tests at the sink.
+- **unsafe re-inventory (doc truth)**: the 2026-08-05 SECURITY_AUDIT
+  "15 sites + 1 unsafe fn" snapshot had drifted with the v100-era
+  refactors (terminal split, fork_guard extraction, posix_time
+  consolidation, config_io fstat, watchdog isatty, the Termux
+  non-blocking write family). Current classified truth: **47
+  occurrences across 14 files — 35 production + 12 test-gated**,
+  every production site re-reviewed sound with SAFETY documentation;
+  the one gap (`utc_tm()`'s time/gmtime_r/assume_init calls missing
+  the SAFETY twins their `local_tm()` counterparts carry) restored.
+  SECURITY_AUDIT.md §1/§5 refreshed with dated NIGHT-cybersecurity-1
+  notes; the escape_ctrl module doc now covers the report family.
+- **Other sweeps (all clean)**: no secrets in tree; all deps
+  registry-sourced and production-used; no shell spawns; no
+  curl|sh; production parse paths assert/panic/unwrap-free; the
+  message, charset and diagnostic escape hardening verified layered.
+- **Tests**: 4 new regression tests (2 display-sink hostile-input,
+  2 hidden-block-warning hostile/plain) — all green with the suite's
+  targeted modules.
+- **A/B**: 10 s release benches (cinematic + monolith, 2 runs each)
+  — fps/entropy/gini/dirty-cells all within ±1.1 % with the scenes
+  disagreeing on the sign (noise signature); the bench frame path
+  executes none of the changed code. Evidence:
+  `benchmark/bench-labs/night_cybersecurity1/AB_REPORT.md`.
+
+### fix: the build.rs LOC-cap regression left by the hunt-2/hunt-3 test growth
+
+- **Root cause**: the NIGHT-hunt-2 vcs-info parser tests and the
+  NIGHT-hunt-3 epoch-constant/sub-minute suite grew `build.rs` to
+  939 lines, past the 800-line hard cap enforced by
+  `scripts/gates/check-rs-loc.sh` — leaving `build.sh check-all` and
+  gate-keepers RED at the LOC stage ever since (the prior session
+  verified its edits via targeted runs, not the full gate).
+- **Fix**: the house-sanctioned self-declaring marker
+  (`// LOC_EXEMPT:` on line 3, per `src/RULES_LOC.md`): the build
+  script is a single-file cargo contract, its test suite must stay
+  in-file for the documented standalone runner
+  (`rustc --edition 2021 --test build.rs` — cargo never executes
+  build-script tests), and the helpers under test have no home
+  outside the build script. build.rs joins the eight existing
+  self-declared exemptions; no code moved.
+- **Verification**: `check-rs-loc.sh` OK (8 files self-declare
+  exemption, 0 unexempt violations); `build.sh check-all -q` exit 0
+  inside the 2-minute local cap; gate-keepers 16/16 (permissions
+  restored to the 644/755 convention after a clone-umask artifact,
+  no content change — git tracks only the exec bit).
+- **Scope**: 1 line in `build.rs`. No behavioral change, no
+  benchmark per house rule.
+
+### audit: NIGHT-hunt-4 (post v100) — the stale/burden/duplicate cross-audit driven to zero true positives
+
+- **Method**: both house audit tools executed against the full tree,
+  then every finding adjudicated against the FUTURE_BACKLOG
+  migration table and the historical-record policy (source code =
+  truth; live claims fixed; as-of-writing records preserved).
+  Beyond the tools: present-tense count sweeps (themes, rain styles,
+  test totals, source-file totals), duplicate-heading analysis
+  across live docs, and duplicate-comment analysis in production
+  code.
+- **Fix 1 — the audit tool's own false positives**:
+  `scripts/audit/stale-hunt.py` reported 5 stale CLI flags, all
+  `--test-threads` — the cargo/libtest harness flag referenced by
+  the test-parallelism audit comments (2026-09-14, the 32-thread
+  stress methodology). It belongs to the runner, not the cosmostrix
+  clap surface; added to `EXTERNAL_TOOL_FLAGS` (beside its sibling
+  `--nocapture`). Stale references: 5 -> 0.
+- **Fix 2 — a tracked fix that was never applied**: the
+  FUTURE_BACKLOG benchmark table row for
+  `benchmark/bench-labs/PGO_AB_20260823.md` says "moved to
+  docs/archive/research/IPC_RESEARCH.md", and the header note
+  claimed the BENCH_LABS sweep was done — but this file still
+  pointed at the pre-archive `docs/research/` path. Re-pointed;
+  the row is now truthful.
+- **Fix 3 — a misleading historical path**:
+  `benchmark/bench-labs/night_research7_dna/AB_REPORT.md` credited
+  its comparison to `scripts/ab_compare_nr7_dna.py` — a
+  session-local comparator never committed to the repo (the other
+  A/B reports name no such path). Reworded as a session-local,
+  never-committed script so no reader hunts for a file that does
+  not exist.
+- **Adjudicated (kept, now recorded so future auditors do not
+  re-litigate)**: the per-entry "Files changed" path records inside
+  `src/engine/cosmic_dragon_engine/RULES.md` — as-of-commit-time
+  paths (the test-mirror migration later moved `src/**/tests/` to
+  the `test/` tree); added to the FUTURE_BACKLOG intentional-history
+  note. Everything else the tools flag today is already covered by
+  the existing adjudication classes: changelog/era historical
+  entries, dated audit/research snapshots, the FUTURE_BACKLOG
+  migration table itself, ENDURANCE/RELEASE_GUARD/RULES removal
+  notes, incubator "at that time" narration, and illustrative
+  example paths.
+- **Hunted beyond the owner's brief, nothing stale found**: live-doc
+  present-tense claims verified accurate (44 themes / 13 rain
+  styles / 3 engines; the only "~1500+ tests"/"43 themes"/"2800
+  green" hits sit inside dated historical records where they were
+  accurate at time of writing); duplicate H2 headings across live
+  docs are generic structure ("See Also", "Defense-in-Depth"), not
+  content duplication; the production-code duplicate comments
+  ("Palette slot adopted at spawn" x12, the 800-LOC split notes,
+  per-scene field docs) are the intentional parallel-scene
+  architecture — de-duplicating them would need shared types
+  (an architecture change) or doc removal, both worse than the
+  duplication.
+- **Verification**: `scripts/audit/stale-hunt.py` 0 stale
+  flags/paths/modules (505 .rs files scanned);
+  `scripts/audit/docs-audit.py` section-1
+  findings reduced to adjudicated classes only; markdownlint,
+  codespell, and shellcheck clean on every touched file.
+- **Scope**: 1 script (stale-hunt.py), 3 docs (PGO_AB report,
+  nr7-dna report, FUTURE_BACKLOG adjudication note). No production
+  Rust code, no benchmark per house rule.
+
+### docs: NIGHT-docs-1 (post v100) — the monolithic CHANGELOG split into per-era files
+
+- **Root cause**: `CHANGELOG.md` had grown to 8,235 lines / 587 KB in a
+  single file. The structure was historical debt: no release-notes cut
+  has happened since v50.0.0-beta.6, so every entry since — the entire
+  v80 line, the Z-master campaigns, all v100.0.0-nightly.1 hunts, and
+  every post-v100 NIGHT task — accumulated inside ONE `## Unreleased`
+  section. Readers waded through ~4,000 lines of completed eras before
+  reaching current work, and every future entry made the file worse.
+- **Fix**: split by release era into root-level files, entries moved
+  verbatim (immutable historical record, original order preserved):
+  `CHANGELOG-V100-ERA.md` (the v100.0.0-nightly.1 hunts, 1,725 lines),
+  `CHANGELOG-V80-ERA.md` (the v80 line: S-master hunts, crystal dragon,
+  Z-master harmony, 2,291 lines), and `CHANGELOG-V50-ERA.md` (the v50
+  pre-release line plus the condensed v13-v25 releases, 237 lines).
+  (The three era files moved to `docs/archive/` in NIGHT-dinner-4 —
+  this entry records the original root-level split as it happened.)
+  The live `CHANGELOG.md` keeps the Unreleased (post-v100) section,
+  the condensed origin story, and a new era index — 8,235 lines down
+  to 4,083. The `## v4.0.0` and `## v3.9.0` headings stay in the live
+  file: they are tripwire-locked by `test/docs_tests/metadata.rs`
+  (`changelog_has_v400_entry_above_v390`), and the pre-v13 archive's
+  tripwire note documents this contract.
+- **Verification**: split executed by a boundary-asserted script (each
+  cut line re-asserted before any write; probes confirm every era
+  heading survives exactly once across the four files; v4.0.0 above
+  v3.9.0 invariant preserved). `test/docs_tests/metadata.rs` untouched
+  and still green; markdownlint, the SPDX header check, the disclaimer
+  check, and codespell pass on all four files; permissions 644.
+- **Scope**: `CHANGELOG.md` + three new era files + one cross-reference
+  refresh (`docs/HUD.md` HUD expansion history now points at the v50
+  and v80 era files). No code touched, no benchmark per house rule.
+
+### docs: NIGHT-docs-2 (post v100) — the donation addresses cryptographically verified, and the Solana line now names USDT (SPL)
+
+- **Verification**: all three README receive addresses were verified
+  offline before any edit: the Ethereum address passes the EIP-55
+  mixed-case checksum (keccak-256 of the lowercase hex — a single
+  mistyped character fails it), the Bitcoin address decodes as a
+  valid bech32m P2TR (witness version 1, 32-byte x-only program,
+  `bc` mainnet human-readable part — Taproot, not native SegWit),
+  and the Solana address base58-decodes to exactly 32 bytes (an
+  ed25519 public key encoding).
+- **Fix**: the Solana line said `SOL` only, while the owner's
+  donation intent includes USDT over the Solana network — the same
+  ed25519 address receives USDT (SPL) natively. The line now reads
+  `SOL` / `USDT` (SPL), matching the Ethereum line's explicit
+  ERC-20 naming, and the section intro records the verification
+  method so future edits re-verify instead of trusting copy-paste.
+- **Scope**: README donation section text only. No code, no
+  addresses changed, no benchmark (docs-only change per house rule).
+
+### fix: NIGHT-hunt-1 (post v100) — the black hole center ball froze after ~1.6 days (unbounded f32 spin phase) + full 13-scene long-session audit
+
+- **Root cause**: the sorgonemous_intrascals ball rim's `spin_phase`
+  is the only ball clock that never resets, and it accumulated as an
+  UNBOUNDED f32 (`spin_phase += omega * dt`, read through `cos()` and
+  the rim conveyor's bucket floor). f32 carries a 24-bit mantissa: at
+  60 fps the per-frame increment (~0.0086 rad at the default speed 12)
+  falls below the ulp of the accumulated phase once the phase passes
+  1/(60 × 1.19e-7) ≈ 140,000 s of accumulated spin — about 1.6 days,
+  INDEPENDENT of speed (both sides of the inequality scale with
+  omega). The `+=` then rounds back to the same value every frame:
+  the rim conveyor and the Doppler lobe stop moving and the ball pins
+  at center — exactly the owner's report (fresh start plays the
+  orbital rotation, >1 day sticks).
+- **Fix**: the family's amortized wrap, applied to the last unwrapped
+  member. `spin_phase` wraps into [0, 2π) once past 128 turns
+  (`BLACK_HOLE_SPIN_PHASE_WRAP_LIMIT`, matching the vortex arm_phase
+  and dna_helix phase precedent; quasar wraps at 64). The wrap is
+  exact for both consumers: the Doppler lobe reads the phase through
+  `cos()` (2π-periodic), and the rim conveyor now reduces the angle
+  difference with `rem_euclid(TAU)` before the sector floor, so whole
+  turns from the wrap cancel identically and the glyph pattern never
+  scrambles at a wrap boundary. At the 128-turn limit the ulp is
+  ~6e-5 rad — three orders below the smallest per-frame increment
+  the slowest supported speed produces.
+- **Scene-family audit (all 13 rain types + both sibling engines)**:
+  quasar pulse/prec/disk/halo phases wrap at 64 turns (infall and
+  jets have bounded lifecycles); vortex arm_phase wraps at 128 turns
+  (NIGHT-hunter-10); dna_helix phase wraps at 128 turns; murmuration
+  breath_phase wraps (boid ages are threshold-only or write-only);
+  neural streamer/pulse ages are lifecycle-bounded (Neuron.age is
+  write-only); flux's fixed-step accumulator drains with a backlog
+  drop; monolith streams and solar_flare loops run bounded lifecycle
+  clocks (reset at each phase transition); physarum agents carry
+  per-particle lifetime caps; aeolian/dragon/glyph/lorenz have no
+  unbounded phase accumulators (event-driven or physically bounded);
+  the chroma gradient normalizes angles by += 2π (not an
+  accumulator); crystal's sensor timestamps are Instant-based pause
+  bookkeeping. The black hole spin phase was the single unguarded
+  member of the family.
+- **Verification**: new regression test
+  `black_hole_ball_spin_survives_multiday_sessions` fast-forwards
+  100 h of sim time in 1 h steps, then steps 60 real-time frames and
+  asserts the phase still advances at the co-rotation rate (mod 2π)
+  and stays under the wrap limit. Verified to FAIL on the pre-fix
+  tree (the phase hard-freezes at the accumulated scale) and PASS
+  with the fix. Full black_hole suite 69/69; the pre-existing
+  co-rotation contract test still green. A/B 10 s benchmark on the
+  scene (before vs after, dev profile): density_gini 0.5631 → 0.5589,
+  frame_entropy 5.421 → 5.434 bits, dirty cells/frame 113.26 →
+  113.37 (+0.10%, the per-cell `rem_euclid` cost), avg fps 3576 →
+  3533 (-1.2%, within debug-build run-to-run noise) — no visual or
+  performance regression.
+- **Scope**: one production file (`black_hole.rs`: wrap limit, wrap
+  step, conveyor consumer) + one regression test. No config, CLI,
+  or scene API surface touched.
+
+### fix: NIGHT-hunt-2 (post v100) — the commit id vanished from cargo-install builds (-V/--version showed "(unknown)", HUD cid went blank)
+
+- **Root cause**: `build.rs` resolved the commit sha through a
+  two-step chain (`git rev-parse --short=7 HEAD`, then the
+  `GITHUB_SHA` env var) and dead-ended at an empty string. A
+  `cargo install cosmostrix` build extracts the crates.io tarball to
+  `~/.cargo/registry/src/…` — there is no `.git` directory and no
+  `GITHUB_SHA`, so `COSMOSTRIX_GIT_SHA` was compiled in as `""`. The
+  version report fell back to "unknown" (`Build: … (unknown)`), and
+  the HUD cid row rendered a BLANK line because
+  `option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown")` returns
+  `Some("")` — set but empty — never reaching the fallback.
+- **Fix**: a third resolution step reads `.cargo_vcs_info.json` —
+  the file cargo itself embeds in every published tarball with the
+  sha1 of the packaging commit (verified against the real published
+  cosmostrix v100.0.0 tarball downloaded from crates.io: sha1
+  6c51147…). Zero workflow changes, zero new files, zero
+  build-dependencies: the parser is pure std string extraction, the
+  shared hex-validation/truncation logic was factored into
+  `normalize_short_sha`, and a `cargo:rerun-if-changed` trigger was
+  added for the file. Display sites hardened against set-but-empty:
+  `hud_init.rs` and `startup_verbose.rs` now treat empty as
+  "unknown" (mirroring `diagnostics::info::build_commit_short()`),
+  and the two bench sinks (`bench_json.rs`, `bench_report.rs`) route
+  through the same helper so reports never emit an empty git_sha.
+- **Verification**: `cargo check --all-targets` clean; the standalone
+  build-script suite passes 9/9 with three new tests covering the
+  vcs-info parser (real clean/dirty document shapes, uppercase hex,
+  malformed/truncated documents) and `normalize_short_sha`
+  (truncation, trimming, rejection). The real published v100.0.0
+  tarball was downloaded from crates.io and confirmed to carry
+  `.cargo_vcs_info.json` with the release sha1.
+- **Scope**: `build.rs` + four display sites + two doc files
+  (`docs/HUD.md` cid sections updated to describe the three-step
+  chain). No behavioral benchmark run — the change is compile-time
+  metadata plumbing with zero per-frame cost (the HUD string is
+  built once in `new()`).
+
+### fix: NIGHT-hunt-3 (post v100) — the build-script epoch drift: two wrong constants that cargo test could never catch
+
+- **Root cause**: the `build.rs` test suite claimed two epoch
+  constants that silently disagreed with their documented calendar
+  dates: `1_709_210_440` was labeled 2024-02-29 12:34:00 UTC but
+  actually decodes to 2024-02-29 12:40:40 UTC (`date -u
+  -d @1709210440`), and `1_787_930_200` was labeled 2026-08-04
+  15:30:00 UTC but actually decodes to 2026-08-28 15:16:40 UTC
+  (`date -u -d @1787930200`). The suite never failed in CI because
+  `cargo test` NEVER executes build-script tests — cargo compiles
+  `build.rs` as a build dependency, not a test target, so the
+  assertions were invisible to every green run.
+- **Fix**: both constants replaced with the date-verified values
+  (`1_709_210_040` and `1_785_857_400`, each recomputed via `date -u
+  -d '<ISO date>' +%s`), a new sub-minute truncation test added
+  (`build_time_format_truncates_sub_minute_seconds` — seconds are
+  truncated toward the past minute, never rounded up), and the
+  standalone runner documented in the test module header plus
+  `docs/MAINTENANCE.md` (Quick Reference row, dedicated section, and
+  a dormant-mode invariant): `rustc --edition 2021 --test build.rs
+  -o /tmp/cosmostrix-build-script-tests && /tmp/…`.
+- **Verification**: standalone runner executed locally — the
+  pre-fix suite failed 1 of 5 (`build_time_format_matches_known_unix_epochs`);
+  the post-fix suite passes 6/6. `cargo fmt --all --check` clean.
+- **Scope**: `build.rs` tests + `docs/MAINTENANCE.md` only — no
+  production code touched, no A/B benchmark per house rule.
