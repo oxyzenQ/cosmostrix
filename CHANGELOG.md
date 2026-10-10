@@ -227,6 +227,48 @@ when the version line closes.
   that would reopen the verdict:
   [NIGHT_TOTAL_LTS_1_AUDIT_2026-10-11.md](docs/audits/NIGHT_TOTAL_LTS_1_AUDIT_2026-10-11.md).
 
+### fix: night-improve-6 — the CLI output color audit closes with three consistency fixes, plus the Business/Company price raise
+
+- The Business and Company tiers are raised to track the compounding
+  engineering value (Business $5,000 to $5,199/year, Company $50,199 to
+  $100,199/year; Personal and Individual untouched), recorded in the
+  Pricing Philosophy section with the sharpened unauthorized-use
+  warning, across COMMERCIAL_LICENSE.md, README.md, and
+  docs/LICENSING_FAQ.md (the pricing commit of this round).
+- The depth audit of every error/failed/unknown/typo output surface
+  (referenced against zelynic's identical brand palette) verified the
+  two canonical paths are already consistent — `cli/ux.rs` renders
+  every fatal CLI path through the branded labeled-block renderer, and
+  `clap_styles()` aligns clap's own error/valid/invalid hues with the
+  crate palette (brand red 255,90,90 errors, white tips, warn yellow
+  invalid values) — then found three surfaces that bypassed the
+  contract:
+  1. the bench baseline safepath rejections and baseline save/compare
+     failures printed plain "error:" text (bench_cosmetics.rs) — all
+     four sites now render through `eprintln_error_labeled` like every
+     other error, wording preserved;
+  2. `clap_styles()` was `#[cfg(unix)]`-gated, so Windows clap-side
+     errors (unknown flag, missing value, invalid value) fell back to
+     clap's default three-hue styling that the v100.0.0-nightly.1
+     mandate had eliminated on Unix — the gate is lifted (clap builder
+     styles are platform-neutral ANSI strings; anstream strips them
+     where the stream cannot take color), and the change is verified
+     by a local `cargo check --target x86_64-pc-windows-gnu
+     --all-targets` green run;
+  3. the Windows Ctrl-Break install failure printed plain text — now
+     error-labeled like its Unix siblings.
+- Bonus hunt from the Windows verification build: four
+  `std::env::set_var`/`remove_var` call sites in the
+  `#[cfg(windows)]` `windows_tests` module of `test/safepath/tests.rs`
+  were missed by the night-improve-4 edition-2024 migration (invisible
+  to Linux CI, which never compiles that module) — the Windows test
+  target did not compile before this round. All four are wrapped in
+  unsafe blocks with the house SAFETY comments, and the windows-gnu
+  test target now compiles warning-free.
+- No render-path or frame-pipeline surface touched, so no A/B
+  benchmark per house rule (the benchmark rubric measures rain
+  density/entropy/fps behavior, not stderr diagnostics).
+
 ---
 
 ## v4.0.0 — Atmosphere Engine + Monolith Rain

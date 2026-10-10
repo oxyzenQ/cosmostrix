@@ -16,10 +16,9 @@
 //! longer in the graceful-shutdown signal list. SIGTERM/SIGHUP/SIGQUIT
 //! remain for true kill scenarios (system shutdown, terminal close, kill(1)).
 
-#[cfg(windows)]
-use crate::output::eprintln_safe;
 // NIGHT-ultimate-1: the Unix install-failure warnings use the same
-// never-panic stderr macro as the Windows handler.
+// never-panic stderr macro as the Windows handler (whose install
+// failure now renders through eprintln_error_labeled, full path).
 #[cfg(unix)]
 use crate::output::eprintln_safe;
 use std::sync::Arc;
@@ -196,7 +195,9 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
             std::process::exit(130);
         }
     }) {
-        eprintln_safe!("failed to install Ctrl-Break handler: {}", e);
+        crate::output::eprintln_error_labeled(&format!(
+            "failed to install Ctrl-Break handler: {e}"
+        ));
     }
 
     spawn_watchdog();

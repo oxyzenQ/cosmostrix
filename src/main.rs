@@ -249,10 +249,7 @@ fn main() -> std::io::Result<()> {
     crate::panic_hook::install_panic_hook();
 
     let mut cmd = Args::command();
-    #[cfg(unix)]
-    {
-        cmd = cmd.styles(cli::clap_styles());
-    }
+    cmd = cmd.styles(cli::clap_styles());
     cmd = cmd.help_template(cli::help_template(color_enabled_stdout()));
     cmd.build();
 

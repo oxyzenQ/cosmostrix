@@ -469,7 +469,12 @@ mod windows_tests {
     impl EnvGuard {
         fn set(key: &str, val: &str) -> Self {
             let old_val = std::env::var(key).ok();
-            std::env::set_var(key, val);
+            // SAFETY: test-only process environment mutation during
+            // single-threaded test setup (edition 2024 marks env
+            // set/remove unsafe); no concurrent env readers here.
+            unsafe {
+                std::env::set_var(key, val);
+            }
             Self {
                 key: key.to_string(),
                 old_val,
@@ -479,8 +484,22 @@ mod windows_tests {
     impl Drop for EnvGuard {
         fn drop(&mut self) {
             match &self.old_val {
-                Some(v) => std::env::set_var(&self.key, v),
-                None => std::env::remove_var(&self.key),
+                Some(v) => {
+                    // SAFETY: test-only process environment mutation during
+                    // single-threaded test teardown (edition 2024 marks env
+                    // set/remove unsafe); no concurrent env readers here.
+                    unsafe {
+                        std::env::set_var(&self.key, v);
+                    }
+                }
+                None => {
+                    // SAFETY: test-only process environment mutation during
+                    // single-threaded test teardown (edition 2024 marks env
+                    // set/remove unsafe); no concurrent env readers here.
+                    unsafe {
+                        std::env::remove_var(&self.key);
+                    }
+                }
             }
         }
     }
@@ -570,7 +589,12 @@ mod windows_tests {
     fn userprofile_tilde_expansion() {
         // ~/... should expand via USERPROFILE when HOME is not set.
         let _guard_home = EnvGuard::set("HOME", "");
-        std::env::remove_var("HOME");
+        // SAFETY: test-only process environment mutation during
+        // single-threaded test setup (edition 2024 marks env
+        // set/remove unsafe); no concurrent env readers here.
+        unsafe {
+            std::env::remove_var("HOME");
+        }
         // On Windows, USERPROFILE should allow tilde expansion.
         // We can't fully test this without a real USERPROFILE value,
         // but we verify the function doesn't panic.
