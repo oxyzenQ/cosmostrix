@@ -164,6 +164,34 @@ when the version line closes.
 - Docs-only change: no source, build, or test surface touched, so no
   A/B benchmark per house rule.
 
+### docs: night-total-lts-2 — the all-infra depth audit closes at peak: every rubric dimension verified, zero changes needed
+
+- The full infra surface read under the five-dimension rubric
+  (stability and crash, code hygiene, optimization, security
+  hardening, LTS stability): all 30 `scripts/**/*.sh` files, all 9
+  CI workflows, `build.rs`, `.cargo/config.toml`, and the
+  supply-chain decision docs. The honest verdict: at peak, zero code
+  changes shipped — every candidate finding was already handled in
+  code, deliberate by design, or an owner-documented decision.
+- The hunt that came back clean: no `pull_request_target` anywhere
+  (the fork-PR secret-exfiltration vector does not exist); secrets
+  scoped to owner-pushed `v*` tags and `workflow_dispatch` only;
+  `build.rs` executes two fixed-argument programs (`git rev-parse`,
+  `rustc --version`) with no user-shaped command lines; strict
+  `set -euo pipefail` at every shell entry point with sourced
+  `lib/` modules inheriting by design; the two `depth/` stress
+  harnesses deliberately run without `-e` (failing commands are
+  their test cases — forcing `-e` would kill them mid-run); the
+  zombie-script hunt found zero orphans (the seven unreferenced
+  files are the dynamically sourced `lib/` modules); action tag
+  floating re-verified as the recorded owner decision with active
+  compensating controls, not an oversight.
+- Full rationale, evidence line numbers, and the three trip wires
+  that would reopen the verdict:
+  [NIGHT_TOTAL_LTS_2_AUDIT_2026-10-11.md](docs/audits/NIGHT_TOTAL_LTS_2_AUDIT_2026-10-11.md).
+- Docs-only change: no source, build, or test surface touched, so no
+  A/B benchmark per house rule.
+
 ---
 
 ## v4.0.0 — Atmosphere Engine + Monolith Rain
