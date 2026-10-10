@@ -422,7 +422,7 @@ impl BenchIoWriter {
     }
 
     /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
-    /// Mirrors `Terminal::emit_sgr` (terminal.rs) — uses the color
+    /// Mirrors `Terminal::emit_sgr` (terminal/mod.rs) — uses the color
     /// cache when available, falling back to on-the-fly formatting.
     ///
     /// Strategy C: uses `sgr_for_cell_silent` (no atomic counter touch).

@@ -3,11 +3,13 @@
 
 //! SGR (Select Graphic Rendition) byte formatting helpers.
 //!
-//! Extracted from `terminal.rs` to keep that file under its 800-LOC guard.
-//! These are pure functions that format ANSI escape sequences directly into
-//! a byte buffer, bypassing crossterm's trait dispatch + fmt machinery +
-//! heap String allocation. Used by the hot render path in `terminal.rs`
-//! when the `ColorCache` misses (non-palette color or non-palette bg).
+//! Extracted from the former `terminal.rs` monolith (now
+//! `terminal/mod.rs`) to keep every terminal-module file under its
+//! 800-LOC guard. These are pure functions that format ANSI escape
+//! sequences directly into a byte buffer, bypassing crossterm's trait
+//! dispatch + fmt machinery + heap String allocation. Used by the hot
+//! render path (`terminal/draw.rs`) when the `ColorCache` misses
+//! (non-palette color or non-palette bg).
 //!
 //! task-17: named base-16 colors now format as their classic SGR codes
 //! (`30-37`/`90-97` fg, `40-47`/`100-107` bg) instead of being skipped.

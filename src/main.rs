@@ -15,8 +15,9 @@
 //!   atmospheric evolution, and the cinematic behavior profile system.
 //! - Frame (`frame.rs`): The backing buffer — differential dirty tracking
 //!   with generation-based invalidation for zero-overhead cell reuse.
-//! - Terminal (`terminal.rs`): The output layer — ANSI escape sequencing
-//!   with run-length encoding, batched writes, and cursor optimization.
+//! - Terminal (`engine/cosmic_dragon_engine/terminal/`): The output layer —
+//!   ANSI escape sequencing with run-length encoding, batched writes, and
+//!   cursor optimization.
 //! - Droplet (`droplet.rs`): Individual stream physics — gravity acceleration,
 //!   velocity turbulence, head bloom, and phosphor afterglow.
 //! - Chroma Dragon (`chroma/`): The coloring engine — palette construction,

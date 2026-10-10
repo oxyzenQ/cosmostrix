@@ -78,7 +78,8 @@ pub(crate) static GRACEFUL_SHUTDOWN: std::sync::atomic::AtomicBool =
 /// Used by the P3 stdout-fallback path in `Terminal::flush_ansi` to flag
 /// that the primary stdout fd is broken and the process should exit via
 /// the normal shutdown path rather than crashing on the next write.
-/// Visibility is `pub(crate)` so `terminal.rs` can call it without
+/// Visibility is `pub(crate)` so the terminal module
+/// (`engine/cosmic_dragon_engine/terminal/mod.rs`) can call it without
 /// exposing the flag setter to downstream crates.
 #[cfg(unix)]
 pub(crate) fn request_graceful_shutdown() {

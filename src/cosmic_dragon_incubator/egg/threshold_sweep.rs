@@ -7,8 +7,8 @@
 //! optimal `DIRTY_THRESHOLD_RATIO` (currently a static `const = 3`) varies
 //! significantly across terminal sizes. If the optimal threshold varies
 //! more than 2× across sizes, an adaptive `match terminal_size` lookup is
-//! worth implementing in `terminal.rs::draw`. Otherwise, the current
-//! `const = 3` is sufficient.
+//! worth implementing in `terminal/draw.rs` (`Terminal::draw`). Otherwise,
+//! the current `const = 3` is sufficient.
 //!
 //! ## How it works
 //!
@@ -172,7 +172,7 @@ mod tests {
             eprintln!("  No need for `match terminal_size` lookup.");
         } else {
             eprintln!("VERDICT: Adaptive threshold MIGHT be worth it (variation > 2×).");
-            eprintln!("  Implement `match terminal_size` lookup in terminal.rs::draw.");
+            eprintln!("  Implement `match terminal_size` lookup in terminal/draw.rs.");
         }
         eprintln!();
 
@@ -227,7 +227,7 @@ mod tests {
         eprintln!("paths (diff: 30×dirty, full: 4×total). The ratio 4/30 is constant.");
         eprintln!();
         eprintln!("RECOMMENDATION: bump `DIRTY_THRESHOLD_RATIO: usize = 3` → `8` in");
-        eprintln!("constants.rs. No adaptive `match` needed. No terminal.rs split needed.");
+        eprintln!("constants.rs. No adaptive `match` needed. No draw-path split needed.");
         eprintln!("Cost: 1-line change. Benefit: 7.5× byte reduction at 25% dirty frames.");
 
         // Assert the crossover is size-independent (the math is linear).
@@ -254,7 +254,7 @@ mod tests {
         // We don't actually write to stdout (that would require a Terminal
         // and pollute the test runner's output). Instead we measure the
         // pure CPU cost of building the ANSI byte sequences — the same
-        // work `terminal.rs::draw()` does minus the write() syscall.
+        // work `terminal/draw.rs` does minus the write() syscall.
         //
         // The write() syscall itself is ~306ns (measured by io_uring_rejected.rs)
         // and is identical for both paths, so it cancels out in the comparison.
@@ -275,7 +275,7 @@ mod tests {
 
             // Diff path: for each dirty index, simulate MoveTo + SGR + glyph.
             // We measure the string-building cost (format!) which is the
-            // dominant cost in terminal.rs::draw's diff path.
+            // dominant cost in terminal/draw.rs's diff path.
             let diff_start = Instant::now();
             let mut diff_buf = String::with_capacity(dirty * 30);
             for &idx in &dirty_indices {

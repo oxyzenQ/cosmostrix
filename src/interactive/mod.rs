@@ -159,9 +159,10 @@ pub(crate) use watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN};
 // from the power manager (startup + live-reloaded fps) so a legal slow
 // cadence (--fps 1) is never misread as a stuck main loop.
 pub(crate) use watchdog::note_target_fps;
-// `clear_mouse_capture_flag` is called cross-platform (terminal.rs:508).
+// `clear_mouse_capture_flag` is called cross-platform from the terminal
+// module (engine/cosmic_dragon_engine/terminal/mod.rs).
 // `request_graceful_shutdown` is only called from the Unix `recover_to_tty`
-// path (terminal.rs:425) — gate the re-export so Windows doesn't warn.
+// path (terminal/io_recovery.rs) — gate the re-export so Windows doesn't warn.
 pub(crate) use watchdog::clear_mouse_capture_flag;
 #[cfg(unix)]
 pub(crate) use watchdog::request_graceful_shutdown;

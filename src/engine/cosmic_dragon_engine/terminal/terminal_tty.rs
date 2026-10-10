@@ -3,12 +3,14 @@
 
 //! P3: stdout /dev/tty fallback helpers.
 //!
-//! Free helpers extracted from `Terminal::recover_to_tty` (terminal.rs) so
-//! they can be unit tested without constructing a Terminal (which requires
-//! a real TTY). Also extracted to keep `terminal.rs` under the project's
-//! 800-LOC guard.
+//! Free helpers extracted from `Terminal::recover_to_tty` (then in the
+//! former `terminal.rs` monolith, now `terminal/io_recovery.rs`) so they
+//! can be unit tested without constructing a Terminal (which requires a
+//! real TTY). The split also kept every terminal-module file under the
+//! project's 800-LOC guard (see `src/RULES_LOC.md`).
 //!
-//! See `terminal.rs` for the recovery path that consumes these helpers.
+//! See `terminal/io_recovery.rs` for the recovery path that consumes
+//! these helpers.
 
 /// P3: classify an io::Error as recoverable via /dev/tty fallback.
 ///
