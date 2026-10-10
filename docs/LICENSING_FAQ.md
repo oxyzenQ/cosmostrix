@@ -44,11 +44,12 @@ revenue.
 A: Because the product keeps going up. cosmostrix is priced as a
 masterpiece-grade renderer: every hardening pass, dependency audit, and
 LTS release compounds the value of the codebase, and the Business
-($5,000/year) and Company ($50,199/year) tiers are deliberately raised
-to track it year by year. The Personal tier stays free and the
-Individual tier stays $99/year — the increase only touches business and
-enterprise buyers who profit from the work. See the Pricing Philosophy
-section in [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
+($5,199/year) and Company ($100,199/year) tiers are deliberately raised
+to track it year by year (October 2026 raise: Business $5,000 to
+$5,199, Company $50,199 to $100,199). The Personal tier stays free and
+the Individual tier stays $99/year — the increase only touches business
+and enterprise buyers who profit from the work. See the Pricing
+Philosophy section in [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
 
 ## Unlicensed commercial use
 

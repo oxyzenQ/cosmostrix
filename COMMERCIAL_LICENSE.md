@@ -47,8 +47,8 @@ All prices are annual, pegged to USD, and payable in cryptocurrency (see
 | ---------- | -------------- | ------------------------------------------------------------ |
 | Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
 | Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
-| Business   | $5,000/year    | SMB, revenue $100K–$10M/year                                 |
-| Company    | $50,199/year   | Enterprise (>$10M/year revenue) OR any redistribution rights |
+| Business   | $5,199/year    | SMB, revenue $100K–$10M/year                                 |
+| Company    | $100,199/year  | Enterprise (>$10M/year revenue) OR any redistribution rights |
 
 Multi-year contracts are available at the owner's discretion: 20% off a
 2-year contract, 30% off a 3-year contract. No free tier above Personal is
@@ -65,6 +65,12 @@ accumulated engineering of hundreds of audited releases, and the
 price will keep increasing as that engineering compounds. Budget
 accordingly: today's price is the lowest it will ever be.
 
+Recorded raise (October 2026, night-improve-6): Business $5,000 to
+$5,199/year, Company $50,199 to $100,199/year. The Personal and
+Individual tiers are deliberately untouched — the increase tracks the
+compounding engineering value and applies only to the tiers that
+profit commercially from it.
+
 ## What Each Tier Grants
 
 Every paid tier grants the right to use cosmostrix in commercial work
@@ -73,9 +79,9 @@ maintainer:
 
 - **Individual ($99/year)** — solo developers and freelancers with annual
   revenue under $100K.
-- **Business ($5,000/year)** — small and medium businesses with annual
+- **Business ($5,199/year)** — small and medium businesses with annual
   revenue from $100K to $10M.
-- **Company ($50,199/year)** — enterprises above $10M annual revenue, and
+- **Company ($100,199/year)** — enterprises above $10M annual revenue, and
   any buyer who needs redistribution rights: embedding or reselling
   cosmostrix inside your own products. Redistribution additionally requires
   trademark permission (see [TRADEMARK.md](TRADEMARK.md)).
@@ -101,6 +107,14 @@ as their own closed-source commercial product is acting in the worst
 possible faith — that is rotten behavior, full stop. If the price is
 the barrier, contact the owner: terms are discussed in good faith.
 Choosing to steal instead is a choice, and it is the wrong one.
+
+The raised prices sharpen this warning rather than soften it: a company
+or individual that steals, illegally forks, or launders cosmostrix into
+a closed-source commercial product — while the owner, rezky_nightky
+(oxyzenQ), was one email and one license payment away — is the worst
+kind of free-rider this project recognizes. The rising price makes such
+theft more deliberate, not less: the enforcements above apply to them
+in full.
 
 The Personal tier is the GPL-3.0-only license itself — free, including its
 copyleft obligations; no commercial license document is issued.

@@ -684,8 +684,8 @@ obligations.
 | ---------- | -------------- | ------------------------------------------------------------ |
 | Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
 | Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
-| Business   | $5,000/year    | SMB, revenue $100K–$10M/year                                 |
-| Company    | $50,199/year   | Enterprise (>$10M/year revenue) OR any redistribution rights |
+| Business   | $5,199/year    | SMB, revenue $100K–$10M/year                                 |
+| Company    | $100,199/year  | Enterprise (>$10M/year revenue) OR any redistribution rights |
 
 Payment is USD-pegged and accepted in crypto (Solana, Ethereum, Bitcoin
 Taproot). Prices rise deliberately as the codebase's audited engineering
