@@ -79,6 +79,20 @@
 #       (present-but-empty optional args, the legal-empty class
 #       zelynic's v11.0.0 stable publish died on), and the
 #       missing-argument usage error.
+#  20.  Actions-pin health (night-improve-8, zelynic NIGHT-improve-
+#       39/40 lineage — scripts/gates/check-actions-pins.sh): every
+#       `uses:` pin in .github/workflows/*.yml is read against the
+#       upstream release surface; the estate's float-on-major-tag
+#       policy gets its automated seat. Warn default (advisory):
+#       behind prints the classified table, the gate proceeds.
+#       Strict (git config cosmostrix.actionsHealthCheck strict)
+#       blocks on a KNOWN-stale verdict only. Auto heals via
+#       scripts/ci/actions-version-sweep.sh --apply, stages
+#       .github/workflows/, and fails the gate once for review.
+#       Every remote-fact skip (offline, quota, overrun,
+#       unparsable) stays a skip, never a block; verdicts cache
+#       under $GIT_DIR/cosmostrix/ keyed on the workflows hash with
+#       a 6h TTL, so a warm run costs zero API calls.
 #
 # Exit codes:
 #   0 = all checks passed
@@ -632,6 +646,31 @@ if [ -f scripts/gates/check-release-notes-shapes.sh ]; then
 	fi
 else
 	warn "check-release-notes-shapes.sh not found — skipping"
+fi
+
+# ── 20. Actions-Pin Health (night-improve-8) ────────────────────────────
+# zelynic NIGHT-improve-39/40 lineage: the CI estate's `uses:` pins
+# are read against the upstream release surface on every gate run.
+# Warn default keeps the gate advisory (remote facts never block);
+# the verdict caches under $GIT_DIR/cosmostrix/ keyed on the
+# workflows hash with a 6h TTL, so a warm run costs zero API calls
+# and no network. Capture-in-if pattern so a stale verdict surfaces
+# the full classified table before the (advisory) pass or the
+# (strict/auto) fail.
+header "Actions-Pin Health (check-actions-pins.sh)"
+if [ -f scripts/gates/check-actions-pins.sh ]; then
+	if AP_OUTPUT=$(bash scripts/gates/check-actions-pins.sh 2>&1); then
+		if [ -n "$AP_OUTPUT" ]; then
+			echo "$AP_OUTPUT"
+		fi
+		info "actions-pin health: pins read against upstream (current or honestly skipped)"
+		PASS=$((PASS + 1))
+	else
+		echo "$AP_OUTPUT"
+		fail "actions-pin health: pins behind in strict mode, or an auto-heal landed and needs review (re-run the gate)"
+	fi
+else
+	warn "check-actions-pins.sh not found — skipping"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

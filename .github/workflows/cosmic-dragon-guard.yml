@@ -110,7 +110,14 @@ jobs:
           shfmt --version
 
       - name: Run gate-keepers.sh
+        # GITHUB_TOKEN feeds gate-keepers.sh check 20 (the actions-pin
+        # health, night-improve-8): the run's ephemeral Actions token
+        # pays for the upstream release reads, so CI renders a real
+        # verdict instead of the honest no-credential skip. No standing
+        # secret - the platform injects and scopes this token per run.
         run: bash scripts/gate-keepers.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -15,7 +15,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | `crates-io.yml` | tag push `v*` (stable + pre-release, same CI gate) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
 | `miri.yml` | weekly cron (Sun 00:00 UTC / 07:00 WIB) + push (path-filtered) | Undefined behavior detection |
 | `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
-| `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
+| `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer, actions-pin health |
 | `supermassive.yml` | push to `main` (path-filtered) + weekly cron (Mon 03:00 UTC / 10:00 WIB) + manual dispatch | Runtime E2E: pty smoke (six real-pty legs), musl workspace nextest, weekly render soak (night-improve-7) |
 
 Job naming: the ci.yml keystone job (id `build_test`, the strict debug
@@ -70,7 +70,19 @@ Zero hardcoded dependency versions in `.github/*`. The rule is
 
 - **GitHub Actions** float on their major tag (`actions/checkout@v6`,
   `Swatinem/rust-cache@v2`). Minor and patch releases arrive
-  automatically; a new major requires a one-character review.
+  automatically; a new major requires a one-character review. The
+  policy has an automated seat since night-improve-8 (zelynic
+  NIGHT-improve-39/40 lineage): gate-keepers check 20
+  (`scripts/gates/check-actions-pins.sh`) reads every `uses:` pin
+  against the upstream release surface on every gate run - CI
+  passes the run's ephemeral Actions token, locally the machine's
+  own push credential pays. A newer major prints the classified
+  table and proceeds (advisory warn default); the heal itself is a
+  reviewed, human-committed diff (`scripts/ci/actions-version-
+  sweep.sh --apply`, or `git config cosmostrix.actionsHealthCheck
+  strict` / `auto` to opt into blocking and auto-heal seats).
+  Verdicts cache under `.git/cosmostrix/` keyed on the workflows
+  hash with a 6h TTL - a warm run costs zero API calls.
 - **CI-installed deps** (shfmt, codespell, ruff, yamllint, shellcheck,
   markdownlint-cli, actionlint, cargo-audit, cargo-deny, Android NDK)
   resolve their latest upstream release at run time. shfmt is fetched
