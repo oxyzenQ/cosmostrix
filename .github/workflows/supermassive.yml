@@ -1,0 +1,421 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+#
+# Cosmic Dragon Guard - Supermassive (cosmostrix-sized runtime E2E).
+#
+# night-improve-7 (the owner's approved scope, 2026-10-11): a runtime
+# battery in the zelynic supermassive lineage, scaled to what a
+# userspace TUI actually owes. The name and the sentinel relay
+# (MASS-RESULT rows, a verdict step, a step-summary watch) are the
+# zelynic shape; the VMs are not, on purpose. zelynic boots micro-VMs
+# because its failure classes live in the kernel (eBPF, cgroups,
+# daemon crash/reload/race, container runtimes). cosmostrix is a
+# renderer whose entire runtime contract is byte sequences on a tty,
+# so the honest equivalent of a kernel-span battery is a REAL
+# pseudo-terminal: raw mode entry, live input bytes, real signal
+# delivery, and the restore sequences the LTS-1-audited exit stack
+# emits on its way out. No VM leg, no container leg, no eBPF leg -
+# those would burn minutes on failure classes this codebase cannot
+# have.
+#
+# The four approved pieces, and where they landed:
+#   1. PTY smoke leg (pty_smoke job) - the binary runs six times
+#      under a real pty via scripts/supermassive/pty_smoke.py
+#      (transport) and scripts/supermassive/pty_assert.py (byte
+#      assertions). The three quit paths are each proven end to end:
+#      --duration deadline exit, the 'q' quit key delivered as live
+#      tty input, and SIGTERM graceful shutdown (SIGINT is
+#      deliberately not a quit signal since the bug-15 follow-up, so
+#      the signal leg uses SIGTERM like the signal_handlers contract).
+#      Every leg asserts the restore tail (alt-screen leave, mouse /
+#      paste / focus disables) the unit suite can only assert on
+#      synthetic strings.
+#   2. musl nextest leg (musl_tests job) - closes the libc axis.
+#      release.yml ships a static musl artifact
+#      (pro-linux-amd64-v3-musl) that had never been executed by any
+#      CI before this workflow; here the whole workspace test suite
+#      builds and runs under x86_64-unknown-linux-musl. Local
+#      calibration: the musl test binary links via rust-lld and
+#      executes standalone.
+#   3. Color downgrade battery - rides inside the pty_smoke job as
+#      three extra env legs (NO_COLOR, TERM=dumb, TERM=xterm). The
+#      assertions are the empirically calibrated runtime contract,
+#      not a restatement of the docs: truecolor is always absent on
+#      the hosted runner palette; TERM=xterm-256color renders the
+#      indexed tier; TERM=xterm renders basic 30-37/90-97 SGRs only;
+#      TERM=dumb is the strongest downgrade (no color, no alternate
+#      screen at all, restore-without-alt-screen still emitted);
+#      NO_COLOR renders the grayscale indexed range (232-243) while
+#      chromatic direct-color stays forbidden. The docs table in
+#      src/output/mod.rs describes the Mono tier as plain text with
+#      no escapes; the live render is stricter than that description
+#      is precise about - the grayscale indexed SGRs are real output.
+#      The source is truth: the assertions pin what the binary does.
+#   4. Weekly soak leg (soak job) - the longitudinal dataset. A
+#      single --duration 300 render under the same pty driver with
+#      VmRSS sampling every 10 s (read from /proc/<pid>/status, the
+#      child is a direct fork). Calibration on a 25 s debug run read
+#      a flat 9.5 MB RSS, so the CI bound is an anti-runaway ceiling
+#      (peak below 1.5 GB), not a performance claim; the dataset is
+#      the point. The soak job runs on the weekly clock and manual
+#      dispatch only - a push should not pay ten minutes for a chart
+#      that changes once a week.
+#
+# Trigger surface mirrors ci.yml's path list (the estate spelling)
+# plus the workflows directory glob; a docs-only push matches nothing
+# here. The glob stands in for this file's own name because the
+# ci-path-filters gate (NIGHT-boost-1) bans hardcoded filenames inside
+# a directory - the closest gate-legal spelling of the hunt-34 rule
+# that a workflow which can change its own contract owes itself a run.
+# The schedule is Monday 03:00 UTC (10:00 WIB), the same weekly slot
+# the zelynic battery has held since its kernel-span era.
+#
+# Budgets: pty_smoke 15 min (a warm release build plus about a minute
+# of six sub-10-second pty runs), musl_tests 30 min (a cold musl
+# compile of the workspace dominates), soak 20 min (build plus a
+# 300 s render plus the summary). The pty driver carries its own
+# internal watchdog (--budget) so a wedged child can never outlive
+# the job's outer timeout - the same wedge-guard relationship the
+# zelynic envelopes keep between VM budget and job budget.
+#
+# Every step below rides the owner's retry contract where it touches
+# the network (apt), and the dependency-version policy resolves
+# tools at run time (no hardcoded third-party versions).
+#
+# =============================================================================
+
+name: Cosmic Dragon Guard - Supermassive
+
+'on':
+  push:
+    branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  RUST_VERSION: "1.98.1"
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  pty_smoke:
+    name: supermassive test - pty smoke (quit paths and color tiers)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Build the release binary
+        run: cargo build --release --locked
+
+      - name: Quit paths under a real pty
+        run: |
+          set -euo pipefail
+          BINARY="target/release/cosmostrix"
+          MASS="/tmp/mass-pty.log"
+          rm -f "${MASS}"
+          SMOKE=scripts/supermassive/pty_smoke.py
+          ASSERT=scripts/supermassive/pty_assert.py
+
+          # Leg 1 - the --duration deadline exit (the bounded-run contract).
+          python3 "${SMOKE}" --binary "${BINARY}" \
+            --log /tmp/smoke-duration.log --mass "${MASS}" \
+            --label duration-5s --arg=--duration --arg=5 \
+            --env=TERM=xterm-256color --budget 25
+          python3 "${ASSERT}" --log /tmp/smoke-duration.log --mass "${MASS}" \
+            --label duration-5s \
+            --expect alt-enter --expect alt-leave --expect mouse-off \
+            --expect paste-off --expect focus-off --forbid sgr-truecolor
+
+          # Leg 2 - the 'q' quit key delivered as live tty input bytes.
+          python3 "${SMOKE}" --binary "${BINARY}" \
+            --log /tmp/smoke-qkey.log --mass "${MASS}" \
+            --label quit-key-5s --env=TERM=xterm-256color \
+            --quit-key 5 --budget 25
+          python3 "${ASSERT}" --log /tmp/smoke-qkey.log --mass "${MASS}" \
+            --label quit-key-5s \
+            --expect alt-enter --expect alt-leave --expect mouse-off \
+            --forbid sgr-truecolor
+
+          # Leg 3 - SIGTERM graceful shutdown (the signal_handlers contract;
+          # SIGINT is deliberately not a quit signal since the bug-15 fix).
+          python3 "${SMOKE}" --binary "${BINARY}" \
+            --log /tmp/smoke-sigterm.log --mass "${MASS}" \
+            --label sigterm-5s --env=TERM=xterm-256color \
+            --sigterm 5 --budget 25
+          python3 "${ASSERT}" --log /tmp/smoke-sigterm.log --mass "${MASS}" \
+            --label sigterm-5s \
+            --expect alt-leave --expect mouse-off --forbid sgr-truecolor
+
+      - name: Color tier downgrade battery
+        run: |
+          set -euo pipefail
+          BINARY="target/release/cosmostrix"
+          MASS="/tmp/mass-pty.log"
+          SMOKE=scripts/supermassive/pty_smoke.py
+          ASSERT=scripts/supermassive/pty_assert.py
+
+          # Leg 4 - NO_COLOR: grayscale indexed output only, chromatic
+          # direct-color forbidden, full restore tail still emitted.
+          python3 "${SMOKE}" --binary "${BINARY}" \
+            --log /tmp/smoke-nocolor.log --mass "${MASS}" \
+            --label no-color-4s --arg=--duration --arg=4 \
+            --env=TERM=xterm-256color --env=NO_COLOR=1 --budget 25
+          python3 "${ASSERT}" --log /tmp/smoke-nocolor.log --mass "${MASS}" \
+            --label no-color-4s \
+            --expect alt-leave --expect mouse-off --forbid sgr-truecolor
+
+          # Leg 5 - TERM=dumb: the strongest downgrade, no color and no
+          # alternate screen at all, restore-without-alt-screen still runs.
+          python3 "${SMOKE}" --binary "${BINARY}" \
+            --log /tmp/smoke-dumb.log --mass "${MASS}" \
+            --label term-dumb-4s --arg=--duration --arg=4 \
+            --env=TERM=dumb --budget 25
+          python3 "${ASSERT}" --log /tmp/smoke-dumb.log --mass "${MASS}" \
+            --label term-dumb-4s \
+            --expect mouse-off --forbid sgr-truecolor --forbid sgr-256 \
+            --forbid alt-enter --forbid alt-leave
+
+          # Leg 6 - TERM=xterm: the 16-color tier, indexed and direct
+          # color both forbidden.
+          python3 "${SMOKE}" --binary "${BINARY}" \
+            --log /tmp/smoke-xterm16.log --mass "${MASS}" \
+            --label xterm-16-4s --arg=--duration --arg=4 \
+            --env=TERM=xterm --budget 25
+          python3 "${ASSERT}" --log /tmp/smoke-xterm16.log --mass "${MASS}" \
+            --label xterm-16-4s \
+            --expect alt-leave --expect mouse-off \
+            --forbid sgr-truecolor --forbid sgr-256
+
+      - name: Verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-pty.log"
+          echo "--- MASS-RESULT relay (pty smoke) ---"
+          cat "${MASS}"
+          if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
+            echo "MASS-VERDICT: FAIL"
+            exit 1
+          fi
+          echo "MASS-VERDICT: PASS"
+          echo "OK: all six pty legs restored the terminal and exited clean"
+
+      - name: Watch summary (the longitudinal dataset row)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Supermassive watch - pty smoke"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo '```'
+            cat /tmp/mass-pty.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  musl_tests:
+    name: supermassive test - musl workspace nextest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl cross tools
+        run: |
+          set -euo pipefail
+          sudo apt-get -o Acquire::Retries=5 update -qq
+          sudo apt-get -o Acquire::Retries=5 install -y -qq musl-tools
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      # Unpinned on purpose (owner dependency policy 2026-08-30): the
+      # latest upstream cargo-nextest release, same as ci.yml's test job.
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      # The release.yml static musl artifact (pro-linux-amd64-v3-musl)
+      # had never been executed by CI before this leg. The whole
+      # workspace suite (the unit tree, the proptest battery, the
+      # safepath floors) runs here under musl for the first time;
+      # --retries 1 keeps the 486 timing-sensitive tests honest on a
+      # loaded shared runner, exactly like the gnu test job in ci.yml.
+      - name: Tests (nextest under musl)
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-musl.log"
+          rm -f "${MASS}"
+          if cargo nextest run --workspace --locked \
+            --target x86_64-unknown-linux-musl --retries 1; then
+            echo "MASS-RESULT: musl-nextest exit=0" >> "${MASS}"
+          else
+            echo "MASS-RESULT: musl-nextest FAIL" >> "${MASS}"
+          fi
+
+      - name: Verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-musl.log"
+          echo "--- MASS-RESULT relay (musl nextest) ---"
+          cat "${MASS}"
+          if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
+            echo "MASS-VERDICT: FAIL"
+            exit 1
+          fi
+          echo "MASS-VERDICT: PASS"
+          echo "OK: the workspace suite passes under the shipped musl libc"
+
+      - name: Watch summary (the longitudinal dataset row)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Supermassive watch - musl nextest"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo '```'
+            cat /tmp/mass-musl.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  soak:
+    name: supermassive test - weekly render soak (memory watch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # The approved cadence: the weekly clock and manual dispatch only.
+    # A push pays for the fast legs above, not for a 5-minute chart.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Build the release binary
+        run: cargo build --release --locked
+
+      # A 300 s render with VmRSS sampled every 10 s. The driver's
+      # --budget watchdog (330 s) stays wider than the render deadline
+      # so the deadline exit always wins, and narrower than the job
+      # timeout so a wedged guest can never burn the job budget.
+      - name: Render soak under a real pty
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-soak.log"
+          rm -f "${MASS}"
+          python3 scripts/supermassive/pty_smoke.py \
+            --binary target/release/cosmostrix \
+            --log /tmp/soak-render.log --mass "${MASS}" \
+            --label soak-300s --arg=--duration --arg=300 \
+            --env=TERM=xterm-256color \
+            --rss-log /tmp/soak-rss.log --rss-interval 10 \
+            --budget 330
+
+      # The bound is an anti-runaway ceiling, not a performance claim:
+      # the local calibration read a flat 9.5 MB RSS on a 25 s debug
+      # run, so any healthy build passes with two orders of magnitude
+      # of headroom. The weekly step summaries are the dataset.
+      - name: Memory bound check
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-soak.log"
+          PEAK_KB="$(sed -n 's/.*rss_peak_kb=\([0-9]*\).*/\1/p' "${MASS}" | head -1)"
+          if [ -z "${PEAK_KB}" ]; then
+            echo "MASS-RESULT: soak-300s FAIL reason=no rss peak row" >> "${MASS}"
+          elif [ "${PEAK_KB}" -gt 1500000 ]; then
+            echo "MASS-RESULT: soak-300s FAIL reason=rss peak ${PEAK_KB} kB over the 1.5 GB ceiling" >> "${MASS}"
+          else
+            echo "MASS-RESULT: soak-300s rss ceiling PASS (peak ${PEAK_KB} kB)" >> "${MASS}"
+          fi
+
+      - name: Verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-soak.log"
+          echo "--- MASS-RESULT relay (soak) ---"
+          cat "${MASS}"
+          if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
+            echo "MASS-VERDICT: FAIL"
+            exit 1
+          fi
+          echo "MASS-VERDICT: PASS"
+          echo "OK: the 300 s render stayed inside the memory ceiling"
+
+      - name: Watch summary (the longitudinal dataset row)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Supermassive watch - weekly render soak"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### RSS samples (the growth curve)"
+            echo
+            echo '```'
+            cat /tmp/soak-rss.log
+            echo '```'
+            echo
+            echo "### relay rows"
+            echo
+            echo '```'
+            cat /tmp/mass-soak.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"

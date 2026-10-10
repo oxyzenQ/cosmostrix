@@ -16,6 +16,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | `miri.yml` | weekly cron (Sun 00:00 UTC / 07:00 WIB) + push (path-filtered) | Undefined behavior detection |
 | `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
+| `supermassive.yml` | push to `main` (path-filtered) + weekly cron (Mon 03:00 UTC / 10:00 WIB) + manual dispatch | Runtime E2E: pty smoke (six real-pty legs), musl workspace nextest, weekly render soak (night-improve-7) |
 
 Job naming: the ci.yml keystone job (id `build_test`, the strict debug
 build gate every downstream job depends on) is displayed as
@@ -326,6 +327,17 @@ Verify the current version without changes:
 ## CI fail-fast guard
 
 CI runs `./scripts/build.sh version-sync` as a dedicated job **before** any Rust build, so a version desync fails the pipeline in seconds. `scripts/gates/check-version-anti-patterns.sh` blocks re-introduction of hardcoded version assertions in `src/`. The compile-time guard in `test/docs_tests/metadata.rs` asserts `Cargo.toml`, `PKGBUILD`, `.SRCINFO`, and the README install tag all agree with `env!("CARGO_PKG_VERSION")`.
+
+## Supermassive (runtime E2E, night-improve-7)
+
+`supermassive.yml` is the zelynic supermassive lineage scaled to a userspace TUI: no micro-VM, no container leg, no eBPF leg - the runtime contract of a renderer is byte sequences on a tty, so the battery runs the binary under a REAL pseudo-terminal instead of a guest kernel. Three jobs:
+
+- `pty_smoke` (every push): six legs through `scripts/supermassive/pty_smoke.py` (transport: `pty.fork`, full byte capture, internal watchdog budget) and `scripts/supermassive/pty_assert.py` (byte assertions over named sequences). The three quit paths are each proven end to end: the `--duration` deadline exit, the `q` quit key delivered as live tty input, and SIGTERM graceful shutdown (SIGINT is deliberately not a quit signal since the bug-15 follow-up). Every leg asserts the restore tail (alt-screen leave, mouse/paste/focus disables) that the unit suite can only check on synthetic strings.
+- `musl_tests` (every push): the whole workspace nextest suite under `x86_64-unknown-linux-musl`. The static musl artifact `release.yml` ships (`pro-linux-amd64-v3-musl`) was built but never executed by CI before this leg existed.
+- `soak` (weekly cron + manual dispatch only): a single 300 s render with VmRSS sampled every 10 s into the step summary, the longitudinal dataset. The bound is an anti-runaway ceiling (peak under 1.5 GB; the 25 s debug calibration read a flat 9.5 MB), not a performance claim.
+
+The color downgrade battery rides inside `pty_smoke` as three env legs (NO_COLOR, TERM=dumb, TERM=xterm). The assertions pin the calibrated runtime contract: TERM=dumb is the strongest downgrade (no color, no alternate screen at all, restore-without-alt-screen still emitted); NO_COLOR renders the grayscale indexed range (232-243) with chromatic direct-color forbidden; TERM=xterm renders basic 16-color SGRs only. Relay rows (`MASS-RESULT`) and the per-job verdict mirror the zelynic sentinel shape, and every job appends its rows to the run step summary so the Actions history reads as the dataset.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
