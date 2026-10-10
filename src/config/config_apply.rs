@@ -54,11 +54,10 @@ pub(crate) fn apply_config_and_runtime_defaults(
     matches: &clap::ArgMatches,
     args: &mut Args,
 ) -> Result<(), String> {
-    // Phase 5 closure (P3-5): reset the startup warning counter at the start
-    // of config apply. Individual warnings (from scene-custom
-    // warn_invalid, etc.) increment it via eprintln_warn_labeled. We emit a
-    // summary line at the end if any warnings were emitted, so users don't
-    // miss them in noisy startup output.
+    // Phase 5 closure (P3-5): reset the startup warning counter at the start of
+    // config apply. Individual warnings (scene-custom warn_invalid, etc.)
+    // increment it via eprintln_warn_labeled; a summary line at the end keeps
+    // them visible in noisy startup output.
     crate::output::reset_startup_warning_count();
 
     let mut config_touched = HashSet::new();
@@ -95,10 +94,9 @@ pub(crate) fn apply_config_and_runtime_defaults(
     }
 
     if args.verbose {
-        // Show the ACTUALLY-RESOLVED config path (with system fallback),
-        // not just the default user path. After a --system install where
-        // only /etc/cosmostrix/config.toml exists, the default user path
-        // doesn't exist — showing it would be misleading.
+        // Show the ACTUALLY-RESOLVED config path (system fallback included),
+        // not just the default user path — after a --system install where
+        // only /etc/cosmostrix/config.toml exists, the user path would mislead.
         let config_path_display = args
             .config
             .as_deref()
@@ -112,10 +110,9 @@ pub(crate) fn apply_config_and_runtime_defaults(
             "config loaded from: {config_path_display} ({} keys)",
             parsed_cfg.values.len()
         ));
-        // List the actual keys so the user can see exactly what is set.
-        // This is critical for debugging config issues — without this list,
-        // the user only sees "(N keys)" and has to manually re-read the
-        // config file to figure out which keys are active.
+        // List the actual keys so the user can see exactly what is set — critical
+        // for debugging: without this list the user only sees "(N keys)" and has
+        // to manually re-read the config file to figure out which keys are active.
         if !parsed_cfg.values.is_empty() {
             let mut keys: Vec<&str> = parsed_cfg.values.keys().map(String::as_str).collect();
             keys.sort();
