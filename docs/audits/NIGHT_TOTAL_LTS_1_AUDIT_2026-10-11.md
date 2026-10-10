@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Cosmostrix night-total-lts-1 audit — the cosmostrix skill (terminal reset + restore system)
+# cosmostrix night-total-lts-1 audit — the cosmostrix skill (terminal reset + restore system)
 
 Audit date: 2026-10-11
 Scope: the "cosmostrix skill" — the emergency terminal reset / restore
