@@ -129,6 +129,22 @@ when the version line closes.
   bench unchanged (fps in band, alloc_calls 563 identical, entropy
   and gini identical — the change never touches the rain path).
 
+### docs: night-improve-3 — the README demo assets ride the zelynic round-border law: the video loop and the scene still wear the 24 px radius
+
+- The two demo embeds at the top of the README — the animated
+  `cosmostrix-video.webp` loop and the `cosmostrix-4-scene.png` still
+  — render centered with
+  `border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15)`,
+  byte-identical to the zelynic demo-asset styling the task pins as
+  the reference: rounded corners, one soft ambient shadow, no
+  hard-edged screenshots above the fold.
+- The logo embed stays un-rounded (zelynic's does too — the radius is
+  a demo-asset law, not a brand law), the YouTube link row keeps its
+  markup, and nothing below the fold moves: pure README HTML
+  attribute styling, zero content or asset changes.
+- Docs-only change: no source, build, or test surface touched, so no
+  A/B benchmark per house rule.
+
 ### docs: night-improve-5 — the v100.0.6 era trimmed to its archive file: the live CHANGELOG.md restarts fresh for the upcoming version
 
 - The post-stable maintenance arc (2026-09-14 to 2026-10-10: the
