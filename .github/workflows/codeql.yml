@@ -103,7 +103,7 @@ jobs:
       detected: ${{ steps.detect.outputs.detected }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Detect languages from repo
         id: detect
@@ -169,7 +169,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Install Rust toolchain only if Rust is detected.
       - name: Install Rust toolchain
