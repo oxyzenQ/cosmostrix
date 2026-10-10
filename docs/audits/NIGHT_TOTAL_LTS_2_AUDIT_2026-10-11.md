@@ -3,7 +3,7 @@
 # NIGHT-total-lts-2 audit — the all-infra depth pass: scripts tree, CI workflows, build pipeline, and supply-chain walls, read end to end
 
 Owner brief (2026-10-11): "depth audit focus for all infra. total lts,
-realiable and keep be honest. cross check audit all root repo focus, if
+reliable and keep be honest. cross check audit all root repo focus, if
 peak skip and continue the next step" — with the five-dimension rubric
 (stability and crash, code hygiene, optimization, security hardening,
 LTS stability) and the standing rule: if a sub-task is already at peak,
