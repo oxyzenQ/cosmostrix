@@ -330,6 +330,30 @@ when the version line closes.
   Manifest page-data only - no runtime code path touched, no A/B
   benchmark per house rule.
 
+### fix: night-improve-12 — the demo gif retirement lands with its test guards: the two red CI lanes go green
+
+- v100.0.8 removed the deprecated demo asset
+  (assets/cosmostrix-video.gif, commit 7014e8f) but left two
+  surfaces keyed to it, and both CI lanes that run the bin test
+  harness went red (Tests nextest partition 1/2 and the
+  supermassive musl workspace nextest):
+  docs_tests::assets::video_assets_exist still asserted the gif
+  exists alongside the webp.
+- The guard follows the retirement: `video_assets_exist` asserts
+  the webp only, the `VIDEO_GIF` constant is gone, and the module
+  doc records why (the webp encodes straight from the webm source,
+  so the gif intermediate no longer ships).
+- Stale-reference sweep beside the failing test: assets/tools.md
+  drops the gifski recipe (the tool block keyed to the deleted
+  file; the ffmpeg webp recipe stays), and the remaining
+  cosmostrix-video.gif mentions live only in docs/archive/ history
+  files, which stay untouched on purpose.
+- Verification: `cargo test --bin cosmostrix docs_tests::assets`
+  green (7/7 guards), `cargo fmt --all --check` clean, clippy
+  `--bin --tests` zero warnings, codespell clean on both touched
+  files. Test-guard sync only - no runtime code path touched, no
+  A/B benchmark per house rule.
+
 ---
 
 ## v4.0.0 — Atmosphere Engine + Monolith Rain

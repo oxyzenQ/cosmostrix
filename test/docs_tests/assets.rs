@@ -5,20 +5,19 @@
 //!
 //! Demo assets use stable, version-less names (introduced in
 //! 27f7d4f5, replacing the old version-prefixed scheme):
-//!   assets/cosmostrix-video.gif    raw 60 fps render (encode source)
 //!   assets/cosmostrix-video.webp   animated demo embedded in README
 //!   assets/cosmostrix-4-scene.png  static four-scene showcase
 //!
-//! Version bumps no longer rename assets or rewrite README demo
-//! refs; anything still keyed to the retired cosmostrix-v{MAJOR}-demo
-//! naming is stale and must be removed. assets/tools.md documents
-//! how the video assets are regenerated (gifski and ffmpeg).
+//! The raw gif render was retired in v100.0.8 (deprecated demo file,
+//! commit 7014e8f) - the webp encodes straight from the webm source,
+//! so the gif intermediate no longer ships. Version bumps no longer
+//! rename assets or rewrite README demo refs; anything still keyed
+//! to the retired cosmostrix-v{MAJOR}-demo naming is stale and must
+//! be removed. assets/tools.md documents how the webp demo is
+//! regenerated (ffmpeg).
 
 /// The animated demo embedded in README.md.
 const VIDEO_WEBP: &str = "assets/cosmostrix-video.webp";
-
-/// The raw render the webp is encoded from (see assets/tools.md).
-const VIDEO_GIF: &str = "assets/cosmostrix-video.gif";
 
 /// The static four-scene showcase embedded in README.md.
 const SCENE_PNG: &str = "assets/cosmostrix-4-scene.png";
@@ -43,12 +42,10 @@ fn readme_references_scene_screenshot() {
 
 #[test]
 fn video_assets_exist() {
-    for path in [VIDEO_GIF, VIDEO_WEBP] {
-        assert!(
-            std::path::Path::new(path).exists(),
-            "{path} must exist (regenerate via the commands in assets/tools.md)"
-        );
-    }
+    assert!(
+        std::path::Path::new(VIDEO_WEBP).exists(),
+        "{VIDEO_WEBP} must exist (regenerate via the commands in assets/tools.md)"
+    );
 }
 
 #[test]
