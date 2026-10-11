@@ -27,6 +27,10 @@ tripwire note in the pre-v13 archive).
 
 ---
 
+## Released
+
+v100.0.8
+
 ## Unreleased
 
 The next release cycle starts here: entries land in this section as
