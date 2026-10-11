@@ -6,10 +6,20 @@ name = "cosmostrix"
 version = "100.0.7"
 edition = "2024"
 rust-version = "1.98"
-authors = ["rezky_nightky (oxyzenQ)"]
+authors = ["rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"]
 description = "Professional-grade cinematic Matrix rain renderer for serious terminal environments."
 license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/cosmostrix"
+# night-improve-11: the zelynic masterclass package-data parity.
+# The explicit readme pointer names the file that renders the whole
+# crates.io crate-page body, and cargo guarantees it rides the
+# registry tarball even under this manifest's exclude lane - the
+# rendered crate page can never decouple from the repo README.
+readme = "README.md"
+# The author contact rides along in the zelynic spelling: obfuscated
+# free text (no scrapeable raw address), accepted by crates.io in the
+# author <...> slot. Both fields are page-data only - no build, test,
+# or version-sync surface reads them (verified before the edit).
 # crates.io discoverability metadata. Categories are validated slugs
 # from the official list (https://crates.io/categories — 58 slugs as
 # of 2026-08-31, re-validated against the live registry API):
