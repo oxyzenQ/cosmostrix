@@ -293,6 +293,39 @@ when the version line closes.
 - Dev tooling only: no runtime code path touched, no A/B benchmark
   per house rule.
 
+### build: night-improve-11 — the package manifest completes the zelynic masterclass package data: the docs.rs documentation link joins the readme pointer
+
+- The `[package]` block gains its last missing masterclass field
+  (the zelynic NIGHT-improve-77 lineage):
+  `documentation = "https://docs.rs/cosmostrix"`. Verified live
+  before the edit: the crate is published (13 registry versions,
+  100.0.7 the head) and the docs.rs rustdoc tree is hosted and
+  green - docs.rs/cosmostrix resolves HTTP 200. The field is the
+  version-less base URL so it always tracks the newest hosted
+  build: crates.io renders it in the crate-page sidebar and the
+  index API exposes it to every consumer.
+- It completes the parity set that landed with the first half of
+  this task: `readme = "README.md"` (the pointer that renders the
+  whole crate-page body, guaranteed to ride the registry tarball
+  even under this manifest's exclude lane) and the author entry in
+  zelynic's obfuscated contact spelling (`<with dot rezky at gmail
+  dot com>` - no scrapeable raw address), accepted by crates.io in
+  the author `<...>` slot. The manifest now carries the full
+  published-crate set: description, five keywords, four validated
+  category slugs, license, repository, documentation, readme,
+  rust-version, edition.
+- Page-data only: no build, test, or version-sync surface reads
+  any of the three fields (grep-audited across build.rs and
+  scripts/ - metadata.rs asserts versions only). The pgo-runner
+  manifest stays untouched on purpose: `publish = false`, never
+  hosted on docs.rs, a documentation link there would be a dead
+  URL.
+- Verification: `cargo verify-project` success, `cargo
+  read-manifest` reads the three fields back, `./scripts/build.sh
+  check-all -q` green, codespell clean on both touched files.
+  Manifest page-data only - no runtime code path touched, no A/B
+  benchmark per house rule.
+
 ---
 
 ## v4.0.0 — Atmosphere Engine + Monolith Rain

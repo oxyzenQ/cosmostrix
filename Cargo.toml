@@ -10,6 +10,15 @@ authors = ["rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"]
 description = "Professional-grade cinematic Matrix rain renderer for serious terminal environments."
 license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/cosmostrix"
+# night-improve-11: the docs.rs rustdoc tree is hosted and green -
+# docs.rs/cosmostrix resolves HTTP 200 live (verified against the
+# registry lane at audit time; crate 100.0.7 is the published head,
+# 13 registry versions). The field is the version-less base URL so
+# it always tracks the newest hosted build: crates.io renders it in
+# the crate-page sidebar and the index API exposes it to every
+# consumer. The last package-data field zelynic's masterclass set
+# carried and this manifest lacked.
+documentation = "https://docs.rs/cosmostrix"
 # night-improve-11: the zelynic masterclass package-data parity.
 # The explicit readme pointer names the file that renders the whole
 # crates.io crate-page body, and cargo guarantees it rides the
@@ -18,8 +27,8 @@ repository = "https://github.com/oxyzenQ/cosmostrix"
 readme = "README.md"
 # The author contact rides along in the zelynic spelling: obfuscated
 # free text (no scrapeable raw address), accepted by crates.io in the
-# author <...> slot. Both fields are page-data only - no build, test,
-# or version-sync surface reads them (verified before the edit).
+# author <...> slot. All three fields are page-data only - no build,
+# test, or version-sync surface reads them (verified before the edit).
 # crates.io discoverability metadata. Categories are validated slugs
 # from the official list (https://crates.io/categories — 58 slugs as
 # of 2026-08-31, re-validated against the live registry API):
