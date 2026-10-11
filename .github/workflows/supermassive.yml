@@ -52,15 +52,18 @@
 #      no escapes; the live render is stricter than that description
 #      is precise about - the grayscale indexed SGRs are real output.
 #      The source is truth: the assertions pin what the binary does.
-#   4. Weekly soak leg (soak job) - the longitudinal dataset. A
-#      single --duration 300 render under the same pty driver with
-#      VmRSS sampling every 10 s (read from /proc/<pid>/status, the
-#      child is a direct fork). Calibration on a 25 s debug run read
-#      a flat 9.5 MB RSS, so the CI bound is an anti-runaway ceiling
+#   4. Soak leg (soak job) - the longitudinal dataset. A single
+#      --duration 300 render under the same pty driver with VmRSS
+#      sampling every 10 s (read from /proc/<pid>/status, the child
+#      is a direct fork). Calibration on a 25 s debug run read a
+#      flat 9.5 MB RSS, so the CI bound is an anti-runaway ceiling
 #      (peak below 1.5 GB), not a performance claim; the dataset is
-#      the point. The soak job runs on the weekly clock and manual
-#      dispatch only - a push should not pay ten minutes for a chart
-#      that changes once a week.
+#      the point. night-improve-10 (owner decision, 2026-10-11):
+#      the soak rides every qualifying push. The old weekly cron
+#      rendered this job as a permanent "(push) Skipped" row on
+#      every code commit while the clock paid for renders nobody
+#      was watching; per-push rows tie each dataset point to the
+#      exact commit that produced it.
 #
 # Trigger surface mirrors ci.yml's path list (the estate spelling)
 # plus the workflows directory glob; a docs-only push matches nothing
@@ -68,8 +71,9 @@
 # ci-path-filters gate (NIGHT-boost-1) bans hardcoded filenames inside
 # a directory - the closest gate-legal spelling of the hunt-34 rule
 # that a workflow which can change its own contract owes itself a run.
-# The schedule is Monday 03:00 UTC (10:00 WIB), the same weekly slot
-# the zelynic battery has held since its kernel-span era.
+# No cron schedule on purpose (night-improve-10): the trigger surface
+# is push plus manual dispatch only, so no run is ever detached from
+# the commit it measures.
 #
 # Budgets: pty_smoke 15 min (a warm release build plus about a minute
 # of six sub-10-second pty runs), musl_tests 30 min (a cold musl
@@ -100,8 +104,6 @@ name: Cosmic Dragon Guard - Supermassive
       - '.cargo/**'
       - 'scripts/**'
       - '.github/workflows/**'
-  schedule:
-    - cron: "0 3 * * 1"
   workflow_dispatch: {}
 
 permissions:
@@ -326,12 +328,13 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   soak:
-    name: supermassive test - weekly render soak (memory watch)
+    name: supermassive test - render soak (memory watch)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    # The approved cadence: the weekly clock and manual dispatch only.
-    # A push pays for the fast legs above, not for a 5-minute chart.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # night-improve-10 (owner decision): no event gate. The old
+    # schedule-only if rendered this job as a "(push) Skipped" row
+    # on every code commit; now every qualifying push produces its
+    # own dataset row in the step summary.
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -369,7 +372,7 @@ jobs:
       # The bound is an anti-runaway ceiling, not a performance claim:
       # the local calibration read a flat 9.5 MB RSS on a 25 s debug
       # run, so any healthy build passes with two orders of magnitude
-      # of headroom. The weekly step summaries are the dataset.
+      # of headroom. The per-push step summaries are the dataset.
       - name: Memory bound check
         run: |
           set -euo pipefail
@@ -402,7 +405,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "## Supermassive watch - weekly render soak"
+            echo "## Supermassive watch - render soak"
             echo
             echo "- trigger: ${{ github.event_name }}"
             echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
