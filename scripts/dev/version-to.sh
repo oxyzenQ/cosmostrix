@@ -26,6 +26,17 @@
 #   - Does not commit, tag, or push automatically
 #   - Only edits version-related files
 #
+# Ride-along lanes (night-improve-9, the zelynic NIGHT-improve-67 and
+# NIGHT-improve-76 shape): pgo-runner is a standalone crate whose
+# version rides the root's - a drifting 0.1.0 label shipping beside a
+# v100 binary is a provenance hole, so every bump rewrites
+# pgo-runner/Cargo.toml and its lock to the root version. Every bump
+# also records the release line in the root CHANGELOG.md ledger: a
+# bare vX.Y.Z line under a '## Released' heading above
+# '## Unreleased', newest first, pre-release and stable alike. Both
+# lanes probe honestly: a missing file or an unexpected ledger shape
+# warns and writes nothing.
+#
 
 set -euo pipefail
 
@@ -41,6 +52,15 @@ readonly PKGBUILD="${REPO_ROOT}/aur/cosmostrix-bin/PKGBUILD"
 readonly SRCINFO="${REPO_ROOT}/aur/cosmostrix-bin/.SRCINFO"
 readonly README="${REPO_ROOT}/README.md"
 readonly ABOUT_CI="${REPO_ROOT}/docs/workflow/ABOUT_CI.md"
+readonly PGO_CARGO_TOML="${REPO_ROOT}/pgo-runner/Cargo.toml"
+readonly PGO_CARGO_LOCK="${REPO_ROOT}/pgo-runner/Cargo.lock"
+readonly CHANGELOG="${REPO_ROOT}/CHANGELOG.md"
+# The version pgo-runner shipped with before the ride-along lane
+# existed (night-improve-9). While pgo-runner sits at this birth
+# version the lane has never adopted it, so --check reports instead
+# of failing; the first real bump moves it onto the root version
+# for good.
+readonly PGO_BIRTH_VERSION="0.1.0"
 
 # Files that contain active version references to update
 readonly DOC_FILES=(
@@ -145,6 +165,26 @@ read_current_version() {
 }
 
 #
+# Read the current version from pgo-runner/Cargo.toml
+#
+# pgo-runner rides the root version, but its OWN current value is
+# read here - a drifted lane is exactly the state this lane exists
+# to heal, so nothing may assume it already matches (zelynic
+# NIGHT-improve-67). An absent manifest yields an empty string; the
+# callers decide between warn-skip and report.
+#
+read_pgo_version() {
+	if [[ ! -f "${PGO_CARGO_TOML}" ]]; then
+		echo ""
+		return 0
+	fi
+
+	local ver
+	ver="$(grep -E '^version = "' "${PGO_CARGO_TOML}" | head -1 | sed -E 's/^version = "(.+)"/\1/')"
+	echo "${ver}"
+}
+
+#
 # Safety: check git working tree
 #
 check_git_status() {
@@ -239,6 +279,67 @@ update_cargo_lock() {
 		log_err "Cargo.lock update failed. Expected: ${new_ver}, Got: ${lock_ver}"
 		log_err "You may need to run 'cargo generate-lockfile' manually"
 		# Do not exit — let verification catch this
+	fi
+}
+
+#
+# Update pgo-runner/Cargo.toml + pgo-runner/Cargo.lock (night-improve-9)
+#
+# The standalone crate rides the root version. The manifest carries
+# no [dependencies] table, so the exact-match rewrite can only hit
+# the [package] version line; the lock edit is name-anchored
+# (name = "pgo-runner" followed by its version) and moves that entry
+# alone - dependency versions never do (they are cargo update's job,
+# not a version bump's).
+#
+update_pgo_runner() {
+	local new_ver="$1"
+
+	if [[ ! -f "${PGO_CARGO_TOML}" ]]; then
+		log_warn "pgo-runner/Cargo.toml not found - skipping ride-along bump"
+		return 0
+	fi
+
+	local pgo_ver
+	pgo_ver="$(read_pgo_version)"
+
+	if [[ -z "${pgo_ver}" ]]; then
+		log_warn "Could not read pgo-runner version - skipping ride-along bump"
+		return 0
+	fi
+
+	if [[ "${pgo_ver}" == "${new_ver}" ]]; then
+		log_ok "pgo-runner/Cargo.toml already at ${new_ver} (ride-along lane)"
+		return 0
+	fi
+
+	log_info "Updating pgo-runner/Cargo.toml: ${pgo_ver} -> ${new_ver} (rides the root version)"
+
+	sed -i -E "s|^version = \"${pgo_ver}\"|version = \"${new_ver}\"|" "${PGO_CARGO_TOML}"
+
+	local got
+	got="$(read_pgo_version)"
+	if [[ "${got}" != "${new_ver}" ]]; then
+		log_err "pgo-runner/Cargo.toml version update failed. Expected: ${new_ver}, Got: ${got}"
+		exit 1
+	fi
+
+	log_ok "pgo-runner/Cargo.toml updated: version = \"${new_ver}\""
+
+	if [[ ! -f "${PGO_CARGO_LOCK}" ]]; then
+		log_warn "pgo-runner/Cargo.lock not found - skipping lock update"
+		return 0
+	fi
+
+	sed -i -E "/^name = \"pgo-runner\"$/{n;s|^version = \"${pgo_ver}\"|version = \"${new_ver}\"|;}" "${PGO_CARGO_LOCK}"
+
+	local lock_ver
+	lock_ver="$(grep -A1 '^name = "pgo-runner"' "${PGO_CARGO_LOCK}" | grep '^version = "' | head -1 | sed -E 's/^version = "(.+)"/\1/')"
+	if [[ "${lock_ver}" == "${new_ver}" ]]; then
+		log_ok "pgo-runner/Cargo.lock updated: pgo-runner version = ${new_ver}"
+	else
+		log_err "pgo-runner/Cargo.lock update failed. Expected: ${new_ver}, Got: ${lock_ver}"
+		log_err "You may need to run 'cargo update --manifest-path pgo-runner/Cargo.toml -p pgo-runner' manually"
 	fi
 }
 
@@ -371,6 +472,85 @@ update_docs() {
 			log_info "  No TAG= line in $(basename "${f}") (skipped)"
 		fi
 	done
+}
+
+#
+# Record the release line in CHANGELOG.md (night-improve-9)
+#
+# A bump is a release event - the ledger records it the same way the
+# Cargo files do: a bare vX.Y.Z line under a '## Released' heading,
+# newest first, created above '## Unreleased' when absent,
+# pre-release and stable alike. The probes are honest (the zelynic
+# NIGHT-hunt-32 rule): a missing file, a missing '## Unreleased'
+# anchor, or a '## Released' section without this tool's own shape
+# (heading, blank spacer, version lines) warns and writes nothing -
+# a ledger this script did not create is not one it rewrites. The
+# splice overwrites through cat (not mv) so CHANGELOG.md keeps its
+# inode and its 644 permission bits.
+#
+changelog_release() {
+	local ver="v$1"
+
+	if [[ ! -f "${CHANGELOG}" ]]; then
+		log_warn "CHANGELOG.md not found - release line not recorded"
+		return 0
+	fi
+
+	# A version line never repeats: the re-entry at a version the
+	# ledger already carries writes nothing.
+	if grep -qxF "${ver}" "${CHANGELOG}"; then
+		log_warn "CHANGELOG.md already records ${ver} - nothing to write"
+		return 0
+	fi
+
+	local tmp
+	tmp="$(mktemp)"
+
+	if grep -q '^## Released$' "${CHANGELOG}"; then
+		# The section exists. This tool's own shape puts one blank
+		# spacer between the heading and the version lines - the new
+		# version splices in under it, above the current top line.
+		if [[ -z "$(sed -n '/^## Released$/{n;p;}' "${CHANGELOG}")" ]]; then
+			awk -v ver="${ver}" '
+				/^## Released$/ && !done {
+					print
+					getline spacer
+					print spacer
+					print ver
+					done = 1
+					next
+				}
+				{ print }
+			' "${CHANGELOG}" >"${tmp}"
+			cat "${tmp}" >"${CHANGELOG}"
+			rm -f "${tmp}"
+			log_ok "CHANGELOG.md recorded ${ver} (## Released, newest first)"
+		else
+			rm -f "${tmp}"
+			log_warn "CHANGELOG.md has an unexpected ## Released shape (no blank spacer under the heading) - nothing to write"
+		fi
+	else
+		# No section yet - create it above '## Unreleased' (the
+		# unreleased work keeps its own section below the ledger).
+		if grep -q '^## Unreleased$' "${CHANGELOG}"; then
+			awk -v ver="${ver}" '
+				/^## Unreleased$/ && !done {
+					print "## Released"
+					print ""
+					print ver
+					print ""
+					done = 1
+				}
+				{ print }
+			' "${CHANGELOG}" >"${tmp}"
+			cat "${tmp}" >"${CHANGELOG}"
+			rm -f "${tmp}"
+			log_ok "CHANGELOG.md recorded ${ver} (## Released section created above ## Unreleased)"
+		else
+			rm -f "${tmp}"
+			log_warn "CHANGELOG.md has no ## Unreleased anchor - release line not recorded"
+		fi
+	fi
 }
 
 #
@@ -516,6 +696,61 @@ verify_version() {
 			log_err "README.md: missing or stale install tag (expected ${expected_tag})"
 			log_err "  Run './scripts/dev/version-to.sh v${expected_ver}' to sync all active files"
 			((errors++))
+		fi
+	fi
+
+	# 7. pgo-runner ride-along (night-improve-9): the standalone crate
+	# rides the root version. While it sits at its birth version the
+	# lane has never adopted it - report, do not fail. Any other value
+	# that is not the expected version is real drift.
+	local pgo_ver=""
+	if [[ -f "${PGO_CARGO_TOML}" ]]; then
+		pgo_ver="$(read_pgo_version)"
+		if [[ "${pgo_ver}" == "${expected_ver}" ]]; then
+			log_ok "pgo-runner/Cargo.toml: version = \"${expected_ver}\" (rides the root version)"
+		elif [[ "${pgo_ver}" == "${PGO_BIRTH_VERSION}" ]]; then
+			log_info "pgo-runner still at its pre-adoption birth version ${PGO_BIRTH_VERSION} - the next version bump adopts it onto the root version"
+		else
+			log_err "pgo-runner/Cargo.toml: expected ${expected_ver} (root ride-along), got ${pgo_ver}"
+			log_err "  Run './scripts/dev/version-to.sh v${expected_ver}' to adopt it"
+			((errors++))
+		fi
+	fi
+
+	# 8. pgo-runner/Cargo.lock agrees with its manifest (night-improve-9)
+	if [[ -n "${pgo_ver}" && -f "${PGO_CARGO_LOCK}" ]]; then
+		local pgo_lock_ver
+		pgo_lock_ver="$(grep -A1 '^name = "pgo-runner"' "${PGO_CARGO_LOCK}" | grep '^version = "' | head -1 | sed -E 's/^version = "(.+)"/\1/')"
+		if [[ "${pgo_lock_ver}" == "${pgo_ver}" ]]; then
+			log_ok "pgo-runner/Cargo.lock: version = ${pgo_lock_ver} (agrees with the manifest)"
+		else
+			log_err "pgo-runner/Cargo.lock: expected ${pgo_ver} (manifest ride-along), got ${pgo_lock_ver}"
+			((errors++))
+		fi
+	fi
+
+	# 9. CHANGELOG.md release ledger (night-improve-9): once the
+	# '## Released' section exists in THIS tool's own shape (blank
+	# spacer under the heading) the current version line is part of
+	# the active version surfaces. Before that the ledger simply has
+	# not started, and a foreign-shaped section is not one this tool
+	# verifies either - the writer and the verifier probe the same
+	# shape, so a ledger this script did not create fails nothing.
+	if [[ -f "${CHANGELOG}" ]]; then
+		if grep -q '^## Released$' "${CHANGELOG}"; then
+			if [[ -z "$(sed -n '/^## Released$/{n;p;}' "${CHANGELOG}")" ]]; then
+				if grep -qxF "v${expected_ver}" "${CHANGELOG}"; then
+					log_ok "CHANGELOG.md: release line v${expected_ver} recorded"
+				else
+					log_err "CHANGELOG.md: ## Released section exists but carries no v${expected_ver} line"
+					log_err "  Run './scripts/dev/version-to.sh v${expected_ver}' to record it"
+					((errors++))
+				fi
+			else
+				log_info "CHANGELOG.md ## Released shape is not this tool's (no blank spacer under the heading) - ledger verification skipped"
+			fi
+		else
+			log_info "CHANGELOG.md release ledger not started yet (## Released is created on the next version bump)"
 		fi
 	fi
 
@@ -718,6 +953,21 @@ main() {
 			changed_files+=("$(basename "${f}")")
 		fi
 	done
+
+	# 4b. Adopt pgo-runner onto the root version (night-improve-9)
+	update_pgo_runner "${NEW_VER}"
+	if ! git -C "${REPO_ROOT}" diff --quiet -- "${PGO_CARGO_TOML}"; then
+		changed_files+=("pgo-runner/Cargo.toml")
+	fi
+	if [[ -f "${PGO_CARGO_LOCK}" ]] && ! git -C "${REPO_ROOT}" diff --quiet -- "${PGO_CARGO_LOCK}"; then
+		changed_files+=("pgo-runner/Cargo.lock")
+	fi
+
+	# 4c. Record the release line in the CHANGELOG ledger (night-improve-9)
+	changelog_release "${NEW_VER}"
+	if [[ -f "${CHANGELOG}" ]] && ! git -C "${REPO_ROOT}" diff --quiet -- "${CHANGELOG}"; then
+		changed_files+=("CHANGELOG.md")
+	fi
 
 	# 5. Audit workflows
 	audit_workflows "${NEW_VER}"

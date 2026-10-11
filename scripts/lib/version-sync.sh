@@ -17,7 +17,9 @@
 # ── Version sync (verification only) ───────────────────────────────────
 # Version bumping is owned by ./scripts/dev/version-to.sh — see its --help for
 # the full list of files it touches (Cargo.toml, Cargo.lock, PKGBUILD,
-# .SRCINFO, README.md, docs/workflow/ABOUT_CI.md). build.sh only exposes
+# .SRCINFO, README.md, pgo-runner/Cargo.toml and its lock (the
+# ride-along crate), the CHANGELOG.md release ledger,
+# docs/workflow/ABOUT_CI.md). build.sh only exposes
 # the `version-sync` subcommand, which verifies all active version refs
 # agree with Cargo.toml without writing anything.
 

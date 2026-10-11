@@ -269,6 +269,30 @@ when the version line closes.
   benchmark per house rule (the benchmark rubric measures rain
   density/entropy/fps behavior, not stderr diagnostics).
 
+### build: night-improve-9 — version-to.sh writes the release ledger and adopts the pgo-runner version
+
+- The zelynic NIGHT-improve-76 shape lands: every bump records the
+  release line in the root CHANGELOG.md — a bare `vX.Y.Z` line under
+  a `## Released` heading above `## Unreleased`, newest first,
+  pre-release and stable alike, created on the first bump. The lane
+  probes honestly: a missing file, a missing `## Unreleased` anchor,
+  or an unexpected ledger shape warns and writes nothing — a ledger
+  this script did not create is not one it rewrites.
+- The zelynic NIGHT-improve-67 shape lands with it: pgo-runner (the
+  standalone `cargo use-pgo` crate, cosmostrix's answer to zelynic's
+  ebpf crate) rides the root version from the next bump on — the
+  manifest and its own name-anchored lock entry both — instead of
+  shipping a drifting 0.1.0 label beside a v100 binary. While it
+  sits at its birth version, `version-to.sh --check` and
+  `build.sh version-sync` report the pending adoption instead of
+  failing, so CI stays green until the owner's next real bump.
+- `version-to.sh --check` grows the matching verification steps
+  (manifest and lock agreement, ledger line once the section
+  exists); `scripts/lib/version-sync.sh`, `scripts/README.md` and
+  this file's own prose document the new active-version surfaces.
+- Dev tooling only: no runtime code path touched, no A/B benchmark
+  per house rule.
+
 ---
 
 ## v4.0.0 — Atmosphere Engine + Monolith Rain

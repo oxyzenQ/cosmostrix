@@ -319,9 +319,12 @@ The script updates:
 - `aur/cosmostrix-bin/PKGBUILD` (`pkgver=`, `_tag=`)
 - `aur/cosmostrix-bin/.SRCINFO` (regenerated from PKGBUILD)
 - `README.md` (the `TAG="vX.Y.Z"` install snippet)
+- `pgo-runner/Cargo.toml` (ride-along: the standalone crate's version follows the root's instead of shipping a drifting label)
+- `pgo-runner/Cargo.lock` (the name-anchored `pgo-runner` entry, manifest value only)
+- `CHANGELOG.md` (the release ledger: a bare `vX.Y.Z` line under `## Released`, newest first - the section is created above `## Unreleased` on the first bump, pre-release and stable alike)
 - `docs/workflow/ABOUT_CI.md` (the `TAG="vX.Y.Z"` install snippet, if present)
 
-It skips CHANGELOG headings (historical record) and audits workflow files for hardcoded versions (workflows should derive versions from `GITHUB_REF_NAME`).
+Historical CHANGELOG narrative is never rewritten (night-improve-9): the ledger lane only appends the bare release line under `## Released`, and it probes honestly - a missing file, a missing `## Unreleased` anchor, or an unexpected `## Released` shape warns and writes nothing. Per-era archive files stay a manual cut, and workflow files are audited for hardcoded versions (workflows should derive versions from `GITHUB_REF_NAME`).
 
 `version-to.sh` accepts both stable (`X.Y.Z`) and pre-release
 (`X.Y.Z-alpha.N` / `-beta.N` / `-rc.N` / `-pre.N` / `-nightly.N`)
