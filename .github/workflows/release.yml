@@ -487,13 +487,21 @@ jobs:
             else
               shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
             fi
-            # Quantum-resistant checksums: BLAKE2b-512 + SHAKE256
-            # b2sum is GNU coreutils only — macOS/BSD fallback to Python hashlib
-            if command -v b2sum >/dev/null 2>&1; then
-              b2sum "${TARBALL}" > "${TARBALL}.b2sum"
+            # Quantum-resistant checksums: BLAKE3-256 + SHAKE256
+            # (night-dragon-maintenance-0: the BLAKE2b-512 sidecar is
+            # upgraded to BLAKE3, matching the sibling's prebuilt-lane
+            # digest algorithm). b3sum is not in GNU coreutils and not
+            # preinstalled on runners; the official BLAKE3 CLI comes
+            # from crates.io (cargo install, locked) when absent. If
+            # both paths fail the sidecar is skipped honestly -
+            # sha512sum (mandatory) and shake256 still cover integrity.
+            if ! command -v b3sum >/dev/null 2>&1; then
+              cargo install b3sum --locked --quiet || true
+            fi
+            if command -v b3sum >/dev/null 2>&1; then
+              b3sum "${TARBALL}" > "${TARBALL}.b3sum"
             else
-              _b2=$(python3 -c "import hashlib;print(hashlib.blake2b(open(0,'rb').read()).hexdigest())" < "${TARBALL}")
-              echo "${_b2}  ${TARBALL}" > "${TARBALL}.b2sum"
+              echo "::warning::b3sum unavailable - ${TARBALL}.b3sum sidecar skipped (sha512sum + shake256 still generated)"
             fi
             # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
             # doesn't support -shake256, Windows ships LibreSSL too)
@@ -546,15 +554,20 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA512 "dist/$zip").Hash.ToLower()
           "$hash  $zip" | Out-File -Encoding ascii "dist/$zip.sha512sum"
 
-          # BLAKE2b via Python (Windows doesn't ship b2sum in base)
-          $pyB2 = "import hashlib; d=open('dist/$zip','rb').read(); print(hashlib.blake2b(d).hexdigest())"
-          try {
-            $b2Hash = (python3 -c $pyB2).Trim()
-            if ($b2Hash) {
-              "$b2Hash  $zip" | Out-File -Encoding ascii "dist/$zip.b2sum"
-            }
-          } catch {
-            # BLAKE2b generation failed — skip (sha512sum is still generated)
+          # BLAKE3 via b3sum (night-dragon-maintenance-0: replaces the
+          # BLAKE2b-512 sidecar; matches the sibling's prebuilt-lane
+          # digest algorithm). b3sum is not preinstalled on Windows;
+          # the official BLAKE3 CLI comes from crates.io via cargo
+          # (locked). Skipped honestly when both paths fail -
+          # sha512sum remains the mandatory sidecar.
+          if (-not (Get-Command b3sum -ErrorAction SilentlyContinue)) {
+            try { cargo install b3sum --locked --quiet } catch {}
+          }
+          if (Get-Command b3sum -ErrorAction SilentlyContinue) {
+            $b3Hash = (b3sum "dist/$zip").Split(' ')[0]
+            "$b3Hash  $zip" | Out-File -Encoding ascii "dist/$zip.b3sum"
+          } else {
+            Write-Host "::warning::b3sum unavailable - $zip.b3sum sidecar skipped (sha512sum + shake256 still generated)"
           }
 
           # SHAKE256 via Python (Windows ships LibreSSL which doesn't support -shake256)
@@ -746,13 +759,21 @@ jobs:
             else
               shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
             fi
-            # Quantum-resistant checksums: BLAKE2b-512 + SHAKE256
-            # b2sum is GNU coreutils only — macOS/BSD fallback to Python hashlib
-            if command -v b2sum >/dev/null 2>&1; then
-              b2sum "${TARBALL}" > "${TARBALL}.b2sum"
+            # Quantum-resistant checksums: BLAKE3-256 + SHAKE256
+            # (night-dragon-maintenance-0: the BLAKE2b-512 sidecar is
+            # upgraded to BLAKE3, matching the sibling's prebuilt-lane
+            # digest algorithm). b3sum is not in GNU coreutils and not
+            # preinstalled on runners; the official BLAKE3 CLI comes
+            # from crates.io (cargo install, locked) when absent. If
+            # both paths fail the sidecar is skipped honestly -
+            # sha512sum (mandatory) and shake256 still cover integrity.
+            if ! command -v b3sum >/dev/null 2>&1; then
+              cargo install b3sum --locked --quiet || true
+            fi
+            if command -v b3sum >/dev/null 2>&1; then
+              b3sum "${TARBALL}" > "${TARBALL}.b3sum"
             else
-              _b2=$(python3 -c "import hashlib;print(hashlib.blake2b(open(0,'rb').read()).hexdigest())" < "${TARBALL}")
-              echo "${_b2}  ${TARBALL}" > "${TARBALL}.b2sum"
+              echo "::warning::b3sum unavailable - ${TARBALL}.b3sum sidecar skipped (sha512sum + shake256 still generated)"
             fi
             # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
             # doesn't support -shake256, Windows ships LibreSSL too)
@@ -906,7 +927,14 @@ jobs:
           ls -lh "${ARCHIVE}"
           # Generate all 3 checksums for consistency with build_packages
           sha512sum "${ARCHIVE}" > "${ARCHIVE}.sha512sum"
-          b2sum "${ARCHIVE}" > "${ARCHIVE}.b2sum"
+          if ! command -v b3sum >/dev/null 2>&1; then
+            cargo install b3sum --locked --quiet || true
+          fi
+          if command -v b3sum >/dev/null 2>&1; then
+            b3sum "${ARCHIVE}" > "${ARCHIVE}.b3sum"
+          else
+            echo "::warning::b3sum unavailable - ${ARCHIVE}.b3sum sidecar skipped (sha512sum + shake256 still generated)"
+          fi
           python3 -c "import hashlib; print(hashlib.shake_256(open('${ARCHIVE}','rb').read()).hexdigest(64) + '  ${ARCHIVE}')" > "${ARCHIVE}.shake256"
 
       - name: Upload PGO artifact
@@ -969,8 +997,20 @@ jobs:
             TARBALL="cosmostrix-v${VERSION}-freebsd-amd64.tar.gz"
             tar czf "${TARBALL}" -C target/pro-freebsd-amd64 cosmostrix
             sha512sum "${TARBALL}" > "${TARBALL}.sha512sum"
-            # BLAKE2b via Python (FreeBSD doesn't ship b2sum in base)
-            python3 -c "import hashlib; print(hashlib.blake2b(open('${TARBALL}','rb').read()).hexdigest() + '  ${TARBALL}')" > "${TARBALL}.b2sum"
+            # BLAKE3 via b3sum (night-dragon-maintenance-0: replaces the
+            # BLAKE2b-512 sidecar; matches the sibling's prebuilt-lane
+            # digest algorithm). FreeBSD doesn't ship b3sum in base;
+            # the official BLAKE3 CLI comes from crates.io via cargo
+            # (locked) - cargo is already provisioned by the prepare
+            # step. Skipped honestly when both paths fail.
+            if ! command -v b3sum >/dev/null 2>&1; then
+              cargo install b3sum --locked --quiet || true
+            fi
+            if command -v b3sum >/dev/null 2>&1; then
+              b3sum "${TARBALL}" > "${TARBALL}.b3sum"
+            else
+              echo "::warning::b3sum unavailable - ${TARBALL}.b3sum sidecar skipped (sha512sum + shake256 still generated)"
+            fi
             # SHAKE256 via Python (cross-platform)
             python3 -c "import hashlib; print(hashlib.shake_256(open('${TARBALL}','rb').read()).hexdigest(64) + '  ${TARBALL}')" > "${TARBALL}.shake256"
             echo "FreeBSD build + package complete: ${TARBALL}"
@@ -1187,12 +1227,12 @@ jobs:
           files: |
             dist/**/*.tar.gz
             dist/**/*.tar.gz.sha512sum
-            dist/**/*.tar.gz.b2sum
+            dist/**/*.tar.gz.b3sum
             dist/**/*.tar.gz.shake256
             dist/**/*.tar.gz.asc
             dist/**/*.zip
             dist/**/*.zip.sha512sum
-            dist/**/*.zip.b2sum
+            dist/**/*.zip.b3sum
             dist/**/*.zip.shake256
             dist/**/*.zip.asc
 
