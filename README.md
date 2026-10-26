@@ -718,6 +718,8 @@ commercial rights.
 For trademark licensing or written permission, contact **rezky_nightky (oxyzenQ)** — <https://github.com/oxyzenQ>.
 
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+
+<p align="center"><em>built with curiosity</em></p>
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
