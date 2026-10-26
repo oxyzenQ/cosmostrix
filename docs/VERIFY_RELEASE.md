@@ -44,8 +44,15 @@ Every archive ships three checksum files covering classical + post-quantum algor
 | File | Algorithm | Family | Quantum-safe? |
 |------|-----------|--------|---------------|
 | `*.sha512sum` | SHA-512 | SHA-2 | 256-bit (borderline) |
-| `*.b2sum` | BLAKE2b-512 | BLAKE2 | 256-bit |
+| `*.b3sum` | BLAKE3-256 | BLAKE3 | 128-bit |
 | `*.shake256` | SHAKE256 | SHA-3 XOF (NIST PQ) | 256-bit |
+
+Why the BLAKE3 digest is 256-bit where BLAKE2b-512 was 512-bit: the
+sidecar's job is integrity (corruption/tamper detection), while
+authenticity is anchored by the GPG signature. A 128-bit collision
+bound (256-bit preimage classically) is unreachable for any realistic
+adversary, and BLAKE3 is the faster, modern construction the sibling
+project's prebuilt lane already standardizes on.
 
 All three commands print `<filename>: OK` on success (or `FAILED` on mismatch):
 
@@ -53,8 +60,10 @@ All three commands print `<filename>: OK` on success (or `FAILED` on mismatch):
 # Classical (universal, every Linux has this)
 sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
 
-# Quantum-resistant — BLAKE2b (fastest, in coreutils)
-b2sum -c cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.b2sum
+# BLAKE3 — official CLI (`b3sum`); install via your distro package or
+# `cargo install b3sum --locked` (not in GNU coreutils, not
+# preinstalled everywhere — one-time optional install)
+b3sum -c cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.b3sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via Python).
 # openssl's -shake256 default output length varies by version/distro;
@@ -70,7 +79,7 @@ Replace `vX.Y.Z` and `linux-amd64-v3` with the actual version and platform from 
 
 - **GPG signature** proves the artifact was produced by the maintainer (authenticity).
 - **Checksums** prove the artifact was not corrupted during download (integrity).
-- **Three hash families** (SHA-2, BLAKE2, SHA-3) provide defense in depth — a future cryptanalytic break of any single family does not invalidate verification via the other two.
+- **Three hash families** (SHA-2, BLAKE3, SHA-3) provide defense in depth — a future cryptanalytic break of any single family does not invalidate verification via the other two.
 
 ## 4. crates.io installs (`cargo install cosmostrix`)
 
@@ -87,10 +96,10 @@ push (stable and pre-release alike).
 
 - `gpg` — GnuPG 2.x (preinstalled on virtually every Linux; on macOS: `brew install gnupg`)
 - `sha512sum` — GNU coreutils (preinstalled on every Linux)
-- `b2sum` — GNU coreutils ≥ 8.x (preinstalled on modern distros)
+- `b3sum` — official BLAKE3 CLI; optional one-time install (distro package, `cargo install b3sum --locked`, or `brew install blake3`)
 - `python3` — Python 3.6+ (for SHAKE256 verification; preinstalled on most systems)
 
-All tools ship with Arch Linux, Debian, Ubuntu, Fedora, Alpine, and macOS (via Homebrew) by default — no extra install needed on most systems.
+`gpg`, `sha512sum`, and `python3` ship with Arch Linux, Debian, Ubuntu, Fedora, Alpine, and macOS (via Homebrew) by default. `b3sum` is the one exception — a small optional install; skipping it never blocks verification (`sha512sum` is mandatory, `b3sum`/`shake256` are belt-and-braces).
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

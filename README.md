@@ -220,7 +220,7 @@ The chroma dragon border gradient (`-mb` message overlay) and HUD chroma gradien
 
 Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify the checksum, and place `cosmostrix` in your `PATH`.
 
-Every archive ships three checksums (classical SHA-512 plus quantum-resistant BLAKE2b-512 and SHAKE256) and one GPG detached signature from the maintainer's key. Verification — key import, `gpg --verify`, and all three checksum commands — is documented once in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md); the quick install flow below carries the classical SHA-512 check inline. Binaries produced locally via `cargo build` or `./scripts/build.sh release` carry the embedded `Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)` signature string, discoverable via `strings ./cosmostrix | grep "Cosmic Dragon"`.
+Every archive ships three checksums (classical SHA-512 plus BLAKE3-256 and quantum-resistant SHAKE256) and one GPG detached signature from the maintainer's key. Verification — key import, `gpg --verify`, and all three checksum commands — is documented once in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md); the quick install flow below carries the classical SHA-512 check inline. Binaries produced locally via `cargo build` or `./scripts/build.sh release` carry the embedded `Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)` signature string, discoverable via `strings ./cosmostrix | grep "Cosmic Dragon"`.
 
 **Available platforms:**
 
