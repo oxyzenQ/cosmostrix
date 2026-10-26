@@ -85,7 +85,7 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     //   message = "text"  → WITHOUT border (matches -m)
     //   message-border = "text"  → WITH border (matches -mb)
     // If both present, message-border wins. CLI -m/-mb wins over either.
-    // Default: "Experience a masterpiece with cosmostrix v<CARGO_PKG_VERSION>"
+    // Default: "Experience cosmostrix v<CARGO_PKG_VERSION>"
     // (see default_message_text in src/types/constants.rs). Bench: no overlay.
     "message",
     "message-border",

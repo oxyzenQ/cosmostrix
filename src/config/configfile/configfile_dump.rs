@@ -39,15 +39,15 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # -- Overlay message ------------------------------------------------
 
-# message         = "A masterpiece" # without border (matches -m)
-# message-border  = "A masterpiece" # with border (matches -mb; wins if both present)
+# message         = "hello dragon" # without border (matches -m)
+# message-border  = "hello dragon" # with border (matches -mb; wins if both present)
 # msg-mode        = true            # false suppresses the overlay entirely (CLI -m/-mb still wins)
 # msg-fill-style  = "engrave"       # reveal animation: typewriter | fade | words | slide | instant
 #                                   # engrave | hologram | glitch | scorch | cascade | radar
 
 # Message notes: max 200 characters; no message anywhere -> interactive
-# mode shows the bordered default "Experience a masterpiece with
-# cosmostrix v<version>"; benchmark mode never shows an overlay.
+# mode shows the bordered default "Experience cosmostrix
+# v<version>"; benchmark mode never shows an overlay.
 
 # -- Motion ----------------------------------------------------------
 

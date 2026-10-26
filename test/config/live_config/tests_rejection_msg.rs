@@ -340,7 +340,7 @@ fn live_reload_no_config_message_reverts_to_default() {
     // Bug fix v50.0.0-beta.7: when config has `message = "hey"` at
     // startup, base.message = Some("hey"). User comments it out
     // (# message = "hey"). Live-reload MUST revert to the default
-    // "Experience a masterpiece with cosmostrix v{}" with border=true
+    // "Experience cosmostrix v{}" with border=true
     // — NOT preserve the stale "hey". Mirrors the color.tune
     // reset-on-comment pattern (LIVE_RELOAD_BEHAVIOR.md Limitation C,
     // fixed v50.0.0-alpha.7).

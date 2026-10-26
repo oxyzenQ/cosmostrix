@@ -36,7 +36,7 @@
 //! task-19 + NIGHT-research-4/5/6: the rejected `ripple` style
 //! (water-surface rings) was replaced by `flux` (task-19, PIC/FLIP
 //! liquid matrix) at cycle position 5; `lorenz` joined at position 6
-//! — a strange-attractor masterpiece (canonical Lorenz ODE
+//! — a strange-attractor renderer (canonical Lorenz ODE
 //! integrated via RK4); `cosmic_dragon` joined at position 7 — the
 //! Chinese-mythology serpentine dragon (NIGHT-research-5); `physarum`
 //! joined at position 8 — the bio-inspired slime mold (Jeff Jones

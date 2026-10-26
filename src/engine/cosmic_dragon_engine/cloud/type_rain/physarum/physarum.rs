@@ -20,7 +20,7 @@
 //! between deposition and sensing creates the network — paths
 //! that get used attract more traffic, unused paths decay.
 //!
-//! Terminal-limit exploitation — the masterpiece contract:
+//! Terminal-limit exploitation — the substrate contract:
 //!
 //! - The terminal's discrete cell grid IS the slime-mold substrate
 //!   (a 2D chemical concentration field, one f32 per cell). No
@@ -46,7 +46,7 @@
 //!   Jones implementation, prevents corner clustering, and lets
 //!   networks span the full viewport organically.
 //!
-//! Masterpiece engineering / future-proof legacy:
+//! Durable engineering / future-proof legacy:
 //!
 //! The algorithm is parameter-driven (sensor angle, sensor distance,
 //! deposit amount, decay rate, turn speed). The same code produces
@@ -199,7 +199,7 @@ pub(crate) struct PhysarumRain {
     /// (flat layout: `col * lines + line`). Used by sensor sampling
     /// for particle steering. NOT drawn directly — the visible vein
     /// network emerges from the engine's existing phosphor decay
-    /// system. This is the masterpiece contract: the terminal's
+    /// system. This is the substrate contract: the terminal's
     /// discrete cell grid IS the slime-mold substrate.
     trail_field: Vec<f32>,
     trail_cols: u16,

@@ -42,7 +42,7 @@ revenue.
 ### Q: Why did the Business and Company prices go up?
 
 A: Because the product keeps going up. cosmostrix is priced as a
-masterpiece-grade renderer: every hardening pass, dependency audit, and
+professional-grade renderer: every hardening pass, dependency audit, and
 LTS release compounds the value of the codebase, and the Business
 ($5,199/year) and Company ($100,199/year) tiers are deliberately raised
 to track it year by year (October 2026 raise: Business $5,000 to

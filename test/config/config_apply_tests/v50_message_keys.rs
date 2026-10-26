@@ -15,8 +15,8 @@ use super::args_with_config;
 #[test]
 fn config_message_border_applies_with_border() {
     // Setting message-border = "X" in config sets args.message + border=true.
-    let args = args_with_config("message-border = \"A masterpiece\"\n", &[]);
-    assert_eq!(args.message.as_deref(), Some("A masterpiece"));
+    let args = args_with_config("message-border = \"A dragon\"\n", &[]);
+    assert_eq!(args.message.as_deref(), Some("A dragon"));
     assert!(
         args.message_border,
         "message-border config must set border=true"

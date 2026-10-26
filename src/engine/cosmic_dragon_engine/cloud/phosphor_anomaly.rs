@@ -337,7 +337,7 @@ impl super::Cloud {
         // NIGHT-hunt-36: removed the whole-function message gate
         // (`!self.message.is_empty() -> return`). The default interactive
         // config ALWAYS carries the built-in fallback message
-        // ("Experience a masterpiece with cosmostrix vX", wired in
+        // ("Experience cosmostrix vX", wired in
         // build_cloud_cfg), so that gate meant the sweep NEVER ran on any
         // default run — orphan glyph cells persisted until a random
         // droplet happened to overwrite them: the owner's

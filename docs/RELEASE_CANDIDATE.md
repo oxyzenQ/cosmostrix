@@ -82,7 +82,7 @@ Run these interactively and verify clean exit with `q`:
 ```bash
 "$BIN"
 "$BIN" --color sun
-"$BIN" -mb "one world first seriously matrix rain"
+"$BIN" -mb "seriously matrix rain"
 "$BIN" --color green --color-tune "saturation=1.5,brightness=1.2"
 ```
 

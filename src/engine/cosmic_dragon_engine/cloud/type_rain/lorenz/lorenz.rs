@@ -36,7 +36,7 @@
 //! comet streaks, showing the recent trajectory arc — the visual
 //! signature of "glyphs riding a chaotic attractor".
 //!
-//! Future-proof engineering — the masterpiece legacy: this file is
+//! Future-proof engineering — the durable legacy: this file is
 //! the project's first strange-attractor renderer. The architecture
 //! (RK4 step + derivative function + project + diff cleanup) is
 //! attractor-agnostic: swapping the Lorenz derivative for Rössler,

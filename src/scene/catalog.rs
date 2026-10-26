@@ -62,7 +62,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
         },
     },
     // NIGHT-research-4: the lorenz scene is the project's flagship
-    // masterpiece — the only terminal rain that renders a real
+    // scene — the only terminal rain that renders a real
     // strange attractor (canonical Lorenz ODE, sigma=10, rho=28,
     // beta=8/3, RK4-integrated). Two-lobe butterfly projected to 2D
     // with z-as-depth brightness. The `cosmos` palette + `binary`
@@ -119,7 +119,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     // Jones 2010 model). Particles sense / decide / move / deposit
     // on a stigmergic trail field, producing emergent network
     // patterns. The terminal's discrete cell grid IS the substrate
-    // — a 1:1 medium match (masterpiece contract: terminal
+    // — a 1:1 medium match (the substrate contract: terminal
     // limitations BECOME the simulation substrate).
     // The `cosmos` palette + `binary` charset evoke the deep-space
     // petri dish aesthetic; speed 18 = steady exploration cadence;

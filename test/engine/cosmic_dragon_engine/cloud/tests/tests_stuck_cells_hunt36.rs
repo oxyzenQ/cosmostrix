@@ -11,7 +11,7 @@
 //! 1. Whole-function message gate: `!self.message.is_empty() -> return`
 //!    disabled the sweep entirely whenever an overlay was active — and the
 //!    default interactive config ALWAYS carries the built-in fallback
-//!    message ("Experience a masterpiece with cosmostrix vX", wired in
+//!    message ("Experience cosmostrix vX", wired in
 //!    `build_cloud_cfg`), so the sweep NEVER ran on a default run. Fix:
 //!    per-cell rectangle exemption (`message_sweep_top/bottom/left/right`,
 //!    cached in `relayout_message`, bordered AND borderless) — the sweep

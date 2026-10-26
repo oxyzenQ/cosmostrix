@@ -557,7 +557,7 @@ pub(crate) const MESSAGE_MAX_LEN: usize = 200;
 #[must_use]
 pub(crate) fn default_message_text() -> String {
     format!(
-        "Experience a masterpiece with cosmostrix v{}",
+        "Experience cosmostrix v{}",
         env!("CARGO_PKG_VERSION")
     )
 }

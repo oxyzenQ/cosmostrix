@@ -82,7 +82,7 @@
 //! system scales with any screen size (the dynamic-size contract
 //! the owner pinned this round).
 //!
-//! Stage 2.7 (owner 9.95/10 feedback, rated 10/10 masterpiece): the
+//! Stage 2.7 (owner visual verification, 10/10): the
 //! halo split became the DOUBLE UPWARD STREAM — a second upper lane
 //! on the 1.48-radius arc joined the 1.30 lensing circle (two
 //! distinct crowns of the same rider population) while the lower
@@ -213,7 +213,7 @@
 //! - stage 2 (this file + `ring.rs`/`halo.rs`, revisions 2.1-2.7 plus
 //!   the NIGHT-research-10 five-lane re-split): the orbital ring
 //!   stack + the halo stream family — owner visual verification
-//!   (stage 2.7 rated 10/10, masterpiece).
+//!   (stage 2.7 rated 10/10).
 //! - stage 3 (`infall.rs`, shipped): glyph rain infall — falling
 //!   glyphs that bend elegantly into the core when they approach the
 //!   ring's capture radius, spiraling through the accretion brake

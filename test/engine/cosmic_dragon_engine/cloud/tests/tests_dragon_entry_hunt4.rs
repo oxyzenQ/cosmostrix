@@ -3,8 +3,8 @@
 
 //! NIGHT-enhanced-4 regression tests: dragon elegant top-down entry.
 //!
-//! Owner directive: "dragon should show from top with elegantly
-//! masterpiece, not fast random appears."
+//! Owner directive: "dragon should show from top with an elegant
+//! entrance, not fast random appears."
 //!
 //! Before the fix, `activate_dragon` spawned the dragon at a random
 //! position in the inner 60% of the viewport with all body segments

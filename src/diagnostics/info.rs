@@ -292,7 +292,7 @@ DESIGN CONSTRAINTS
   - Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD.
 
 cosmostrix is powered by The Cosmic Dragon Diff-Based Rendering
-Engine — a serious diff-based rendering masterpiece. It is designed
+Engine — a serious diff-based renderer. It is designed
 for cinematic art, not for toys. By principle, it will never support
 emoji or wide characters (CJK fullwidth, zero-width combining marks),
 as its focus is on pure, elegant, and exclusive visual quality built
@@ -672,15 +672,15 @@ mod tests {
     }
 
     /// (philosophy declaration): the --docs output must carry the
-    /// condensed masterpiece philosophy so the engine's identity is embedded
+    /// condensed engine philosophy so the engine's identity is embedded
     /// in the binary itself, not just in the README. This locks in the
     /// exact wording requested for the formal philosophy declaration.
     ///
     /// Note: the report wraps at ~70 cols for terminal display, so we
     /// normalize whitespace before substring-matching (a wrapped sentence
-    /// like "serious diff-based rendering\nmasterpiece" must still match).
+    /// like "serious diff-based\nrenderer" must still match).
     #[test]
-    fn docs_report_declares_masterpiece_philosophy() {
+    fn docs_report_declares_engine_philosophy() {
         let report = docs_report();
         let normalized: String = report.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(
@@ -688,8 +688,8 @@ mod tests {
             "docs_report must open the philosophy with the engine name"
         );
         assert!(
-            normalized.contains("serious diff-based rendering masterpiece"),
-            "docs_report must declare masterpiece status (wrapped text normalized)"
+            normalized.contains("serious diff-based renderer"),
+            "docs_report must declare the engine identity (wrapped text normalized)"
         );
         assert!(
             normalized.contains("cinematic art, not for toys"),

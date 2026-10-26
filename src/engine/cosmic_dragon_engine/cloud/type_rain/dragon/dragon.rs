@@ -171,7 +171,7 @@ pub(crate) struct Dragon {
     /// 1.0 (entry complete, full body visible). During entry the dragon
     /// descends from the top of the viewport with a graceful head-down
     /// heading, and the body chain unfurls segment-by-segment from head
-    /// to tail — an elegant masterpiece entry instead of the previous
+    /// to tail — an elegant unfurling entry instead of the previous
     /// instant full-body spawn at a random screen position.
     pub(crate) entry_progress: f32,
     /// NIGHT-enhanced-4: the flight heading the dragon will adopt once
@@ -399,7 +399,7 @@ impl DragonRain {
     /// 60% of the viewport with all body segments placed at once — a
     /// "fast random appears" pop that read as a glitch, not a majestic
     /// entrance. The owner directive: "dragon should show from top
-    /// with elegantly masterpiece, not fast random appears."
+    /// with an elegant entrance, not fast random appears."
     fn activate_dragon(
         &mut self,
         idx: usize,

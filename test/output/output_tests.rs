@@ -230,7 +230,7 @@ fn color_capability_enum_has_four_variants() {
 #[test]
 fn brand_open_returns_correct_escape_per_capability() {
     // Verify the escape mapping for each capability tier. This is the
-    // world-class invariant: every tier must produce a valid escape
+    // core invariant: every tier must produce a valid escape
     // (or empty string for Mono), and the TrueColor tier must encode
     // the exact RGB values from the source-of-truth constants.
     let truecolor_escape = match ColorCapability::TrueColor {

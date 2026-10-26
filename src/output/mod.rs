@@ -40,7 +40,7 @@
 //! nearest xterm-256 index, Color16 gets the classic ANSI slot, Mono
 //! gets plain text.
 //!
-//! ## Capability detection (world-class graceful degradation)
+//! ## Capability detection (graceful degradation)
 //!
 //! Colors are emitted based on the terminal's detected color capability:
 //!

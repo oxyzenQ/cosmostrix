@@ -52,7 +52,7 @@ fn message_dash_renders_as_content() {
     // (Spaces are not content cells — the reveal budget skips them —
     // so the verbatim compare uses the space-stripped expectation.)
     let mut cloud = make_cloud_colored(MsgFillStyle::Instant);
-    let text = "Experience a masterpiece with cosmostrix v80.0.0-alpha.1";
+    let text = "Experience cosmostrix v80.0.0-alpha.1";
     let rendered = settled_message_text(&mut cloud, text, true);
     assert!(
         rendered.contains("v80.0.0-alpha.1"),

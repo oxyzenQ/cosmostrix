@@ -56,7 +56,7 @@ granted without explicit owner approval.
 
 ### Pricing Philosophy
 
-cosmostrix is a masterpiece-grade renderer, and it is priced like one.
+cosmostrix is a professional-grade renderer, and it is priced like one.
 Every hardening pass, dependency audit, LTS release, and benchmark
 campaign raises the value of the codebase year by year — the Business
 and Company tiers track that rising value deliberately. A company

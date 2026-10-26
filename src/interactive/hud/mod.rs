@@ -17,7 +17,7 @@
 //! ## Design constraints
 //! - Zero cost when off: `visible == false` short-circuits all work.
 //! - Metrics at 1 Hz: p99 sort + string formatting only every 1000ms.
-//!   1 Hz is the world-class standard for live HUDs (htop, mangoHUD,
+//!   1 Hz is the established standard for live HUDs (htop, mangoHUD,
 //!   Steam FPS counter, nvidia-smi) — calm enough that the eye reads
 //!   numbers as stable, fast enough to catch any real spike. The
 //!   previous 4 Hz cadence made FPS/p99 visibly flicker 4×/sec which

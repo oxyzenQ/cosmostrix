@@ -6,7 +6,7 @@
 cosmostrix "The Cosmic Dragon" is built on a **defense-in-depth** philosophy.
 Every critical path has multiple recovery layers, so if one fails, the next
 catches it. This document maps the Cosmic Dragon's anatomy to the actual codebase
-layers and explains how the "deep" structure provides world-class reliability.
+layers and explains how the "deep" structure provides dependable core reliability.
 
 ## The 7-Layer Cosmic Dragon
 

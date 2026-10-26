@@ -276,7 +276,7 @@ precedence:
 2. `msg-mode=false` -> suppress config message (gate fires)
 3. config `message-border` (wins over `message` when both present)
 4. config `message` (no border)
-5. default fallback `Experience a masterpiece with cosmostrix v{}` with border
+5. default fallback `Experience cosmostrix v{}` with border
    (applied on live-reload when no config message key is present —
    mirrors the startup fallback wired in `src/cli/build_cloud_cfg.rs`
    (`default_message_text()` when no CLI `-m`/`-mb` and msg-mode on,

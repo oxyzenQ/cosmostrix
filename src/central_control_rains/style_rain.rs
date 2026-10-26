@@ -20,8 +20,8 @@
 //! namespace by design).
 //!
 //! Catalog history: the original fourth style was `ripple`
-//! (water-surface rings + splashes) — owner-rejected for not being
-//! unique or masterpiece-grade. task-19 replaced it with `flux` (a
+//! (water-surface rings + splashes) — owner-rejected for lacking a
+//! distinct identity. task-19 replaced it with `flux` (a
 //! PIC/FLIP liquid solver); NIGHT-research-4 then added `lorenz`, a
 //! real strange-attractor renderer (canonical Lorenz ODE integrated
 //! via RK4), as the fifth style; NIGHT-research-5 added `dragon`
@@ -470,7 +470,7 @@ pub(crate) const DRAGON_SHIMMER_CHANCE: f32 = 0.4;
 // signal; positive feedback between deposition and sensing creates
 // emergent vein-like networks. Trail decays exponentially (negative
 // feedback) so unused paths fade. The terminal's discrete cell grid
-// IS the substrate — perfect medium match (masterpiece contract).
+// IS the substrate — perfect medium match (the substrate contract).
 
 /// Sensor angle offset (radians, left and right of heading). At
 /// PI/4 (45 degrees), particles sense a 90-degree cone ahead —
