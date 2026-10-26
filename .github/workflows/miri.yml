@@ -9,6 +9,28 @@
 # Status banner shown by scripts/build.sh on every invocation reflects
 # the most recent local stamp file, NOT this CI run — contributors run
 # `./scripts/build.sh miri` locally to refresh their own stamp.
+#
+# The containment contract (ported from the sibling zejtron's lane
+# after that estate's miri incident, night-dragon-maintenance-1):
+# on the sibling, a miri run hung past 30 minutes with ~93% of its
+# wall clock inside five tests — two full-text README/CHANGELOG
+# doc-assertion scans (~23 minutes interpreted) and three sample-loop
+# render tests (~6 minutes). All five were pure safe code with no
+# pointer/borrow surface. Two rules ride here:
+#   - The admission law: the audited families (MIRI_AUDIT_MODULES in
+#     scripts/lib/miri.sh) are the pointer/alloc/UB surface, not the
+#     docs lane. A test that full-text scans README/CHANGELOG or
+#     burns an unbounded numeric/render loop must never enter them
+#     without #[cfg_attr(miri, ignore = "reason")] — natively it
+#     still runs everywhere else (ci.yml and the docs_tests lane own
+#     the docs assertions and the math loops). Verified 2026-10-27:
+#     the six families' test bodies carry no docs-scan or unbounded
+#     loop today.
+#   - The fail-fast cap: the job timeout below is sized to the
+#     measured record (the sibling's ~5x formula on the interpreted
+#     step), not inherited — a future burden test that inflates the
+#     run dies loudly inside the budget instead of hanging the runner
+#     for half an hour.
 
 name: "Cosmic Dragon Guard - Miri"
 
@@ -36,11 +58,24 @@ env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
 
+# Rapid pushes to the same ref cancel the superseded run instead of
+# queueing a duplicate miri build.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   miri:
     name: Cosmic Dragon Guard - Miri UB verification (6 audited modules)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Sized to the measured record (the sibling's ~5x formula): the
+    # interpreted step's own docs record is 1-3 min, so 20 gives ~5x
+    # headroom on the interpretation while still covering the toolchain
+    # install and the miri rebuild. Not a speed claim — a fail-fast
+    # line: a future docs-scan or unbounded-loop test that inflates
+    # the run past this boundary fails loudly instead of hanging (see
+    # the header's admission law).
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
@@ -50,6 +85,16 @@ jobs:
           rustup toolchain install nightly --profile minimal --component miri
           rustup component add miri --toolchain nightly
           cargo +nightly miri --version
+
+      # The read-lane cache (the sibling's night-total-lts-2 shape):
+      # every other compile lane caches; miri recompiles and interprets
+      # the crate per run, so a missing cache eroded exactly the
+      # fail-fast budget the job is sized to. save-if: false keeps it
+      # read-only — the ci.yml lanes own cache writes.
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: false
 
       - name: Run Miri verification
         run: |
