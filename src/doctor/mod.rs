@@ -92,9 +92,22 @@ pub(crate) fn print_doctor_report(args: &Args) {
         // math. Owner directive: "all color -> chroma dragon first ->
         // fallback legacy rgb/srgb".
         let pipeline = ColorPipeline::detect(effective);
-        s.field("color_pipeline", pipeline.label());
+        // night-dragon-maintenance-1, the zelynic verdict canon: the
+        // pipeline value rides the ok-green tier when the chroma
+        // dragon drives the palette, and the warning-yellow tier when
+        // a bypass is active — the same verdict grammar the sibling's
+        // doctor paints its YES/SUPPORTED lines with. Piped surfaces
+        // lose the escape (the capability ladder returns plain text),
+        // so the machine-readable label stays byte-identical there.
+        let disable_reason = pipeline.disable_reason(effective);
+        let pipeline_verdict = if disable_reason.is_some() {
+            crate::output::warn_bold(pipeline.label())
+        } else {
+            crate::output::ok_bold(pipeline.label())
+        };
+        s.field("color_pipeline", &pipeline_verdict);
         s.field("color_pipeline_detail", pipeline.description());
-        if let Some(reason) = pipeline.disable_reason(effective) {
+        if let Some(reason) = disable_reason {
             s.field("chroma_disable_reason", reason);
         }
         s.field("identity", ri.identity);

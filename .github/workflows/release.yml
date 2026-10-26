@@ -987,7 +987,11 @@ jobs:
             BIN="target/pro-freebsd-amd64/cosmostrix"
             OUT=$("${BIN}" --doctor) || { echo "::error::--doctor failed"; exit 1; }
             printf '%s\n' "${OUT}" | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -E "^  build: freebsd-amd64$" || { echo "::error::Expected build freebsd-amd64"; exit 1; }
+            # night-dragon-maintenance-1: the doctor fields ride the
+            # zelynic aligned-column canon (key padded to the section
+            # column), so the value no longer sits one space after the
+            # colon — the grep tolerates the padded gap.
+            printf '%s\n' "${OUT}" | grep -E "^  build: +freebsd-amd64$" || { echo "::error::Expected build freebsd-amd64"; exit 1; }
 
             # Quick benchmark smoke test
             echo "=== Benchmark smoke test ===" && "${BIN}" --benchmark --bench-duration 1 --bench-frames 10 2>&1 | head -5 || true

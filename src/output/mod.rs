@@ -308,6 +308,22 @@ pub(crate) fn error_bold_open() -> &'static str {
     }
 }
 
+/// Bold ok green open sequence, capability-aware — the zelynic Ok
+/// slot (night-dragon-maintenance-1 output-canon pass): truecolor
+/// #50FA7B (80,250,123), the 256-color 84 rung, ANSI green (32) on
+/// classic 16-color terminals, plain text on mono. The doctor paints
+/// its healthy-verdict values (color_pipeline active) with this tier,
+/// the same YES/SUPPORTED grammar the sibling's doctor uses.
+#[must_use]
+pub(crate) fn ok_bold_open() -> &'static str {
+    match color_capability() {
+        ColorCapability::TrueColor => "\x1b[1;38;2;80;250;123m",
+        ColorCapability::Color256 => "\x1b[1;38;5;84m",
+        ColorCapability::Color16 => "\x1b[1;32m",
+        ColorCapability::Mono => "",
+    }
+}
+
 /// Warning yellow open sequence, capability-aware.
 #[must_use]
 pub(crate) fn warn_open() -> &'static str {
@@ -405,6 +421,15 @@ pub(crate) fn warn(msg: &str) -> String {
     match color_capability() {
         ColorCapability::Mono => msg.to_string(),
         _ => format!("{}{}{}", warn_open(), msg, reset()),
+    }
+}
+
+/// Wrap `msg` in bold ok green. Returns plain text if color is disabled.
+#[must_use]
+pub(crate) fn ok_bold(msg: &str) -> String {
+    match color_capability() {
+        ColorCapability::Mono => msg.to_string(),
+        _ => format!("{}{}{}", ok_bold_open(), msg, reset()),
     }
 }
 
