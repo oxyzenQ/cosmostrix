@@ -9,7 +9,7 @@ for proprietary use. Full terms live in
 
 Index:
 
-- [Company use](#company-use)
+- [Enterprise use](#enterprise-use)
 - [Tier selection](#tier-selection)
 - [Pricing](#pricing)
 - [Payment](#payment)
@@ -18,7 +18,7 @@ Index:
 - [Rebranding and resale](#rebranding-and-resale)
 - [Contributing](#contributing)
 
-## Company use
+## Enterprise use
 
 ### Q: Can I use this at my company for free?
 
@@ -32,24 +32,28 @@ tiers and pricing.
 
 ### Q: Which tier do I need?
 
-A: Tiers follow annual revenue: under $100K/year means Individual, between
-$100K and $10M/year means Business, above $10M/year means Company. Any
-redistribution of cosmostrix requires the Company tier regardless of
+A: Tiers follow annual revenue: under $100K/year means Individual,
+between $100K and $10M/year means Business, above $10M/year means
+Enterprise Internal (internal use only, no redistribution). Any
+redistribution of cosmostrix — embedding or reselling it inside a
+shipped product — requires the OEM / Redistribution tier regardless of
 revenue.
 
 ## Pricing
 
-### Q: Why did the Business and Company prices go up?
+### Q: Why do the paid-tier prices keep going up?
 
 A: Because the product keeps going up. cosmostrix is priced as a
 professional-grade renderer: every hardening pass, dependency audit, and
-LTS release compounds the value of the codebase, and the Business
-($5,199/year) and Company ($100,199/year) tiers are deliberately raised
-to track it year by year (October 2026 raise: Business $5,000 to
-$5,199, Company $50,199 to $100,199). The Personal tier stays free and
-the Individual tier stays $99/year — the increase only touches business
-and enterprise buyers who profit from the work. See the Pricing
-Philosophy section in [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
+LTS release compounds the value of the codebase, and the paid tiers are
+deliberately raised to track it year by year. The raise record lives in
+the Pricing Philosophy section of
+[COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md): Business stands at
+$12,999/year, and the former Company tier is split into Enterprise
+Internal ($64,999/year, internal use only) and OEM / Redistribution
+($149,999/year, embedding rights). The Personal tier stays free and
+the Individual tier stays $99/year — the increases only touch business
+and enterprise buyers who profit from the work.
 
 ## Unlicensed commercial use
 
@@ -86,8 +90,9 @@ proprietary and commercial use.
 
 ### Q: Can I rebrand and sell it?
 
-A: No. Redistribution requires the Company tier, and using the cosmostrix
-name, logo, or branding additionally requires trademark permission — see
+A: No. Redistribution requires the OEM / Redistribution tier, and using
+the cosmostrix name, logo, or branding additionally requires trademark
+permission — see
 [TRADEMARK.md](../TRADEMARK.md). Non-contribution forks must use a different
 name and branding, and must be discussed with the owner first.
 
