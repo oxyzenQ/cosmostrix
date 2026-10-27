@@ -1,5 +1,8 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: branded output surface — the neon palette constants, symbol
+// maps and the emit helpers every CLI lane calls; splitting the family is
+// tracked as RULES_LOC migration debt, not done opportunistically.
 
 //! Branded CLI output — cosmostrix neon-family palette with graceful
 //! degradation.

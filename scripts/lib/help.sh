@@ -14,7 +14,7 @@
 # moves from the former flat script.
 
 show_help() {
-        cat <<'EOF'
+	cat <<'EOF'
 cosmostrix build script
 
 USAGE:

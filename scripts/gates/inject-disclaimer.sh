@@ -75,10 +75,10 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CHECK_MODE=false
 
 if [[ "${1:-}" == "--check" ]]; then
-        CHECK_MODE=true
+	CHECK_MODE=true
 elif [[ $# -gt 0 ]]; then
-        echo "usage: bash scripts/gates/inject-disclaimer.sh [--check]" >&2
-        exit 2
+	echo "usage: bash scripts/gates/inject-disclaimer.sh [--check]" >&2
+	exit 2
 fi
 
 # The disclaimer marker — must match exactly for idempotency.
@@ -137,107 +137,107 @@ trap 'rm -rf "${TMPDIR}"' EXIT
 # Writes the candidate to stdout-bound temp file path; the caller
 # compares bytes. Emits nothing.
 normalize() {
-        local file="$1"
-        local -a lines=()
-        mapfile -t lines <"${file}"
+	local file="$1"
+	local -a lines=()
+	mapfile -t lines <"${file}"
 
-        local -a kept=()
-        local i=0
-        local n=${#lines[@]}
-        while [ "${i}" -lt "${n}" ]; do
-                local line="${lines[${i}]}"
-                if [ "${line}" = "${MARKER}" ]; then
-                        # swallow the one separator blank above the block
-                        local top=$((${#kept[@]} - 1))
-                        if [ "${top}" -ge 0 ] && [ -z "${kept[${top}]}" ]; then
-                                kept=("${kept[@]:0:${top}}")
-                        fi
-                        # skip the block proper: to the closing --> line.
-                        # A truncated legacy block (marker with no close)
-                        # runs off the end here — stripped to EOF either way.
-                        local j=$((i + 1))
-                        while [ "${j}" -lt "${n}" ] && [ "${lines[${j}]}" != "-->" ]; do
-                                j=$((j + 1))
-                        done
-                        i=$((j + 1))
-                        continue
-                fi
-                kept+=("${line}")
-                i=$((i + 1))
-        done
+	local -a kept=()
+	local i=0
+	local n=${#lines[@]}
+	while [ "${i}" -lt "${n}" ]; do
+		local line="${lines[${i}]}"
+		if [ "${line}" = "${MARKER}" ]; then
+			# swallow the one separator blank above the block
+			local top=$((${#kept[@]} - 1))
+			if [ "${top}" -ge 0 ] && [ -z "${kept[${top}]}" ]; then
+				kept=("${kept[@]:0:${top}}")
+			fi
+			# skip the block proper: to the closing --> line.
+			# A truncated legacy block (marker with no close)
+			# runs off the end here — stripped to EOF either way.
+			local j=$((i + 1))
+			while [ "${j}" -lt "${n}" ] && [ "${lines[${j}]}" != "-->" ]; do
+				j=$((j + 1))
+			done
+			i=$((j + 1))
+			continue
+		fi
+		kept+=("${line}")
+		i=$((i + 1))
+	done
 
-        # strip the trailing blank runs the block left behind
-        local last=$((${#kept[@]} - 1))
-        while [ "${last}" -ge 0 ] && [ -z "${kept[${last}]}" ]; do
-                last=$((last - 1))
-        done
-        kept=("${kept[@]:0:$((last + 1))}")
+	# strip the trailing blank runs the block left behind
+	local last=$((${#kept[@]} - 1))
+	while [ "${last}" -ge 0 ] && [ -z "${kept[${last}]}" ]; do
+		last=$((last - 1))
+	done
+	kept=("${kept[@]:0:$((last + 1))}")
 
-        local -a out=()
-        if [ "${#kept[@]}" -gt 0 ]; then
-                out=("${kept[@]}" "")
-        fi
-        out=("${out[@]}" "${BLOCK_LINES[@]}")
+	local -a out=()
+	if [ "${#kept[@]}" -gt 0 ]; then
+		out=("${kept[@]}" "")
+	fi
+	out=("${out[@]}" "${BLOCK_LINES[@]}")
 
-        local candidate="${TMPDIR}/normalized.md"
-        printf '%s\n' "${out[@]}" >"${candidate}"
-        printf '%s' "${candidate}"
+	local candidate="${TMPDIR}/normalized.md"
+	printf '%s\n' "${out[@]}" >"${candidate}"
+	printf '%s' "${candidate}"
 }
 
 process_file() {
-        local rel="$1"
-        local file="${REPO_ROOT}/${rel}"
-        CHECKED=$((CHECKED + 1))
+	local rel="$1"
+	local file="${REPO_ROOT}/${rel}"
+	CHECKED=$((CHECKED + 1))
 
-        # Duplicate law first: an unmarked hand-pasted copy of the
-        # block does not ride a marker, so normalize cannot see it.
-        # Count the canonical header line — exactly one copy per file.
-        local headers
-        headers=$(grep -cF "${HEADER_LINE}" "${file}" 2>/dev/null || true)
-        if [[ "${headers:-0}" -gt 1 ]]; then
-                echo -e "${RED}DUPLICATE disclaimer (${headers} copies, one unmarked): ${rel}${NC}"
-                DUPLICATES=$((DUPLICATES + 1))
-                NOT_BOTTOM=$((NOT_BOTTOM + 1))
-                return 0
-        fi
+	# Duplicate law first: an unmarked hand-pasted copy of the
+	# block does not ride a marker, so normalize cannot see it.
+	# Count the canonical header line — exactly one copy per file.
+	local headers
+	headers=$(grep -cF "${HEADER_LINE}" "${file}" 2>/dev/null || true)
+	if [[ "${headers:-0}" -gt 1 ]]; then
+		echo -e "${RED}DUPLICATE disclaimer (${headers} copies, one unmarked): ${rel}${NC}"
+		DUPLICATES=$((DUPLICATES + 1))
+		NOT_BOTTOM=$((NOT_BOTTOM + 1))
+		return 0
+	fi
 
-        local had_house=0
-        if grep -Fq -- "${MARKER}" "${file}"; then
-                had_house=1
-        fi
+	local had_house=0
+	if grep -Fq -- "${MARKER}" "${file}"; then
+		had_house=1
+	fi
 
-        local candidate
-        candidate="$(normalize "${file}")"
-        local changed=1
-        if cmp -s "${candidate}" "${file}"; then
-                changed=0
-        fi
+	local candidate
+	candidate="$(normalize "${file}")"
+	local changed=1
+	if cmp -s "${candidate}" "${file}"; then
+		changed=0
+	fi
 
-        if [ "${CHECK_MODE}" = true ]; then
-                if [ "${changed}" -eq 0 ]; then
-                        OK_BOTTOM=$((OK_BOTTOM + 1))
-                elif [ "${had_house}" -eq 1 ]; then
-                        echo -e "${RED}MISPLACED block (not the bottom block): ${rel}${NC}"
-                        NOT_BOTTOM=$((NOT_BOTTOM + 1))
-                else
-                        echo -e "${RED}MISSING disclaimer: ${rel}${NC}"
-                        NOT_BOTTOM=$((NOT_BOTTOM + 1))
-                fi
-                return 0
-        fi
+	if [ "${CHECK_MODE}" = true ]; then
+		if [ "${changed}" -eq 0 ]; then
+			OK_BOTTOM=$((OK_BOTTOM + 1))
+		elif [ "${had_house}" -eq 1 ]; then
+			echo -e "${RED}MISPLACED block (not the bottom block): ${rel}${NC}"
+			NOT_BOTTOM=$((NOT_BOTTOM + 1))
+		else
+			echo -e "${RED}MISSING disclaimer: ${rel}${NC}"
+			NOT_BOTTOM=$((NOT_BOTTOM + 1))
+		fi
+		return 0
+	fi
 
-        if [ "${changed}" -eq 0 ]; then
-                OK_BOTTOM=$((OK_BOTTOM + 1))
-                return 0
-        fi
-        cp "${candidate}" "${file}"
-        if [ "${had_house}" -eq 1 ]; then
-                echo "Relocated: ${rel} (block moved to the bottom)"
-                RELOCATED=$((RELOCATED + 1))
-        else
-                echo "Injected: ${rel}"
-                INJECTED=$((INJECTED + 1))
-        fi
+	if [ "${changed}" -eq 0 ]; then
+		OK_BOTTOM=$((OK_BOTTOM + 1))
+		return 0
+	fi
+	cp "${candidate}" "${file}"
+	if [ "${had_house}" -eq 1 ]; then
+		echo "Relocated: ${rel} (block moved to the bottom)"
+		RELOCATED=$((RELOCATED + 1))
+	else
+		echo "Injected: ${rel}"
+		INJECTED=$((INJECTED + 1))
+	fi
 }
 
 # Every tracked OR untracked-but-present .md (git ls-files
@@ -247,38 +247,38 @@ process_file() {
 # were caused by the old --cached-only scan). The NUL shim is bash
 # printf — awk cannot emit NUL bytes on mawk (the Ubuntu default).
 while IFS= read -r -d '' rel; do
-        process_file "${rel}"
+	process_file "${rel}"
 done < <(
-        cd "${REPO_ROOT}" &&
-                git ls-files --cached --others --exclude-standard 2>/dev/null |
-                grep -E '\.md$' |
-                grep -Ev "${EXCLUDE_PATTERN}" |
-                grep -Ev '^CHANGELOG\.md$' |
-                grep -Ev '^docs/archive/' |
-                while IFS= read -r line; do
-                        printf '%s\0' "${line}"
-                done
+	cd "${REPO_ROOT}" &&
+		git ls-files --cached --others --exclude-standard 2>/dev/null |
+		grep -E '\.md$' |
+			grep -Ev "${EXCLUDE_PATTERN}" |
+			grep -Ev '^CHANGELOG\.md$' |
+			grep -Ev '^docs/archive/' |
+			while IFS= read -r line; do
+				printf '%s\0' "${line}"
+			done
 )
 
 if ((DUPLICATES > 0)); then
-        echo -e "${RED}FAIL: $DUPLICATES of $CHECKED .md files carry DUPLICATE disclaimer blocks${NC}"
-        echo "Fix: delete every copy except the marker-adjacent one (bash scripts/gates/inject-disclaimer.sh --check)"
-        exit 1
+	echo -e "${RED}FAIL: $DUPLICATES of $CHECKED .md files carry DUPLICATE disclaimer blocks${NC}"
+	echo "Fix: delete every copy except the marker-adjacent one (bash scripts/gates/inject-disclaimer.sh --check)"
+	exit 1
 fi
 
 if [ "${CHECK_MODE}" = true ]; then
-        if [ "${NOT_BOTTOM}" -eq 0 ]; then
-                echo -e "${GREEN}OK: ${CHECKED} .md files checked, every disclaimer sits at the bottom${NC}"
-                exit 0
-        fi
-        echo -e "${RED}FAIL: ${NOT_BOTTOM} of ${CHECKED} .md files missing or misplaced${NC}"
-        echo "Run: bash scripts/gates/inject-disclaimer.sh"
-        exit 1
+	if [ "${NOT_BOTTOM}" -eq 0 ]; then
+		echo -e "${GREEN}OK: ${CHECKED} .md files checked, every disclaimer sits at the bottom${NC}"
+		exit 0
+	fi
+	echo -e "${RED}FAIL: ${NOT_BOTTOM} of ${CHECKED} .md files missing or misplaced${NC}"
+	echo "Run: bash scripts/gates/inject-disclaimer.sh"
+	exit 1
 fi
 
 echo ""
 echo -e "${GREEN}Injected: ${INJECTED}  Relocated: ${RELOCATED}  Already-at-bottom: ${OK_BOTTOM}  Total: ${CHECKED}${NC}"
 if [ "$((INJECTED + RELOCATED))" -gt 0 ]; then
-        echo -e "${YELLOW}Review the git diff before staging.${NC}"
+	echo -e "${YELLOW}Review the git diff before staging.${NC}"
 fi
 exit 0
