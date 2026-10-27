@@ -76,10 +76,27 @@ expect_fail() {
 # The privileged-direction row: the battery runs as root inside the
 # disposable VM (cosmostrix needs no root - the best lane proves the
 # unprivileged direction; this row only states who ran here).
-if [ "$(id -u 2>/dev/null)" = "0" ]; then
-	note "battery identity (euid 0, root, disposable VM)" PASS
+#
+# The uid comes from /proc/self/status, not from the id applet: the
+# era userland is intrepid's own busybox-initramfs (1.10.2), which
+# ships no id (probed against the real era binary), and read + set --
+# word-splitting is carried by every shell in the fleet - ash and
+# bash alike. The Uid line's first number is this shell's real uid.
+uid=1
+while read -r key rest; do
+	if [ "$key" = "Uid:" ]; then
+		# word splitting is the point: the Uid line's four columns
+		# become the positional params, column 1 is the real uid
+		# shellcheck disable=SC2086
+		set -- $rest
+		uid="${1:-1}"
+		break
+	fi
+done </proc/self/status
+if [ "$uid" = "0" ]; then
+	note "battery identity (uid 0, root, disposable VM)" PASS
 else
-	note "battery identity (euid $(id -u 2>/dev/null), expected root)" FAIL
+	note "battery identity (uid $uid, expected root)" FAIL
 	FAILS=$((FAILS + 1))
 fi
 

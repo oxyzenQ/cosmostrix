@@ -210,43 +210,69 @@ jobs:
 
       # The userland, held CONTEMPORARY on purpose (the lane's variable
       # is the kernel, and the userland must not smuggle a 2026 glibc
-      # into a 2008 guest): the intrepid busybox-static deb - a single
-      # static binary built in the floor kernel's own era, so ash,
-      # mount, grep and the rest carry no kernel floor above 2.6.27.
-      # The resolver takes the highest busybox-static in the pool and
-      # fails LOUDLY with evidence if it is gone.
-      - name: Fetch the intrepid busybox-static userland
+      # into a 2008 guest): the intrepid GA busybox-initramfs deb - a
+      # single static binary built in the floor kernel's own era
+      # (1:1.10.2-1ubuntu6, "ELF for GNU/Linux 2.6.8"), so ash, mount,
+      # grep and the rest carry no kernel floor above 2.6.27.
+      #
+      # Era law (the 1.36.1 incident): the old resolver took the
+      # highest busybox-static in the shared old-releases pool, and
+      # the pool is shared across ALL retired suites - it now serves
+      # 2024-era debs whose usrmerge layout carries no /bin/busybox,
+      # and whose static glibc would refuse to exec on 2.6.27 anyway
+      # (the modern glibc static build floor sits above it). The
+      # resolver below is era-true instead: primary is the pinned
+      # intrepid GA release-day file (old-releases is an immutable
+      # archive - the file never moves), fallback resolves the
+      # busybox-initramfs Filename straight out of the intrepid
+      # dists index (Package entry, era-true by definition), and a
+      # total miss fails LOUDLY with evidence. The binary lands at
+      # pkg-busybox/bin/busybox regardless of the deb's internal
+      # layout, so the rootfs assembly step keeps one contract.
+      - name: Fetch the intrepid era busybox userland
         run: |
           set -euo pipefail
           cd /tmp/kfloor
           POOL="http://old-releases.ubuntu.com/ubuntu/pool/main/b/busybox"
-          LISTING="$(curl -fsSL --retry 5 --max-time 180 "$POOL/")"
-          BUSY="$(printf '%s' "$LISTING" \
-            | grep -oE 'busybox-static_[^"]+_amd64\.deb' \
-            | sort -u -V | tail -1 || true)"
-          if [ -z "$BUSY" ]; then
-            echo "FAIL: no busybox-static_*_amd64.deb in the intrepid pool - resolver evidence:"
-            printf '%s' "$LISTING" | grep -oE 'busybox[^"<>]*' | sort -u -V | head -20 || true
-            echo "(full pool: $POOL)"
+          ERA_DEB="busybox-initramfs_1.10.2-1ubuntu6_amd64.deb"
+          DIST="http://old-releases.ubuntu.com/ubuntu/dists/intrepid/main/binary-amd64/Packages.gz"
+          if curl -fsI --retry 5 --max-time 60 "$POOL/$ERA_DEB" >/dev/null; then
+            BUSY="$ERA_DEB"
+            echo "resolved: $BUSY (pinned intrepid GA busybox-initramfs, era-true)"
+            curl -fsSL --retry 5 --max-time 300 -o "$BUSY" "$POOL/$BUSY"
+          else
+            echo "pinned era deb HEAD-probe failed - resolving from the intrepid dists index"
+            PKGS="$(curl -fsSL --retry 5 --max-time 180 "$DIST" | gzip -d || true)"
+            FNAME="$(printf '%s' "$PKGS" \
+              | awk '/^Package: busybox-initramfs$/{f=1;next} f&&/^$/{exit} f&&/^Filename: /{print $2; exit}' || true)"
+            if [ -z "$FNAME" ]; then
+              echo "FAIL: no busybox-initramfs in the intrepid dists index - resolver evidence:"
+              printf '%s' "$PKGS" | grep -A3 '^Package: busybox' | head -20 || true
+              echo "(dist index: $DIST)"
+              exit 1
+            fi
+            BUSY="$(basename "$FNAME")"
+            echo "resolved: $BUSY (from the intrepid dists index, era-true)"
+            curl -fsSL --retry 5 --max-time 300 -o "$BUSY" "http://old-releases.ubuntu.com/ubuntu/$FNAME"
+          fi
+          dpkg -x "$BUSY" pkg-busybox
+          SRCBB="$(find pkg-busybox -name busybox -type f | head -1)"
+          if [ -z "$SRCBB" ]; then
+            echo "FAIL: no busybox binary inside the deb - contents:"
+            find pkg-busybox -maxdepth 3 || true
             exit 1
           fi
-          echo "resolved: $BUSY (the era-contemporary busybox)"
-          curl -fsSL --retry 5 --max-time 300 -o "$BUSY" "$POOL/$BUSY"
-          dpkg -x "$BUSY" pkg-busybox
-          test -x pkg-busybox/bin/busybox || {
-            echo "FAIL: no /bin/busybox inside the deb - contents:"
-            find pkg-busybox -maxdepth 2 -type f || true
-            exit 1
-          }
-          echo "busybox: $(du -h pkg-busybox/bin/busybox | cut -f1)"
+          mkdir -p pkg-busybox/bin
+          cp "$SRCBB" pkg-busybox/bin/busybox
+          echo "busybox: $(du -h pkg-busybox/bin/busybox | cut -f1) at pkg-busybox/bin/busybox (from ${SRCBB#pkg-busybox/})"
 
       # The initramfs IS the rootfs: busybox + sh, the static payload
       # binary, the lane marker, the floor battery as payload.sh, the
-      # shared PID-1 init, a minimal /etc/passwd (id -u), and static
-      # /dev nodes (the 2.6.27 guest predates devtmpfs-by-default;
-      # docker-export userlands cannot restore device nodes from tar
-      # at all - mknod them fresh as root). One newc cpio, gzip -1:
-      # the whole guest fits in a few MB of RAM.
+      # shared PID-1 init, and static /dev nodes (the 2.6.27 guest
+      # predates devtmpfs-by-default; docker-export userlands cannot
+      # restore device nodes from tar at all - mknod them fresh as
+      # root). One newc cpio, gzip -1: the whole guest fits in a few
+      # MB of RAM.
       - name: Assemble the kernel-floor micro-VM rootfs
         run: |
           set -euo pipefail
@@ -263,7 +289,6 @@ jobs:
           chmod 755 rootfs/opt/cosmostrix/.sandbox/payload.sh
           cp "$GITHUB_WORKSPACE/scripts/sandbox/microvm-init.sh" rootfs/init
           chmod 755 rootfs/init
-          printf 'root:x:0:0:root:/root:/bin/sh\n' > rootfs/etc/passwd
           sudo rm -f rootfs/dev/console
           sudo mknod -m 600 rootfs/dev/console c 5 1
           sudo mknod -m 666 rootfs/dev/null c 1 3
