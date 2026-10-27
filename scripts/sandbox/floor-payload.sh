@@ -21,11 +21,19 @@
 #     execute for real - twice, with --no-effects as the effects-off
 #     variant.
 #   - The error paths pin the fail-loud contracts: an unknown scene
-#     value, an unknown flag, and the headless guard itself
-#     (interactive mode must REFUSE a session without a controlling
-#     terminal - main.rs's "Interactive mode needs a controlling
-#     terminal" contract - which this tty-less console exercises
-#     exactly).
+#     value and an unknown flag. The headless-guard leg deliberately
+#     does NOT live here: the guest console session carries a
+#     controlling terminal (PID 1's console fds) and the era userland
+#     ships no setsid to detach it, so the guard could not be
+#     exercised in its deterministic ctty-less shape - the contract
+#     is proven on the kernel-best lane's setsid leg instead, and in
+#     every CI headless run (cron-shaped: no ctty by construction).
+#   - --dump-config rides the PIPE form: the v15 security policy
+#     refuses a stdout redirected to a file (exit 2, the
+#     anti-whitelist-bypass law), and this battery's expect_ok
+#     redirects stdout to a log file. Piping is the documented
+#     allowed shape (cosmostrix --dump-config | cat), and the pipe
+#     end is what the policy probes.
 #   - The pty/signal quit-path depth (raw mode, live input bytes,
 #     SIGTERM restore tails) deliberately lives on the kernel-best
 #     lane's pty harness, whose ubuntu userland can allocate real
@@ -102,7 +110,7 @@ fi
 
 expect_ok version "$BIN" --version
 expect_ok help "$BIN" --help
-expect_ok dump-config "$BIN" --dump-config
+expect_ok dump-config sh -c "$BIN --dump-config | cat"
 expect_ok list-scenes "$BIN" --list-scenes
 expect_ok list-charsets "$BIN" --list-charsets
 expect_ok list-colors "$BIN" --list-colors
@@ -112,7 +120,6 @@ expect_ok bench-frames-no-effects "$BIN" --bench-frames 30 --screen-size 80x24 -
 
 expect_fail scene-unknown-value "$BIN" --scene definitely-not-a-scene
 expect_fail flag-unknown "$BIN" --definitely-not-a-flag
-expect_fail headless-guard "$BIN" --duration 2
 
 # The panic sweep: a Rust panic printed to stderr on any leg is a
 # failure even where the exit code survived (a caught-and-exited

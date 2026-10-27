@@ -87,7 +87,7 @@ run_pty_leg() {
 }
 
 # Direction 1 - the full headless surface, the floor battery's own
-# instrument (it asserts euid 0; this lane runs it as root too).
+# instrument (it asserts uid 0; this lane runs it as root too).
 echo "SANDBOX: direction 1 - the headless surface (the floor battery's instrument)"
 sh "$Z/.sandbox/floor-battery.sh"
 _rc=$?
@@ -96,6 +96,22 @@ if [ "$_rc" -eq 0 ]; then
 else
 	note "headless surface (floor battery re-run, rc=$_rc)" FAIL
 	FAILS=$((FAILS + 1))
+fi
+
+# The headless guard in its deterministic shape: setsid detaches the
+# session's controlling terminal, so the interactive entry's
+# open("/dev/tty") answers ENXIO and interactive mode must refuse
+# with a non-zero exit (main.rs's "Interactive mode needs a
+# controlling terminal" contract). The floor battery's guest console
+# carries a ctty via PID 1 and the era busybox ships no setsid, so
+# this leg lives here on purpose - a session this lane can actually
+# strip. (The regular CI lanes prove the same contract every push:
+# their shape is cron-like, no ctty by construction.)
+if setsid "$BIN" --duration 2 >"${LOG}/out-headless-guard.log" 2>&1; then
+	note "headless guard (setsid: interactive refused a ctty-less session)" FAIL
+	FAILS=$((FAILS + 1))
+else
+	note "headless guard (setsid: interactive refused a ctty-less session)" PASS
 fi
 
 # Direction 2 - the pty quit-path depth, root, real ptys. Budgets
@@ -120,6 +136,16 @@ run_pty_leg sigterm-5s \
 # duration quit-path leg re-run as nobody (uid 65534). The docs'
 # no-root contract, executed - a renderer that secretly needed root
 # would fail here on the pty allocation or the render itself.
+#
+# Writable sink law: root's earlier legs created the mass file with
+# the default umask (644, root-owned), and a 644 root-owned append
+# sink would fail the harness before the binary ever ran. Both sinks
+# the nobody leg touches are pre-created 666 - the mass file (all
+# legs append their rows there) and this leg's own log. The
+# disposable VM's /tmp is already 1777; this widens exactly two
+# files, no more.
+touch "$MASS" "${LOG}/best-nobody-5s.log"
+chmod 666 "$MASS" "${LOG}/best-nobody-5s.log"
 echo "SANDBOX: direction 3 - the unprivileged direction (nobody)"
 if setpriv --reuid=65534 --regid=65534 --clear-groups \
 	python3 "$SMOKE" --binary "$BIN" \

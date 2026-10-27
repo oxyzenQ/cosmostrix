@@ -119,10 +119,17 @@ else
 	note "tmpfs scratch (/tmp 1777, /run)" FAIL
 fi
 if [ "$LANE" = "best" ]; then
-	if mkdir -p /dev/pts 2>/dev/null && mount -t devpts devpts /dev/pts; then
-		note "devpts (the pty harness substrate)" PASS
+	# gid=65534,mode=620 on purpose: the battery's unprivileged
+	# direction (setpriv to uid 65534) allocates real ptys through
+	# this mount, and the devpts default (gid 0) would answer the
+	# slave open with EPERM for a uid 65534 opener. gid 65534 is
+	# nobody's own primary group in the ubuntu userland, so the
+	# nobody-owned master/slave pair opens clean; root bypasses
+	# the mode anyway, so the root legs are untouched.
+	if mkdir -p /dev/pts 2>/dev/null && mount -t devpts -o gid=65534,mode=620 devpts /dev/pts; then
+		note "devpts (the pty harness substrate, nobody-openable)" PASS
 	else
-		note "devpts (the pty harness substrate)" FAIL
+		note "devpts (the pty harness substrate, nobody-openable)" FAIL
 	fi
 fi
 
