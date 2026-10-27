@@ -3,7 +3,7 @@
 # NIGHT-dragon-lts-1 audit — the sharpest skill: the full terminal reset/restore stack, including the render-path terminal files every prior audit deferred
 
 Owner brief (2026-10-27): "night-dragon-lts-1. depth audit focus for
-sharpest skill. ultimate total lts, realiable all round and keep be
+sharpest skill. ultimate total lts, reliable all round and keep be
 honest. cross check audit all root repo focus, if peak skip and
 continue the next step" — with the five-dimension rubric (stability
 and crash, code hygiene, optimization, security hardening, LTS

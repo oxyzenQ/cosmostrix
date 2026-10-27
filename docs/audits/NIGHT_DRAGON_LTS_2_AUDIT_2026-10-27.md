@@ -3,7 +3,7 @@
 # NIGHT-dragon-lts-2 audit — the all-infra depth pass: every workflow (including the three the last audit never saw), the scripts tree, and the build pipeline re-verified
 
 Owner brief (2026-10-27): "night-dragon-lts-2. depth audit focus for
-all infra. ultimate total lts, realiable all round and keep be honest.
+all infra. ultimate total lts, reliable all round and keep be honest.
 cross check audit all root repo focus, if peak skip and continue the
 next step" — with the five-dimension rubric and the standing rule: if
 a sub-task is already at peak, skip and note why.
