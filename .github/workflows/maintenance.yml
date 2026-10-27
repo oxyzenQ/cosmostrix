@@ -138,6 +138,7 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt, clippy
+          targets: x86_64-unknown-linux-musl
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2
@@ -209,9 +210,12 @@ jobs:
           cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
           # Owner directive 2026-10-27 (night-dragon-maintenance-3): builds
           # ride the named alias path - never a bare cargo release build.
-          # The plain-pro note below (2026-08-23) is retired with that
-          # directive; ubuntu-24.04 runners are AVX2-capable (x86-64-v3).
-          cargo pro-linux-amd64-v3-gnu --locked
+          # night-dragon-maintenance-6: the validation build is the static
+          # musl release shape (the gnu alias pair is retired); ubuntu
+          # runners build the musl target cleanly with musl-tools.
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y musl-tools
+          cargo pro-linux-amd64-v3-musl --locked
 
       - name: Run tests
         if: steps.changes.outputs.changed == 'true'
