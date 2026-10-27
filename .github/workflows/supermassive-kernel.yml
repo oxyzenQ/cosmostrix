@@ -342,3 +342,230 @@ jobs:
             grep -E '^SANDBOX-(RESULT|BATTERY|VERDICT)' vm.log || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  kernel_best:
+    # The best-specs leg on the newest mainline stable kernel: the
+    # full pty harness runs INSIDE the VM (real ptys, real signals,
+    # live input bytes), the headless battery re-runs for
+    # comparability with the floor lane, and the unprivileged
+    # direction (nobody, uid 65534) proves the no-root contract on
+    # a real kernel. The envelope is the runner's own: all cores,
+    # most of its RAM.
+    name: supermassive kernel best (latest mainline, KVM micro-VM, pty depth)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Same loud KVM gate as the floor lane (no TCG fallback: the
+      # v3 payload's AVX2 needs -cpu host).
+      - name: Verify KVM
+        run: |
+          test -e /dev/kvm || {
+            echo "FAIL: /dev/kvm is absent - this runner image cannot boot the kernel-best micro-VM"
+            echo "(nested virt is expected on every current GitHub Linux runner image)"
+            exit 1
+          }
+          test -w /dev/kvm || sudo chmod 666 /dev/kvm
+          test -w /dev/kvm || {
+            echo "FAIL: /dev/kvm is not usable by the runner user even after chmod"
+            ls -l /dev/kvm
+            exit 1
+          }
+          echo "OK: /dev/kvm present and usable"
+
+      - name: Install qemu + cpio
+        run: >-
+          sudo apt-get -o Acquire::Retries=5 update -qq &&
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
+
+      - name: Install Rust toolchain + musl target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl link tools
+        run: |
+          set -euo pipefail
+          sudo apt-get -o Acquire::Retries=5 update -qq
+          sudo apt-get -o Acquire::Retries=5 install -y -qq musl-tools
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: supermassive-kernel-best
+          cache-on-failure: true
+
+      # The from-source law, the musl-static shape (identical step to
+      # the floor lane - the two lanes' only variable is the kernel).
+      - name: Build the pro-v3-musl binary (the release static shape)
+        env:
+          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
+        run: cargo pro-linux-amd64-v3-musl --locked
+
+      # The moving-latest kernel: the newest stable tag in the
+      # Ubuntu mainline PPA (kernel.ubuntu.com/mainline), resolved
+      # from the LIVE index at run time. Release tags only - the
+      # v-digit regex cannot match an -rc directory - and the
+      # resolver fails LOUDLY with the discovery evidence if the
+      # index shape ever changes. A witness that can resolve "the
+      # newest" can never boot a stale "latest" - that is the point
+      # of resolving instead of pinning.
+      - name: Fetch the newest mainline stable kernel
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kbest && cd /tmp/kbest
+          BASE="https://kernel.ubuntu.com/mainline"
+          LISTING="$(curl -fsSL --retry 5 --max-time 180 "$BASE/")"
+          TAG="$(printf '%s' "$LISTING" \
+            | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?/' \
+            | sort -u -V | tail -1 || true)"
+          if [ -z "$TAG" ]; then
+            echo "FAIL: no stable vN.N(.N) entry in the mainline index - resolver evidence:"
+            printf '%s' "$LISTING" | grep -oE '"[^"]*"' | head -30 || true
+            echo "(full index: $BASE)"
+            exit 1
+          fi
+          TAG="${TAG%/}"
+          echo "resolved: $TAG (the newest mainline stable tag)"
+          DIR="$BASE/$TAG"
+          DLIST="$(curl -fsSL --retry 5 --max-time 180 "$DIR/")"
+          DEB="$(printf '%s' "$DLIST" \
+            | grep -oE 'linux-image-unsigned-[0-9.]+-[0-9]+-generic_[^"]+_amd64\.deb' \
+            | head -1 || true)"
+          if [ -z "$DEB" ]; then
+            DEB="$(printf '%s' "$DLIST" \
+              | grep -oE 'linux-image-[0-9.]+-[0-9]+-generic_[^"]+_amd64\.deb' \
+              | head -1 || true)"
+          fi
+          if [ -z "$DEB" ]; then
+            echo "FAIL: no linux-image *_generic amd64 deb under $DIR - resolver evidence:"
+            printf '%s' "$DLIST" | grep -oE '"linux-image[^"]*"' | head -20 || true
+            exit 1
+          fi
+          echo "resolved: $DEB"
+          curl -fsSL --retry 5 --max-time 600 -o "$DEB" "$DIR/$DEB"
+          dpkg -x "$DEB" pkg
+          VMLINUZ="$(find pkg/boot -name 'vmlinuz-*' | sort -V | tail -1)"
+          if [ -z "$VMLINUZ" ]; then
+            echo "FAIL: no vmlinuz inside the deb - pkg/boot contents:"
+            ls -la pkg/boot || true
+            exit 1
+          fi
+          cp "$VMLINUZ" /tmp/kbest/vmlinuz-best
+          echo "kernel: $(du -h /tmp/kbest/vmlinuz-best | cut -f1) at /tmp/kbest/vmlinuz-best ($(basename "$VMLINUZ"))"
+
+      # The userland, held at the runner's own distro on purpose (the
+      # lane's variable is the KERNEL, not the libc): an ubuntu:24.04
+      # container export with python3 - the pty harness's only
+      # runtime need beyond bash. The checkout (tracked files) and
+      # the static payload binary land at /opt/cosmostrix; both
+      # batteries pack under .sandbox/ (payload.sh = the best
+      # battery, floor-battery.sh = the floor instrument for the
+      # comparability re-run). devtmpfs populates /dev on this
+      # modern kernel, but the packer still lands the static nodes
+      # (the init mounts devtmpfs over them, and the nodes are the
+      # fallback if that mount ever fails).
+      - name: Assemble the kernel-best micro-VM rootfs
+        run: |
+          set -euo pipefail
+          cd /tmp/kbest
+          docker pull -q ubuntu:24.04
+          docker rm -f best-rootfs >/dev/null 2>&1 || true
+          docker run --name best-rootfs -d ubuntu:24.04 sleep infinity
+          docker exec best-rootfs apt-get -o Acquire::Retries=5 update -qq
+          docker exec best-rootfs apt-get -o Acquire::Retries=5 install -y -qq --no-install-recommends python3
+          docker export best-rootfs -o rootfs.tar
+          mkdir -p rootfs
+          tar -xf rootfs.tar -C rootfs
+          mkdir -p rootfs/opt/cosmostrix/.sandbox
+          git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/cosmostrix
+          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix" \
+            rootfs/opt/cosmostrix/cosmostrix
+          chmod 755 rootfs/opt/cosmostrix/cosmostrix
+          echo best > rootfs/opt/cosmostrix/.sandbox/lane
+          cp "$GITHUB_WORKSPACE/scripts/sandbox/best-payload.sh" \
+            rootfs/opt/cosmostrix/.sandbox/payload.sh
+          cp "$GITHUB_WORKSPACE/scripts/sandbox/floor-payload.sh" \
+            rootfs/opt/cosmostrix/.sandbox/floor-battery.sh
+          chmod 755 rootfs/opt/cosmostrix/.sandbox/payload.sh \
+            rootfs/opt/cosmostrix/.sandbox/floor-battery.sh
+          cp "$GITHUB_WORKSPACE/scripts/sandbox/microvm-init.sh" rootfs/init
+          chmod 755 rootfs/init
+          sudo rm -f rootfs/dev/console
+          sudo mknod -m 600 rootfs/dev/console c 5 1
+          sudo mknod -m 666 rootfs/dev/null c 1 3
+          sudo mknod -m 666 rootfs/dev/tty c 5 0
+          sudo mknod -m 666 rootfs/dev/ptmx c 5 2
+          sudo mknod -m 600 rootfs/dev/ttyS0 c 4 64
+          sudo mknod -m 666 rootfs/dev/urandom c 1 9
+          sudo mknod -m 666 rootfs/dev/random c 1 8
+          sudo mknod -m 666 rootfs/dev/zero c 1 5
+          ( cd rootfs && sudo find . -print0 | sudo cpio --null -o -H newc ) | gzip -6 > initrd.gz
+          echo "initramfs: $(du -h initrd.gz | cut -f1)"
+
+      # Boot: the BEST envelope (all cores, three quarters of the
+      # runner RAM floored at 2048 MB), q35 (a modern guest), KVM
+      # host-passthrough, the same sentinel + isa-debug-exit exit
+      # contract as the floor lane.
+      - name: Boot the kernel-best micro-VM and run the best battery
+        run: |
+          set -euo pipefail
+          cd /tmp/kbest
+          CORES="$(nproc)"
+          TOTAL_MB="$(free -m | awk '/^Mem:/{print $2}')"
+          SMP="$CORES"
+          MEM=$(( TOTAL_MB * 3 / 4 )); [ "$MEM" -lt 2048 ] && MEM=2048
+          echo "envelope: $SMP vCPU / $MEM MB (best, of $CORES cores / $TOTAL_MB MB on the runner)"
+          set +e
+          timeout 900 qemu-system-x86_64 \
+            -machine q35,accel=kvm -cpu host \
+            -m "$MEM" -smp "$SMP" \
+            -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+            -kernel vmlinuz-best \
+            -initrd initrd.gz \
+            -append "console=ttyS0 panic=-1" \
+            -nographic -no-reboot 2>&1 | tee vm.log
+          QEMU_RC=${PIPESTATUS[0]}
+          set -e
+          if [ "$QEMU_RC" -ne 0 ] && [ "$QEMU_RC" -ne 1 ]; then
+            echo "FAIL: qemu exited $QEMU_RC - log tail:"
+            tail -40 vm.log
+            exit 1
+          fi
+
+      - name: Verdict
+        run: |
+          set -euo pipefail
+          cd /tmp/kbest
+          echo "-- kernel-best verdicts ($(grep -m1 'SANDBOX: init on' vm.log | sed 's/SANDBOX: init on //') ) --"
+          grep -E '^SANDBOX-(RESULT|BATTERY|VERDICT)' vm.log || true
+          grep -q '^SANDBOX-VERDICT: PASS' vm.log
+          echo "OK: the full pty + headless E2E battery ran green on the newest mainline kernel"
+
+      - name: Watch summary (the best lane's own rows)
+        if: always()
+        run: |
+          set -euo pipefail
+          cd /tmp/kbest
+          {
+            echo "## Supermassive watch - kernel best (mainline moving-latest)"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### the booted kernel and the battery rows (the init's sentinel rows)"
+            echo
+            echo '```'
+            grep -m1 'SANDBOX: init on' vm.log || true
+            grep -E '^SANDBOX-(RESULT|BATTERY|VERDICT)' vm.log || true
+            echo '```'
+            echo
+            echo "### harness relay rows"
+            echo
+            echo '```'
+            grep -E '^MASS-RESULT' vm.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -108,13 +108,15 @@ floor | best) ;;
 esac
 
 # Everything the battery needs: writable scratch (the payload's
-# logs) and, on the best lane, devpts (the pty harness allocates
-# real ptys). The floor lane's busybox userland has no pty harness;
-# proc/sys suffice there.
-if mount -t tmpfs tmp /tmp && mount -t tmpfs run /run; then
-	note "tmpfs scratch (/tmp, /run)" PASS
+# logs, and on the best lane the unprivileged leg's outputs - hence
+# the 1777 sticky bit, a /tmp a nobody can write) and, on the best
+# lane, devpts (the pty harness allocates real ptys). The floor
+# lane's busybox userland has no pty harness; proc/sys suffice
+# there.
+if mount -t tmpfs tmp /tmp && chmod 1777 /tmp && mount -t tmpfs run /run; then
+	note "tmpfs scratch (/tmp 1777, /run)" PASS
 else
-	note "tmpfs scratch (/tmp, /run)" FAIL
+	note "tmpfs scratch (/tmp 1777, /run)" FAIL
 fi
 if [ "$LANE" = "best" ]; then
 	if mkdir -p /dev/pts 2>/dev/null && mount -t devpts devpts /dev/pts; then
@@ -165,7 +167,16 @@ if [ "$FAILURES" -ne 0 ]; then
 fi
 if [ -x "$PAYLOAD" ]; then
 	echo "SANDBOX: running the packed payload..."
-	sh "$PAYLOAD"
+	# The best lane's battery is bash (arrays, setpriv leg); the
+	# floor lane's is POSIX sh for the busybox ash. Dispatch on the
+	# interpreter actually present - /bin/sh is dash on the ubuntu
+	# userland, which cannot run a bash battery, and bash does not
+	# exist in the busybox skeleton.
+	if command -v bash >/dev/null 2>&1; then
+		bash "$PAYLOAD"
+	else
+		sh "$PAYLOAD"
+	fi
 	rc=$?
 else
 	echo "SANDBOX-VERDICT: FAIL (no payload packed - assembly bug)"
