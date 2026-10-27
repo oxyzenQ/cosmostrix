@@ -79,6 +79,16 @@ pub fn spawn_kill9_terminal_guard() {
         }
         let orig = orig.assume_init();
 
+        // ORDERING INVARIANT (NIGHT-dragon-lts-1): this fork must run
+        // while the process is still single-threaded. fork() clones only
+        // the calling thread; if any other thread existed and held a lock
+        // at fork time, the child would inherit it LOCKED forever, and
+        // the child's own restore_terminal_best_effort() (std stdout
+        // lock, env reads, allocator) could wedge on it. The event loop
+        // spawns this guard at interactive/event_loop.rs:56 -- before
+        // the signal handler, watchdog, and live-reload watcher threads
+        // exist. Keep that order: a thread spawned above line 56
+        // silently invalidates this guard's child path.
         let pid = libc::fork();
         if pid != 0 {
             return;

@@ -90,7 +90,6 @@ pub(crate) fn restore_terminal_best_effort() {
 /// Windows: ConPTY has no paused-reader semantics; the body
 /// degrades to the previous restore + exit behavior.
 #[cold]
-#[allow(unused_variables)]
 pub(crate) fn force_exit_terminal_restored(code: i32, note: &str) -> ! {
     #[cfg(unix)]
     {
@@ -272,12 +271,10 @@ pub(crate) fn reset_terminal_emergency() {
     }
 }
 
+/// The canonical blank constructor is [`Cell::blank_with_bg`] in the
+/// types layer; this wrapper keeps the terminal-module call sites (and
+/// the `crate::terminal::blank_cell` re-export) path-stable.
 #[must_use]
 pub(crate) fn blank_cell(bg: Option<Color>) -> Cell {
-    Cell {
-        ch: ' ',
-        fg: None,
-        bg,
-        bold: false,
-    }
+    Cell::blank_with_bg(bg)
 }

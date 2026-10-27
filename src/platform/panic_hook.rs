@@ -71,9 +71,11 @@ pub(crate) fn install_panic_hook() {
         crate::terminal::TERMINAL_RESTORED_BY_PANIC
             .store(true, std::sync::atomic::Ordering::Release);
         crate::terminal::restore_terminal_best_effort();
-        // SAFETY: write_fmt returns Err if stderr is broken (terminal
-        // closed). We discard the error — never panic from the panic
-        // hook, or Rust will abort (double-panic → coredump).
+        // write_fmt returns Err if stderr is broken (terminal closed).
+        // The error is discarded deliberately — never panic from the
+        // panic hook, or Rust will abort (double-panic → coredump).
+        // (Not a SAFETY comment: this is error-handling policy for safe
+        // code, not an unsafe-block invariant.)
         let _ = std::io::stderr().write_fmt(format_args!("{info}\n"));
         let _ = std::io::stderr().flush();
     }));

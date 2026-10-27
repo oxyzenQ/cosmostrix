@@ -8,7 +8,7 @@
 //!
 //! ## Output Strategy
 //!
-//! The terminal uses a 64 KiB buffered writer to batch an entire frame's
+//! The terminal uses a 256 KiB buffered writer to batch an entire frame's
 //! ANSI commands into a single `write()` syscall. Within each frame, the
 //! renderer uses run-length encoding: consecutive cells sharing the same
 //! style (foreground, background, bold) are batched into a single string
@@ -98,9 +98,14 @@ pub(crate) mod tier2;
 // v50.0.0-beta.7 LOC refactor: restore_terminal_best_effort +
 // reset_terminal_emergency + blank_cell + TERMINAL_*_SEQUENCE constants
 // extracted to restore.rs. Re-exported here so all existing call sites
-// resolve unchanged. The constants are used externally via
-// 'crate::terminal::TERMINAL_*' but not within mod.rs itself, hence
-// the allow(unused_imports).
+// resolve unchanged. The TERMINAL_*_SEQUENCE constants have no
+// production consumer outside restore.rs itself -- their external
+// caller is the sequence-content test suite (test/tests/terminal.rs,
+// via `crate::terminal::`), which is why the allow(unused_imports)
+// stays: a non-test compilation would otherwise flag the re-exports.
+// (NIGHT-dragon-lts-1 correction: an audit pass briefly judged these
+// re-exports dead because its grep covered only src/ -- the compiler
+// caught the test consumer at link time and they were restored.)
 #[allow(unused_imports)]
 pub(crate) use restore::{
     TERMINAL_RESET_SEQUENCE, TERMINAL_RESTORE_SEQUENCE, blank_cell, force_exit_terminal_restored,
@@ -661,15 +666,13 @@ impl Drop for Terminal {
 // ── P3: stdout /dev/tty fallback helpers ─────────────────────────────────────
 //
 // v30: extracted to `terminal_tty.rs` to keep this file under the 800-LOC
-// guard. Re-exported here so existing call sites in this file (`recover_to_tty`
-// at line ~402, ~411) keep working without a path change. External callers
-// (event_loop.rs) already use `crate::terminal::is_terminal_gone` — that path
-// still resolves via this re-export.
-// `is_terminal_gone` is cross-platform (used by event_loop.rs + intro drain).
-// `is_recoverable_io_error` and `open_tty_fallback` are Unix-only (gated in
-// terminal_tty.rs) — also re-exported here so p5_tests.rs can use them via
-// `use super::*` glob. The `recover_to_tty` method now lives in
-// `io_recovery.rs` and imports them directly.
+// guard. What remains here is the re-export surface only:
+// - `is_terminal_gone`: cross-platform, consumed via `crate::terminal::`
+//   by intro_style, event_loop, and event_loop_sim_draw.
+// - `is_recoverable_io_error`: test-only re-export (`#[cfg(all(unix,
+//   test))]`) so p5_tests.rs can reach it through the `use super::*`
+//   glob; production code (io_recovery.rs, including the `recover_to_tty`
+//   method that moved there) imports it from `terminal_tty` directly.
 #[cfg(all(unix, test))]
 pub(crate) use crate::terminal_tty::is_recoverable_io_error;
 pub(crate) use crate::terminal_tty::is_terminal_gone;

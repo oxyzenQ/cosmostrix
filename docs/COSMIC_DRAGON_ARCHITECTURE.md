@@ -125,7 +125,7 @@ The Cosmic Dragon survives every kill signal through a 3-layer process guard:
                     │  -> Process dies instantly     │
                     │  -> No cleanup runs            │
                     │  -> Fork guard child detects   │
-                    │    getppid()==1               │
+                    │    ppid != orig_ppid           │
                     │  -> Child restores termios     │
                     │  -> Child runs restore_terminal │
                     │  -> best_effort()              │
@@ -154,7 +154,9 @@ The Cosmic Dragon survives every kill signal through a 3-layer process guard:
 - Child calls `sigwait(SIGTERM)` — sleeps until parent dies
 - When parent dies (ANY reason, including SIGKILL), kernel sends
   SIGTERM to child via `PR_SET_PDEATHSIG`
-- Child checks `getppid() == 1` (parent reparented to init = dead)
+- Child polls `getppid()` against the `orig_ppid` captured at fork
+  (a move away from it = parent dead; never a magic value like 1,
+  so subreaper containers and the fork-vs-prctl race are covered)
 - If parent dead: child restores `termios` via `tcsetattr` + runs
   `restore_terminal_best_effort()`
 - Child calls `_exit(0)` (not `exit()` — avoids atexit handlers)

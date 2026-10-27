@@ -141,7 +141,8 @@ the cursor hidden.
 On Linux, cosmostrix spawns a fork-based guard process (`cx-term-guard`)
 that watches for the parent's death via `PR_SET_PDEATHSIG`. When the
 parent is killed with SIGKILL, the kernel sends SIGTERM to the child,
-and the child (noticing `getppid() == 1`) restores the original
+and the child (noticing `getppid() != orig_ppid`, the liveness
+comparison captured at fork) restores the original
 `termios` state via `tcsetattr(TCSANOW)` and calls
 `restore_terminal_best_effort()`. This is best-effort only.
 
@@ -149,7 +150,11 @@ The fork guard does NOT run if:
 
 - `COSMOSTRIX_NO_FORK_GUARD=1` is set.
 - stdin/stdout are not a TTY (e.g. piped, redirected, headless).
-- Not running on Linux (macOS/BSD are not covered).
+- Running somewhere other than Linux (the fork+prctl mechanism is
+  Linux-only; macOS/BSD/Termux fall back to the getppid polling
+  thread, which covers parent death while the renderer lives but
+  not a SIGKILL of the renderer itself -- that thread dies with
+  the process).
 
 Terminal residue after SIGKILL is expected and documented. The user
 should run manual recovery if needed (`stty sane`, `printf '\033c'`,

@@ -269,8 +269,9 @@ pub(crate) const STDOUT_NOT_TTY_WARNING: &str = "stdout is not a terminal (piped
 /// a broken pipe after the reader quits is recovered via /dev/tty
 /// (P3). The gap was pedagogy, not safety: until the P5 stdout-health
 /// probe synthesizes the graceful exit after
-/// `FD_HEALTH_PROBE_INTERVAL_FRAMES` (3600) frames — roughly 30-40 s
-/// at typical frame rates — the process burns a full CPU core writing
+/// `FD_HEALTH_PROBE_INTERVAL_FRAMES` (600) sample passes -- the
+/// constant, not this doc, is the single source of truth for the
+/// cadence -- the process burns a full CPU core writing
 /// escape-sequence frames with no line breaks into a pipe or file. A
 /// warning at frame zero converts that into a taught moment without
 /// breaking the documented matrix.
