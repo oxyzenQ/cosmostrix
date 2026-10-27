@@ -295,7 +295,7 @@ Each build produces `cosmostrix-<tag>-<platform>.tar.gz` + `.sha512sum` (+ `.zip
 Verify a download:
 
 ```bash
-sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
+sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz.sha512sum
 ```
 
 ## Version bump
