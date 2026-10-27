@@ -784,6 +784,12 @@ The voluntary crypto donations under [Support](#support) above are tips for
 the open-source project — separate from commercial licensing; they grant no
 commercial rights.
 
+## License
+
+Dual-licensed: **GPL-3.0-only** for open-source use (see [LICENSE](LICENSE)), or the
+**Commercial License** for proprietary and commercial use (see
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)).
+
 <p align="center"><em>built with curiosity</em></p>
 
 <!-- COSMOSTRIX-DISCLAIMER -->
