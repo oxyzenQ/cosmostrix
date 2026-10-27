@@ -343,13 +343,16 @@ jobs:
           else
             OUT="$(${BIN} --doctor)"
             echo "${OUT}"
-            grep -E "^  build: ${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
+            # night-dragon-maintenance-8: doctor fields ride the
+            # aligned-column canon (maintenance-1) - the grep tolerates
+            # the padded gap between the key and the value.
+            grep -E "^  build: +${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
             if [[ -n "${OPTIMIZATION}" ]]; then
-              grep -Fx "  optimization: ${OPTIMIZATION}" <<<"${OUT}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
+              grep -F "  optimization: " <<<"${OUT}" | grep -Fq "${OPTIMIZATION}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
             fi
-            grep -E "^  dispatch: static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
+            grep -E "^  dispatch: +static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
             if [[ -n "${BASELINE}" ]]; then
-              grep -E "^  cpu_baseline: ${BASELINE}$" <<<"${OUT}" || { echo "::error::Expected cpu_baseline: ${BASELINE}"; exit 1; }
+              grep -E "^  cpu_baseline: +${BASELINE}$" <<<"${OUT}" || { echo "::error::Expected cpu_baseline: ${BASELINE}"; exit 1; }
               for feature in ${REQUIRED}; do
                 grep -F "  target_features:" <<<"${OUT}" | grep -Fq "${feature}" || { echo "::error::Expected target feature ${feature}"; exit 1; }
               done
@@ -360,9 +363,9 @@ jobs:
                 fi
               done
             fi
-            grep -E "^  lto: fat$" <<<"${OUT}" || { echo "::error::Expected lto: fat"; exit 1; }
-            grep -E "^  panic: unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
-            grep -E "^  strip: yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
+            grep -E "^  lto: +fat$" <<<"${OUT}" || { echo "::error::Expected lto: fat"; exit 1; }
+            grep -E "^  panic: +unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
+            grep -E "^  strip: +yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
           fi
 
       - name: Verify build metadata
@@ -390,15 +393,17 @@ jobs:
             $out = ($outLines | ForEach-Object { $_.TrimEnd("`r") }) -join "`n"
             $out
             # v17: --doctor has 'build:' field in SYSTEM section
-            $pat = "(?m)^  build: " + [regex]::Escape($build) + "\s*$"
+            # night-dragon-maintenance-8: the aligned-column canon pads the
+            # key to the section column - \s+ tolerates the padded gap.
+            $pat = "(?m)^  build:\s+" + [regex]::Escape($build) + "\s*$"
             if ($out -notmatch $pat) {
               throw "Expected build '$build' in cosmostrix --doctor output"
             }
             foreach ($pat in @(
-              "(?m)^  dispatch: static optimized build\s*$",
-              "(?m)^  lto: fat\s*$",
-              "(?m)^  panic: unwind\s*$",
-              "(?m)^  strip: yes\s*$"
+              "(?m)^  dispatch:\s+static optimized build\s*$",
+              "(?m)^  lto:\s+fat\s*$",
+              "(?m)^  panic:\s+unwind\s*$",
+              "(?m)^  strip:\s+yes\s*$"
             )) {
               if ($out -notmatch $pat) {
                 throw "Expected metadata pattern '$pat' in cosmostrix --doctor output"
