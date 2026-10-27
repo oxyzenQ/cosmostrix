@@ -629,6 +629,16 @@ The mode catalog (`--bench-io` wet I/O, `--bench-scene lean|production-draw`, `-
 
 Rendering architecture, benchmarking, ambient intelligence, terminal compatibility, supply chain, and the release workflow all live in the [Docs Index](docs/README.md)
 
+## Release Verification
+
+Every release ships SHA-512 + BLAKE3-256 + SHAKE256 checksums and a detached GPG signature from the maintainer's key. The one-time key import, verbatim from [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md):
+
+```bash
+gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
+```
+
+Fingerprint: `F532 4E09 67F1 04D5 8CE0  25F3 47A5 0AEF 4B65 AAC2`. The full walkthrough — the per-download `gpg --verify`, all three checksum one-liners, the subkey rotation policy, the mirror keyservers — lives in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md), told once there.
+
 ## Test Results
 
 Every harness below is one command and traces to a real script or workflow in this repo — nothing in the table is aspirational. The kernel lanes run in CI on every push: the supermassive kernel floor proves the documented Linux 2.6.27 minimum on a real intrepid-GA KVM micro-VM, and the companion lane proves the latest mainline kernel; the pty, soak, and torture legs gate every core push in the supermassive workflow.
