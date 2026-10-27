@@ -53,15 +53,16 @@ exist to buy.
 
 Owner rationale, in the owner's own terms: some AI agents and people
 reading the repo are skeptics — they do not self-verify, they do not
-act, they just say "this toy project, hahah, serious world-first?" —
+act, they just say "this toy project, hahah, serious world first?" —
 so the unverifiable superlatives buy mockery, not respect. The
 measured claims underneath (the p99 numbers, the fps bounds, the
 audit records) earn the credit; `masterclass` and `curiosity` stay,
 by name.
 
 The law: `docs/BRANDING.md` section 6 carries the banned-token fence
-(17 tokens — world-first, masterpiece, and the rest of the crown-word
-family) as the list's single home. `scripts/gates/check-hype-words.py`
+(17 tokens spanning the hyphenated unverified-first-claim shape, the
+artwork-grade noun, and the rest of the crown-word family) as the
+list's single home. `scripts/gates/check-hype-words.py`
 (gate-keepers section 21, guard-workflow header synced, the silently
 missing actions-pin entry backfilled) parses the fence at runtime —
 no copied grammar — and scans every tracked text file case-insensitively,
@@ -73,14 +74,16 @@ to name what it bans. Proven in both directions: PASS at 17 tokens x
 staged probe, PASS again after removal.
 
 Three living-tree stragglers the sweep caught, rephrased to the
-measured form: the neural research log's "another masterpiece
-option?" became "another candidate?"; the alloc-trace module
-comment's "System is best-in-class for this workload" became "the
-measured winner for this workload" (the p99 measurement sits in the
-same paragraph); and the pre-existing gate-keepers whitespace drift
-the wiring commit accidentally widened got its own repair commit
-(`24dd918` — rebuilt byte-exactly from the pre-hype blob, diff vs
-pre-hype state is 34 pure insertions).
+measured form: the neural research log's superlative style question
+became "another candidate?"; the alloc-trace module comment's
+allocator crown became "the measured winner for this workload" (the
+p99 measurement sits in the same paragraph); and the pre-existing
+gate-keepers whitespace drift the wiring commit accidentally widened
+got its own repair commit (`24dd918` — rebuilt byte-exactly from the
+pre-hype blob, diff vs pre-hype state is 34 pure insertions). The
+gate then caught this very document quoting the banned family in its
+own rationale — the law enforcing itself on its author, which is the
+proof it reads every file instead of trusting the writer.
 
 ## 3. Trademark provenance (directive 2)
 

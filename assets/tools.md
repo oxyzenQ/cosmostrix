@@ -7,19 +7,19 @@ The owner's asset-toolkit note: the exact commands that produced the
 refresh starts from the working recipe instead of rediscovering the
 flags.
 
-### animated webp for the README demo loop
+## animated webp for the README demo loop
 
 ```bash
 ffmpeg -i cosmostrix-video.webm -c:v libwebp_anim -vf "fps=20,scale=960:-1:flags=lanczos" -quality 80 -compression_level 6 -loop 0 -an cosmostrix-video.webp
 ```
 
-### rounded corners for the README display images
+## rounded corners for the README display images
 
 ```bash
 magick input.png \( -size 1254x1254 xc:none -fill white -draw 'roundrectangle 0,0 1253,1253 68,68' \) -alpha off -compose CopyOpacity -composite output.png
 ```
 
-### terminal window size for demo captures
+## terminal window size for demo captures
 
 ```sh
 alacritty -o "window.dimensions.columns=120" -o "window.dimensions.lines=40"
