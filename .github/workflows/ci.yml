@@ -1,56 +1,24 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
-# NIGHT-enhanced-hunt-E: the `paths:` filter is the single trigger
-# gate. The former `changes` job (git diff + regex to skip
-# downstream jobs when only doc files changed) was removed — it
-# duplicated the `paths:` filter and added a whole CI job just for
-# the marginal case of `src/**/*.md`-only changes (doc files change
-# rarely + CI caches make re-runs fast). The `.codespellrc` entry
-# was also removed from `paths:` because no ci.yml job reads it
-# after Hunt-C removed the `project_lint` job (codespell is now
-# handled by cosmic-dragon-guard.yml running gate-keepers.sh).
-#
-# 2026-09-13: `test/**` added to `paths:`. The top-level `test/`
-# tree is the cfg(test) mirror of `src/`, wired in via `#[path]`
-# mod includes — `cargo test --all`, clippy, and rustfmt all
-# compile or parse it. A push touching only `test/` (commit
-# 5553174) matched no filter entry, so the Test + Build job never
-# ran for it. Standing rule: every path-filtered workflow gates on
-# the full Rust surface (`src/**` + `test/**`), so any `.rs`
-# change triggers the jobs that compile it. `pgo-runner/**` and
-# `benchmark/research/*.rs` are deliberately NOT in the filter —
-# no ci.yml job compiles them on main (pgo-runner is a standalone
-# crate built only by the tag-triggered release PGO job;
-# benchmark/research is reference material, not a cargo target).
+# Trigger discipline (the owner's unfiltered-CI simplification,
+# night-dragon-maintenance-2): every push and every pull_request
+# burns this workflow — no path filter, no branch filter. The
+# former `paths:` filter carried a sync tax across the whole estate
+# (every surface added to the filter had to be spelled in six
+# workflows, and a forgotten entry silently skipped the jobs that
+# compile it — the 2026-09-13 `test/**` incident, commit 5553174,
+# is the failure class), while the runner minutes it saved never
+# covered that silent-skip risk. The publish channels stay the
+# deliberate exception: crates-io.yml, release.yml, and aur.yml
+# keep their tag/dispatch gates so a registry or release publish
+# can never ride a blind trigger. Full posture: docs/workflow/ABOUT_CI.md.
 
 name: Cosmic Dragon Guard - CI
 
 'on':
   push:
-    branches: ["main"]
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
-      - 'scripts/**'
-      - 'deny.toml'
   pull_request:
-    branches: ["main"]
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
-      - 'scripts/**'
-      - 'deny.toml'
 
 permissions:
   contents: read

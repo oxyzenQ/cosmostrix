@@ -50,9 +50,7 @@ name: Cosmic Dragon Guard - Gate-keepers
 
 'on':
   push:
-    branches: ["main"]
   pull_request:
-    branches: ["main"]
 
 permissions:
   contents: read

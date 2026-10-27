@@ -14,72 +14,24 @@
 #   4. CodeQL init with no `languages` input → auto-detect from repo.
 #
 # Note: CodeQL supports C/C++, C#, Go, Java, JS/TS, Python, Ruby, Rust,
-# Swift. Bash/shell is NOT a CodeQL language — but .sh changes still
-# trigger this workflow (path filter) so shellcheck in ci.yml covers them.
+# Swift. Bash/shell is NOT a CodeQL language — shellcheck in ci.yml
+# covers it.
 #
-# Weekly scheduled scan Monday 03:00 UTC for full coverage.
+# Weekly scheduled scan Monday 00:00 UTC for full coverage.
+#
+# Trigger discipline (the owner's unfiltered-CI simplification,
+# night-dragon-maintenance-2): the push/pull_request triggers are
+# unfiltered — no path filter, no branch filter. The former
+# language-extension `paths:` lists carried the estate's sync tax
+# (every new file type had to be spelled in six workflows) while the
+# workflow's own language auto-detection already reads the whole
+# repository on every run.
 
 name: "Cosmic Dragon Guard - CodeQL"
 
 'on':
   push:
-    branches: ["main"]
-    paths:
-      # Rust
-      - 'src/**'
-      - 'test/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
-      # Shell scripts
-      - 'scripts/**'
-      - '*.sh'
-      # Python
-      - 'pyproject.toml'
-      - 'requirements.txt'
-      - 'setup.py'
-      - '*.py'
-      # JavaScript / TypeScript
-      - 'package.json'
-      - '*.js'
-      - '*.ts'
-      # Go
-      - 'go.mod'
-      - '*.go'
-      # C/C++
-      - 'Makefile'
-      - 'CMakeLists.txt'
-      - '*.c'
-      - '*.h'
-      - '*.cpp'
   pull_request:
-    branches: ["main"]
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '*.sh'
-      - 'pyproject.toml'
-      - 'requirements.txt'
-      - 'setup.py'
-      - '*.py'
-      - 'package.json'
-      - '*.js'
-      - '*.ts'
-      - 'go.mod'
-      - '*.go'
-      - 'Makefile'
-      - 'CMakeLists.txt'
-      - '*.c'
-      - '*.h'
-      - '*.cpp'
   schedule:
     - cron: '0 0 * * 1'  # Monday 00:00 UTC (07:00 WIB)
   workflow_dispatch:

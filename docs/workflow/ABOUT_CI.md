@@ -7,61 +7,66 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | push + PR to `main` (path-filtered) | fmt, clippy, test, build, security audit, version sync |
+| `ci.yml` | every push + every PR (unfiltered) | fmt, clippy, test, build, security audit, version sync |
 | `release.yml` | tag push `v*` (CI-gated: waits for the `ci.yml` run on the tagged SHA — NIGHT-improve-1) | 8-platform binaries + checksums + GPG sign + GitHub Release |
 | `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) | `cargo update` + audit + commit if validation passes |
-| `gitbot-audit.yml` | daily cron + push/PR (path-filtered) | `cargo audit` + `cargo deny` (observation-only) |
+| `gitbot-audit.yml` | daily cron + every push/PR (unfiltered) | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
 | `crates-io.yml` | tag push `v*` (stable + pre-release, same CI gate) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
-| `miri.yml` | weekly cron (Sun 00:00 UTC / 07:00 WIB) + push (path-filtered) | Undefined behavior detection |
-| `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
-| `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer, actions-pin health |
-| `supermassive.yml` | push to `main` (path-filtered) + manual dispatch | Runtime E2E: pty smoke (six real-pty legs), musl workspace nextest, render soak (night-improve-7; push-triggered since night-improve-10) |
+| `miri.yml` | weekly cron (Sun 00:00 UTC / 07:00 WIB) + every push (unfiltered) | Undefined behavior detection |
+| `codeql.yml` | every push + every PR (unfiltered) + weekly cron | CodeQL static analysis, auto-detected languages |
+| `cosmic-dragon-guard.yml` | every push + every PR (unfiltered) | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer, actions-pin health |
+| `supermassive.yml` | every push (unfiltered) + manual dispatch | Runtime E2E: pty smoke (six real-pty legs), musl workspace nextest, render soak (night-improve-7; push-triggered since night-improve-10) |
+| `supermassive-kernel.yml` | every push (unfiltered) + manual dispatch | KVM micro-VM lanes: the REAL 2.6.27 minimum-kernel floor battery + the latest-mainline best-specs pty battery (night-dragon-maintenance-2) |
 
 Job naming: the ci.yml keystone job (id `build_test`, the strict debug
 build gate every downstream job depends on) is displayed as
 "build.sh -q" after the local command it mirrors,
 `./scripts/build.sh check-all -q` (NIGHT-boost-5, 2026-09-24).
 
-## Path filters (what triggers a CI run)
+## Unfiltered triggers (what fires a CI run)
 
-The path-filtered workflows (`ci.yml`, `codeql.yml`, `gitbot-audit.yml`,
-`miri.yml`) gate on the Rust surface, mirroring `src/**` with `test/**`:
+Owner decision (night-dragon-maintenance-2, 2026-10-27): every
+push-triggered workflow runs on EVERY push — any branch, any tag, any
+file. The former per-workflow `paths:`/`branches:` filters are gone.
+The rationale is cost and honesty at once: a filter list is a spelling
+that six workflows must keep in sync (the estate-wide sync tax), and a
+forgotten entry silently skips the jobs that compile the very surface
+that changed — the 2026-09-13 incident below is that exact failure
+class. Blind triggers retire the spelling entirely: a change burns
+every lane, nothing can be silently skipped, and the run history on
+every commit is the complete picture.
 
-- `src/**` — the implementation tree.
-- `test/**` — the cfg(test) mirror tree, all `.rs`, wired into the crate
-  via `#[path]` mod includes. `cargo test --all`, clippy `--all-targets`,
-  and rustfmt all compile or parse it, so a test-only change is a Rust
-  change.
-- Cargo/build inputs: `Cargo.toml`, `Cargo.lock`, `build.rs`,
-  `rust-toolchain.toml`, `.cargo/**` (plus `scripts/**` and `deny.toml`
-  in `ci.yml`, and the non-Rust language roots in `codeql.yml`).
+The publish channels stay the deliberate exception — a registry or
+release publish can never ride a blind trigger:
 
-Deliberately outside the filters: `pgo-runner/` (standalone crate, not a
-workspace member — no main-branch CI job compiles it; the tag-triggered
-release PGO job builds it) and `benchmark/research/*.rs` (reference
-material, not a cargo target). The unconditional `cosmic-dragon-guard.yml`
-(run on every push/PR to `main`), the daily audit cron, and the weekly
-Miri/CodeQL crons back-stop everything the path filters skip.
+- `crates-io.yml` — tag push `v*` only (a crates.io publish is
+  irreversible).
+- `release.yml` — tag push `v*` only.
+- `aur.yml` — `repository_dispatch` (fired by release.yml after a
+  successful GitHub Release) + manual dispatch only.
+
+The scheduled and manual lanes keep their schedules
+(`maintenance.yml` weekly, `gitbot-audit.yml` daily, `miri.yml` Sunday,
+`codeql.yml` Monday) as back-stops for network-dependent checks.
 
 Incident (2026-09-13, commit 5553174): a push touching only
 `test/engine/cosmic_dragon_engine/cloud/tests/tests_black_hole/infall.rs`
 matched no `paths:` entry, so the Test + Build job never ran for the very
-commit that repaired a test contract. The standing rule since then: any
-`.rs` change under `src/` or `test/` must trigger every workflow whose
-jobs compile that tree.
+commit that repaired a test contract. The unfiltered posture above is
+the terminal fix: there is no filter left that can forget a surface.
 
-Entry form policy (owner rule 2026-09-24, NIGHT-boost-1): a
-`paths:`/`paths-ignore:` entry that points inside a directory must be a
-directory glob (`scripts/**`, `src/**`, `docs/**`), never a hardcoded
-filename (`scripts/example.sh`). A filename entry silently rots the
-moment the file is renamed or deleted — the workflow stops triggering
-while the filter still looks alive, the same failure class as the
-2026-09-13 incident. Root-level entries (`Cargo.toml`, `deny.toml`,
-`*.sh`) carry no slash and are exempt: a root build file cannot be
-globbed more generally without matching unrelated files. Enforced by
-gate-keepers.sh check 16 (`scripts/gates/check-ci-path-filters.py`), so a
-hardcoded filename fails the gate before it can reach `main`.
+Entry form policy (owner rule 2026-09-24, NIGHT-boost-1): if a
+`paths:`/`paths-ignore:` entry is ever reintroduced, an entry that
+points inside a directory must be a directory glob (`scripts/**`,
+`src/**`, `docs/**`), never a hardcoded filename (`scripts/example.sh`).
+A filename entry silently rots the moment the file is renamed or
+deleted — the workflow stops triggering while the filter still looks
+alive, the same failure class as the 2026-09-13 incident. Root-level
+entries (`Cargo.toml`, `deny.toml`, `*.sh`) carry no slash and are
+exempt. Enforced by gate-keepers.sh check 16
+(`scripts/gates/check-ci-path-filters.py`), which stays in the gate
+battery as the guard for any future reintroduction.
 
 ## Dependency version policy (owner decision 2026-08-30)
 
@@ -201,9 +206,10 @@ now open with a `ci_gate` job (`scripts/ci/wait-for-ci.sh`) that
 polls the Actions API until the `ci.yml` push-run for the exact tagged
 SHA completes, then requires `conclusion=success` before any build or
 publish step runs. A cancelled or failed CI blocks the release with a
-recovery hint; a commit that `ci.yml`'s `paths:` filter skips
-(docs-only releases) passes the gate after a 90 s grace period because
-the unconditional gate-keepers workflow covered that push. Cost: the
+recovery hint; a SHA whose `ci.yml` push-run never appears within a
+90 s grace window passes the gate on the same leniency (a release
+practiced off the normal push path — an amended history, a rebase —
+is not held hostage by a run that will never exist). Cost: the
 release serializes behind CI (total wall time = CI + release instead
 of `max(CI, release)`).
 

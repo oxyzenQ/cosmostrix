@@ -9,6 +9,11 @@
 #
 # This workflow does NOT modify any repository files.
 # For dependency update reports, see: maintenance.yml (weekly)
+#
+# Trigger discipline (the owner's unfiltered-CI simplification,
+# night-dragon-maintenance-2): the push/pull_request triggers are
+# unfiltered — any change burns the audit. Only the schedule and
+# workflow_dispatch survive unchanged.
 
 name: "Cosmic Dragon Guard - Security Audit"
 
@@ -16,25 +21,7 @@ name: "Cosmic Dragon Guard - Security Audit"
   schedule:
     - cron: "0 0 * * *"  # 00:00 UTC (07:00 WIB) daily
   push:
-    branches: ["main"]
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
   pull_request:
-    branches: ["main"]
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
   workflow_dispatch:
     inputs:
       run_deny:

@@ -4,7 +4,7 @@
 # Weekly Miri verification of the 6 pure-Rust modules audited in
 # docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md.
 #
-# Runs on every push to main, weekly on Sunday 00:00 UTC (07:00 WIB) + on manual dispatch.
+# Runs on every push, weekly on Sunday 00:00 UTC (07:00 WIB) + on manual dispatch.
 # Miri is slow (1-3 min) and requires nightly, so it's not on the per-PR path.
 # Status banner shown by scripts/build.sh on every invocation reflects
 # the most recent local stamp file, NOT this CI run — contributors run
@@ -36,15 +36,6 @@ name: "Cosmic Dragon Guard - Miri"
 
 'on':
   push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
   schedule:
     # Sunday 00:00 UTC (07:00 WIB) — picks up the week's commits in one shot.
     - cron: '0 0 * * 0'

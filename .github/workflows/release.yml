@@ -26,8 +26,8 @@ jobs:
   # before CI could pass judgment, and the parallel crates-io.yml
   # publish (irreversible) shipped with it. Every build job below now
   # needs this gate: it waits for the ci.yml push-run on the exact
-  # tagged SHA and requires conclusion=success (docs-only commits that
-  # ci.yml's paths filter skips pass after a grace period; a cancelled
+  # tagged SHA and requires conclusion=success (a SHA whose ci.yml
+  # run never appears passes after a grace period; a cancelled
   # or failed CI blocks the release with a recovery hint). Full
   # contract: scripts/ci/wait-for-ci.sh. docs/workflow/ABOUT_CI.md
   # documents the serialized release flow.

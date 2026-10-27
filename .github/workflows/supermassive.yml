@@ -65,15 +65,14 @@
 #      was watching; per-push rows tie each dataset point to the
 #      exact commit that produced it.
 #
-# Trigger surface mirrors ci.yml's path list (the estate spelling)
-# plus the workflows directory glob; a docs-only push matches nothing
-# here. The glob stands in for this file's own name because the
-# ci-path-filters gate (NIGHT-boost-1) bans hardcoded filenames inside
-# a directory - the closest gate-legal spelling of the hunt-34 rule
-# that a workflow which can change its own contract owes itself a run.
-# No cron schedule on purpose (night-improve-10): the trigger surface
-# is push plus manual dispatch only, so no run is ever detached from
-# the commit it measures.
+# Trigger discipline (the owner's unfiltered-CI simplification,
+# night-dragon-maintenance-2): the push trigger is unfiltered — no
+# branch filter, no path filter. The former paths list duplicated
+# ci.yml's spelling and owed this workflow a run whenever it could
+# change its own contract; a blind push trigger retires that sync
+# tax. workflow_dispatch stays as the manual recovery lane. No cron
+# schedule on purpose (night-improve-10): no run is ever detached
+# from the commit it measures.
 #
 # Budgets: pty_smoke 15 min (a warm release build plus about a minute
 # of six sub-10-second pty runs), musl_tests 30 min (a cold musl
@@ -93,17 +92,6 @@ name: Cosmic Dragon Guard - Supermassive
 
 'on':
   push:
-    branches: ["main"]
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/**'
   workflow_dispatch: {}
 
 permissions:
