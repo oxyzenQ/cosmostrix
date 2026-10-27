@@ -66,11 +66,18 @@ accumulated engineering of hundreds of audited releases, and the
 price will keep increasing as that engineering compounds. Budget
 accordingly: today's price is the lowest it will ever be.
 
-Recorded raise (October 2026, night-improve-6): Business $5,000 to
-$5,199/year, Company $50,199 to $100,199/year. The Personal and
-Individual tiers are deliberately untouched — the increase tracks the
-compounding engineering value and applies only to the tiers that
-profit commercially from it.
+Recorded raises:
+
+- October 2026 (night-improve-6): Business $5,000 to $5,199/year,
+  Company $50,199 to $100,199/year.
+- October 2026 (this revision): Business $5,199 to $12,999/year,
+  Company $100,199 split into Enterprise Internal ($64,999/year,
+  internal-only) and OEM / Redistribution ($149,999/year,
+  embedding rights).
+
+The Personal and Individual tiers are deliberately untouched across
+every raise — the increases track the compounding engineering value
+and apply only to the tiers that profit commercially from it.
 
 ## What Each Tier Grants
 
