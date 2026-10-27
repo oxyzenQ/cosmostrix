@@ -374,7 +374,7 @@ fn cpu_baseline(build_id: &str, profile_name: &str, features: &HashSet<String>) 
 
 fn claimed_x86_baseline(value: &str) -> Option<&'static str> {
     // NIGHT-blade-1: build ids and profile names carry the baseline as
-    // an inner token (linux-amd64-v3-gnu, pro-linux-amd64-v3-musl), so
+    // an inner token (linux-amd64-v3-musl, pro-linux-amd64-v4-musl), so
     // the claim check matches "-vN-" anywhere in the string OR a
     // trailing "-vN" (the legacy pro-linux-v3 shape and CI's
     // linux-x86_64-vN labels keep claiming too).
@@ -530,7 +530,7 @@ fn fail_cpu_baseline(
     eprintln!("  reason: {reason}");
     eprintln!();
     eprintln!(
-        "Use the cargo aliases (for example `cargo pro-linux-amd64-v3-gnu`) or set matching RUSTFLAGS explicitly."
+        "Use the cargo aliases (for example `cargo pro-linux-amd64-v3-musl`) or set matching RUSTFLAGS explicitly."
     );
     std::process::exit(1);
 }
@@ -626,8 +626,10 @@ fn infer_build_id(features: &HashSet<String>) -> String {
     } else {
         arch.as_str()
     };
-    // Detect libc variant (gnu = glibc/dynamic, musl = static) for Linux builds.
-    // This matches the user-facing build label convention: linux-amd64-vN-gnu/musl
+    // Detect libc variant (musl = static, gnu = glibc/dynamic) for Linux
+    // builds. This matches the user-facing build label convention:
+    // linux-amd64-vN-musl is the shipped release shape; the -gnu suffix
+    // only ever appears on local host builds.
     let env_suffix = if os == "linux" {
         let env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
         if env == "musl" {
@@ -765,14 +767,14 @@ mod tests {
             inherits = "release"
             codegen-units = 1
 
-            [profile.pro-linux-amd64-v3-gnu]
+            [profile.pro-linux-amd64-v3-musl]
             inherits = "pro"
         "#;
 
         let profiles = parse_profiles(text);
-        let mut effective = profile_defaults("pro-linux-amd64-v3-gnu");
+        let mut effective = profile_defaults("pro-linux-amd64-v3-musl");
         resolve_profile(
-            "pro-linux-amd64-v3-gnu",
+            "pro-linux-amd64-v3-musl",
             &profiles,
             &mut HashSet::new(),
             &mut effective,
@@ -808,7 +810,7 @@ mod tests {
         assert_eq!(pgo_label("nitro-pgo-instrument"), "no");
         assert_eq!(pgo_label("linux-amd64-v3"), "no");
         assert_eq!(pgo_label("linux-amd64-v3-musl"), "no");
-        assert_eq!(pgo_label("pro-linux-amd64-v3-gnu"), "no");
+        assert_eq!(pgo_label("pro-linux-amd64-v3-musl"), "no");
         assert_eq!(pgo_label("unknown"), "no");
         assert_eq!(pgo_label(""), "no");
     }
@@ -816,7 +818,8 @@ mod tests {
     #[test]
     fn claimed_x86_baseline_matches_blade1_name_shapes() {
         // NIGHT-blade-1: ids/profiles carry the baseline as an inner
-        // token; both the new (linux-amd64-v3-gnu) and the legacy
+        // token; the shipped (linux-amd64-vN-musl), the retired gnu
+        // shape (still claimable by local host builds), and the legacy
         // (pro-linux-v3) shapes must claim their baseline, and
         // baseline-less ids must not claim.
         assert_eq!(
