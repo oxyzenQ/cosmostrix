@@ -222,7 +222,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/kfloor && cd /tmp/kfloor
-          POOL="http://old-releases.ubuntu.com/ubuntu/pool/main/l/linux"
+          POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/l/linux"
           LISTING="$(curl -fsSL --retry 5 --max-time 180 "$POOL/")"
           IMG="$(printf '%s' "$LISTING" \
             | grep -oE 'linux-image-2\.6\.27-[0-9]+-generic_[^"]+_amd64\.deb' \
@@ -270,9 +270,9 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/kfloor
-          POOL="http://old-releases.ubuntu.com/ubuntu/pool/main/b/busybox"
+          POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/b/busybox"
           ERA_DEB="busybox-initramfs_1.10.2-1ubuntu6_amd64.deb"
-          DIST="http://old-releases.ubuntu.com/ubuntu/dists/intrepid/main/binary-amd64/Packages.gz"
+          DIST="https://old-releases.ubuntu.com/ubuntu/dists/intrepid/main/binary-amd64/Packages.gz"
           if curl -fsI --retry 5 --max-time 60 "$POOL/$ERA_DEB" >/dev/null; then
             BUSY="$ERA_DEB"
             echo "resolved: $BUSY (pinned intrepid GA busybox-initramfs, era-true)"
@@ -290,7 +290,7 @@ jobs:
             fi
             BUSY="$(basename "$FNAME")"
             echo "resolved: $BUSY (from the intrepid dists index, era-true)"
-            curl -fsSL --retry 5 --max-time 300 -o "$BUSY" "http://old-releases.ubuntu.com/ubuntu/$FNAME"
+            curl -fsSL --retry 5 --max-time 300 -o "$BUSY" "https://old-releases.ubuntu.com/ubuntu/$FNAME"
           fi
           dpkg -x "$BUSY" pkg-busybox
           SRCBB="$(find pkg-busybox -name busybox -type f | head -1)"
