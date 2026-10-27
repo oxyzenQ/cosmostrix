@@ -24,7 +24,8 @@ regression harness for every future signal-stack change:
      bench_progress::register_interrupt flag path)
 
 Usage: python3 scripts/depth/signal_smoke.py [path-to-binary]
-(default: target/release/cosmostrix). Exit 0 = all checks passed.
+(default: first existing pro-alias output, else target/release/cosmostrix).
+Exit 0 = all checks passed.
 
 Parity methodology: run it against the pre-change binary and the
 post-change binary; both must produce identical PASS sets. The
@@ -42,7 +43,14 @@ import sys
 import termios
 import time
 
-BIN = sys.argv[1] if len(sys.argv) > 1 else "target/release/cosmostrix"
+BIN = sys.argv[1] if len(sys.argv) > 1 else next(
+    (c for c in (
+        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
+        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+        "target/pro-native/cosmostrix",
+        "target/release/cosmostrix",
+    ) if os.path.isfile(c)), "target/release/cosmostrix"
+)
 COLS, ROWS = 100, 30
 FAILURES = []
 

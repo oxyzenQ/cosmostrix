@@ -19,7 +19,7 @@
 #   ./scripts/depth/apply-visual-preset.sh list       # list available presets
 #
 # After applying, rebuild for the change to take effect:
-#   cargo build --release
+#   ./scripts/build.sh release   (named-alias dispatch: cargo pro-linux-amd64-v3-gnu on AVX2 hosts)
 #
 # The script patches ONLY the 17 battle parameters (the preset identity
 # package). The Option F inherited values (speed / length / density /
@@ -37,8 +37,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TARGET="${REPO_ROOT}/src/central_control_rains/mod.rs"
 
 if [ ! -f "$TARGET" ]; then
-	echo "ERROR: $TARGET not found" >&2
-	exit 1
+        echo "ERROR: $TARGET not found" >&2
+        exit 1
 fi
 
 python3 - "$TARGET" "$@" <<'PYTHON_SCRIPT'
@@ -218,7 +218,7 @@ def main():
     for name, old, new in changed:
         print(f"  {name:32} {old}  ->  {new}")
     print()
-    print("Rebuild to see it:  cargo build --release")
+    print("Rebuild to see it:  ./scripts/build.sh release")
     print("Revert to champion: ./scripts/depth/apply-visual-preset.sh cinema-noir")
 
 

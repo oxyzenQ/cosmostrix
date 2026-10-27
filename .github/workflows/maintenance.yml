@@ -207,13 +207,11 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: |
           cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
-          cargo build --profile release --locked --jobs "${CARGO_BUILD_JOBS}"
-          # Owner directive 2026-08-23: validate the plain `pro` profile
-          # (native target, no -C target-cpu pin) instead of
-          # pro-linux-amd64-v3-gnu — dependency validation does not need
-          # a pinned microarch level, and plain pro builds on any runner
-          # arch (incl. future arm64).
-          cargo build --profile pro --locked --jobs "${CARGO_BUILD_JOBS}"
+          # Owner directive 2026-10-27 (night-dragon-maintenance-3): builds
+          # ride the named alias path - never a bare cargo release build.
+          # The plain-pro note below (2026-08-23) is retired with that
+          # directive; ubuntu-24.04 runners are AVX2-capable (x86-64-v3).
+          cargo pro-linux-amd64-v3-gnu --locked
 
       - name: Run tests
         if: steps.changes.outputs.changed == 'true'

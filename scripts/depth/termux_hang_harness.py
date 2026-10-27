@@ -54,10 +54,17 @@ import time
 
 # NIGHT-hunt-35: release fallback (the default pinned the debug build; a
 # release-only checkout hit the "binary not found" exit even though the
-# harness itself is fine). Debug stays preferred when present.
-BIN = os.environ.get("BIN", "target/debug/cosmostrix")
+# harness itself is fine). Debug stays preferred when present; the
+# pro-alias outputs (build.sh release dispatch) come next.
+_BIN_CANDIDATES = (
+    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
+    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+    "target/pro-native/cosmostrix",
+    "target/release/cosmostrix",
+)
+BIN = os.environ.get("BIN") or "target/debug/cosmostrix"
 if not os.path.exists(BIN):
-    BIN = "target/release/cosmostrix"
+    BIN = next((c for c in _BIN_CANDIDATES if os.path.exists(c)), _BIN_CANDIDATES[-1])
 COLS, ROWS = (int(v) for v in os.environ.get("SIZE", "120x40").split("x"))
 JAM_EXIT_TIMEOUT = float(os.environ.get("JAM_EXIT_TIMEOUT", "25"))
 TERM_EXIT_TIMEOUT = float(os.environ.get("TERM_EXIT_TIMEOUT", "8"))

@@ -111,7 +111,19 @@ TERM_COLS, TERM_ROWS = (int(x) for x in os.environ.get("SIZE", "140x46").split("
 # HUD occupies the bottom ~24 rows; analyze the rain region only.
 HUD_ROWS = 26
 ANALYSIS_ROWS = TERM_ROWS - HUD_ROWS
-BIN = os.environ.get("BIN", "target/release/cosmostrix")
+# Alias-aware default (night-dragon-maintenance-3): build.sh release
+# dispatches to the host-matched pro alias, so the probe order follows
+# the alias output paths first and keeps target/release as the legacy
+# fallback. The BIN env override always wins.
+_BIN_CANDIDATES = (
+    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
+    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+    "target/pro-native/cosmostrix",
+    "target/release/cosmostrix",
+)
+BIN = os.environ.get("BIN") or next(
+    (c for c in _BIN_CANDIDATES if os.path.isfile(c)), _BIN_CANDIDATES[-1]
+)
 
 CFG_DEFAULT_BG = 'color-bg = "default-background"\n'
 CFG_BLACK_BG = 'color-bg = "black"\n'

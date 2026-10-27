@@ -11,7 +11,10 @@
 
 set -uo pipefail
 
-BIN="./target/release/cosmostrix"
+BIN="./target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix"
+[ -x "$BIN" ] || BIN="./target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix"
+[ -x "$BIN" ] || BIN="./target/pro-native/cosmostrix"
+[ -x "$BIN" ] || BIN="./target/release/cosmostrix"
 PASS=0
 FAIL=0
 BUGS=()
@@ -20,51 +23,51 @@ RESULTS=()
 # Helper: run a case, check expected pattern + optional unexpected pattern.
 # Usage: run_case "label" "expected_pattern" "unexpected_pattern" -- <args...>
 run_case() {
-	local label="$1"
-	local expected="$2"
-	local unexpected="${3:-}"
-	shift 3
-	# Remaining args (after --) go to the binary.
-	# Skip the "--" separator if present.
-	if [ "${1:-}" = "--" ]; then
-		shift
-	fi
-	local output
-	output=$("$BIN" "$@" 2>&1 || true)
-	if echo "$output" | grep -qE "$expected"; then
-		if [ -z "$unexpected" ] || ! echo "$output" | grep -qiE "$unexpected"; then
-			PASS=$((PASS + 1))
-			RESULTS+=("PASS: $label")
-		else
-			FAIL=$((FAIL + 1))
-			RESULTS+=("FAIL: $label (unexpected: '$unexpected')")
-			BUGS+=("$label: unexpected '$unexpected' found")
-		fi
-	else
-		FAIL=$((FAIL + 1))
-		RESULTS+=("FAIL: $label (expected: '$expected')")
-		BUGS+=("$label: expected '$expected' not found")
-	fi
+        local label="$1"
+        local expected="$2"
+        local unexpected="${3:-}"
+        shift 3
+        # Remaining args (after --) go to the binary.
+        # Skip the "--" separator if present.
+        if [ "${1:-}" = "--" ]; then
+                shift
+        fi
+        local output
+        output=$("$BIN" "$@" 2>&1 || true)
+        if echo "$output" | grep -qE "$expected"; then
+                if [ -z "$unexpected" ] || ! echo "$output" | grep -qiE "$unexpected"; then
+                        PASS=$((PASS + 1))
+                        RESULTS+=("PASS: $label")
+                else
+                        FAIL=$((FAIL + 1))
+                        RESULTS+=("FAIL: $label (unexpected: '$unexpected')")
+                        BUGS+=("$label: unexpected '$unexpected' found")
+                fi
+        else
+                FAIL=$((FAIL + 1))
+                RESULTS+=("FAIL: $label (expected: '$expected')")
+                BUGS+=("$label: expected '$expected' not found")
+        fi
 }
 
 # Helper: check no crash (exit 0 or 2 is OK; segfault/panic is a bug).
 # Usage: run_no_crash "label" -- <args...>
 run_no_crash() {
-	local label="$1"
-	shift
-	if [ "${1:-}" = "--" ]; then
-		shift
-	fi
-	local output
-	output=$("$BIN" "$@" 2>&1 || true)
-	if echo "$output" | grep -qiE "panicked|SIGSEGV|core dumped|abort"; then
-		FAIL=$((FAIL + 1))
-		RESULTS+=("FAIL: $label (CRASH)")
-		BUGS+=("$label: CRASH/panic detected")
-	else
-		PASS=$((PASS + 1))
-		RESULTS+=("PASS: $label (no crash)")
-	fi
+        local label="$1"
+        shift
+        if [ "${1:-}" = "--" ]; then
+                shift
+        fi
+        local output
+        output=$("$BIN" "$@" 2>&1 || true)
+        if echo "$output" | grep -qiE "panicked|SIGSEGV|core dumped|abort"; then
+                FAIL=$((FAIL + 1))
+                RESULTS+=("FAIL: $label (CRASH)")
+                BUGS+=("$label: CRASH/panic detected")
+        else
+                PASS=$((PASS + 1))
+                RESULTS+=("PASS: $label (no crash)")
+        fi
 }
 
 echo "=== Z-master-1T Depth Stresstest: CLI + Config ==="
@@ -202,21 +205,21 @@ run_no_crash "config reload 3" -- --config "$TMPDIR_TEST/reload_3.toml" --benchm
 # ── Summary ─────────────────────────────────────────────────────────────
 echo ""
 for r in "${RESULTS[@]}"; do
-	echo "  $r"
+        echo "  $r"
 done
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo "  Stresstest Results: ${PASS} passed, ${FAIL} failed"
 echo "═══════════════════════════════════════════════════════════════"
 if [ ${#BUGS[@]} -gt 0 ]; then
-	echo ""
-	echo "BUGS FOUND:"
-	for bug in "${BUGS[@]}"; do
-		echo "  - $bug"
-	done
+        echo ""
+        echo "BUGS FOUND:"
+        for bug in "${BUGS[@]}"; do
+                echo "  - $bug"
+        done
 fi
 echo ""
 if [ "$FAIL" -gt 0 ]; then
-	exit 1
+        exit 1
 fi
 exit 0

@@ -34,7 +34,8 @@ Knobs (env):
   KEYS_AT    comma list of "t:ch" entries; "70" alone means "70:s".
   SIZE       "cols x rows" (default 200x56).
   SCENE      scene argument (--scene <name>), default none.
-  BIN        binary path (default target/release/cosmostrix).
+  BIN        binary path (default: first existing pro-alias output,
+             else target/release/cosmostrix).
   OUT        report TSV path (default /tmp/cosmostrix-nh2/shift.tsv).
 """
 
@@ -55,7 +56,14 @@ TERM_COLS, TERM_ROWS = (int(x) for x in os.environ.get("SIZE", "200x56").split("
 RUN_SECS = float(os.environ.get("RUN_SECS", "75"))
 KEYS_RAW = os.environ.get("KEYS_AT", "")
 SCENE = os.environ.get("SCENE", "")
-BIN = os.environ.get("BIN", "target/release/cosmostrix")
+BIN = os.environ.get("BIN") or next(
+    (c for c in (
+        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
+        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+        "target/pro-native/cosmostrix",
+        "target/release/cosmostrix",
+    ) if os.path.isfile(c)), "target/release/cosmostrix"
+)
 OUT = os.environ.get("OUT", "/tmp/cosmostrix-nh2/shift.tsv")
 TERM_PROGRAM = os.environ.get("TERM_PROGRAM", "alacritty")
 

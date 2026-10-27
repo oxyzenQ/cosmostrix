@@ -14,7 +14,7 @@
 # moves from the former flat script.
 
 show_help() {
-	cat <<'EOF'
+        cat <<'EOF'
 cosmostrix build script
 
 USAGE:
@@ -27,7 +27,8 @@ details. The recommended one-shot bump+build flow is:
 
 COMMANDS (essentials):
     debug           Build debug version (default)
-    release         Build optimized release version
+    release         Build optimized release via the host-matched pro alias
+                    (AVX-512 -> v4, AVX2 -> v3, else pro-native)
     pgo             PGO nitro build (instrument → benchmark → optimize, +5-15% FPS)
                     Pass --auto to auto-detect the best CPU target for this host.
                     Pass --validate to also build a release baseline + compare FPS.
@@ -74,12 +75,12 @@ OPTIONS:
     --full          Run full lib test suite under Miri (slow, may fail on FFI)
     --quiet-miri    Suppress Miri status banner (for CI jobs that don't care)
     --quiet, -q     Suppress passing output in check-all: hide [INFO]/[OK]/
-		    [>] step banners, Miri status, section dividers, and
-		    per-check success summaries. Only failures ([X]),
-		    warnings ([!]) and underlying-tool violation output
-		    (cargo fmt diffs, clippy errors, test failures, LOC
-		    VIOLATES lines, version-anti-pattern FAIL blocks)
-		    are surfaced. Use in CI and fast local re-checks.
+                    [>] step banners, Miri status, section dividers, and
+                    per-check success summaries. Only failures ([X]),
+                    warnings ([!]) and underlying-tool violation output
+                    (cargo fmt diffs, clippy errors, test failures, LOC
+                    VIOLATES lines, version-anti-pattern FAIL blocks)
+                    are surfaced. Use in CI and fast local re-checks.
 
 ENVIRONMENT:
     COSMOSTRIX_JOBS             Override CPU core limit (default: all detected cores)
@@ -96,7 +97,7 @@ ENVIRONMENT:
     RUST_BACKTRACE              Control backtrace verbosity (default: 1)
 
 EXAMPLES:
-    ./scripts/build.sh release                  # optimized release build
+    ./scripts/build.sh release                  # optimized build via the host-matched pro alias
     ./scripts/build.sh check-all                # all quality gates
     ./scripts/build.sh pgo --auto               # PGO with auto CPU detection
     cargo use-pgo                               # same as above

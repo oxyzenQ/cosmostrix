@@ -47,7 +47,23 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # repository root is two levels up from this file (scripts/bench/).
 REPO_ROOT = SCRIPT_DIR.parents[1]
 OUTPUT_DIR = REPO_ROOT / "benchmark"
-BINARY = REPO_ROOT / "target" / "release" / "cosmostrix"
+# Alias-aware default (night-dragon-maintenance-3): build.sh release
+# dispatches to the host-matched pro alias; probe the alias outputs
+# first, keep target/release as the legacy fallback.
+def _resolve_binary() -> Path:
+    for rel in (
+        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
+        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+        "target/pro-native/cosmostrix",
+        "target/release/cosmostrix",
+    ):
+        candidate = REPO_ROOT / rel
+        if candidate.exists():
+            return candidate
+    return REPO_ROOT / "target" / "release" / "cosmostrix"
+
+
+BINARY = _resolve_binary()
 SIZES = [
     (6, 6),
     (20, 20),
@@ -170,8 +186,8 @@ def run_one(cols: int, lines: int) -> dict:
 
 def main() -> int:
     if not BINARY.exists():
-        print(f"error: release binary not found at {BINARY}", file=sys.stderr)
-        print("run: cargo build --release", file=sys.stderr)
+        print(f"error: cosmostrix binary not found at {BINARY}", file=sys.stderr)
+        print("run: ./scripts/build.sh release (named-alias dispatch, e.g. cargo pro-linux-amd64-v3-gnu)", file=sys.stderr)
         return 1
 
     print(

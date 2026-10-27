@@ -77,9 +77,17 @@ import termios
 import threading
 import time
 
-# ── Binary resolution: --bin flag > COSMOSTRIX_BIN > release > debug ──────
+# ── Binary resolution: --bin flag > COSMOSTRIX_BIN > pro-alias outputs >
+#    release > debug (the alias outputs follow the build.sh release
+#    dispatch paths, night-dragon-maintenance-3) ──────────────────────
 
-DEFAULT_BINS = ("target/release/cosmostrix", "target/debug/cosmostrix")
+DEFAULT_BINS = (
+    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
+    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+    "target/pro-native/cosmostrix",
+    "target/release/cosmostrix",
+    "target/debug/cosmostrix",
+)
 
 
 def resolve_bin(flag_value):
@@ -94,7 +102,7 @@ def resolve_bin(flag_value):
         if os.path.isfile(c):
             return os.path.abspath(c)
     print(f"depthbore: no binary found (tried: {', '.join(candidates)})")
-    print("depthbore: build one first:  cargo build --release")
+    print("depthbore: build one first:  ./scripts/build.sh release (named-alias dispatch)")
     sys.exit(2)
 
 
