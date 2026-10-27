@@ -69,8 +69,8 @@ perpetual rate.
 
 cosmostrix is a professional-grade renderer, and it is priced like one.
 Every hardening pass, dependency audit, LTS release, and benchmark
-campaign raises the value of the codebase year by year — the Business
-and Company tiers track that rising value deliberately. A company
+campaign raises the value of the codebase year by year — the paid
+commercial tiers track that rising value deliberately. A company
 buying a license is not buying a screensaver; it is buying the
 accumulated engineering of hundreds of audited releases, and the
 price will keep increasing as that engineering compounds. Budget
