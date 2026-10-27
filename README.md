@@ -226,7 +226,7 @@ Every archive ships three checksums (classical SHA-512 plus BLAKE3-256 and quant
 
 **Available platforms:**
 
-- Linux amd64: `v3`, `v4`, `musl` (also `linux-aarch64` for arm64)
+- Linux amd64: `v3-musl`, `v4-musl` (fully static musl builds — the only Linux shapes that ship)
 - macOS: `darwin-aarch64-native` (Apple Silicon; no Intel Mac prebuilt — build from source for `x86_64-apple-darwin`)
 - FreeBSD: `freebsd-amd64` (requires libexecinfo on 15+, see [System Requirements](docs/SYSTEM_REQUIREMENTS.md))
 - Windows: `windows-x86_64` and `windows-arm64` (Snapdragon X / Copilot+ PCs — native ARM64 build)
@@ -235,7 +235,7 @@ Every archive ships three checksums (classical SHA-512 plus BLAKE3-256 and quant
 ```bash
 REPO="oxyzenQ/cosmostrix"
 TAG="v100.0.8"
-PLATFORM="linux-amd64-v3"
+PLATFORM="linux-amd64-v3-musl"
 # The retry contract (NIGHT-dinner-1): a transient GitHub-side 5xx must
 # not fail the install — -f fails on HTTP errors instead of saving the
 # error page as the tarball, --retry-all-errors covers the exit-22 class
@@ -310,7 +310,7 @@ cosmostrix --doctor
 For a modern Linux x86_64 machine, the recommended optimized build is:
 
 ```bash
-cargo pro-linux-amd64-v3-gnu
+cargo pro-linux-amd64-v3-musl
 ```
 
 On FreeBSD (after installing libexecinfo — see [System Requirements](docs/SYSTEM_REQUIREMENTS.md#freebsd)):
@@ -323,16 +323,16 @@ Artifact variants use explicit CPU baselines:
 
 | Variant | Baseline |
 |---|---|
-| `linux-amd64-v3` | AVX2 / BMI2 / FMA-era CPUs (2013+, most modern x86_64) |
-| `linux-amd64-v4` | AVX-512 baseline (high-end server/workstation) |
-| `linux-amd64-musl` | v3 baseline + statically linked (max portability) |
+| `linux-amd64-v3-musl` | AVX2 / BMI2 / FMA-era CPUs (2013+, most modern x86_64) + statically linked |
+| `linux-amd64-v4-musl` | AVX-512 baseline (high-end server/workstation) + statically linked |
 | `freebsd-amd64` | native (host CPU) — FreeBSD 13+, GhostBSD |
 | `native` | Local-only build tuned for the current CPU |
 
-> **Note:** v1/v2 x86_64 variants were dropped in an earlier release. Modern CPUs
-> (2013+) support v3. For maximum portability (Alpine, containers,
-> minimal base images), use the `musl` variant — it's statically linked
-> with no glibc dependency.
+> **Note:** v1/v2 x86_64 variants and the glibc-linked (gnu) builds were retired
+> (night-dragon-maintenance-6). Modern CPUs (2013+) support v3. The Linux x86_64
+> release shapes are fully static musl executables — zero runtime libc dependency,
+> identical behavior on glibc and musl host distros (Alpine, containers, minimal
+> base images included).
 
 Release/pro builds keep `panic = "unwind"` on purpose. cosmostrix owns raw mode,
 alternate screen, cursor visibility, and line-wrap state while running; unwinding
@@ -341,9 +341,9 @@ lets the RAII terminal guard and panic hook restore the terminal on panic.
 To verify an optimized artifact:
 
 ```bash
-target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix --doctor
-file target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix
-scripts/release/verify-release-build.sh pro-linux-amd64-v3-gnu
+target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix --doctor
+file target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix
+scripts/release/verify-release-build.sh pro-linux-amd64-v3-musl
 ```
 
 ## Quickstart
@@ -590,9 +590,9 @@ For terminal behavior, background modes, tmux/SSH notes, and Windows recovery ex
 Benchmark results are machine-dependent. Use them to compare builds on the same machine, not as portable performance promises. Optimized builds remain comfortably above the 60 FPS target. Benchmark mode measures engine throughput — synthetic FPS, not what the terminal draws; real interactive FPS is terminal-bounded (press `i` during a real run).
 
 ```bash
-cargo pro-linux-amd64-v3-gnu
+cargo pro-linux-amd64-v3-musl
 COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
-  target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix --benchmark
+  target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix --benchmark
 ```
 
 The mode catalog (`--bench-io` wet I/O, `--bench-scene lean|production-draw`, `--bench-all`, `--bench-duration` up to the 24 h ceiling, `--json`, baselines), the full report-field reference, and what benchmark mode skips are documented once in [docs/BENCHMARKING.md](docs/BENCHMARKING.md). Reference results across versions: [benchmark/HIST_BENCH.md](benchmark/HIST_BENCH.md); advanced microarchitecture + energy metrics: [docs/BENCHMARK_ADVANCED.md](docs/BENCHMARK_ADVANCED.md).
@@ -622,7 +622,7 @@ cargo test chroma_dragon_engine::tests::lock -- --nocapture
 
 # print the Cosmic Dragon engine lock report
 cargo test cosmic_dragon_incubator::tests::lock -- --nocapture
-scripts/release/verify-release-build.sh pro-linux-amd64-v3-gnu pro-linux-amd64-v4-gnu pro-linux-amd64-v3-musl
+scripts/release/verify-release-build.sh pro-linux-amd64-v3-musl pro-linux-amd64-v4-musl
 ```
 
 ## Release Process

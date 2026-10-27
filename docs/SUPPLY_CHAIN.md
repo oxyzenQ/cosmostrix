@@ -53,7 +53,7 @@ Every release binary published to GitHub Releases is accompanied by a `.sha512su
 Verify any downloaded artifact:
 
 ```bash
-sha512sum --check cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
+sha512sum --check cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz.sha512sum
 ```
 
 ### AUR Package Verification

@@ -29,10 +29,10 @@ The signing subkeys have a **bounded expiry cycle** for security hygiene (the cu
 
 ```bash
 # Download the archive + its .asc signature from the GitHub Release page
-# e.g. cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz
-#      cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.asc
+# e.g. cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz
+#      cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz.asc
 
-gpg --verify cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.asc
+gpg --verify cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz.asc
 ```
 
 Expected output: `gpg: Good signature from "Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>"`. A `Good signature` line confirms authenticity. The `WARNING: This key is not certified with a trusted signature` notice is normal for first-time imports — verify the fingerprint matches `F532 4E09 67F1 04D5 8CE0 25F3 47A5 0AEF 4B65 AAC2`.
@@ -58,22 +58,22 @@ All three commands print `<filename>: OK` on success (or `FAILED` on mismatch):
 
 ```bash
 # Classical (universal, every Linux has this)
-sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
+sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz.sha512sum
 
 # BLAKE3 — official CLI (`b3sum`); install via your distro package or
 # `cargo install b3sum --locked` (not in GNU coreutils, not
 # preinstalled everywhere — one-time optional install)
-b3sum -c cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.b3sum
+b3sum -c cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz.b3sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via Python).
 # openssl's -shake256 default output length varies by version/distro;
 # Python hashlib.shake_256 is consistent (64 bytes = 128 hex chars)
-COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz','rb').read()).hexdigest(64))")
-EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.shake256)
-[ "$COMPUTED" = "$EXPECTED" ] && echo "cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz: OK" || echo "FAILED"
+COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz','rb').read()).hexdigest(64))")
+EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz.shake256)
+[ "$COMPUTED" = "$EXPECTED" ] && echo "cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz: OK" || echo "FAILED"
 ```
 
-Replace `vX.Y.Z` and `linux-amd64-v3` with the actual version and platform from the release page.
+Replace `vX.Y.Z` and `linux-amd64-v3-musl` with the actual version and platform from the release page.
 
 ## 3. Why both GPG + checksums
 

@@ -10,7 +10,7 @@ cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
 ./scripts/build.sh check-all
-cargo pro-linux-amd64-v3-gnu
+cargo pro-linux-amd64-v3-musl
 ./scripts/dev/version-to.sh --check <version>
 ```
 
@@ -19,7 +19,7 @@ All must pass with zero errors before a release candidate is considered.
 ## Runtime Smoke
 
 ```bash
-BIN="target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix"
+BIN="target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
 "$BIN" -V
 "$BIN" --doctor
 "$BIN" --benchmark

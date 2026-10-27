@@ -115,7 +115,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | [SUPPLY_CHAIN.md](SUPPLY_CHAIN.md) | Supply-chain hardening (cargo-deny, audit, MSRV) |
 | [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md) | Dependency inventory and audit record |
 | [SECURITY_AUDIT.md](SECURITY_AUDIT.md) | Security posture summary (unsafe policy, attack-surface notes) |
-| [SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md) | Kernel, glibc/musl, CPU, terminal matrix |
+| [SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md) | Kernel, libc (static musl releases), CPU, terminal matrix |
 
 Also: [FUTURE_BACKLOG.md](FUTURE_BACKLOG.md) — the parked-ideas and file-migration record (where removed scripts/docs went).
 

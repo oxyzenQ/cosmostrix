@@ -68,7 +68,7 @@ tracked. Verdict now: **resolved by the notify 8 migration**
 - The advisory class was `unmaintained`, never a CVE: no exploit
   path, no input parsing, no unsafe surface exposed through the
   chain. The crate was a wasm-era wrapper around `std::time::Instant`;
-  on every native target cosmostrix builds (gnu/musl/darwin/msvc) it
+  on every native target cosmostrix builds (musl/darwin/msvc/freebsd/android) it
   was a zero-cost passthrough to the standard library.
 - Old chain: cosmostrix → notify v7.0.0 (file watcher for config
   live-reload) → notify-types v1.0.1 → instant 0.1.13. No direct

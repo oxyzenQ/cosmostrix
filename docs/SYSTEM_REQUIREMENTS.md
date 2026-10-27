@@ -14,12 +14,17 @@ specifies the minimum supported system configuration.
 | **Kernel (Linux)** | 2.6.27 (2008) | 5.0+ | inotify_init1 used by `notify` crate for live config reload |
 | **Kernel (macOS)** | 10.12 Sierra (2016) | 12+ | FSEvents used by `notify` crate |
 | **Kernel (Windows)** | 10 (1809) | 11 | Ctrl+C handler via `ctrlc` crate |
-| **glibc (Linux GNU)** | 2.17 (2012) | 2.31+ | CentOS 7 baseline; fstat, prctl, tcsetattr |
-| **musl (Linux musl)** | 1.2.0 (2019) | 1.2.5+ | Static binary, no glibc dependency |
 | **Rust toolchain** | 1.98.1 (2026-09) | latest stable | MSRV declared in `Cargo.toml` |
 | **RAM** | 8 MiB free | 16+ MiB | Peak RSS ~4.2 MiB at 120x40 |
 | **CPU** | x86-64-v1 (SSE2) | x86-64-v3 (AVX2) | v3/v4 profiles auto-selected by `scripts/build.sh release` |
 | **Terminal** | ANSI 16-color | TrueColor (24-bit) | Auto-detected via `COLORTERM` / `TERM` |
+
+> **Libc note (night-dragon-maintenance-6):** the Linux x86_64 release
+> packages are fully static musl builds — the shipped binaries carry their
+> own libc, so no host glibc/musl version applies to them. The glibc
+> (Linux GNU) build support was retired; see
+> [C Library Requirements](#c-library-requirements) for the historical
+> floor of the retired gnu builds.
 
 ## Kernel Version Requirements (Linux)
 
@@ -62,34 +67,37 @@ requirement.
 
 ## C Library Requirements
 
-### glibc (Linux GNU builds)
+### Static musl (Linux release builds)
 
-| glibc version | Release | Status |
-|---------------|---------|--------|
-| 2.17 | CentOS 7 (2012) | Minimum supported — all cosmostrix syscalls work |
-| 2.19 | Debian 8 (2014) | Supported |
-| 2.24 | Ubuntu 18.04 (2017) | Supported |
-| 2.28 | RHEL 8 (2018) | Supported |
-| 2.31 | Ubuntu 20.04 (2020) | Recommended |
-| 2.34 | Fedora 35 (2021) | Supported |
-| 2.36+ | Modern distros | Supported |
+The Linux x86_64 release packages are statically linked against musl.
+The binary embeds its own libc, so there is no host C library requirement
+and no glibc/musl version matrix to check: the same binary runs on any
+Linux kernel 2.6.27+ regardless of the host distro's libc (glibc hosts,
+Alpine, containers, minimal base images). This is the only Linux x86_64
+shape that ships.
 
-**Why glibc 2.17?** cosmostrix uses only POSIX-standard libc functions
-(`fstat`, `prctl`, `tcgetattr`, `tcsetattr`, `getrusage`, `uname`,
-`localtime_r`, `sysconf`). These are all present in glibc 2.17, which is
-the oldest glibc still in widespread server use (CentOS 7 EOL 2024).
+| musl version (baked in at build time) | Release | Notes |
+|---------------------------------------|---------|-------|
+| 1.2.x (rustup target toolchain) | current | Statically linked into every release binary |
 
-### musl (Linux musl builds)
+### glibc (retired Linux GNU builds — historical reference)
 
-| musl version | Release | Status |
-|--------------|---------|--------|
-| 1.2.0 | 2019 | Minimum supported |
-| 1.2.4 | 2023 | Recommended |
-| 1.2.5+ | 2024 | Latest |
+The glibc-linked (gnu) builds were retired in night-dragon-maintenance-6.
+No glibc-linked release package ships. The floor below is kept as the
+historical record of the retired shapes:
 
-**musl builds are statically linked** — no runtime library dependency.
-The resulting binary runs on any Linux kernel 2.6.27+ regardless of the
-host's C library. This is the most portable cosmostrix build.
+| glibc version | Release | Status (historical) |
+|---------------|---------|---------------------|
+| 2.17 | CentOS 7 (2012) | Was the minimum supported — all cosmostrix syscalls worked |
+| 2.31 | Ubuntu 20.04 (2020) | Was the recommended floor |
+| 2.36+ | Modern distros | Were supported |
+
+**Why glibc 2.17 (historical)?** cosmostrix uses only POSIX-standard libc
+functions (`fstat`, `prctl`, `tcgetattr`, `tcsetattr`, `getrusage`, `uname`,
+`localtime_r`, `sysconf`). These are all present in glibc 2.17, which was
+the oldest glibc still in widespread server use when the gnu builds shipped.
+Local host builds against a glibc host toolchain still work for development;
+they are not release shapes.
 
 ### macOS
 
@@ -210,8 +218,8 @@ The prior 1.97.x pins fixed an LLVM miscompilation present since Rust
 | Architecture | Profile | CPU Features | Notes |
 |--------------|---------|--------------|-------|
 | x86-64-v1 | `release` / `pro` | SSE2 (2001) | Baseline — runs on any x86-64 CPU |
-| x86-64-v3 | `pro-linux-amd64-v3-gnu` | AVX2 (2013) | Modern CPUs (Haswell+, Ryzen+) |
-| x86-64-v4 | `pro-linux-amd64-v4-gnu` | AVX-512 (2017) | Server/workstation CPUs |
+| x86-64-v3 | `pro-linux-amd64-v3-musl` | AVX2 (2013) | Modern CPUs (Haswell+, Ryzen+) — static musl release shape |
+| x86-64-v4 | `pro-linux-amd64-v4-musl` | AVX-512 (2017) | Server/workstation CPUs — static musl release shape |
 | aarch64 | `pro-android-aarch64` | NEON | Android/Termux, Apple Silicon |
 | aarch64 macOS | `pro-macos-aarch64-native` | NEON | Apple M1/M2/M3 |
 | x86-64 FreeBSD | `pro-freebsd-amd64` | native (host CPU) | FreeBSD 13+, GhostBSD |
@@ -220,8 +228,8 @@ The prior 1.97.x pins fixed an LLVM miscompilation present since Rust
 level and dispatches to the matching named cargo alias (the custom build
 path — never a bare `cargo build --release`):
 
-- AVX-512 detected -> `cargo pro-linux-amd64-v4-gnu`
-- AVX2 detected -> `cargo pro-linux-amd64-v3-gnu`
+- AVX-512 detected -> `cargo pro-linux-amd64-v4-musl`
+- AVX2 detected -> `cargo pro-linux-amd64-v3-musl`
 - Neither -> `cargo pro-native` (host-optimal codegen, baseline-safe)
 
 On FreeBSD, use `cargo pro-freebsd-amd64` directly.
@@ -286,16 +294,17 @@ To verify your system meets the requirements:
 # Check kernel version
 uname -r  # should be >= 2.6.27
 
-# Check glibc version (Linux GNU)
-ldd --version | head -1  # should be >= 2.17
+# Check libc (informational only — release binaries are static musl and
+# carry their own libc, so the host version does not matter)
+ldd --version | head -1
 
 # Check Rust version
 rustc --version  # should be >= 1.98.1
 
 # Check CPU features
 grep -o 'avx2\|avx512f' /proc/cpuinfo | sort -u
-# avx2 -> pro-linux-amd64-v3-gnu build available
-# avx512f -> pro-linux-amd64-v4-gnu build available
+# avx2 -> pro-linux-amd64-v3-musl build available
+# avx512f -> pro-linux-amd64-v4-musl build available
 # (empty) -> release build (v1 baseline)
 
 # Run cosmostrix doctor for full system check

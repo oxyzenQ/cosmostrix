@@ -51,13 +51,13 @@ strip status) must all pass.
 Build the release binary with the optimized profile:
 
 ```bash
-cargo pro-linux-amd64-v3-gnu
+cargo pro-linux-amd64-v3-musl
 ```
 
 Verify the binary reports the correct version and commit:
 
 ```bash
-target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix -V
+target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix -V
 ```
 
 ### Gate 4 — 5-run benchmark
@@ -68,7 +68,7 @@ dead-script cleanup; the manual loop below is the canonical process
 (`--benchmark --json` per run, 5 runs plus one 60 s drift run):
 
 ```bash
-BIN="target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix"
+BIN="target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
 for i in 1 2 3 4 5; do
   echo "RUN $i"
   "$BIN" --benchmark
@@ -225,7 +225,7 @@ When preparing release N:
    loop above; the historical report helper was removed):
 
    ```bash
-   BIN="target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix"
+   BIN="target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
    for i in 1 2 3 4 5; do "$BIN" --benchmark; sleep 3; done
    ```
 
