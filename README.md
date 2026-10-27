@@ -629,6 +629,22 @@ The mode catalog (`--bench-io` wet I/O, `--bench-scene lean|production-draw`, `-
 
 Rendering architecture, benchmarking, ambient intelligence, terminal compatibility, supply chain, and the release workflow all live in the [Docs Index](docs/README.md)
 
+## Test Results
+
+Every harness below is one command and traces to a real script or workflow in this repo — nothing in the table is aspirational. The kernel lanes run in CI on every push: the supermassive kernel floor proves the documented Linux 2.6.27 minimum on a real intrepid-GA KVM micro-VM, and the companion lane proves the latest mainline kernel; the pty, soak, and torture legs gate every core push in the supermassive workflow.
+
+| Harness | What it proves | One command |
+|---------|----------------|-------------|
+| [Benchmark A/B](docs/BENCHMARKING.md) | Engine throughput and the full size ladder on your machine, with before/after baseline comparison | `cosmostrix --benchmark` (ladder: `--bench-all`, A/B: `--compare-baseline`) |
+| [PTY bench runner](scripts/bench/bench-runner.py) | Fair PTY measurement of any rain renderer — real pty, CPU time and RSS polling, cross-tool A/B | `python3 scripts/bench/bench-runner.py <label> <seconds> <command...>` |
+| [Chroma Dragon lock suite](docs/research/CHROMA_DRAGON_ENGINE_AUDIT.md) | The Phase 9-D perceptual color contract, asserted as invariants on every commit | `cargo test chroma_dragon_engine::tests::lock -- --nocapture` |
+| [Cosmic Dragon lock suite](docs/COSMIC_DRAGON_ARCHITECTURE.md) | The diff-engine public contract, printed as a lock report | `cargo test cosmic_dragon_incubator::tests::lock -- --nocapture` |
+| [Miri lane](https://github.com/oxyzenQ/cosmostrix/actions/workflows/miri.yml) | Undefined behavior absent from the six audited modules | `./scripts/build.sh miri --no-install` |
+| [Fuzz lane](https://github.com/oxyzenQ/cosmostrix/actions/workflows/fuzz.yml) | Escape-sequence emission stays safe under attack (escape_ctrl target, 60s per push, 900s weekly) | `cargo fuzz run escape_ctrl --target x86_64-unknown-linux-gnu -- -max_total_time=60` |
+| [Supermassive brutal](https://github.com/oxyzenQ/cosmostrix/actions/workflows/supermassive.yml) | The render contract holds under five hostile load shapes: resize-storm, input-flood, signal-storm, config-churn, restart-storm | `python3 scripts/supermassive/torture.py --binary target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix` |
+| [Kernel lanes](https://github.com/oxyzenQ/cosmostrix/actions/workflows/supermassive-kernel.yml) | The 2.6.27 kernel floor and the latest mainline, both live-proven in KVM micro-VMs | CI lane — `.github/workflows/supermassive-kernel.yml` |
+| [Gate suite](CONTRIBUTING.md) | Headers, language, emoji, hype-word, version-sync, and script-inventory conventions | `./scripts/gate-keepers.sh` |
+
 ## Development
 
 ```bash
