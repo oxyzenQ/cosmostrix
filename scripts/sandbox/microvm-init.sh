@@ -61,7 +61,13 @@ guest_exit() {
 	# (2) The isa-debug-exit device: /dev/port is the root-writable
 	# port-I/O window (seek = the port number), and the written value
 	# 0 makes qemu exit with status 1 - an rc the entrypoint accepts
-	# as the guest's deliberate exit. (3) The sysrq poweroff:
+	# as the guest's deliberate exit. The byte rides a POSIX octal
+	# escape on purpose: the best lane's /bin/sh is dash, whose
+	# printf does not implement \xHH hex escapes (it emits the
+	# literal text, and dd count=1 then writes the backslash byte
+	# 0x5C - value 92, so qemu exits (92 << 1) | 1 = 185 and the
+	# boot step rejects an otherwise green verdict). \ooo octal is
+	# honored by dash, bash and busybox ash alike. (3) The sysrq poweroff:
 	# enabling sysrq first is LOAD-BEARING (a bare "echo o" silently
 	# no-ops under the default sysrq mask); with sysrq enabled the
 	# write reaches ACPI S5 where the kernel supports it, qemu exits
@@ -70,7 +76,7 @@ guest_exit() {
 	echo 1 >/proc/sys/kernel/sysrq 2>/dev/null || true
 	sync 2>/dev/null || true
 	sleep 1 2>/dev/null || true
-	printf '\x00' | dd of=/dev/port bs=1 seek=244 count=1 2>/dev/null || true
+	printf '\000' | dd of=/dev/port bs=1 seek=244 count=1 2>/dev/null || true
 	echo o >/proc/sysrq-trigger 2>/dev/null || true
 	while true; do sleep 60; done
 }
