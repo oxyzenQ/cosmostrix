@@ -59,6 +59,19 @@ Terminal Matrix-rain renderers today live inside one of three walls. They redraw
 
 cosmostrix refuses all three walls — it writes only the cells that changed, colors in perceptual OKLab space, and schedules the scene's mood by time of day, all CPU-only, all inside the terminal you already own. The three Dragon Engines below are how.
 
+### What makes cosmostrix sharp
+
+Every claim below maps to a mechanism that verifies it — the Verifier column points to the doc, test, or command that proves it, not to marketing.
+
+| Edge | Mechanism | Verifier |
+|------|-----------|----------|
+| 5-layer terminal recovery | `--reset-terminal`: RIS reset, alternate-screen exit, cursor restore, terminal attributes reset, scrollback clear | [docs/TERMINAL_KILL_CLEANUP.md](docs/TERMINAL_KILL_CLEANUP.md) |
+| Self-healing under pressure | P1 auto scene downgrade to `low-power` on sustained pressure, P2 endurance mitigation with full redraw and memory reclaim, both self-restoring | [docs/archive/LTS_AUDIT_SELF_HEALING.md](docs/archive/LTS_AUDIT_SELF_HEALING.md) |
+| Endurance telemetry | Endurance Health Score 0-100, activity prediction, idle coalescing, `madvise` memory reclaim for long-running sessions | [docs/ENDURANCE.md](docs/ENDURANCE.md) |
+| Typo-proof CLI | Close-miss suggestions on every flag, value, scene, color, and charset surface; migration hints for removed flags | `./scripts/depth/cli_suggestion_stresstest.sh` |
+| xterm.js OOM guard | Auto-detection of xterm.js hosts with a hard, non-configurable 30 FPS cap | [docs/TERMINAL_COMPATIBILITY.md](docs/TERMINAL_COMPATIBILITY.md) |
+| PGO nitro builds | 3-stage instrument -> benchmark -> optimize recipe for the fastest local artifact | `./scripts/build.sh pgo` |
+
 ## vs traditional tools
 
 | Tool | Approach | Diff-based | CPU-only | Perceptual color | Daemon |
