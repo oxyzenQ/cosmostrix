@@ -64,6 +64,21 @@
 #      every code commit while the clock paid for renders nobody
 #      was watching; per-push rows tie each dataset point to the
 #      exact commit that produced it.
+#   5. Torture leg (torture job) - the brutal server-simulation
+#      battery (night-dragon-maintenance-4, owner directive):
+#      scripts/supermassive/torture.py runs five hostile load
+#      shapes under a real pty and asserts the contracts hold UNDER
+#      ATTACK - a 10 Hz TIOCSWINSZ resize hammer across extreme
+#      sizes, a ~200 writes/second junk-byte flood the 'q' quit
+#      path must win through, a signal storm (five SIGINTs that
+#      must NOT quit, the bug-15 contract, then one graceful
+#      SIGTERM), a live-reload config churn mixing valid and
+#      type-broken edits at 5 Hz against the safepath-whitelisted
+#      default config path, and twelve randomized-size restart
+#      sessions. Restore tails asserted through the same
+#      pty_assert.py SEQ_TABLE grammar; every checked fact lands a
+#      MASS-RESULT row; the harness was smoke-proven 5/5 against a
+#      contract-stub renderer before landing.
 #
 # Trigger discipline (the owner's unfiltered-CI simplification,
 # night-dragon-maintenance-2): the push trigger is unfiltered — no
@@ -434,5 +449,78 @@ jobs:
             echo
             echo '```'
             cat /tmp/mass-soak.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # night-dragon-maintenance-4 (owner directive): the brutal
+  # server-simulation leg. pty_smoke proves the quit contracts on a
+  # quiet bench; torture proves them UNDER ATTACK - resize hammering,
+  # an input flood, a signal storm (SIGINT deliberately not a quit
+  # signal, the bug-15 contract, then a graceful SIGTERM), a
+  # live-reload config churn mixing valid and type-broken edits, and
+  # twelve randomized-size restart sessions. Same sentinel relay
+  # grammar: every checked fact lands a MASS-RESULT row; the Verdict
+  # fails on any FAIL row.
+  torture:
+    name: supermassive test - hostile server torture
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Build the pro-v3-gnu binary (the release shape)
+        env:
+          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
+        run: cargo pro-linux-amd64-v3-gnu --locked
+
+      - name: Run the hostile torture battery
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-torture.log"
+          rm -f "${MASS}"
+          python3 scripts/supermassive/torture.py \
+            --binary target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix \
+            --mass "${MASS}" \
+            --workdir /tmp/cosmostrix-torture
+
+      - name: Verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-torture.log"
+          echo "--- MASS-RESULT relay (torture) ---"
+          cat "${MASS}"
+          if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
+            echo "MASS-VERDICT: FAIL"
+            exit 1
+          fi
+          echo "MASS-VERDICT: PASS"
+          echo "OK: the renderer held its contracts under every hostile leg"
+
+      - name: Torture summary (the longitudinal dataset row)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Supermassive watch - hostile torture"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### relay rows"
+            echo
+            echo '```'
+            cat /tmp/mass-torture.log
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
