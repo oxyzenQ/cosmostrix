@@ -129,13 +129,22 @@ jobs:
           # The budget table: 60s on every push and dispatch (the
           # regression net), 900s on the weekly deep session (the
           # corpus keeps growing between runs either way).
+          #
+          # The target is pinned to the GNU host explicitly:
+          # cargo-fuzz 0.13 flipped its Linux default to
+          # x86_64-unknown-linux-musl, where ASan is incompatible with
+          # statically linked libc unless std is rebuilt from source
+          # (-Zbuild-std + rust-src). The GNU host target has std
+          # installed by the toolchain step and has carried ASan +
+          # libFuzzer for cargo-fuzz's whole life — the deterministic
+          # shape, no build-std dependency.
           if [ "${{ github.event_name }}" = "schedule" ]; then
             BUDGET=900
           else
             BUDGET=60
           fi
           echo "fuzz budget: ${BUDGET}s (event: ${{ github.event_name }})"
-          cargo fuzz run escape_ctrl \
+          cargo fuzz run escape_ctrl --target x86_64-unknown-linux-gnu \
             -- -max_total_time="${BUDGET}" -rss_limit_mb=4096 -timeout=25
 
       # A crash artifact (the saved input) is the lane's whole point:
