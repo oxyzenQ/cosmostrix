@@ -398,76 +398,6 @@ jobs:
           grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
           grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
 
-  linux_aarch64_build:
-    name: Cosmic Dragon Guard - Build (linux aarch64)
-    runs-on: ubuntu-24.04
-    needs: build_test
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Set cargo build jobs
-        shell: bash
-        run: |
-          set -euo pipefail
-          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
-          if [[ -z "${JOBS}" ]]; then
-            JOBS="$(nproc 2>/dev/null || true)"
-          fi
-          if [[ -z "${JOBS}" ]]; then
-            JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
-          fi
-          if [[ -z "${JOBS}" ]]; then
-            JOBS=2
-          fi
-          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
-
-      - name: Install Linux aarch64 linker
-        run: |
-          # NIGHT-dinner-1: apt rides its own retry knob — a flaky
-          # mirror fetch must not read as a code failure.
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y gcc-aarch64-linux-gnu
-
-      - name: Add Rust target
-        run: rustup target add aarch64-unknown-linux-gnu
-
-      - name: Build
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          COSMOSTRIX_BUILD: linux-aarch64-native
-          COSMOSTRIX_PROFILE: pro
-        run: bash scripts/ci/ci-strict-build.sh -- build --profile pro --locked --target aarch64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
-
-      - name: Verify embedded build metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-          BIN="target/aarch64-unknown-linux-gnu/pro/cosmostrix"
-          BUILD_ID="linux-aarch64-native"
-          echo "Verifying embedded build metadata in binary: ${BUILD_ID}"
-          if command -v strings >/dev/null 2>&1; then
-            TEXT="$(strings "${BIN}")"
-          else
-            TEXT="$(grep -aE 'linux-aarch64-native|static optimized build|fat|unwind|yes' "${BIN}" || true)"
-          fi
-          grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
-          grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
-          grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
-          grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
-          grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
-
   windows_aarch64_build:
     name: Cosmic Dragon Guard - Build (windows aarch64)
     runs-on: windows-latest
@@ -623,12 +553,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - profile: pro-linux-amd64-v3-gnu
+          # night-dragon-maintenance-6: the variant matrix verifies the
+          # exact shapes the release lane ships - the static musl pair.
+          # The gnu variant pair is retired with the gnu release legs.
+          - profile: pro-linux-amd64-v3-musl
             rustflags: "-C target-cpu=x86-64-v3"
-            build: linux-x86_64-v3
-          - profile: pro-linux-amd64-v4-gnu
+            build: linux-x86_64-v3-musl
+          - profile: pro-linux-amd64-v4-musl
             rustflags: "-C target-cpu=x86-64-v4"
-            build: linux-x86_64-v4
+            build: linux-x86_64-v4-musl
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -659,25 +592,35 @@ jobs:
           fi
           echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
 
+      - name: Install musl toolchain (linux x86_64 musl pair)
+        run: |
+          # night-dragon-maintenance-6: the x86_64 variant matrix rides
+          # the static musl law - the same shapes the release lane ships.
+          # NIGHT-dinner-1: apt rides its own retry knob — a flaky
+          # mirror fetch must not read as a code failure.
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
+
       - name: Build
         env:
-          # v80.0.0-beta.1 strict CI: -D warnings appended to the matrix
-          # rustflags (target-cpu=x86-64-v3/v4) so warnings still fail
-          # the build despite the per-job RUSTFLAGS override.
+          # Strict CI: -D warnings appended to the matrix rustflags
+          # (target-cpu=x86-64-v3/v4) so warnings still fail the build
+          # despite the per-job RUSTFLAGS override.
           RUSTFLAGS: "${{ matrix.rustflags }} -D warnings"
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-        run: bash scripts/ci/ci-strict-build.sh -- build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
+        run: bash scripts/ci/ci-strict-build.sh -- build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-musl --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify build metadata
         shell: bash
         run: |
           set -euo pipefail
-          BIN="target/x86_64-unknown-linux-gnu/${{ matrix.profile }}/cosmostrix"
+          BIN="target/x86_64-unknown-linux-musl/${{ matrix.profile }}/cosmostrix"
           BUILD_ID="${{ matrix.build }}"
           case "${BUILD_ID}" in
-            linux-x86_64-v3) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
-            linux-x86_64-v4) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512)"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
+            linux-x86_64-v3-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
+            linux-x86_64-v4-musl) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512) + musl static"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
             *) echo "::error::Unknown Linux x86_64 build id ${BUILD_ID}"; exit 1 ;;
           esac
 
