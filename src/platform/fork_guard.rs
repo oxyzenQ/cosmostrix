@@ -40,12 +40,14 @@ use std::io::IsTerminal;
 ///   the gold standard — `prctl` is Linux-only.
 ///
 /// - All other Unix (macOS, FreeBSD, OpenBSD, NetBSD, Android/Termux):
-///   A background thread polls `getppid()` every 500ms. When the parent dies,
-///   the child is reparented to PID 1 (launchd/init) — ppid becomes 1. The
-///   thread detects this and restores the terminal. 500ms worst-case latency
-///   (typically ~250ms average), negligible CPU (one syscall per 500ms).
-///   This covers macOS (no prctl), BSD (no prctl), and Android (fork may be
-///   restricted by seccomp, but threads always work).
+///   A background thread polls `getppid()` every 500ms against the ppid
+///   captured at guard start. When the parent dies, the ppid moves away
+///   from that captured value (to launchd/init, a subreaper, or any new
+///   parent) — the thread detects the move and restores the terminal.
+///   500ms worst-case latency (typically ~250ms average), negligible CPU
+///   (one syscall per 500ms). This covers macOS (no prctl), BSD (no
+///   prctl), and Android (fork may be restricted by seccomp, but threads
+///   always work).
 ///
 /// - Windows: No-op. ConPTY (Windows Terminal, PowerShell 7+) automatically
 ///   restores console state when the attached process exits, even on
@@ -212,8 +214,10 @@ fn termios_still_broken(orig: &libc::termios) -> bool {
 /// Covers macOS, FreeBSD, OpenBSD, NetBSD, DragonFly BSD, and Android/Termux.
 ///
 /// When the parent cosmostrix process dies (SIGKILL, crash, OOM), the OS
-/// reparents this thread to PID 1. The thread detects ppid==1 and restores
-/// the terminal. Worst-case latency: 500ms. CPU overhead: one `getppid()`
+/// reparents the process to a new parent (launchd/init, or a subreaper).
+/// The thread compares `getppid()` against the value captured at guard
+/// start; a move away from it means the parent is gone, and the terminal
+/// is restored. Worst-case latency: 500ms. CPU overhead: one `getppid()`
 /// syscall per 500ms — negligible.
 #[cfg(all(unix, not(target_os = "linux")))]
 pub fn spawn_kill9_terminal_guard() {
@@ -243,11 +247,23 @@ pub fn spawn_kill9_terminal_guard() {
     if std::thread::Builder::new()
         .name("cx-term-guard".to_string())
         .spawn(move || {
+            // NIGHT-dragon-lts-1: capture the renderer's ppid once, before
+            // the poll loop, and compare every liveness decision against
+            // THIS pid -- never against a magic value like 1. (Same rule
+            // the Linux fork path above enforces.) The magic-1 probe loses
+            // in the same two real environments: subreaper sessions, where
+            // an orphan lands on the subreaper pid and the `== 1` probe
+            // never fires, and legitimate ppid==1 sessions, where the
+            // probe fires on its own first tick and "restores" a live
+            // renderer's raw-mode terminal out from under it. A ppid move
+            // away from the captured value is the actual parent-death
+            // event, whatever the new parent is.
+            let orig_ppid = unsafe { libc::getppid() };
             loop {
                 std::thread::sleep(std::time::Duration::from_millis(500));
                 // SAFETY: getppid() is a simple POSIX call, always safe.
-                // On parent death, OS reparents to PID 1 (launchd/init).
-                if unsafe { libc::getppid() } == 1 {
+                // A ppid moved away from orig_ppid = the parent is gone.
+                if unsafe { libc::getppid() } != orig_ppid {
                     // Parent died — restore terminal and exit this thread.
                     let _ = unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig) };
                     restore_terminal_best_effort();
