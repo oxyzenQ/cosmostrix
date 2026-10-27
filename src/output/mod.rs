@@ -815,6 +815,7 @@ pub(crate) use grey::grey_open;
 pub(crate) mod message;
 pub(crate) mod post_exit;
 pub(crate) mod report;
+pub(crate) mod spinner;
 pub(crate) mod startup_verbose;
 pub(crate) mod verbose;
 

@@ -1,6 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::output::spinner::Spinner;
 use crate::output::{brand_bold, grey_open, ok_bold, println_safe, reset, warn_bold};
 use std::process::Command;
 
@@ -164,8 +165,10 @@ fn run_tool(tool: &str, args: &[&str]) -> std::io::Result<std::process::Output> 
     Command::new(tool).args(args).output()
 }
 
-/// Parse the curl response (body + trailing status line) and report.
-fn check_curl_output(current_version: &str, output: &std::process::Output) -> Result<(), String> {
+/// Parse the curl response (body + trailing status line) and return the
+/// release JSON body. No reporting — the caller owns the user-facing
+/// output once the fetch window closes.
+fn curl_body(output: &std::process::Output) -> Result<String, String> {
     if !output.status.success() {
         return Err(curl_failure(output.status.code().unwrap_or(-1)).to_string());
     }
@@ -180,7 +183,7 @@ fn check_curl_output(current_version: &str, output: &std::process::Output) -> Re
         return Err(http_failure(status).to_string());
     }
 
-    report_update_status(current_version, body)
+    Ok(body.to_string())
 }
 
 /// Compare `current_version` against the latest release tag in `body`
@@ -234,8 +237,25 @@ fn report_update_status(current_version: &str, body: &str) -> Result<(), String>
 /// the failure class. When neither tool exists, the error is actionable
 /// (names both tools and the manual releases URL) instead of a dead end.
 pub(crate) fn check_update(current_version: &str) -> Result<(), String> {
+    // Loading indicator law (night-dragon-maintenance-4): the network
+    // fetch is the one multi-second silent window in the CLI — it shows
+    // the shared single-line spinner while it waits. The spinner is
+    // scoped to the fetch alone, so the report below prints onto a
+    // clean line, and error returns erase it through ordinary RAII.
+    let body = {
+        let _spinner = Spinner::start("Fetching latest release info");
+        fetch_latest_body()?
+    };
+    report_update_status(current_version, &body)
+}
+
+/// Run the fetcher chain (curl first, wget fallback) and return the
+/// release JSON body. Parses the curl status contract; performs no
+/// reporting — the caller owns the user-facing output once the wait
+/// window closes.
+fn fetch_latest_body() -> Result<String, String> {
     match run_tool("curl", &curl_args()) {
-        Ok(output) => return check_curl_output(current_version, &output),
+        Ok(output) => return curl_body(&output),
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
             return Err(format!("failed to run curl: {e}"));
         }
@@ -245,9 +265,7 @@ pub(crate) fn check_update(current_version: &str) -> Result<(), String> {
 
     match run_tool("wget", &wget_args()) {
         Ok(output) if output.status.success() => {
-            let body = String::from_utf8(output.stdout)
-                .map_err(|_| "response was not valid UTF-8".to_string())?;
-            report_update_status(current_version, &body)
+            String::from_utf8(output.stdout).map_err(|_| "response was not valid UTF-8".to_string())
         }
         Ok(output) => Err(wget_failure(output.status.code().unwrap_or(-1)).to_string()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(NO_FETCHER_MSG.to_string()),

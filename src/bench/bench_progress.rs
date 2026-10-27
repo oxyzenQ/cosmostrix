@@ -20,8 +20,7 @@ use std::time::{Duration, Instant};
 use crossterm::cursor::{Hide, Show};
 use crossterm::execute;
 
-/// Braille spinner frames — subtle, modern, premium.
-const SPINNER: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+use crate::output::spinner::SPINNER_FRAMES as SPINNER;
 
 /// Number of lines in the live rewrite region during benchmark.
 const LIVE_LINES: u16 = 4;
@@ -226,7 +225,17 @@ impl BenchProgress {
             self.silent_active = true;
             self.last_update = Instant::now();
             let spinner = self.spin();
-            let _ = write!(io::stderr(), "{spinner} Running COSMOSTRIX BENCHMARK...");
+            // Output color law (night-dragon-maintenance-4): the frame
+            // rides the bold ok green tier, the label rides the calm grey
+            // tier — the loading line is never plain white.
+            let _ = write!(
+                io::stderr(),
+                "{}{spinner}{} {}Running COSMOSTRIX BENCHMARK...{}",
+                crate::output::ok_bold_open(),
+                crate::output::reset(),
+                crate::output::grey_open(),
+                crate::output::reset()
+            );
             let _ = io::stderr().flush();
         }
     }
@@ -389,7 +398,11 @@ impl BenchProgress {
         let spinner = self.spin();
         let _ = write!(
             io::stderr(),
-            "\r{spinner} Running COSMOSTRIX BENCHMARK... {elapsed:.1}s"
+            "\r{}{spinner}{} {}Running COSMOSTRIX BENCHMARK... {elapsed:.1}s{}",
+            crate::output::ok_bold_open(),
+            crate::output::reset(),
+            crate::output::grey_open(),
+            crate::output::reset()
         );
         let _ = io::stderr().flush();
     }
