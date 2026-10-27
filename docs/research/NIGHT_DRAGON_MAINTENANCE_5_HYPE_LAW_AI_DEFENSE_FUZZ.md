@@ -20,6 +20,22 @@ repairs the session surfaced, in push order:
 | 5 | Master docs depth audit ("tell once, don't dedup") | `a1bf59f` | `docs/DOC_AUDIT.md` |
 | 6 | Fuzzer/hacker mode on CI | `f8db051` | `fuzz/` + `fuzz.yml`, `escape_ctrl` target |
 | — | Dead spinner sugar (found, not ordered) | `b6d148f` | Zero-caller method removed |
+| — | Gate self-catch (found by the new battery) | `043d7ca` | Verdict doc de-literalized + 2 markdownlint |
+| — | CI first-run repairs | `19876bf` | cache pin v6 + codespell; kernel-lane drift recorded |
+| — | Fuzz target pin | `b4b5fc3` | cargo-fuzz 0.13 musl default countered with GNU host |
+| — | rustfmt canon + doctor verifier sync | `969600a` | 4 fmt drifts; all doctor greps alignment-tolerant |
+| — | Torture first-real-run repairs | `a0a21e3` | stale binary path, signal contract pinned, pump rc fix |
+| — | Flood quit delivery | `41f4c31`+ | deterministic escape-disambiguated quit bursts |
+| — | Last canon-drift greps | `18a3ae8` | optimization/target_features verifiers synced |
+
+CI estate at `18a3ae8`: CI, Gate-keepers, Fuzz, Miri, CodeQL,
+Security Audit, Supermassive — all SUCCESS. The one red lane is
+Supermassive Kernel, failing in its live resolver fetch steps (the
+intrepid pool no longer yields the 2.6.27 image and busybox-static
+debs; the mainline index fetch fails alongside) — the maintenance-2
+documented honest-fail behavior on external upstream drift, red
+before this session opened, an owner decision on whether the floor
+lane moves to a snapshot-mirrored pool.
 
 ## 1. Red main — the compile repair the session opened with
 
