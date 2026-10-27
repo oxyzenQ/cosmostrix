@@ -138,11 +138,16 @@ jobs:
             echo "Use format: vX.Y.Z, example: v2.1.0"
             exit 1
           fi
-          # Must match vX.Y.Z or vX.Y.Z-prerelease.N
-          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
+          # Strict shape: vX.Y.Z (stable) or vX.Y.Z-<suffix> (pre-release).
+          # One classification law (night-dragon-maintenance-3): the FIRST
+          # hyphen after the version makes the tag a pre-release - no
+          # channel enumeration, any suffix is legal (owner law, zejtron
+          # release.yml lineage). The publish job classifies with the
+          # same rule; AUR rejects every suffixed tag.
+          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
             echo "::error::Invalid release tag: ${TAG}"
-            echo "Expected format: vX.Y.Z (stable) or vX.Y.Z-<channel>.N (pre-release)"
-            echo "Examples: v2.1.0, v2.2.0-beta.1"
+            echo "Expected format: vX.Y.Z (stable) or vX.Y.Z-<suffix> (pre-release)"
+            echo "Examples: v2.1.0, v2.2.0-beta.1, v2.2.0-example.1"
             exit 1
           fi
           echo "Tag validation passed: ${TAG}"
@@ -1055,17 +1060,20 @@ jobs:
 
           VERSION="${TAG#v}"
           PRE="false"
+          # Single classification law (night-dragon-maintenance-3): a
+          # hyphen in the version makes the tag a pre-release - no
+          # channel enumeration (the old alpha/beta/rc/pre/nightly
+          # case arms were dead weight: the catch-all already classified
+          # every suffix as pre-release). Only the retired -stable.N
+          # shape keeps its specific rejection.
           if [[ "${VERSION}" == *-* ]]; then
             SUFFIX="${VERSION#*-}"
-            case "${SUFFIX}" in
-              stable.*)
-                echo "::error::Old -stable.N format is no longer supported: ${TAG}"
-                echo "Use format: vX.Y.Z for stable releases, e.g. v2.1.0"
-                exit 1
-                ;;
-              alpha.*|beta.*|rc.*|pre.*|nightly.*) PRE="true";;
-              *) PRE="true";;
-            esac
+            if [[ "${SUFFIX}" == stable.* ]]; then
+              echo "::error::Old -stable.N format is no longer supported: ${TAG}"
+              echo "Use format: vX.Y.Z for stable releases, e.g. v2.1.0"
+              exit 1
+            fi
+            PRE="true"
           fi
 
           {

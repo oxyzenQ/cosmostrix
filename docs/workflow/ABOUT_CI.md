@@ -191,8 +191,12 @@ bash scripts/ci/ci-strict-build.sh -- build --profile dev --locked
 
 ## Release channels (tag conventions)
 
-- `vX.Y.Z-alpha.N` / `vX.Y.Z-beta.N` / `vX.Y.Z-rc.N` -> GitHub **prerelease** + crates.io publish
-- `vX.Y.Z` -> GitHub **normal release** (eligible for Latest) + crates.io publish
+One classification law (night-dragon-maintenance-3): the FIRST hyphen
+after the version makes the tag a pre-release — no channel enumeration,
+any suffix is legal.
+
+- `vX.Y.Z-<suffix>` (e.g. `vX.Y.Z-beta.1`, `vX.Y.Z-example.1`) -> GitHub **prerelease** + crates.io publish
+- `vX.Y.Z` -> GitHub **normal release** (eligible for Latest) + crates.io publish; AUR sync
 
 ### Commit + tag pushed together (NIGHT-improve-1)
 
@@ -333,8 +337,9 @@ The script updates:
 Historical CHANGELOG narrative is never rewritten (night-improve-9): the ledger lane only appends the bare release line under `## Released`, and it probes honestly - a missing file, a missing `## Unreleased` anchor, or an unexpected `## Released` shape warns and writes nothing. Per-era archive files stay a manual cut, and workflow files are audited for hardcoded versions (workflows should derive versions from `GITHUB_REF_NAME`).
 
 `version-to.sh` accepts both stable (`X.Y.Z`) and pre-release
-(`X.Y.Z-alpha.N` / `-beta.N` / `-rc.N` / `-pre.N` / `-nightly.N`)
-versions; the tag for a release is created manually by the owner
+(`X.Y.Z-<suffix>` — the hyphen after the patch makes it a pre-release,
+no channel enumeration) versions; the tag for a release is created
+manually by the owner
 (`git tag vX.Y.Z`), and `git push origin main vX.Y.Z` (commit and tag
 together) is safe — the tag pipelines wait for the branch CI on the
 tagged SHA via the NIGHT-improve-1 gate.

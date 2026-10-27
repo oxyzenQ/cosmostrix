@@ -97,21 +97,22 @@ jobs:
             TAG="v${TAG}"
           fi
 
-          # Reject old -stable.N format
+          # Reject pre-release tags — AUR only accepts stable packages.
+          # Single classification law (night-dragon-maintenance-3, shared
+          # with release.yml): ANY hyphen in the version (vX.Y.Z-<suffix>)
+          # makes the tag a pre-release — no channel enumeration. The
+          # old -stable.N shape dies under the same guard. This guard is
+          # belt-and-suspenders: release.yml already conditions the AUR
+          # trigger on stable-only, but a manual workflow_dispatch or
+          # stale repository_dispatch could slip through.
           if [[ "${TAG}" =~ -stable\. ]]; then
             echo "::error::Old -stable.N format is no longer supported: ${TAG}"
             echo "Use format: vX.Y.Z for stable releases, e.g. v2.1.0"
             exit 1
           fi
-
-          # Reject pre-release tags — AUR only accepts stable packages.
-          # Pre-release/alpha/rc/beta tags should NOT trigger this workflow.
-          # This guard is belt-and-suspenders: release.yml already conditions
-          # the AUR trigger on stable-only, but a manual workflow_dispatch
-          # or stale repository_dispatch could slip through.
-          if [[ "${TAG}" =~ -[a-zA-Z]+\.[0-9]+$ ]]; then
+          if [[ "${TAG#v}" == *-* ]]; then
             echo "::error::Pre-release tags are not allowed for AUR sync: ${TAG}"
-            echo "AUR only accepts stable packages. Use vX.Y.Z format (e.g. v25.0.0)"
+            echo "AUR only accepts stable packages. Use vX.Y.Z (e.g. v25.0.0); vX.Y.Z-<suffix> is a pre-release"
             exit 1
           fi
 
