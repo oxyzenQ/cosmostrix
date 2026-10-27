@@ -79,6 +79,49 @@ The Personal and Individual tiers are deliberately untouched across
 every raise — the increases track the compounding engineering value
 and apply only to the tiers that profit commercially from it.
 
+### Why cosmostrix is priced above the infrastructure tools
+
+cosmostrix licenses more architectural surface than any other project
+in the owner's portfolio, and the price tracks that surface. Every
+figure below is measurable from this repository (cloc 2.04, with
+`target/`, `.git/`, and `docs/archive/` excluded from the count):
+
+- **Code depth.** cloc reports 110,453 lines of Rust code across 519
+  `.rs` files, plus 59,266 lines of documentation comments — a 54%
+  comment ratio, the discipline that makes the architectural patterns
+  legible to a licensee.
+- **Documentation depth.** 173 markdown documents and 27,685 content
+  lines (the frozen `docs/archive/` history excluded, matching the
+  count's shape) — the architecture records, audits, research ledgers,
+  and operational playbooks that a pattern licensee actually reads.
+- **Tooling depth.** 15,231 lines of shell, Python, and YAML across
+  the test harnesses, CI workflows, and gate suite (7,004 shell +
+  4,955 Python + 3,272 YAML).
+- **Six original motion-math systems.** Navier-Stokes FLIP/PIC fluid
+  projection, Physarum stigmergic network, Lorenz RK4 strange attractor,
+  boids with a spatial-hash neighbor graph, FABRIK chain dynamics, and
+  Keplerian orbital mechanics — all rendered inside a terminal's
+  discrete cell grid.
+- **Three locked engines.** Cosmic Dragon (diff-based renderer,
+  back-buffer comparison, RLE-batched ANSI emission), Chroma Dragon
+  (OKLab perceptual color pipeline, Phase 9-D locked), Crystal Dragon
+  (time-of-day ambient scheduler, point-based temperature grouping).
+- **Fourteen rain styles.** Three core atmospheres, seven style
+  flagships (including the two invented-math styles, `aeolian` and
+  `solar_flare`), curated, milestone, honor, and tribute scenes — the
+  full scene registry is in the README.
+- **Five-OS cross-platform.** Linux (musl static, v3 + v4 baselines),
+  macOS (Apple Silicon), Windows (x86_64 + ARM64), Android (Termux),
+  FreeBSD — each with its own build tier, CI lane, and release artifact.
+- **Seven licensed architectural patterns.** See "What You're Actually
+  Licensing" in the README for the pattern list a commercial tier grants.
+- **PGO nitro build.** A 3-stage instrument → benchmark → optimize
+  recipe (`./scripts/build.sh pgo`) that produces the fastest local
+  artifact.
+
+The Personal tier (GPL-3.0) is free. The paid tiers license these
+patterns for proprietary, closed-source, and SaaS use.
+
 ## What Each Tier Grants
 
 Every paid tier grants the right to use cosmostrix in commercial work
