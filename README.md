@@ -53,6 +53,12 @@
 
 Signature Cinematic Cosmic, Monolith Rain, and message mode in a real terminal session.
 
+## Why cosmostrix?
+
+Terminal Matrix-rain renderers today live inside one of three walls. They redraw the whole screen every frame and hit the terminal's ANSI throughput ceiling, so anything cinematic is unaffordable at size. They flatten color to raw RGB lerp — muddy midpoints on hue-crossing gradients, no ambient scheduling, no perceptual discipline. Or they ask for a GPU context the terminal does not have and stop being terminal software at all.
+
+cosmostrix refuses all three walls — it writes only the cells that changed, colors in perceptual OKLab space, and schedules the scene's mood by time of day, all CPU-only, all inside the terminal you already own. The three Dragon Engines below are how.
+
 ## About — Three Dragon Engines
 
 cosmostrix is built on **three cooperating engines** that split the work along clean boundaries: *what cells changed* (Cosmic Dragon), *what color a cell becomes* (Chroma Dragon), and *what mood the rain should have* (Crystal Dragon).
