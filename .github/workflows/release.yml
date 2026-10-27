@@ -1183,7 +1183,18 @@ jobs:
           echo "=== Release body ==="
           cat release-body.md
 
-      - name: Create GitHub Release
+      # IMMUTABLE-RELEASE FIX (modeled on the sibling's release lane):
+      # create the release as a DRAFT. GitHub's immutable-release feature
+      # locks assets the moment a release becomes published, and
+      # softprops/action-gh-release publishes on creation - so on an
+      # immutable repo the tail of a multi-asset upload gets rejected
+      # once the first asset trips the publish event (the sibling's
+      # v80.0.1 incident: 7 of 10 assets landed, 3 rejected). With
+      # draft: true the release stays mutable for the whole upload, and
+      # the next step publishes it atomically after every asset is in
+      # place. The unmatched-files seatbelt below also fails the release
+      # instead of shipping an asset-less page.
+      - name: Create Release (draft)
         id: gh_release
         uses: softprops/action-gh-release@v3
         env:
@@ -1195,9 +1206,8 @@ jobs:
           # list. Final releases use the bare tag name as the title.
           name: ${{ steps.ver.outputs.tag }}${{ steps.ver.outputs.prerelease == 'true' && ' (Pre-Release)' || '' }}
           body_path: release-body.md
-          draft: false
-          prerelease: ${{ steps.ver.outputs.prerelease }}
-          make_latest: ${{ steps.ver.outputs.prerelease != 'true' }}
+          draft: true
+          fail_on_unmatched_files: true
           files: |
             dist/**/*.tar.gz
             dist/**/*.tar.gz.sha512sum
@@ -1209,6 +1219,35 @@ jobs:
             dist/**/*.zip.b3sum
             dist/**/*.zip.shake256
             dist/**/*.zip.asc
+
+      # The un-draft half of the immutable-release fix: flip the draft to
+      # published only AFTER every asset has uploaded, setting the
+      # prerelease and latest flags explicitly so the post-publish state
+      # is exactly what the pre-fix workflow intended. The post-condition
+      # read is the tripwire - a release that is still a draft here is a
+      # red pipeline, never a silent half-publish.
+      - name: Publish Release (un-draft)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          IS_PRERELEASE: ${{ steps.ver.outputs.prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${IS_PRERELEASE}" = "true" ]; then
+            gh release edit "${TAG}" --draft=false --prerelease=true --latest=false
+          else
+            gh release edit "${TAG}" --draft=false --prerelease=false --latest=true
+          fi
+          echo "--- Published release state ---"
+          gh release view "${TAG}" --json url,isDraft,isPrerelease,isImmutable \
+            --jq '{url: .url, isDraft: .isDraft, isPrerelease: .isPrerelease, isImmutable: .isImmutable}'
+          STILL_DRAFT="$(gh release view "${TAG}" --json isDraft --jq '.isDraft')"
+          if [ "${STILL_DRAFT}" != "false" ]; then
+            echo "::error::Release ${TAG} is still a draft after the un-draft step - refusing to continue"
+            exit 1
+          fi
+          echo "Release ${TAG} published atomically after the full asset upload."
 
       # ------------------------------------------------------------------
       # Trigger AUR synchronization after successful release
