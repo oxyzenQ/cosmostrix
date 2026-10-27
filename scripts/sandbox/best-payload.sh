@@ -98,21 +98,29 @@ else
 	FAILS=$((FAILS + 1))
 fi
 
-# The headless guard in its deterministic shape: setsid detaches the
-# session's controlling terminal, so the interactive entry's
-# open("/dev/tty") answers ENXIO and interactive mode must refuse
-# with a non-zero exit (main.rs's "Interactive mode needs a
-# controlling terminal" contract). The floor battery's guest console
-# carries a ctty via PID 1 and the era busybox ships no setsid, so
-# this leg lives here on purpose - a session this lane can actually
-# strip. (The regular CI lanes prove the same contract every push:
-# their shape is cron-like, no ctty by construction.)
+# The headless guard in its deterministic shape. TWO conditions are
+# load-bearing, because the terminal layer prefers stdin whenever
+# stdin itself is a tty (crossterm's enable_raw_mode rides stdin and
+# only falls back to open("/dev/tty") when stdin is not a tty):
+#   1. stdin rides /dev/null - a non-tty, so the layer takes the
+#      /dev/tty path at all;
+#   2. setsid strips the session's controlling terminal - so that
+#      /dev/tty open answers ENXIO and interactive mode must refuse
+#      with a non-zero exit (main.rs's "Interactive mode needs a
+#      controlling terminal" contract).
+# Either condition alone leaves the binary able to start: a ctty with
+# non-tty stdin satisfies the /dev/tty open, a tty stdin satisfies
+# raw mode directly (both observed live). The floor battery's guest
+# console carries a ctty via PID 1 and the era busybox ships no
+# setsid, so this leg lives here on purpose. (The regular CI lanes
+# prove the same contract every push: cron-shaped, neither condition
+# holds by construction.)
 if command -v setsid >/dev/null 2>&1; then
-	if setsid "$BIN" --duration 2 >"${LOG}/out-headless-guard.log" 2>&1; then
-		note "headless guard (setsid: interactive refused a ctty-less session)" FAIL
+	if setsid "$BIN" --duration 2 </dev/null >"${LOG}/out-headless-guard.log" 2>&1; then
+		note "headless guard (setsid + stdin /dev/null: interactive refused)" FAIL
 		FAILS=$((FAILS + 1))
 	else
-		note "headless guard (setsid: interactive refused a ctty-less session)" PASS
+		note "headless guard (setsid + stdin /dev/null: interactive refused)" PASS
 	fi
 else
 	# A missing setsid must not degrade into a silent PASS (the leg
