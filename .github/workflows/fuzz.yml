@@ -103,7 +103,7 @@ jobs:
       # the latest accumulated corpus from any prior run, so the
       # fuzzer keeps growing where the last one stopped.
       - name: Restore the fuzz corpus cache
-        uses: actions/cache@v7
+        uses: actions/cache@v6
         with:
           path: fuzz/corpus/escape_ctrl
           key: fuzz-corpus-escape_ctrl-${{ github.run_id }}

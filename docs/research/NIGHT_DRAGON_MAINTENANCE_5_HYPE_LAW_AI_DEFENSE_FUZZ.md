@@ -165,7 +165,7 @@ and weekly sessions grow one asset. Committed seed anchors
 injection classes — OSC 52 clipboard write, CSI clear-screen, the
 C0/DEL/C1 remainder — byte-exact files protected by a new
 `.gitattributes` binary rule (a text/eol rule would rewrite the
-control-byte payload on checkin; staged-vs-disk byte equality was
+control-byte payload at commit time; staged-vs-disk byte equality was
 verified before landing). `fuzz/Cargo.lock` travels with the lane —
 the same `libfuzzer-sys` graph the sibling locks, renamed for this
 workspace.
