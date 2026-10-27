@@ -413,41 +413,79 @@ jobs:
       # index shape ever changes. A witness that can resolve "the
       # newest" can never boot a stale "latest" - that is the point
       # of resolving instead of pinning.
+      #
+      # Walk-back law (the v7.2 incident): two upstream drifts can
+      # break a naive resolver. (1) SHAPE DRIFT: the mainline build
+      # reorganized - per-arch debs moved into amd64/ subdirectories
+      # (older releases keep the deb at the tag root), so the URL
+      # must ride the listing's own relative path, not a basename.
+      # (2) PARTIAL PUBLISH: a freshly published directory can list
+      # its debs while the files still 404 mid-upload. So the
+      # resolver walks the 8 newest stable tags, newest first, and
+      # only COMMITS to a tag whose relative deb path answers a HEAD
+      # probe and then downloads clean; a tag that lists-but-404s is
+      # skipped with a reason line and the walk continues. The
+      # witness stays moving-latest by construction: it boots the
+      # newest mainline stable kernel that is actually fetchable
+      # right now, and it says which one it booted.
       - name: Fetch the newest mainline stable kernel
         run: |
           set -euo pipefail
           mkdir -p /tmp/kbest && cd /tmp/kbest
           BASE="https://kernel.ubuntu.com/mainline"
           LISTING="$(curl -fsSL --retry 5 --max-time 180 "$BASE/")"
-          TAG="$(printf '%s' "$LISTING" \
+          TAGS="$(printf '%s' "$LISTING" \
             | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?/' \
-            | sort -u -V | tail -1 || true)"
-          if [ -z "$TAG" ]; then
+            | sort -u -Vr | head -8 | sed 's|/$||' || true)"
+          if [ -z "$TAGS" ]; then
             echo "FAIL: no stable vN.N(.N) entry in the mainline index - resolver evidence:"
             printf '%s' "$LISTING" | grep -oE '"[^"]*"' | head -30 || true
             echo "(full index: $BASE)"
             exit 1
           fi
-          TAG="${TAG%/}"
-          echo "resolved: $TAG (the newest mainline stable tag)"
-          DIR="$BASE/$TAG"
-          DLIST="$(curl -fsSL --retry 5 --max-time 180 "$DIR/")"
-          DEB="$(printf '%s' "$DLIST" \
-            | grep -oE 'linux-image-unsigned-[0-9.]+-[0-9]+-generic_[^"]+_amd64\.deb' \
-            | head -1 || true)"
-          if [ -z "$DEB" ]; then
-            DEB="$(printf '%s' "$DLIST" \
-              | grep -oE 'linux-image-[0-9.]+-[0-9]+-generic_[^"]+_amd64\.deb' \
+          echo "candidate tags, newest first: $(printf '%s' "$TAGS" | tr '\n' ' ')"
+          FOUND=""
+          BESTTAG=""
+          FIRST_LISTING=""
+          while IFS= read -r TAG; do
+            DIR="$BASE/$TAG"
+            DLIST="$(curl -fsSL --retry 5 --max-time 180 "$DIR/" || true)"
+            if [ -z "$FIRST_LISTING" ]; then
+              FIRST_LISTING="$DLIST"
+            fi
+            REL="$(printf '%s' "$DLIST" \
+              | grep -oE '(amd64/)?linux-image-unsigned-[0-9.]+-[0-9]+-generic_[^"]+_amd64\.deb' \
               | head -1 || true)"
-          fi
-          if [ -z "$DEB" ]; then
-            echo "FAIL: no linux-image *_generic amd64 deb under $DIR - resolver evidence:"
-            printf '%s' "$DLIST" | grep -oE '"linux-image[^"]*"' | head -20 || true
+            if [ -z "$REL" ]; then
+              REL="$(printf '%s' "$DLIST" \
+                | grep -oE '(amd64/)?linux-image-[0-9.]+-[0-9]+-generic_[^"]+_amd64\.deb' \
+                | head -1 || true)"
+            fi
+            if [ -z "$REL" ]; then
+              echo "skip: $TAG lists no linux-image *_generic amd64 deb - walking back"
+              continue
+            fi
+            if ! curl -fsI --retry 5 --max-time 60 "$DIR/$REL" >/dev/null; then
+              echo "skip: $TAG lists $REL but the file HEAD-probes not-ready (mid-upload) - walking back"
+              continue
+            fi
+            if curl -fsSL --retry 5 --max-time 600 -o "$(basename "$REL")" "$DIR/$REL"; then
+              FOUND="$REL"
+              BESTTAG="$TAG"
+              echo "resolved: $TAG (the newest mainline stable tag that serves its deb)"
+              echo "resolved: $REL"
+              break
+            else
+              echo "skip: $TAG deb download failed after retries - walking back"
+            fi
+          done <<< "$TAGS"
+          if [ -z "$FOUND" ]; then
+            echo "FAIL: none of the 8 newest stable tags served a linux-image deb - resolver evidence (newest tag):"
+            printf '%s' "$FIRST_LISTING" | grep -oE '[a-z0-9/]*linux-image[a-z0-9./-]*\.deb' | head -20 || true
+            echo "(full index: $BASE)"
             exit 1
           fi
-          echo "resolved: $DEB"
-          curl -fsSL --retry 5 --max-time 600 -o "$DEB" "$DIR/$DEB"
-          dpkg -x "$DEB" pkg
+          dpkg -x "$(basename "$FOUND")" pkg
           VMLINUZ="$(find pkg/boot -name 'vmlinuz-*' | sort -V | tail -1)"
           if [ -z "$VMLINUZ" ]; then
             echo "FAIL: no vmlinuz inside the deb - pkg/boot contents:"
@@ -455,7 +493,7 @@ jobs:
             exit 1
           fi
           cp "$VMLINUZ" /tmp/kbest/vmlinuz-best
-          echo "kernel: $(du -h /tmp/kbest/vmlinuz-best | cut -f1) at /tmp/kbest/vmlinuz-best ($(basename "$VMLINUZ"))"
+          echo "kernel: $(du -h /tmp/kbest/vmlinuz-best | cut -f1) at /tmp/kbest/vmlinuz-best ($(basename "$VMLINUZ")) [$BESTTAG]"
 
       # The userland, held at the runner's own distro on purpose (the
       # lane's variable is the KERNEL, not the libc): an ubuntu:24.04
