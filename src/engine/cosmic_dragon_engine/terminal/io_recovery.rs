@@ -148,8 +148,28 @@ impl super::Terminal {
                 Ok(())
             }
             Err(e) => {
-                // Failure: restore ansi_buf so the next flush retries the
-                // same data (matches pre-P3 semantics).
+                // NIGHT-dragon-lts-1 (shadow honesty, sibling fix): the
+                // draw paths mutate the LastFrame shadow BEFORE this
+                // flush, so a failed write leaves every changed cell
+                // believed-written but never emitted — the same bug class
+                // NIGHT-hunter-34 closed for the backpressure and RIS
+                // arms in this module. Arm the unknown flag so the next
+                // draw re-emits the full frame.
+                //
+                // Reachability, honestly: every caller today propagates
+                // this error and unwinds the session (the guards own the
+                // terminal from there), so no next draw actually happens
+                // yet. The arm ships anyway — symmetric with the two
+                // reachable sibling arms, and it keeps the class closed
+                // by construction if a future caller ever tolerates a
+                // failed flush instead of unwinding.
+                if let Some(last) = self.last.as_mut() {
+                    last.force_full_emit = true;
+                }
+                // Keep the bytes available for a verbatim retry — but
+                // note the draw paths clear the buffer at frame start,
+                // so this restore is insurance for a future retrying
+                // caller, not the recovery path itself.
                 self.ansi_buf = ansi_buf;
                 Err(e)
             }
