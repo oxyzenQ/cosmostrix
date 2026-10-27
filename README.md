@@ -616,6 +616,14 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
 
 The mode catalog (`--bench-io` wet I/O, `--bench-scene lean|production-draw`, `--bench-all`, `--bench-duration` up to the 24 h ceiling, `--json`, baselines), the full report-field reference, and what benchmark mode skips are documented once in [docs/BENCHMARKING.md](docs/BENCHMARKING.md). Reference results across versions: [benchmark/HIST_BENCH.md](benchmark/HIST_BENCH.md); advanced microarchitecture + energy metrics: [docs/BENCHMARK_ADVANCED.md](docs/BENCHMARK_ADVANCED.md).
 
+## Contributing
+
+PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (build, test, conventions, PR checklist) and [RULES.md](docs/RULES.md) for project conventions. By submitting a PR you accept the [Contributor License Agreement](CLA.md) — the `Signed-off-by:` line (`git commit -s`) is the acceptance mechanism.
+
+## Security
+
+cosmostrix runs raw-mode on the user's TTY and owns terminal state while it renders — security is part of the product, not an afterthought. Report vulnerabilities privately via GitHub private vulnerability reporting or direct owner contact; the running-as-root analysis and the terminal-ownership threat model live in [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+
 ## Documentation
 
 - [**Docs Index**](docs/README.md) — **start here** — master index of every doc
@@ -685,10 +693,6 @@ Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD,
 ```
 
 `Cargo.toml` `[package] version` is the single source of truth. Every other active version reference is derived from it — either at compile time via `env!("CARGO_PKG_VERSION")` in source, or by `./scripts/dev/version-to.sh` for files that need a literal version string (PKGBUILD, README install example). CI runs `version-sync` as a fail-fast guard before any Rust builds, so a desync breaks the pipeline in seconds rather than after a full test job. The `scripts/gates/check-version-anti-patterns.sh` guard blocks re-introduction of hardcoded version assertions in `src/`.
-
-## Contributing
-
-PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (build, test, conventions, PR checklist) and [RULES.md](docs/RULES.md) for project conventions. By submitting a PR you accept the [Contributor License Agreement](CLA.md) — the `Signed-off-by:` line (`git commit -s`) is the acceptance mechanism.
 
 ## API Stability
 
