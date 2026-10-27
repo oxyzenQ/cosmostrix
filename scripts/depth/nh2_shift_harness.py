@@ -57,12 +57,17 @@ RUN_SECS = float(os.environ.get("RUN_SECS", "75"))
 KEYS_RAW = os.environ.get("KEYS_AT", "")
 SCENE = os.environ.get("SCENE", "")
 BIN = os.environ.get("BIN") or next(
-    (c for c in (
-        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
-        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
-        "target/pro-native/cosmostrix",
-        "target/release/cosmostrix",
-    ) if os.path.isfile(c)), "target/release/cosmostrix"
+    (
+        c
+        for c in (
+            "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
+            "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+            "target/pro-native/cosmostrix",
+            "target/release/cosmostrix",
+        )
+        if os.path.isfile(c)
+    ),
+    "target/release/cosmostrix",
 )
 OUT = os.environ.get("OUT", "/tmp/cosmostrix-nh2/shift.tsv")
 TERM_PROGRAM = os.environ.get("TERM_PROGRAM", "alacritty")

@@ -47,6 +47,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # repository root is two levels up from this file (scripts/bench/).
 REPO_ROOT = SCRIPT_DIR.parents[1]
 OUTPUT_DIR = REPO_ROOT / "benchmark"
+
+
 # Alias-aware default (night-dragon-maintenance-3): build.sh release
 # dispatches to the host-matched pro alias; probe the alias outputs
 # first, keep target/release as the legacy fallback.
@@ -187,7 +189,10 @@ def run_one(cols: int, lines: int) -> dict:
 def main() -> int:
     if not BINARY.exists():
         print(f"error: cosmostrix binary not found at {BINARY}", file=sys.stderr)
-        print("run: ./scripts/build.sh release (named-alias dispatch, e.g. cargo pro-linux-amd64-v3-gnu)", file=sys.stderr)
+        print(
+            "run: ./scripts/build.sh release (named-alias dispatch, e.g. cargo pro-linux-amd64-v3-gnu)",
+            file=sys.stderr,
+        )
         return 1
 
     print(

@@ -43,13 +43,22 @@ import sys
 import termios
 import time
 
-BIN = sys.argv[1] if len(sys.argv) > 1 else next(
-    (c for c in (
-        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
-        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
-        "target/pro-native/cosmostrix",
+BIN = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else next(
+        (
+            c
+            for c in (
+                "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
+                "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+                "target/pro-native/cosmostrix",
+                "target/release/cosmostrix",
+            )
+            if os.path.isfile(c)
+        ),
         "target/release/cosmostrix",
-    ) if os.path.isfile(c)), "target/release/cosmostrix"
+    )
 )
 COLS, ROWS = 100, 30
 FAILURES = []

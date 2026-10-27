@@ -102,7 +102,9 @@ def resolve_bin(flag_value):
         if os.path.isfile(c):
             return os.path.abspath(c)
     print(f"depthbore: no binary found (tried: {', '.join(candidates)})")
-    print("depthbore: build one first:  ./scripts/build.sh release (named-alias dispatch)")
+    print(
+        "depthbore: build one first:  ./scripts/build.sh release (named-alias dispatch)"
+    )
     sys.exit(2)
 
 
