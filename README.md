@@ -706,6 +706,8 @@ From **v100.0.0** onward, the following are **frozen** — no breaking changes w
 
 Breaking changes require a major version bump — the next breaking window is **v101.0.0**. Minor versions (v100.1.0) may add features but must not change or remove existing API surface. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) §7 for the full stability contract.
 
+Stable releases are tagged `vX.Y.Z`. Pre-release is detected by the suffix law: any tag containing `-` (e.g. `v1.0.0-beta.1`, `v1.0.0-example.1`) is a pre-release and is never marked "latest". The five channel names (`dev`, `nightly`, `alpha`, `beta`, `rc`) are no longer enforced — any dash-suffixed tag is valid.
+
 ## Support
 
 cosmostrix is an open-source project built and maintained independently by [rezky_nightky (oxyzenQ)](https://github.com/oxyzenQ).
