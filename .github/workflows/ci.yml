@@ -690,14 +690,14 @@ jobs:
           if OUT="$(${BIN} --doctor 2>&1)"; then
             echo "${OUT}"
             grep -E "^[[:space:]]+build:[[:space:]]+${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
-            grep -Fx "  optimization: ${OPTIMIZATION}" <<<"${OUT}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
+            grep -F "optimization:" <<<"${OUT}" | grep -Fq "${OPTIMIZATION}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
             grep -E "^[[:space:]]+dispatch:[[:space:]]+static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
             grep -E "^[[:space:]]+cpu_baseline:[[:space:]]+${BASELINE}$" <<<"${OUT}" || { echo "::error::Expected cpu_baseline: ${BASELINE}"; exit 1; }
             for feature in ${REQUIRED}; do
-              grep -F "  target_features:" <<<"${OUT}" | grep -Fq "${feature}" || { echo "::error::Expected target feature ${feature}"; exit 1; }
+              grep -F "target_features:" <<<"${OUT}" | grep -Fq "${feature}" || { echo "::error::Expected target feature ${feature}"; exit 1; }
             done
             for feature in ${DENIED}; do
-              if grep -F "  target_features:" <<<"${OUT}" | grep -Fq "${feature}"; then
+              if grep -F "target_features:" <<<"${OUT}" | grep -Fq "${feature}"; then
                 echo "::error::Unexpected target feature ${feature} for ${BUILD_ID}"
                 exit 1
               fi
