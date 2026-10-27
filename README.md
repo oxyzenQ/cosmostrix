@@ -122,6 +122,12 @@ Every design decision is governed by one question: *does this serve the cinemati
 
 The Dragon's roar is not loud — it is precise.
 
+### Branches
+
+| Branch | Purpose | Status |
+|--------|---------|--------|
+| `main` | The cinematic three-engine renderer (Cosmic, Chroma, Crystal Dragon) | Active |
+
 ## Features
 
 ### Rendering
