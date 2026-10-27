@@ -15,6 +15,14 @@ property of **rezky_nightky (oxyzenQ)**. The source code is licensed under
 GPL-3.0-only. The Marks are NOT covered by the GPL and are reserved by the
 owner.
 
+The cosmostrix logo was created through AI-assisted generation under the
+direct, original creative direction and specific prompting of the owner.
+It is claimed and used exclusively as the brand identity (Trademark) of
+this project, and that claim is not weakened by the tooling involved:
+the selection, direction, and iteration decisions are the owner's own
+creative acts, and the resulting image serves no purpose in this
+repository except as the Mark.
+
 This project is NOT for sale. Source-code theft, rebranding, or
 re-distribution under a different license without the express written
 consent of rezky_nightky (oxyzenQ) is strictly prohibited. That includes
