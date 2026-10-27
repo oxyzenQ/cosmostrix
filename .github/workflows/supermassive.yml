@@ -205,7 +205,10 @@ jobs:
       - name: Color tier downgrade battery
         run: |
           set -euo pipefail
-          BINARY="target/release/cosmostrix"
+          # The alias-built release shape (the same binary the other
+          # legs exercise) - this step predates the alias migration
+          # and pointed at target/release, which this job never builds.
+          BINARY="target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix"
           MASS="/tmp/mass-pty.log"
           SMOKE=scripts/supermassive/pty_smoke.py
           ASSERT=scripts/supermassive/pty_assert.py

@@ -133,6 +133,41 @@ updated.
 4. Commit: one micro-commit per task, per the micro-commit-push owner
    rule.
 
+## 5. Hostile-input findings (open, owner-decided)
+
+> **Opened**: night-dragon-maintenance-5 (the torture lane's first
+> real-binary run — maintenance-4 had smoke-proven it against a
+> contract stub only).
+
+**5a. Dangling bracketed-paste start marker wedges the input path.**
+`torture-input-flood`'s junk pool carried a bare `ESC [200~`
+(bracketed-paste START with no `ESC [201~` END). The real binary never
+quit through the flood: the input parser's paste buffer swallows every
+later byte — the `q` quit key included — as paste content until an end
+marker arrives, so the session hit the 30s watchdog SIGKILL (rc=-9,
+`quit-through-flood rc=-9 bytes=4642`, first CI evidence
+run 40466357873's torture leg). A real terminal always sends the pair,
+so this is a deliberate-attacker class, not a user-reachable path —
+but a hostile multiplexer or a corrupted terminal could produce it.
+The lane now sends the pair (a realistic terminal cannot emit a
+dangling start) and the app-side defense decision is parked here:
+either cap/drain the paste buffer (a `PasteBurstGuard`-style volume
+cap) or time out unterminated paste sequences. Runtime change, owner's
+call, needs a benchmark A/B when picked up.
+
+**5b. SIGINT contract pinned as shipped (resolved this pass — kept for
+the record).** The maintenance-4 harness expected five SIGINTs to be
+ignored before a graceful SIGTERM; the shipped contract is the
+opposite — SIGINT is deliberately NOT handled (docs/SECURITY_AUDIT.md
+section 6: the catchable family is SIGTERM/SIGHUP/SIGQUIT), so a
+direct SIGINT kills the process by default disposition (first CI
+evidence: `sigterm-graceful rc=None sigints=1 lifetime=0.6s`). The
+leg now pins the real contract in two sessions: SIGINT dies by
+signal 2 at the mark, and a clean session shuts down gracefully on
+SIGTERM with the full restore tail. If the owner ever wants SIGINT to
+join the catchable family, that is a contract change landing in the
+same commit as this leg's flip and the doctor's `signal_exit` row.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
