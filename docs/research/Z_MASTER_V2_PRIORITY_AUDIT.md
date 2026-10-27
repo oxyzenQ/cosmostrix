@@ -158,6 +158,7 @@ skip, do not over-engineer).**
 - This research doc + the bench-lab A/B artifacts.
 - Source-comment references updated in place (Z1-*/Z2-* markers cite
   the contract and the startup twin each gate mirrors).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

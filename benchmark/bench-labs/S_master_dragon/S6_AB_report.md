@@ -26,6 +26,7 @@ Size     Metric                 A                B                Delta      Ver
 200x60   entropy                4.7142           4.7142           +0.00%    stable
 200x60   gini                   0.8904           0.8904           -0.00%    stable
 200x60   avg_dirty_cells        205.0622         205.0307         -0.02%    stable
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

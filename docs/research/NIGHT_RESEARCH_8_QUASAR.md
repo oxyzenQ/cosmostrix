@@ -183,6 +183,7 @@ Scene cycle position 14, grouped with the style flagships.
   layout with signal pulses traveling edges — a different
   geometry family (the graph-vs-field problem stated honestly
   above).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -20,6 +20,7 @@ Size     Metric                 A                B                Delta      Ver
 200x60   avg_fps                29711.1765       29791.7817       +0.27%    stable
 200x60   gini                   0.8904           0.8906           +0.02%    stable
 200x60   avg_dirty_cells        204.8177         204.8165         -0.00%    stable
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

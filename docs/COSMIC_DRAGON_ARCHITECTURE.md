@@ -281,6 +281,7 @@ The Cosmic Dragon's codebase is organized by responsibility:
    strict validation (invalid = exit 2, no silent fallback)
 7. **No stale docs** — CLI helpers, help text, and docs are kept in sync;
    the "semut" (ants) are regularly evicted from the house
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

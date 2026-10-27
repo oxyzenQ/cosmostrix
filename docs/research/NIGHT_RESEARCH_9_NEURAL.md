@@ -186,6 +186,7 @@ the drama).
   to CI): the perf profile is bounded by construction (static
   positions, precomputed paths, fixed pools) and pinned by the
   boundedness contracts; the A/B evidence lands with CI's run.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

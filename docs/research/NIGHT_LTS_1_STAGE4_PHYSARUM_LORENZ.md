@@ -291,6 +291,7 @@ A/B JSONs in `benchmark/bench-labs/night_lts1_stage4/`.
 
 Proceeding to stage 5 under the owner's continuous-approval
 directive.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

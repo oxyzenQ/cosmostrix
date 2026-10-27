@@ -180,6 +180,7 @@ strips the suffix into `_tag` semantics before anything reaches AUR.
 
 Test-infrastructure and docs only: zero Rust source, zero shipped
 bytes, zero engine surface — no benchmark applies.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

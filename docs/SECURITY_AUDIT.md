@@ -233,6 +233,7 @@ refusal could break.
 - `deny.toml` — license + advisory policy
 - `.github/workflows/gitbot-audit.yml` — daily `cargo audit` + `cargo deny`
 - `.github/workflows/maintenance.yml` — two-phase dep auto-update
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

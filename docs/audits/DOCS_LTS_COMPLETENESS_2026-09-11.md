@@ -135,6 +135,7 @@ README+docs corpus; KNOWN_ISSUES.md reviewed section-by-section
 Gates for this commit: gate-keepers all green (disclaimer injected
 into this file, markdownlint, language audit), `cargo test` 2863/2863
 (docs-only change, no source touched), no benchmark (docs-only).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -113,6 +113,7 @@ git log --oneline -- \
 ---
 
 *Rezky / oxyzenQ — 2026*
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

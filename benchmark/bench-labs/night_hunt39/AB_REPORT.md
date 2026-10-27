@@ -55,6 +55,7 @@ the stale base-scene ambient essay) are closed uniformly on all three
 surfaces, and the four custom namespaces now share one entry budget
 (min 1 / max 64) with 65-entry configs hard-rejected instead of
 silently truncated.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

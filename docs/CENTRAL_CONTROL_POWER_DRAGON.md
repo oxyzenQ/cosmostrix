@@ -812,6 +812,7 @@ EnduranceHealth score=58.2/investigate (sampling works without
 `--perf-stats`), backpressure low (P2 fix confirmed), Tier 2
 healthy, purple verbose color confirmed on ambient + final runtime
 state lines.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

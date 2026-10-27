@@ -75,6 +75,7 @@ structured-family siblings the style's dispatch plugs into).
   pre-change tree (370943b), captured before implementation.
 - `after_B_{dna_helix,cinematic,aeolian,solar_flare}.json` —
   post-change tree.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

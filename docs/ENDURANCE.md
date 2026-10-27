@@ -260,6 +260,7 @@ Template for recording future endurance run results:
 _(describe any anomalies, transient spikes, or environmental factors)_
 
 ---
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

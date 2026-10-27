@@ -570,6 +570,7 @@ scheduler events:
   the full elimination record (file list, KEPT-vs-DELETED table, revival
   guidance).
 - [Rules](RULES.md) — project conventions and CLI flag policy.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -95,6 +95,7 @@ For the last command, verify the rain renders with visibly boosted saturation + 
 - AUR package can be reset by bumping `pkgrel` and publishing a fix.
 - Do not force-push to `main`; use revert or fix-forward.
 - The release workflow (`release.yml`) requires `contents: write` for the `publish_release` job. The `GITHUB_TOKEN` is passed explicitly to `softprops/action-gh-release` via `env`. If it fails with HTTP 401, verify repository/org settings have not restricted the default `GITHUB_TOKEN` permissions.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

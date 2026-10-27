@@ -739,6 +739,7 @@ for the ring buffer to fill.
 - [`docs/ENDURANCE.md`](ENDURANCE.md) — endurance testing methodology
   (uses HUD `rss` and `p99` for leak / stall detection)
 - [`docs/RULES.md`](RULES.md) — project conventions and CLI flag policy
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -634,6 +634,7 @@ stale code description; the implementation is already correct.
 - `src/engine/cosmic_dragon_engine/cloud/tests/tests_border_gradient.rs`: 2
   new regression tests + `make_cloud` import.
 - `docs/research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md`: this section.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

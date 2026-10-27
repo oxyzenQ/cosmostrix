@@ -131,6 +131,7 @@ dragon's number-stream got faster without changing a single number.
 The full-path secondary (6e3d718 → 041b470, the whole NIGHT-dinner-8
 task) tells the same story: cinematic +0.67% on means, monolith
 +2.98%, visual metrics flat in both scenes.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

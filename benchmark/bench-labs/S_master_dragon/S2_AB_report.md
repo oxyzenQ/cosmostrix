@@ -42,6 +42,7 @@ Verdict: All metrics within natural variance band (<=3%).
 S-master-2 changes are const-gate + direct-index micro-opts —
 zero visual regression, perf neutral (gains <1%, below bench
 noise floor). Codebase confirmed post-peak-optimized.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

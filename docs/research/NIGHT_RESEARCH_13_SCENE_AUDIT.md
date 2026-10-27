@@ -257,6 +257,7 @@ black hole family into a shared site) would let tier one and tier
 two ride the same mechanism the black hole already proved — but
 each scene's ladder is local, so the ports stay per-scene and the
 A/B stays per-round, per the one-task-one-commit protocol.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

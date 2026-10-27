@@ -235,6 +235,7 @@ When preparing release N:
    `test/docs_tests/metadata.rs` following the existing pattern.
 5. Ensure all gates pass.
 6. Tag only after CI green.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

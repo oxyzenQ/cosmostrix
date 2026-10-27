@@ -163,6 +163,7 @@ hang); (c) the unfiltered posture means tag pushes now also fire the
 branch lanes (a bare `push:` includes tags) - a duplicate run on the
 same SHA, accepted for the same reason the posture exists: nothing
 can be silently skipped.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

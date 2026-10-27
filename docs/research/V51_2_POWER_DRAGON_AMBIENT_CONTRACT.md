@@ -234,6 +234,7 @@ Full binary suite: **2045 passed, 0 failed** (2015 at v51.1 + 30 net).
   arrives AND the user never edits config again, a reverted-by-nuke
   scene stays at the locked scene (which is the contract target
   anyway) — no action needed.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -81,6 +81,7 @@ bench_io `emit_cell_lean`.
 > bundles — `CellPaint` shared by the shader/render pair,
 > `SolarCellPaint`, `ParticlePaint`, `PostRainInputs`, `StyleCursor`.
 > src/ reached zero too_many_arguments suppressions.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

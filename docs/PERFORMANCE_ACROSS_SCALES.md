@@ -417,6 +417,7 @@ python3 scripts/bench/run_scaling_benchmarks.py
 
 Raw CSV and Markdown outputs are written per sweep to `benchmark/bench-labs/`
 (`sweep_<timestamp>.csv` / `.md`).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

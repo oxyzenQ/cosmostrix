@@ -98,6 +98,7 @@ Gates for this commit: gate-keepers 19/19, build.sh check-all -q
 exit 0, cargo fmt --check clean.
 Doc-only change: zero engine surface, zero shipped-binary impact;
 no benchmark applies.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

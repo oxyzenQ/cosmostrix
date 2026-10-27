@@ -1170,6 +1170,7 @@ your tuning is hue-specific, either:
 - [`scripts/build.sh`](../scripts/build.sh) — use `--check-all` to
   verify your tuning change compiles and passes tests before
   committing.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

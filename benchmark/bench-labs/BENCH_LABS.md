@@ -82,6 +82,7 @@ complete the `docs/archive/research/IPC_RESEARCH.md` verification.
 
 - [BENCHMARKING.md](../../docs/BENCHMARKING.md) — main benchmarking guide
 - [BENCHMARK_ADVANCED.md](../../docs/BENCHMARK_ADVANCED.md) — energy / uarch setup
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

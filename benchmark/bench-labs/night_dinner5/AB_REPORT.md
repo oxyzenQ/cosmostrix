@@ -121,6 +121,7 @@ deny.toml suppress retired, bitflags 1.3.2 — the Linux duplicate gone,
 and filetime), the wall-of-Unchanged shrinks from eight lines to
 four, and the PTY stresstest (47/47) proves live-reload end-to-end on
 the new major line.
+<!-- COSMOSTRIX-VERIFIED-A/B -->
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
@@ -139,4 +140,3 @@ the new major line.
   If you find a discrepancy, please open a PR — the doc is wrong, not
   the source.
 -->
-<!-- COSMOSTRIX-VERIFIED-A/B -->

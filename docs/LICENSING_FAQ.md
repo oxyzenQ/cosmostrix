@@ -102,6 +102,7 @@ commits (`git commit -s` adds it automatically) accepts the
 the right to dual-license the project (GPL-3.0-only + Commercial)
 while you keep full copyright to your contribution — without it, a
 commercial license could not cover code that includes your work.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -63,6 +63,7 @@ structured-family dispatch the new style plugs into) and aeolian
   post-change tree.
 - Comparison script: a session-local comparator (never committed to
   the repo; the hunter-20 comparator pattern).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

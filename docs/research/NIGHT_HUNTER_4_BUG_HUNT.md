@@ -135,6 +135,7 @@ cinematic (the phosphor-owning glyph path) and monolith
 populations, entropy, and gini match to the third decimal. FPS deltas
 (+0.23% / +1.11%) are inside the documented same-tree noise band.
 Full data: `benchmark/bench-labs/night_hunter4/AB_REPORT.md`.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

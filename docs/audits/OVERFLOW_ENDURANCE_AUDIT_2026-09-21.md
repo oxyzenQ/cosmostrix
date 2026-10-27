@@ -170,6 +170,7 @@ next session does not re-audit the same surfaces.
 - This audit covers the in-process surface. Post-exit scrollback and
   terminal-side capture remain the documented anti-copy trust
   boundary (SECURITY_AUDIT.md, NIGHT-improve-8) — unchanged here.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

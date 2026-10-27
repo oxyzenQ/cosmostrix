@@ -99,6 +99,7 @@ Technically precise but not cold; confident but not arrogant. **Principles**: di
 External projects, articles, or distributions referencing cosmostrix should: use the correct project name and spelling; link to the official repository (<https://github.com/oxyzenQ/cosmostrix>); not use the logo for commercial purposes without permission (see [`TRADEMARK.md`](TRADEMARK.md)); attribute the project when redistributing modified versions.
 
 *For trademark and legal usage terms, see [`TRADEMARK.md`](TRADEMARK.md).*
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

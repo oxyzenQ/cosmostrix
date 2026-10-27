@@ -36,6 +36,7 @@ swinging the other way (the same sandbox measured a −4 % outlier
 run the previous day). Visual metrics identical within run noise;
 the structural argument (bench path bypasses both cold paths)
 settles it: performance-neutral, zero visual regression.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

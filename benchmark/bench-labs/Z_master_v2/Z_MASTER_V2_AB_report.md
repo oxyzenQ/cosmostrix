@@ -34,6 +34,7 @@ touch ONLY the config-apply / live-reload priority gates — zero code on
 the per-frame render path, so parity is the expected and observed
 result. No further optimization warranted (already at peak; per task
 brief: skip, do not over-engineer).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

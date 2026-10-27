@@ -252,9 +252,8 @@ SECURITY_AUDIT.md section 10 and FUTURE_BACKLOG.md.
 
   This document may contain stale data, hardcoded counts, or outdated
   file paths and symbol names. Maintainers update source code but may
-  forget to sync every doc — the project ships 57 active .md files
-  (plus historical docs in docs/archive/) and perfect sync is a known
-  maintenance burden with diminishing returns.
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
 
   Source code (`src/**/*.rs`) is the single source of truth.
   Always cross-check against the actual `.rs` files before relying on

@@ -992,24 +992,6 @@ Runtime:  user shortkeys
 
 ---
 
-<!-- COSMOSTRIX-DISCLAIMER -->
-<!--
-  Documentation Disclaimer — read before relying on any data point.
-
-  This document may contain stale data, hardcoded counts, or outdated
-  file paths and symbol names. Maintainers update source code but may
-  forget to sync every doc — the project ships 80+ .md files and
-  perfect sync is a known maintenance burden with diminishing returns.
-
-  Source code (`src/**/*.rs`) is the single source of truth.
-  Always cross-check against the actual `.rs` files before relying on
-  any specific number (test count, LOC, FPS, ms timeout), file path,
-  function name, or config key.
-
-  If you find a discrepancy, please open a PR — the doc is wrong, not
-  the source.
--->
-
 ---
 
 ## 16. v80.0.0-beta.2 S-master-HUNT — Scene-Custom Ownership + Verbatim Lock Restore (owner audit 2026-09-02, post-157f627b)
@@ -1517,3 +1499,21 @@ set_color_scheme clearing) and points at the real condition.
   at commit time. Benchmark A/B (10s, --benchmark): no render-loop
   delta (the rescue only adds a branch on the config-ERROR path;
   happy path untouched).
+
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

@@ -255,6 +255,7 @@ minimal PAT, and branch protection are the proportionate defense.
   (NIGHT-dinner-6)
 - `scripts/depthbore/depthbore.py` PART 4 — the mutant harness
 - `.github/workflows/cosmic-dragon-guard.yml` — the every-PR gate run
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

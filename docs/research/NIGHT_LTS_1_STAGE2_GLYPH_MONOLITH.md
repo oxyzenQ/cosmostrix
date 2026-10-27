@@ -192,6 +192,7 @@ tests passed + 2 ignored in 56.5 s). Full A/B JSONs in
 
 Proceeding to stage 3 (vortex + solar flare) under the owner's
 continuous-approval directive.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

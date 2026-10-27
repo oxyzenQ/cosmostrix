@@ -291,6 +291,7 @@ composition-inversion logic).
 - **The charset question**: DeepSeek suggested charset binary;
   the shipped `dna` preset (ACGT) is the honest pick — the soup
   renders real bases and the rung ends real pairs.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

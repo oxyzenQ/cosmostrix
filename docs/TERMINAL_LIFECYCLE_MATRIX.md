@@ -339,6 +339,7 @@ mode, does not set raw mode, and does not modify terminal state. It
 prints environment, compatibility, and lifecycle contract information
 then exits. Owner visual smoke testing remains required before release
 if terminal or runtime behavior changes.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

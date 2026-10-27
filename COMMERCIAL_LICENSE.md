@@ -178,6 +178,7 @@ permission under [TRADEMARK.md](TRADEMARK.md). The voluntary crypto donation
 addresses in [README.md](README.md) are support tips for the open-source
 project; they are separate from commercial licensing and grant no
 commercial rights.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

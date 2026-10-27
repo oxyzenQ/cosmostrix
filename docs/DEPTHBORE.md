@@ -148,6 +148,7 @@ as it passes (the doctor strict ladder, the version rescue, the
 deferred-error ordering under reload churn) but does not replace them.
 Run the bore before an LTS release candidate; run the depthtest series
 when touching the surfaces they pin.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
@@ -158,8 +159,8 @@ when touching the surfaces they pin.
   perfect sync is a known maintenance burden with diminishing returns.
 
   Source code (`src/**/*.rs`) is the single source of truth.
-  Always cross-check against the actual `.rs` files before relying
-  on any specific number (test count, LOC, FPS, ms timeout), file path,
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
   function name, or config key.
 
   If you find a discrepancy, please open a PR — the doc is wrong, not

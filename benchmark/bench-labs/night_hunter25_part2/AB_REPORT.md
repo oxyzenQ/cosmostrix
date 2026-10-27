@@ -57,6 +57,7 @@ fields buy the cross-wire hazard elimination (line/col,
 head_put_line/length, now/t1, the bool triple) at zero runtime
 cost. The rigorous inner-loop A/B the owner mandated for this family
 is satisfied: no regression, no visual drift, no dirty-cell change.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

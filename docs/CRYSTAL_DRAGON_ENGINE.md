@@ -579,6 +579,7 @@ src/engine/crystal_dragon_engine/
 - [`docs/CENTRAL_CONTROL_POWER_DRAGON.md`](CENTRAL_CONTROL_POWER_DRAGON.md) — Power management / thermal / self-healing subsystem (separate from Crystal Dragon).
 - [`src/engine/chroma_dragon_engine/mod.rs`](../src/engine/chroma_dragon_engine/mod.rs) — The coloring engine that Crystal delegates transitions to.
 - [`src/cosmic_dragon_incubator/mod.rs`](../src/cosmic_dragon_incubator/mod.rs) — The rendering engine (incubator namespace; actual rendering code lives in `src/engine/cosmic_dragon_engine/cloud/`, `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/runtime.rs`).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

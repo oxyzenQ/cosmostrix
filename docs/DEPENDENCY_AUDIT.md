@@ -269,6 +269,7 @@ The "latest = best" assumption is wrong for LTS/dormant-mode projects:
 - `.github/workflows/maintenance.yml` — weekly `cargo update` cron
 - `.github/workflows/gitbot-audit.yml` — daily `cargo audit` + `cargo deny`
 - `deny.toml` — license/source/duplicate policy
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -124,6 +124,7 @@ of refactors (performance-neutral mandate).
 
 See `docs/archive/CHANGELOG-V80-ERA.md` "Refactor (LTS — 99% no visual/performance change)"
 section for the commit log of extractions done under this policy.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

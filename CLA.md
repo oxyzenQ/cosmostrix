@@ -71,6 +71,7 @@ Nothing here reduces the GPL-3.0-only rights you hold under
 **Last Updated:** 2026-09-26
 
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

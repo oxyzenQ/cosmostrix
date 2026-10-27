@@ -196,6 +196,7 @@ The "explode data when reaching the limit" class for memory:
   semantics, terminal-reported sizes) is trusted per OS contract;
   the clamps in section 5 bound the application's exposure to those
   boundaries.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

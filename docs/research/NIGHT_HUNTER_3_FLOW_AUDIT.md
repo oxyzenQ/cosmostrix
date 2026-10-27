@@ -171,6 +171,7 @@ Related: NIGHT-hunter-4 (same session) fixed the one genuine pairing
 hole this audit surfaced in the panic-hook layer — see
 `docs/research/NIGHT_HUNTER_4_BUG_HUNT.md` and the panic-hook module
 documentation.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

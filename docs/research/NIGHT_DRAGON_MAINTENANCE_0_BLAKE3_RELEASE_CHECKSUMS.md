@@ -133,6 +133,7 @@ verdict, recorded so the next audit does not re-derive it.
 | ebpf prebuilt blake3 + regen lane + permanent feature | NOT APPLICABLE (evidence above; owner decision if ever wanted) |
 | sha256 upgrade | NOT APPLICABLE (never present in release sidecars) |
 | secret name consistency | CONSISTENT, zero change |
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

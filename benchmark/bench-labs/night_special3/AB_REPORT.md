@@ -56,6 +56,7 @@ closest code path to the new one).
 - after_B_cinematic.json / after_B_sorgonemous.json /
   after_B_aeolian.json — the regression probes on the aurora tree.
 - after_B_aurora.json — the new style's own 10 s profile.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -649,6 +649,7 @@ academic work or another project, please cite:
 
 For the specific design rationale in this document, link to
 `docs/RENDER_ENGINE.md` at the specific commit you reference.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

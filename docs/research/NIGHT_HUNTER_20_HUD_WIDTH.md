@@ -136,5 +136,9 @@ loop — the bench dispatch never builds it.
 
   Source code (`src/**/*.rs`) is the single source of truth.
   Always cross-check against the actual `.rs` files before relying on
-  any number, path, or symbol name here.
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
 -->

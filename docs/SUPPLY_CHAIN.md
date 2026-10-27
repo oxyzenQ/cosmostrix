@@ -94,6 +94,7 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 | **Low** (CVSS < 4.0) | Next minor release | Tracked and resolved at project's discretion during normal maintenance. |
 
 For advisories that cannot be resolved by a simple `cargo update` (e.g., no patched version available), the project will evaluate whether the affected functionality can be disabled, the dependency replaced, or a temporary RustSec ignore entry (documented with rationale and a deadline for removal) added to `deny.toml`.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

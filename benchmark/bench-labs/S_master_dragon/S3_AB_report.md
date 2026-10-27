@@ -35,6 +35,7 @@ Size     Metric                 A (before)       B (after)        Delta        V
 Verdict: All metrics within +-2% natural variance. Security fix
 (message sanitize + length cap) only affects live-reload path,
 not bench mode (no config file). Zero visual/perf regression.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

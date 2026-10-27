@@ -110,6 +110,7 @@ on the PR itself.
 Full audit: [`docs/archive/audits/COSMIC_DRAGON_AUDIT.md`](docs/archive/audits/COSMIC_DRAGON_AUDIT.md)
 
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

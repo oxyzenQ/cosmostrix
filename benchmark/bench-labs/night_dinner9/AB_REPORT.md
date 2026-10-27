@@ -77,6 +77,7 @@ frame path — the render loop executes zero digest instructions, and
 the migration's identity proofs guarantee the hashes themselves
 never moved a bit. Verdict: migration confirmed performance-neutral
 and visual-identical; the last Unchanged line is gone at no cost.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

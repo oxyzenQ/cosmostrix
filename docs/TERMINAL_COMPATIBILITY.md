@@ -570,6 +570,7 @@ Electron exposes a direct PTY-to-canvas pipe, the FPS cap can be
 raised and the byte-budget backpressure can be relaxed — but the
 detection logic and defense layers should remain in place as a
 safety net.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

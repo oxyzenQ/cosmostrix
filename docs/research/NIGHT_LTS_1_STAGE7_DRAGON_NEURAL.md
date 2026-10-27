@@ -143,6 +143,7 @@ optimization win (+8.58 % dna helix, stage 6), one
 measured-and-reverted layout regression (stage 5), and the
 standing toolset this audit contributed: the .text-md5 codegen
 control (stage 4) and the same-window binary ablation (stage 5).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

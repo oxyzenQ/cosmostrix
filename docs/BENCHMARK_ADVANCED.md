@@ -88,6 +88,7 @@ The benchmark report (and JSON output) exposes metrics that together describe co
 - [PERFORMANCE_ACROSS_SCALES.md](PERFORMANCE_ACROSS_SCALES.md) — how FPS scales with screen size
 - [ENDURANCE.md](ENDURANCE.md) — long-run stability and leak detection
 - [RELEASE_GUARD.md](RELEASE_GUARD.md) — performance regression gates for releases
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

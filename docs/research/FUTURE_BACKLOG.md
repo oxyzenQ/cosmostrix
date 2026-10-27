@@ -85,6 +85,7 @@ only for historical reference.
 3. Decide: implement / defer again / close as won't-fix.
 4. If implement: create a branch, write the code, run
    `./scripts/build.sh check-all`, commit + push.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

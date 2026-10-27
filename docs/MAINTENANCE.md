@@ -169,6 +169,7 @@ but must not change or remove existing API surface.
 - [`docs/README.md`](README.md) — docs index with source module map
 
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -318,6 +318,7 @@ live-reload + clap + argv + testconf coverage.
 | `glitch` | 80 ms/char scrambled reveal, 90 ms wrong-glyph settle, ±20% flicker | lags text (t^1.5) | none (stateless, `CellReveal.glyph_override` extension in `msg_fill_style/glitch.rs`) |
 | `scorch` | 80 ms/char ember burn, 400 ms cool tint (1.5→0.8→1.0), slow gray smoke puffs | lags text (t^1.5) | 16-slot smoke pool (`msg_fill_style/scorch.rs`, `CellReveal.tint` extension) |
 | `cascade` | 60 ms/col column-paced reveal, 240 ms drop-from-above (3 rows), 40%→100% fade-in | lags text (t^1.5) | none (stateless, `slide_rows` i16 widening for negative=above) |
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

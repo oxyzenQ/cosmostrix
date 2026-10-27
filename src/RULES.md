@@ -140,6 +140,7 @@ to work unchanged.
 **How to verify**: `git ls-files --stage | awk '$1 == "100755" {print $4}'`
 should only show `.sh` and `.py` files. Any other file at 100755 is a
 bug — fix with `git update-index --chmod=-x <file>`.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

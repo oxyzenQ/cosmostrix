@@ -40,6 +40,7 @@ Shell and Python scripts here stay at or below 1000 gross lines
 (enforced by `gates/check-scripts-loc.sh`, gate-keepers check 17);
 oversized scripts self-declare with a `# LOC_EXEMPT:` marker — the
 policy is stated once in `docs/RULES.md` ("Scripts file size").
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

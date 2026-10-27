@@ -363,6 +363,7 @@ Custom blocks have a **strict field allowlist** — unknown fields are rejected 
 Any other field inside these blocks surfaces as an `unknown_key` -> `--testconf` reports the error, live-reload rejects the config. The auto-promote path (which previously moved top-level keys like `color`/`intro`/`speed` from inside a custom block to root scope) is **disabled** when `current_section` starts with `charset-custom.`, `colors-custom.`, or `scene-custom.`.
 
 Auto-promote still works for non-custom sections (e.g. `[color.tune]` — a top-level key accidentally nested under it still promotes to root). Only custom blocks are strict.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

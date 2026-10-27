@@ -528,6 +528,7 @@ repeat the prior mistake of auditing only 2 effects.
   guarding the rain shadow floor + SSOT compounded brightness contract.
 - `scripts/visual-mode-audit.py` (in-repo) — the audit script
   that generated the brightness curves in this doc.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

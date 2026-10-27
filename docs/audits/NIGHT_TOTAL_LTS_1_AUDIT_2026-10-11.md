@@ -196,6 +196,7 @@ behavior, none of which comments can move).
   would leak that mode into the user's shell at exit.
 - A new platform target whose orphan-reparent semantics differ from both
   the prctl and PID-1 models would need a third guard strategy.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -16,7 +16,9 @@
 #   7.  SPDX headers   - git-tracked code/config/doc files
 #   8.  LOC guard      - .rs files <= 800 lines (src/RULES_LOC.md)
 #   9.  Rust version   - toolchain / MSRV / CI env in sync
-#  10.  Disclaimer     - all .md files carry the source-is-truth disclaimer
+#  10.  Disclaimer     - the source-is-truth disclaimer sits at the bottom
+#                       of every living .md file (placement law, never
+#                       mid-file; frozen records excluded)
 #  11.  Symbol-only    - no icon glyphs in output surfaces
 #  12.  Comment style  - no markdown emphasis in comments
 #  13.  Language audit - pure-English rule on comments/strings/docs

@@ -100,6 +100,7 @@ push (stable and pre-release alike).
 - `python3` — Python 3.6+ (for SHAKE256 verification; preinstalled on most systems)
 
 `gpg`, `sha512sum`, and `python3` ship with Arch Linux, Debian, Ubuntu, Fedora, Alpine, and macOS (via Homebrew) by default. `b3sum` is the one exception — a small optional install; skipping it never blocks verification (`sha512sum` is mandatory, `b3sum`/`shake256` are belt-and-braces).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

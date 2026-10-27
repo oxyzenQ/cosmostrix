@@ -183,6 +183,7 @@ Result: **44/44 PASS**.
   `collect_*_skips_oversized_names` tests (collector contract) and
   the `completeness_validation_rejects_oversized_name` family
   (validation contract).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

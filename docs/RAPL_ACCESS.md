@@ -131,6 +131,7 @@ ENERGY
   energy_per_frame: X.X µJ
   energy_per_cell: X.X nJ
 ```
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

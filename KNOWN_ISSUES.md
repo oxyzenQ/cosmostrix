@@ -504,15 +504,15 @@ at <https://github.com/oxyzenQ/cosmostrix/issues> with:
 5. **Logs**: stderr output (use `-v` for verbose mode if available)
 
 For crash-related issues, a `RUST_BACKTRACE=1` backtrace is invaluable.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
 
   This document may contain stale data, hardcoded counts, or outdated
   file paths and symbol names. Maintainers update source code but may
-  forget to sync every doc — the project ships 57 active .md files
-  (plus historical docs in docs/archive/) and perfect sync is a known
-  maintenance burden with diminishing returns.
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
 
   Source code (`src/**/*.rs`) is the single source of truth.
   Always cross-check against the actual `.rs` files before relying on

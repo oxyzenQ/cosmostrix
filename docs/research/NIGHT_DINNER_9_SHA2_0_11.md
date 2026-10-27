@@ -190,6 +190,7 @@ edits — and the three-way identity proof covers exactly that.
   pile this record extends.
 - Session-side artifacts: `scripts/sha2-ab-check/` (twin probes,
   archived outputs).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -138,6 +138,7 @@ tests passed + 2 ignored in 56.4 s; LOC draw.rs 393 / helix.rs 691 /
 murmuration.rs 496, all under the 800 cap). Proceeding to stage 7
 (dragon + neural network) under the owner's continuous-approval
 directive — the final stage.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

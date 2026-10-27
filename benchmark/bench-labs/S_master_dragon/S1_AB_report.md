@@ -35,6 +35,7 @@ Size     Metric                 A (before)       B (after)        Delta        V
 Verdict: All metrics within natural variance band (<=3%).
 S-master-1 changes are pure dead-code/comment cleanup — zero
 visual or performance regression, as required by task brief.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

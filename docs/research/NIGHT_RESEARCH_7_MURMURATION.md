@@ -153,6 +153,7 @@ logic the solar flare established).
   churn members; the family accumulator contract is honored
   through the staggered entry (and the live density dial
   re-sizes the pool through the spawn pass).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

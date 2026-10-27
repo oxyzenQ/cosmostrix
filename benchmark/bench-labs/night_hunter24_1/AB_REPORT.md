@@ -43,6 +43,7 @@ Zero visual regression; fps differences are run noise with
 interleaved series on both scenes. Combined with the structural
 argument (bench path bypasses config validation entirely), the
 change is performance-neutral.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

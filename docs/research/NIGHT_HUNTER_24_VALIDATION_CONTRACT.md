@@ -119,6 +119,7 @@ full defect narrative and the e2e proof.
   other two after-runs interleave baseline). Structural argument:
   the bench path never executes validation code — the change is
   cold-startup-only. Artifacts: benchmark/bench-labs/night_hunter24_1/.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

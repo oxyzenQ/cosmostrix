@@ -288,6 +288,7 @@ REMOVED in v80.0.0-beta.2 — so following it produced a fresh error.
 The recipe now shows the complete-block contract (all seven
 `[scene-custom]` fields required). If you see the essay, migrate to a
 `[scene-custom.<name>]` block and reference it by name at top level.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

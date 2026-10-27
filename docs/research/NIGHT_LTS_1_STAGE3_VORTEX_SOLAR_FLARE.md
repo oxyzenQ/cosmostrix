@@ -240,6 +240,7 @@ in `benchmark/bench-labs/night_lts1_stage3/`.
 
 Proceeding to stage 4 under the owner's continuous-approval
 directive.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

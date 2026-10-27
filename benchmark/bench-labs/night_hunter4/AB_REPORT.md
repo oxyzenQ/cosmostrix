@@ -47,6 +47,7 @@ control whose dedicated spine cleanup bypasses the guarded branch).
 
 - baseline_A_cinematic.json / after_B_cinematic.json
 - baseline_A_monolith.json / after_B_monolith.json
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

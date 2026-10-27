@@ -169,6 +169,7 @@ suite green (fmt, clippy --all-targets, build.sh check-all -q,
 gate-keepers.sh 10/10, 2 679 tests). The two styles are confirmed
 at peak — now with measured evidence rather than assertion.
 Awaiting the owner's approval to open stage 2: glyph + monolith.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -573,6 +573,7 @@ Two additional sections require elevated privileges: `MICROARCHITECTURE` (Linux 
 - **"Wet bandwidth is low"**: check `backpressure_events` — non-zero = kernel pipe full. Check `avg_write_latency` — >1ms suggests `/dev/null` is not on tmpfs.
 - **"IPC is below 2.0"**: verify the binary is built with `pro-linux-amd64-v3-gnu` or `pro-linux-amd64-v4-gnu` profile (AVX2/AVX-512). `cargo build --release` without a profile gives baseline SIMD.
 - **"Energy per frame is high"**: check CPU governor — `powersave` inflates energy-per-frame. Verify RAPL is reading the right socket (multi-socket systems).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -301,6 +301,7 @@ grep -o 'avx2\|avx512f' /proc/cpuinfo | sort -u
 # Run cosmostrix doctor for full system check
 cosmostrix --doctor
 ```
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -298,6 +298,7 @@ Windows Terminal, tmux, ssh, headless, benchmark mode, and doctor mode)
 is maintained in `docs/TERMINAL_LIFECYCLE_MATRIX.md`. That document is
 the authoritative reference for cleanup guarantees across all paths.
 This document covers the signal handling implementation details.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

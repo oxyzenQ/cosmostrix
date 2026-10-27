@@ -130,6 +130,7 @@ assumption (a first-party unclaimed org, not a GitHub-owned action);
 or a script growth pattern that reintroduces an orchestration
 monolith (the 800-line LOC gate on `.rs` files has no shell
 equivalent — `check-scripts-loc` is the existing guard to watch).
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

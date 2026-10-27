@@ -199,6 +199,7 @@ backticks is untouched).
 
 If a contributor reintroduces emphasis markers, the gate blocks the
 commit; rewrite the sentence in plain prose instead.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

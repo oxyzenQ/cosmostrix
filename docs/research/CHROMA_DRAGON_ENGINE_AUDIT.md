@@ -801,6 +801,7 @@ The second-pass audit re-confirmed that the following categories correctly do NO
 - **Remaining**: 0.
 
 The Chroma Dragon engine is now the **routing authority** for every active color-operation site in the rain renderer, with `chroma::legacy` as the explicit auditable fallback. No bypass sites remain.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
