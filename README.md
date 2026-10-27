@@ -781,12 +781,17 @@ dual-licensed: GPL-3.0-only for open-source use, and a Commercial License
 for proprietary or commercial use that cannot meet GPL-3.0 copyleft
 obligations.
 
-| Tier       | Price          | Target                                                       |
-| ---------- | -------------- | ------------------------------------------------------------ |
-| Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
-| Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
-| Business   | $5,199/year    | SMB, revenue $100K–$10M/year                                 |
-| Company    | $100,199/year  | Enterprise (>$10M/year revenue) OR any redistribution rights |
+| Tier                 | Price          | Target                                                        |
+| -------------------- | -------------- | ------------------------------------------------------------- |
+| Personal             | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions    |
+| Individual           | $99/year       | Solo devs, freelancers, revenue < $100K/year                  |
+| Business             | $12,999/year   | SMB, revenue $100K–$10M/year                                  |
+| Enterprise Internal  | $64,999/year   | Enterprise (>$10M/year), internal use only, NO redistribution |
+| OEM / Redistribution | $149,999/year  | Embedding the architectural patterns in a shipped product     |
+
+Full terms, payment instructions, the grandfathering clause, and the
+authoritative pricing table live in
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
 
 Payment is USD-pegged and accepted in crypto (Solana, Ethereum, Bitcoin
 Taproot). Prices rise deliberately as the codebase's audited engineering
