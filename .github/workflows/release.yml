@@ -64,33 +64,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-            platform: linux-amd64-v3
-            profile: pro-linux-amd64-v3-gnu
-            rustflags: "-C target-cpu=x86-64-v3"
-            build: linux-amd64-v3-gnu
-            checks: true
-          - os: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-            platform: linux-amd64-v4
-            profile: pro-linux-amd64-v4-gnu
-            rustflags: "-C target-cpu=x86-64-v4"
-            build: linux-amd64-v4-gnu
-            checks: false
+          # night-dragon-maintenance-6 (the sibling's night-badass-1 law):
+          # the Linux x86_64 matrix is the fully static musl pair. The gnu
+          # legs are retired - no glibc-linked release package ships. The
+          # v3-musl leg carries the full gate (fmt, clippy, tests, audit,
+          # deny) like the old gnu v3 leg did; the v4-musl leg is the
+          # AVX-512 supercharger shape.
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-musl
-            platform: linux-amd64-musl
+            platform: linux-amd64-v3-musl
             profile: pro-linux-amd64-v3-musl
             rustflags: "-C target-cpu=x86-64-v3"
             build: linux-amd64-v3-musl
-            checks: false
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            platform: linux-aarch64
-            profile: pro
-            rustflags: "-C target-cpu=native"
-            build: linux-aarch64
+            checks: true
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            platform: linux-amd64-v4-musl
+            profile: pro-linux-amd64-v4-musl
+            rustflags: "-C target-cpu=x86-64-v4"
+            build: linux-amd64-v4-musl
             checks: false
           - os: macos-latest
             target: aarch64-apple-darwin
@@ -111,7 +103,7 @@ jobs:
           # (docs/archive/research/PLATFORM_EXPANSION_IOS_WIN_ARM64.md) — every
           # platform fork is cfg(unix)/cfg(target_os)-keyed, never arch-keyed.
           # target-cpu=native is safe here: the runner is real ARM64 hardware
-          # (same policy as the linux-aarch64 and darwin-aarch64 entries).
+          # (same policy as the darwin-aarch64 entry).
           - os: windows-11-arm
             target: aarch64-pc-windows-msvc
             platform: windows-arm64
@@ -220,14 +212,13 @@ jobs:
           sudo apt-get -o Acquire::Retries=5 install -y musl-tools
 
       - name: Verify Linux x86_64 CPU baseline inputs
-        if: startsWith(matrix.platform, 'linux-amd64-v') || matrix.platform == 'linux-amd64-musl'
+        if: startsWith(matrix.platform, 'linux-amd64-v')
         shell: bash
         run: |
           set -euo pipefail
           case "${{ matrix.platform }}" in
-            linux-amd64-v3) expected="-C target-cpu=x86-64-v3" ;;
-            linux-amd64-v4) expected="-C target-cpu=x86-64-v4" ;;
-            linux-amd64-musl) expected="-C target-cpu=x86-64-v3" ;;
+            linux-amd64-v3-musl) expected="-C target-cpu=x86-64-v3" ;;
+            linux-amd64-v4-musl) expected="-C target-cpu=x86-64-v4" ;;
             *) echo "::error::Unknown Linux x86_64 platform ${{ matrix.platform }}"; exit 1 ;;
           esac
           if [[ "${{ matrix.rustflags }}" != "${expected}" ]]; then
@@ -247,14 +238,6 @@ jobs:
         with:
           arch: amd64_arm64
 
-      - name: Install Linux aarch64 linker
-        if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.arch == 'X64'
-        run: |
-          # NIGHT-dinner-1: apt rides its own retry knob — a flaky
-          # mirror fetch must not read as a code failure.
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y gcc-aarch64-linux-gnu
-
       - name: Install audit + deny tools
         if: matrix.checks
         uses: taiki-e/install-action@v2
@@ -271,8 +254,6 @@ jobs:
 
       - name: Build (debug)
         if: matrix.checks && runner.os != 'Windows'
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: cargo build --profile dev --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Build (debug)
@@ -280,25 +261,8 @@ jobs:
         shell: pwsh
         run: cargo build --profile dev --locked --target ${{ matrix.target }} --jobs "$env:CARGO_BUILD_JOBS"
 
-      - name: Build (release) (aarch64 cross)
-        if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.arch == 'X64'
-        shell: bash
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          COSMOSTRIX_BUILD: ${{ matrix.build }}
-          COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-        run: |
-          set -euo pipefail
-          # Hardened RUSTFLAGS: remap cargo + project paths out of the
-          # binary (supply-chain hygiene) and keep frame pointers for
-          # post-mortem debugging without performance cost. $HOME and
-          # $PWD are expanded by bash here so the matrix.rustflags
-          # literal is concatenated with expanded path prefixes.
-          export RUSTFLAGS="${{ matrix.rustflags }} --remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
-          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
-
       - name: Build (release)
-        if: (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64') && runner.os != 'Windows'
+        if: runner.os != 'Windows'
         shell: bash
         env:
           COSMOSTRIX_BUILD: ${{ matrix.build }}
@@ -312,7 +276,7 @@ jobs:
           cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Build (release)
-        if: (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64') && runner.os == 'Windows'
+        if: runner.os == 'Windows'
         env:
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
@@ -321,7 +285,7 @@ jobs:
         run: cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "$env:CARGO_BUILD_JOBS"
 
       - name: Verify build metadata
-        if: runner.os != 'Windows' && (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64')
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
@@ -332,9 +296,10 @@ jobs:
             # (the pre-blade-1 labels dropped the -gnu/-musl suffix, so
             # the v3/v4 baseline verification silently never matched and
             # only the musl leg exercised this case).
-            linux-amd64-v3-gnu) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
-            linux-amd64-v4-gnu) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512)"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
+            # night-dragon-maintenance-6: the gnu cases are retired with
+            # their legs; the musl pair is the full matrix now.
             linux-amd64-v3-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
+            linux-amd64-v4-musl) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512) + musl static"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
             *) BASELINE=""; OPTIMIZATION=""; REQUIRED=""; DENIED="" ;;
           esac
 
@@ -376,25 +341,6 @@ jobs:
             grep -E "^  panic: unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
             grep -E "^  strip: yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
           fi
-
-      - name: Verify embedded build metadata
-        if: runner.os != 'Windows' && matrix.target == 'aarch64-unknown-linux-gnu' && runner.arch == 'X64'
-        shell: bash
-        run: |
-          set -euo pipefail
-          BIN="target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix"
-          BUILD_ID="${{ matrix.build }}"
-          echo "Verifying embedded build metadata in binary: ${BUILD_ID}"
-          if command -v strings >/dev/null 2>&1; then
-            TEXT="$(strings "${BIN}")"
-          else
-            TEXT="$(grep -aE 'linux-aarch64|static optimized build|fat|unwind|yes' "${BIN}" || true)"
-          fi
-          grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
-          grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
-          grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
-          grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
-          grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
 
       - name: Verify build metadata
         if: runner.os == 'Windows'
@@ -804,7 +750,8 @@ jobs:
     #   - macOS, Windows, FreeBSD, and ARM targets either lack PGO toolchain
     #     support, gain nothing from PGO (ARM is already well-tuned by LLVM),
     #     or would burn CI minutes on builds that cannot be distributed.
-    #   - The matrix below only lists linux-amd64-v3 / v4 and `runs-on` is
+    #   - The matrix below only lists the static musl pair (linux-amd64-
+    #     v3-musl / v4-musl, night-dragon-maintenance-6) and `runs-on` is
     #     pinned to ubuntu-24.04, so this job is structurally Linux-only.
     #     Other platforms fall through to the standard `build_packages` job
     #     which uses their normal optimized profile.
@@ -818,9 +765,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: linux-amd64-v3
+          - platform: linux-amd64-v3-musl
             target_cpu: x86-64-v3
-          - platform: linux-amd64-v4
+          - platform: linux-amd64-v4-musl
             target_cpu: x86-64-v4
     steps:
       - name: Checkout
@@ -851,6 +798,20 @@ jobs:
             exit 1
           fi
 
+      # night-dragon-maintenance-6: PGO artifacts are release packages, so
+      # they ride the same static musl law as the rest of the matrix. The
+      # musl self-contained libc objects ship with the rustup target; the
+      # musl-gcc wrapper covers any C host helper during instrumentation.
+      - name: Install musl toolchain (PGO musl target)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # NIGHT-dinner-1: apt rides its own retry knob — a flaky
+          # mirror fetch must not read as a code failure.
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
+
       - name: Setup cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -873,6 +834,7 @@ jobs:
         shell: bash
         env:
           COSMOSTRIX_TARGET_CPU: ${{ matrix.target_cpu }}
+          COSMOSTRIX_TARGET: x86_64-unknown-linux-musl
         run: |
           set -euo pipefail
           # Use the build.sh pgo command which handles all 3 stages
@@ -891,7 +853,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BIN="target/x86_64-unknown-linux-gnu/pgo-use/cosmostrix"
+          BIN="target/x86_64-unknown-linux-musl/pgo-use/cosmostrix"
           if [ ! -f "${BIN}" ]; then
             echo "::error::PGO binary not found at ${BIN}"
             exit 1
@@ -922,7 +884,7 @@ jobs:
             TAG="v${TAG}"
           fi
           ARCHIVE="cosmostrix-${TAG}-${{ matrix.platform }}-pgo.tar.gz"
-          BIN="target/x86_64-unknown-linux-gnu/pgo-use/cosmostrix"
+          BIN="target/x86_64-unknown-linux-musl/pgo-use/cosmostrix"
           mkdir -p staging
           cp "${BIN}" staging/cosmostrix
           cp README.md staging/
