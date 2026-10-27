@@ -1,0 +1,344 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+#
+# Cosmic Dragon Guard - Supermassive Kernel (the KVM micro-VM lanes;
+# night-dragon-maintenance-2, the owner's ask: the low-specs test must
+# run on the REAL minimum kernel, not an agreement check - it boots a
+# KVM micro-VM on the exact kernel the docs name as the floor).
+#
+# The contract: docs/SYSTEM_REQUIREMENTS.md documents the cosmostrix
+# kernel floor as "Practical minimum: Linux 2.6.27 (December 2008)"
+# (inotify_init1, the live-reload syscall, is the newest hard
+# dependency). NO stock GitHub runner ships anything close - the
+# ubuntu images ride 6.x kernels - so every other lane proves the
+# floor only as an at/above agreement against the runner's own much
+# newer kernel. This workflow boots the REAL floor kernel - the
+# intrepid (8.10) GA release-day image, linux-image-2.6.27-*-generic,
+# fetched from the old-releases archive pool (EOL releases live there
+# by archive policy) - in a KVM micro-VM on the runner, and runs the
+# full headless E2E battery inside it, as root, on exactly the oldest
+# kernel the project promises to run on. The kernel-best job is the
+# other envelope: the newest mainline stable kernel, best specs, the
+# full pty harness inside the VM.
+#
+# What the floor lane proves that no other lane can:
+#   * the binary and its whole headless surface run on the floor
+#     kernel for real - the docs' "runs on any Linux kernel 2.6.27+"
+#     promise executed on 2.6.27, not derived from a syscall table;
+#   * the floor DIRECTION is live-proven at the boundary: if 2.6.27
+#     booted the battery green, every kernel above it inherits the
+#     evidence (newer kernels add syscalls, never remove);
+#   * the 2008-era userland shape (busybox skeleton contemporary
+#     with intrepid) - the floor is a KERNEL claim, and the lane
+#     holds the userland equally era-honest instead of dragging a
+#     2026 glibc into a 2008 guest.
+#
+# Build shape (the owner's from-source law): the lane builds the
+# pro-linux-amd64-v3-musl alias - a release-page artifact shape,
+# never a bare `cargo build --release`. The musl-static shape is the
+# honest payload for an initramfs guest (no dynamic loader, no glibc
+# kernel floor, no userland coupling) and it is the exact shape the
+# docs name "the most portable cosmostrix build". The alias's
+# target-cpu=x86-64-v3 needs the guest CPU to expose AVX2, so the
+# boot uses KVM host-passthrough (-cpu host) - under TCG emulation
+# the v3 binary would SIGILL, which is also why the lane FAILS
+# LOUDLY instead of falling back when /dev/kvm is unusable (nested
+# virt is a GitHub runner guarantee on every current Linux image).
+#
+# VM shape (the sibling zejtron's kernel-floor lane, proven live in
+# that estate's CI): direct kernel boot, no disk, serial console to
+# stdout, panic=-1 + -no-reboot so a kernel panic ends qemu instead
+# of hanging the job, an outer timeout so a wedged guest can never
+# burn the job budget, and the isa-debug-exit device - the guest
+# (PID 1, scripts/sandbox/microvm-init.sh) ends the VM
+# deterministically by writing one byte to port 0xf4 (qemu exits
+# with status 1), the kernel-CI standard for initramfs guests whose
+# direct-boot path never reaches an ACPI S5 poweroff. The verdict
+# rides the SANDBOX-* sentinel lines (the init owns them) - the VM
+# cannot relay exit codes through qemu; the sentinel lines ARE the
+# relay. The floor lane uses -machine pc (i440fx): the 2008 guest
+# predates q35.
+#
+# Low envelope: one quarter of the runner's cores (floored at 1) and
+# one eighth of its RAM (floored at 1024 MB) - the low-specs shape,
+# derived from the runner at boot time.
+#
+# Trigger discipline (the owner's unfiltered-CI simplification):
+# every push (any branch, any tag) burns this lane - no path filter,
+# no branch filter, the same blind posture every push-triggered lane
+# in the estate carries. workflow_dispatch stays as the manual
+# recovery lane. No pull_request trigger on purpose: the fast lane
+# (ci.yml) owns PRs.
+#
+# Resolver honesty: both artifacts (the floor kernel deb and the
+# busybox-static deb) are resolved from the LIVE old-releases pool
+# listing at run time and fail LOUDLY with the discovery evidence if
+# the archive ever stops carrying them - a silently cached wrong
+# kernel would turn the lane's whole verdict into a lie.
+#
+# =============================================================================
+
+name: Cosmic Dragon Guard - Supermassive Kernel
+
+'on':
+  push:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  RUST_VERSION: "1.98.1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kernel_floor:
+    # The low-specs leg on the REAL floor kernel: the MSRV-pinned
+    # toolchain builds the payload (the lane's variable is the
+    # KERNEL, not the toolchain), the dynamic low envelope sizes the
+    # VM, and the battery runs as root inside the 2.6.27 guest.
+    name: supermassive kernel floor (intrepid GA 2.6.27, KVM micro-VM)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The kernel can change; /dev/kvm is a GitHub runner guarantee
+      # (nested virt is enabled on every current Linux hosted image)
+      # - but the node ships 0660 root:kvm and the runner user is not
+      # in the kvm group, so the job opens it up itself. Failing
+      # LOUDLY here beats a TCG fallback: the floor lane's point is
+      # the real kernel at real speed, and the v3 payload would
+      # SIGILL under TCG anyway (-cpu host is load-bearing).
+      - name: Verify KVM
+        run: |
+          test -e /dev/kvm || {
+            echo "FAIL: /dev/kvm is absent - this runner image cannot boot the kernel-floor micro-VM"
+            echo "(nested virt is expected on every current GitHub Linux runner image)"
+            exit 1
+          }
+          test -w /dev/kvm || sudo chmod 666 /dev/kvm
+          test -w /dev/kvm || {
+            echo "FAIL: /dev/kvm is not usable by the runner user even after chmod"
+            ls -l /dev/kvm
+            exit 1
+          }
+          echo "OK: /dev/kvm present and usable"
+
+      # apt's own retry knob rides every apt transaction (a flaky
+      # archive mirror is the same GitHub-infra failure class as the
+      # curl 500s, and apt's default is zero retries).
+      - name: Install qemu + cpio
+        run: >-
+          sudo apt-get -o Acquire::Retries=5 update -qq &&
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
+
+      # The musl-static release shape needs the musl rust-std target;
+      # musl-tools rides for parity with supermassive.yml's musl_tests
+      # job (the belt-and-braces precedent - a pure-Rust crate links
+      # self-contained, but the package costs seconds and retires the
+      # "works without it" caveat).
+      - name: Install Rust toolchain + musl target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl link tools
+        run: |
+          set -euo pipefail
+          sudo apt-get -o Acquire::Retries=5 update -qq
+          sudo apt-get -o Acquire::Retries=5 install -y -qq musl-tools
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: supermassive-kernel-floor
+          cache-on-failure: true
+
+      # The from-source law: the payload the micro-VM exercises is a
+      # binary the release ships (the pro-linux-amd64-v3-musl alias),
+      # never a bare `cargo build --release`. The step-level RUSTFLAGS
+      # carries the strict warning gate plus the alias's exact -C
+      # token: cargo precedence gives RUSTFLAGS env shadow over the
+      # alias's build.rustflags config, so without it the v3 pin
+      # would be silently dropped (and the micro-VM's -cpu host would
+      # then be load-bearing for a binary that is no longer v3).
+      - name: Build the pro-v3-musl binary (the release static shape)
+        env:
+          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
+        run: cargo pro-linux-amd64-v3-musl --locked
+
+      # The floor kernel: the intrepid (8.10) GA release-day image
+      # (2.6.27-*), resolved from the LIVE old-releases pool. The
+      # resolver takes the LOWEST 2.6.27-N in the pool (the
+      # release-day ABI, closest to the GA floor the docs name) and
+      # fails LOUDLY with the discovery evidence if the archive ever
+      # stops carrying the floor kernel.
+      - name: Fetch the intrepid GA 2.6.27 floor kernel
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kfloor && cd /tmp/kfloor
+          POOL="http://old-releases.ubuntu.com/ubuntu/pool/main/l/linux"
+          LISTING="$(curl -fsSL --retry 5 --max-time 180 "$POOL/")"
+          IMG="$(printf '%s' "$LISTING" \
+            | grep -oE 'linux-image-2\.6\.27-[0-9]+-generic_[^"]+_amd64\.deb' \
+            | sort -u -V | head -1 || true)"
+          if [ -z "$IMG" ]; then
+            echo "FAIL: no linux-image-2.6.27-*-generic in the intrepid pool - resolver evidence:"
+            printf '%s' "$LISTING" | grep -oE 'linux-image-2\.6\.2[0-9][^"<>]*' | sort -u -V | head -20 || true
+            echo "(full pool: $POOL)"
+            exit 1
+          fi
+          echo "resolved: $IMG (the intrepid GA release-day kernel)"
+          curl -fsSL --retry 5 --max-time 300 -o "$IMG" "$POOL/$IMG"
+          dpkg -x "$IMG" pkg
+          VMLINUZ="$(find pkg/boot -name 'vmlinuz-2.6.27-*' | head -1)"
+          if [ -z "$VMLINUZ" ]; then
+            echo "FAIL: no vmlinuz inside the deb - pkg/boot contents:"
+            ls -la pkg/boot || true
+            exit 1
+          fi
+          cp "$VMLINUZ" /tmp/kfloor/vmlinuz-floor
+          echo "kernel: $(du -h /tmp/kfloor/vmlinuz-floor | cut -f1) at /tmp/kfloor/vmlinuz-floor ($(basename "$VMLINUZ"))"
+
+      # The userland, held CONTEMPORARY on purpose (the lane's variable
+      # is the kernel, and the userland must not smuggle a 2026 glibc
+      # into a 2008 guest): the intrepid busybox-static deb - a single
+      # static binary built in the floor kernel's own era, so ash,
+      # mount, grep and the rest carry no kernel floor above 2.6.27.
+      # The resolver takes the highest busybox-static in the pool and
+      # fails LOUDLY with evidence if it is gone.
+      - name: Fetch the intrepid busybox-static userland
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          POOL="http://old-releases.ubuntu.com/ubuntu/pool/main/b/busybox"
+          LISTING="$(curl -fsSL --retry 5 --max-time 180 "$POOL/")"
+          BUSY="$(printf '%s' "$LISTING" \
+            | grep -oE 'busybox-static_[^"]+_amd64\.deb' \
+            | sort -u -V | tail -1 || true)"
+          if [ -z "$BUSY" ]; then
+            echo "FAIL: no busybox-static_*_amd64.deb in the intrepid pool - resolver evidence:"
+            printf '%s' "$LISTING" | grep -oE 'busybox[^"<>]*' | sort -u -V | head -20 || true
+            echo "(full pool: $POOL)"
+            exit 1
+          fi
+          echo "resolved: $BUSY (the era-contemporary busybox)"
+          curl -fsSL --retry 5 --max-time 300 -o "$BUSY" "$POOL/$BUSY"
+          dpkg -x "$BUSY" pkg-busybox
+          test -x pkg-busybox/bin/busybox || {
+            echo "FAIL: no /bin/busybox inside the deb - contents:"
+            find pkg-busybox -maxdepth 2 -type f || true
+            exit 1
+          }
+          echo "busybox: $(du -h pkg-busybox/bin/busybox | cut -f1)"
+
+      # The initramfs IS the rootfs: busybox + sh, the static payload
+      # binary, the lane marker, the floor battery as payload.sh, the
+      # shared PID-1 init, a minimal /etc/passwd (id -u), and static
+      # /dev nodes (the 2.6.27 guest predates devtmpfs-by-default;
+      # docker-export userlands cannot restore device nodes from tar
+      # at all - mknod them fresh as root). One newc cpio, gzip -1:
+      # the whole guest fits in a few MB of RAM.
+      - name: Assemble the kernel-floor micro-VM rootfs
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          mkdir -p rootfs/{bin,dev,etc,proc,sys,tmp,run,opt/cosmostrix/.sandbox}
+          cp pkg-busybox/bin/busybox rootfs/bin/busybox
+          ln -s busybox rootfs/bin/sh
+          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix" \
+            rootfs/opt/cosmostrix/cosmostrix
+          chmod 755 rootfs/opt/cosmostrix/cosmostrix rootfs/bin/busybox
+          echo floor > rootfs/opt/cosmostrix/.sandbox/lane
+          cp "$GITHUB_WORKSPACE/scripts/sandbox/floor-payload.sh" \
+            rootfs/opt/cosmostrix/.sandbox/payload.sh
+          chmod 755 rootfs/opt/cosmostrix/.sandbox/payload.sh
+          cp "$GITHUB_WORKSPACE/scripts/sandbox/microvm-init.sh" rootfs/init
+          chmod 755 rootfs/init
+          printf 'root:x:0:0:root:/root:/bin/sh\n' > rootfs/etc/passwd
+          sudo rm -f rootfs/dev/console
+          sudo mknod -m 600 rootfs/dev/console c 5 1
+          sudo mknod -m 666 rootfs/dev/null c 1 3
+          sudo mknod -m 666 rootfs/dev/tty c 5 0
+          sudo mknod -m 600 rootfs/dev/ttyS0 c 4 64
+          sudo mknod -m 666 rootfs/dev/urandom c 1 9
+          sudo mknod -m 666 rootfs/dev/random c 1 8
+          sudo mknod -m 666 rootfs/dev/zero c 1 5
+          ( cd rootfs && sudo find . -print0 | sudo cpio --null -o -H newc ) | gzip -1 > initrd.gz
+          echo "initramfs: $(du -h initrd.gz | cut -f1)"
+
+      # Boot the micro-VM: the dynamic low envelope (quarter cores
+      # floored at 1, eighth RAM floored at 1024 MB), KVM
+      # host-passthrough (the v3 payload's AVX2 comes from the host
+      # CPU), -machine pc (the 2008 guest predates q35), the outer
+      # budget generous over a first boot's kernel bring-up (the
+      # battery itself runs in single-digit seconds), panic=-1 +
+      # -no-reboot so a guest panic ends qemu instead of hanging.
+      - name: Boot the kernel-floor micro-VM and run the floor battery
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          CORES="$(nproc)"
+          TOTAL_MB="$(free -m | awk '/^Mem:/{print $2}')"
+          SMP=$(( CORES / 4 )); [ "$SMP" -lt 1 ] && SMP=1
+          MEM=$(( TOTAL_MB / 8 )); [ "$MEM" -lt 1024 ] && MEM=1024
+          echo "envelope: $SMP vCPU / $MEM MB (low, of $CORES cores / $TOTAL_MB MB on the runner)"
+          set +e
+          timeout 600 qemu-system-x86_64 \
+            -machine pc,accel=kvm -cpu host \
+            -m "$MEM" -smp "$SMP" \
+            -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+            -kernel vmlinuz-floor \
+            -initrd initrd.gz \
+            -append "console=ttyS0 panic=-1" \
+            -nographic -no-reboot 2>&1 | tee vm.log
+          QEMU_RC=${PIPESTATUS[0]}
+          set -e
+          # rc 0 = a natural poweroff; rc 1 = the guest's deliberate
+          # isa-debug-exit (the verdict itself rides the SANDBOX-*
+          # sentinel lines, so the Verdict step below stays the
+          # authority). Anything else - the timeout (124), a KVM init
+          # failure - fails HERE with the log tail attached.
+          if [ "$QEMU_RC" -ne 0 ] && [ "$QEMU_RC" -ne 1 ]; then
+            echo "FAIL: qemu exited $QEMU_RC - log tail:"
+            tail -40 vm.log
+            exit 1
+          fi
+
+      # The verdict lives in the log (the VM cannot relay exit codes
+      # through qemu; the SANDBOX-* sentinel lines are the contract -
+      # scripts/sandbox/microvm-init.sh owns them).
+      - name: Verdict
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          echo "-- kernel-floor verdicts (intrepid GA 2.6.27) --"
+          grep -E '^SANDBOX-(RESULT|BATTERY|VERDICT)' vm.log || true
+          grep -q '^SANDBOX-VERDICT: PASS' vm.log
+          echo "OK: the full headless E2E battery ran green inside the real 2.6.27 floor kernel"
+
+      - name: Watch summary (the floor lane's own rows)
+        if: always()
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          {
+            echo "## Supermassive watch - kernel floor (intrepid GA 2.6.27)"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### the lane's bring-up probes and battery rows (the init's sentinel rows)"
+            echo
+            echo '```'
+            grep -E '^SANDBOX-(RESULT|BATTERY|VERDICT)' vm.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -74,6 +74,20 @@
 # schedule on purpose (night-improve-10): no run is ever detached
 # from the commit it measures.
 #
+# Build shape (the owner's from-source law, night-dragon-maintenance-2):
+# the pty and soak legs build the pro-linux-amd64-v3-gnu alias - the
+# release-page amd64-v3 shape, never a bare `cargo build --release` -
+# so the binary the battery exercises is a binary the release ships.
+# The alias carries the profile, the COSMOSTRIX_BUILD/PROFILE labels
+# and the target triple; the rustflags ride the step-level RUSTFLAGS
+# env because cargo precedence gives RUSTFLAGS env shadow over the
+# alias's build.rustflags config (the ci.yml v80 contract: a job that
+# overrides RUSTFLAGS MUST re-add -D warnings - here it also carries
+# the alias's exact -C target-cpu token). The runner CPU exposes
+# x86-64-v3 (AVX2), so the pin is safe; the VM lanes in
+# supermassive-kernel.yml use the static musl sibling of the same
+# alias family.
+#
 # Budgets: pty_smoke 15 min (a warm release build plus about a minute
 # of six sub-10-second pty runs), musl_tests 30 min (a cold musl
 # compile of the workspace dominates), soak 20 min (build plus a
@@ -125,13 +139,19 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Build the release binary
-        run: cargo build --release --locked
+      - name: Build the pro-v3-gnu binary (the release shape)
+        # Step-level RUSTFLAGS (workflow-level -D warnings is
+        # shadowed here on purpose): carries the alias's exact -C
+        # token, which RUSTFLAGS env would otherwise drop (env
+        # shadows build.rustflags).
+        env:
+          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
+        run: cargo pro-linux-amd64-v3-gnu --locked
 
       - name: Quit paths under a real pty
         run: |
           set -euo pipefail
-          BINARY="target/release/cosmostrix"
+          BINARY="target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix"
           MASS="/tmp/mass-pty.log"
           rm -f "${MASS}"
           SMOKE=scripts/supermassive/pty_smoke.py
@@ -337,8 +357,14 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Build the release binary
-        run: cargo build --release --locked
+      - name: Build the pro-v3-gnu binary (the release shape)
+        # Step-level RUSTFLAGS (workflow-level -D warnings is
+        # shadowed here on purpose): carries the alias's exact -C
+        # token, which RUSTFLAGS env would otherwise drop (env
+        # shadows build.rustflags).
+        env:
+          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
+        run: cargo pro-linux-amd64-v3-gnu --locked
 
       # A 300 s render with VmRSS sampled every 10 s. The driver's
       # --budget watchdog (330 s) stays wider than the render deadline
@@ -350,7 +376,7 @@ jobs:
           MASS="/tmp/mass-soak.log"
           rm -f "${MASS}"
           python3 scripts/supermassive/pty_smoke.py \
-            --binary target/release/cosmostrix \
+            --binary target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix \
             --log /tmp/soak-render.log --mass "${MASS}" \
             --label soak-300s --arg=--duration --arg=300 \
             --env=TERM=xterm-256color \

@@ -46,6 +46,15 @@ cosmostrix uses these Linux syscalls, each with a minimum kernel version:
 - RHEL 6+ (2.6.32)
 - All modern distributions (kernel 4.x, 5.x, 6.x, 7.x)
 
+**CI proof at the boundary (night-dragon-maintenance-2):** the floor is
+not only documented, it is executed. The `supermassive-kernel.yml`
+kernel-floor lane boots the REAL intrepid GA 2.6.27 kernel in a KVM
+micro-VM on every push and runs the static release binary's full
+headless E2E battery inside it, as root - the "runs on any Linux kernel
+2.6.27+" promise proven at the exact boundary kernel, live, per commit.
+The kernel-best lane proves the other envelope on the newest mainline
+stable kernel.
+
 **Note on `getrandom`:** The `rand` crate uses `getrandom` (kernel 3.17+)
 when available, and falls back to `/dev/urandom` on older kernels. The
 fallback works on all Linux versions, so `getrandom` is NOT a hard
