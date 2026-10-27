@@ -637,7 +637,7 @@ The mode catalog (`--bench-io` wet I/O, `--bench-scene lean|production-draw`, `-
 
 ## Contributing
 
-PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (build, test, conventions, PR checklist) and [RULES.md](docs/RULES.md) for project conventions. By submitting a PR you accept the [Contributor License Agreement](CLA.md) — the `Signed-off-by:` line (`git commit -s`) is the acceptance mechanism.
+PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (build, test, conventions, PR checklist) and [RULES.md](docs/RULES.md) for project conventions. By submitting a PR you accept the [Contributor License Agreement](CLA.md) — the `Signed-off-by:` line (`git commit -s`) is the acceptance mechanism. The bar is the gate suite — `./scripts/gate-keepers.sh` runs it locally; build, test, conventions, and the full script inventory are documented once in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
