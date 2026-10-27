@@ -1,0 +1,14 @@
+# The fuzz lane's generated artifacts (night-dragon-maintenance-5):
+# the corpus the fuzzer grows, the coverage reports, and the crash
+# artifacts all stay out of git - the CI lane caches the corpus
+# between runs via the workflow cache, and a crash found there is
+# reproduced from the CI artifact, not from a committed blob. The
+# targets, the manifests, and the lockfile ARE tracked: the lane's
+# definition travels with the repo. The committed seed anchors
+# (fuzz/seeds/README.md) ride the same tracked-definition law: a
+# seed names a shape the sink must hold, a grown corpus entry is a
+# discovery, and only the first kind belongs in a commit - the copy
+# step in .github/workflows/fuzz.yml is the one bridge between them.
+corpus/
+coverage/
+artifacts/

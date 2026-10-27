@@ -1,0 +1,151 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# The fuzz lane (night-dragon-maintenance-5): continuous proof that
+# the diagnostic sink guard (src/output/escape_ctrl.rs) cannot be
+# broken into a panic or a terminal injection. cosmostrix renders
+# text derived from config files a hostile host or a downloaded
+# shared config controls, and the sink guard is the one gate between
+# those bytes and the operator's terminal - the reliability claim is
+# only honest if it is tested against hostile input, not just the
+# happy path. One cargo-fuzz target, path-including the exact source
+# it protects (see fuzz/Cargo.toml for the include law and the scope
+# honesty about the surfaces the law cannot carry yet):
+#
+# - escape_ctrl: the terminal-safety neutralizer, asserted to let no
+#   control character survive (the CWE-150 gate; newline is
+#   structural and exempt by contract) and to leave honest data
+#   byte-identical.
+#
+# Nightly is the fuzzer's standard toolchain (cargo-fuzz builds the
+# harness with the libFuzzer runtime); the main crate's stable pin in
+# rust-toolchain.toml is untouched - the env-var override below is
+# scoped to this lane's cargo invocations, including the nested ones
+# cargo-fuzz spawns. Each target runs for a bounded 60 seconds per
+# push: the lane's job is the regression net (a crash fails CI with
+# the input in the log), not exhaustive coverage - depth comes from
+# the corpus that accumulates between runs via the cache. A found
+# crash is a parser bug: fix the sink to render the escaped literal,
+# never the panic.
+#
+# The committed seed anchors (fuzz/seeds/): hand-built hostile
+# inputs the lane copies into the working corpus before every run,
+# so the fuzzer starts on the proved injection classes (OSC 52,
+# CSI clear, the C0/C1 remainder) from run one instead of spending
+# its budget rediscovering a control byte byte by byte. The grown
+# corpus stays out of git (fuzz/.gitignore); the seeds are the
+# lane's definition, the same law as the targets and the manifests.
+#
+# The weekly deep session: the same target runs for 15 minutes every
+# Monday 07:30 WIB (00:30 UTC) - the owner-lazy insurance the
+# continuous 60s net cannot buy (the owner tests locally rarely; the
+# lane exists so the corpus grows without him). The corpus cache
+# restores the accumulated corpus under the same restore-keys, so
+# the deep session and the push sessions grow one asset; a scheduled
+# run and a push on the same ref share the concurrency group, the
+# newer run wins (the estate shape).
+
+---
+name: "Cosmic Dragon Guard - Fuzz"
+
+'on':
+  push:
+  schedule:
+    # The weekly deep session: Monday 00:30 UTC = 07:30 WIB.
+    - cron: '30 0 * * 1'
+  # Manual trigger from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per ref: a new push supersedes the previous run's verdict
+# (the sibling estate's concurrency shape, every workflow here).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  fuzz:
+    # The budget rides the event: 60s on push and dispatch (the
+    # regression net), 900s on the weekly deep session.
+    name: cargo fuzz escape_ctrl
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # The fuzzer's toolchain, set by environment rather than by
+      # `+nightly` on the command line: cargo-fuzz re-invokes cargo
+      # internally, and this is the one override rustup honors
+      # through every nested invocation - the repo-root
+      # rust-toolchain.toml (the stable pin the main crate's lanes
+      # ride) cannot leak into the fuzz build.
+      RUSTUP_TOOLCHAIN: nightly
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      # Only the fuzz workspace rides this lane's cache: the harness
+      # path-includes the sink source, so the root crate (its
+      # dependencies, its build script) is never built here at all.
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+
+      # The run id keys a fresh save per run; the restore keys pull
+      # the latest accumulated corpus from any prior run, so the
+      # fuzzer keeps growing where the last one stopped.
+      - name: Restore the fuzz corpus cache
+        uses: actions/cache@v7
+        with:
+          path: fuzz/corpus/escape_ctrl
+          key: fuzz-corpus-escape_ctrl-${{ github.run_id }}
+          restore-keys: |
+            fuzz-corpus-escape_ctrl-
+
+      # The committed anchors: copied into the corpus AFTER the cache
+      # restore, so the seeds ride every session - push or weekly -
+      # and land in the cache the run saves.
+      - name: Seed the corpus from the committed anchors
+        run: |
+          mkdir -p fuzz/corpus/escape_ctrl
+          cp fuzz/seeds/escape_ctrl/* fuzz/corpus/escape_ctrl/
+          echo "seeded $(find fuzz/seeds/escape_ctrl -type f | wc -l) committed anchor(s) into the corpus"
+
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+
+      - name: Fuzz
+        run: |
+          # The budget table: 60s on every push and dispatch (the
+          # regression net), 900s on the weekly deep session (the
+          # corpus keeps growing between runs either way).
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            BUDGET=900
+          else
+            BUDGET=60
+          fi
+          echo "fuzz budget: ${BUDGET}s (event: ${{ github.event_name }})"
+          cargo fuzz run escape_ctrl \
+            -- -max_total_time="${BUDGET}" -rss_limit_mb=4096 -timeout=25
+
+      # A crash artifact (the saved input) is the lane's whole point:
+      # reproduce it from the artifact, fix the sink, add the shape
+      # to the seeds.
+      - name: Upload fuzz crash artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-crash-escape_ctrl
+          path: fuzz/crash-*
+          if-no-files-found: ignore
+          retention-days: 30

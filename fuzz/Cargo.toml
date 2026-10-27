@@ -1,0 +1,59 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# The fuzz lane's workspace (night-dragon-maintenance-5): continuous
+# proof that the diagnostic sink guard cannot be broken into a panic
+# or a terminal injection. Ported from the mature sibling's lane
+# (github.com/oxyzenQ/zejtron fuzz/, the libFuzzer shape), adapted to
+# the surface cosmostrix actually ships.
+#
+# A separate cargo workspace on purpose: the fuzzer's dependency
+# graph (libfuzzer-sys and its bundled runtime) never touches the
+# main crate's Cargo.lock, and the main crate's stable/MSRV lanes
+# never see the fuzzer's nightly-only needs. The two never build
+# together — the root manifest is a single package, this directory is
+# its own workspace root, and .github/workflows/fuzz.yml is the only
+# automation that enters here.
+#
+# The crate under test is NOT a path dependency: cosmostrix is a
+# bin-only crate (no lib target), and inventing one for the fuzzer's
+# sake would reshape the main build the whole CI estate vets. Instead
+# the target path-includes the exact source it protects — the harness
+# compiles the same src/output/escape_ctrl.rs bytes the binary ships,
+# so a guarantee the lane proves is a guarantee the binary carries,
+# with no harness drift and no copied grammar. The included file is
+# std-only and crate-import-free (it imports std::borrow::Cow and
+# std::fmt alone), so the include compiles standalone; its #[cfg(test)]
+# module stays dormant in the fuzz build.
+#
+# Scope honesty: the config text parser (src/config/configfile.rs) and
+# the overlay sanitizer (src/output/message.rs) are the other two
+# hostile-input surfaces, but both import crate-internal symbols, so
+# the path-include law cannot carry them without either a main-crate
+# refactor (a build-shape decision that belongs to the owner) or a
+# copied grammar (drift by design, forbidden). They are named in the
+# verdict doc, not silently dropped — one target that proves the real
+# bytes beats three that prove copies.
+
+[package]
+name = "cosmostrix-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+# The marker cargo-fuzz itself demands (it refuses to drive a
+# manifest without it — the guard against fuzzing the wrong crate).
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[[bin]]
+name = "escape_ctrl"
+path = "fuzz_targets/escape_ctrl.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

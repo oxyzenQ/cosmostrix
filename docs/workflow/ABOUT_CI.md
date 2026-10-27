@@ -14,6 +14,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
 | `crates-io.yml` | tag push `v*` (stable + pre-release, same CI gate) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
 | `miri.yml` | weekly cron (Sun 00:00 UTC / 07:00 WIB) + every push (unfiltered) | Undefined behavior detection |
+| `fuzz.yml` | every push (unfiltered) + weekly deep session (Mon 00:30 UTC / 07:30 WIB) + manual dispatch | `cargo fuzz` regression net on the terminal-safety sink (`escape_ctrl`, the CWE-150 gate): 60s per push, 900s weekly, accumulating corpus cache + committed seed anchors (night-dragon-maintenance-5) |
 | `codeql.yml` | every push + every PR (unfiltered) + weekly cron | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | every push + every PR (unfiltered) | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer, actions-pin health |
 | `supermassive.yml` | every push (unfiltered) + manual dispatch | Runtime E2E: pty smoke (six real-pty legs), musl workspace nextest, render soak (night-improve-7; push-triggered since night-improve-10) |

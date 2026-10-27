@@ -55,3 +55,7 @@ Dockerfile* text eol=lf
 *.xz binary
 *.7z binary
 *.rar binary
+
+# Fuzz seed anchors: byte-exact hostile inputs (control bytes are the
+# payload - a text/eol rule would rewrite them on checkin)
+fuzz/seeds/**/*.bin binary
