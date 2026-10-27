@@ -111,6 +111,56 @@ becomes a real support boundary, the syscall table is the place that
 must first grow a 5.15-only requirement (it has none today); the lane
 would then follow the docs, not precede them.
 
+## 4. Output color law - green and grey, never all-white
+
+The tiers already existed (bold ok green #50FA7B, the zelynic Ok slot;
+calm grey #8B8B8B, the flag-row law) - the defect was whole surfaces
+predating them. The audited all-white lanes now carry meaning: the
+--check-update report (title brand, labels grey, Status verdict green
+when healthy / yellow when an update waits, source URL grey), the
+--testconf PASS verdict (green) with its known-keys and auto-promotion
+context (grey), the three CLI error footers (grey, clap-4 grammar),
+the benchmark BASELINE COMPARISON header (brand + grey), the final FPS
+one-liner and the [signal] degradation notes (grey; the stored warning
+copies stay plain bytes). No test, pty-assertion or docs assertion pins
+the repainted strings - verified before editing.
+
+## 5. Loading indicator law - no silent wait windows
+
+src/output/spinner.rs (new) is the shared single-line loading
+indicator: braille frames promoted to one SPINNER_FRAMES source shared
+with the benchmark lane, stderr-TTY-gated (piped output stays pure
+bytes), a 4 Hz background ticker, frame green / label grey, RAII
+cleanup that erases the line even on early error returns. The
+--check-update network fetch - the one multi-second silent window -
+now shows it, with the fetch phase scoped so the report prints onto a
+clean line (curl body parsing split from reporting). The benchmark's
+own spinner line paints the same green/grey grammar.
+
+## 6. Supermassive hostile torture - the brutal server simulation
+
+scripts/supermassive/torture.py (new, smoke-proven 5/5 against a
+contract-stub renderer: 69 PASS rows, 0 FAIL, no config residue) runs
+five hostile legs under a real pty: a 10 Hz TIOCSWINSZ resize hammer
+(1x1 to 300x90), a ~200 writes/second junk-byte flood the q quit path
+must win through, a signal storm (five SIGINTs that must NOT quit per
+the bug-15 contract, proven by session lifetime, then one graceful
+SIGTERM), a live-reload config churn mixing valid and type-broken
+edits at 5 Hz against the safepath-whitelisted default config path
+(restored/removed afterwards - no churn leaks between legs), and
+twelve randomized-size restart sessions with real TIOCSWINSZ stamps.
+The supermassive.yml torture job builds through the pro-linux-amd64-v3-gnu
+alias, relays the MASS-RESULT rows, and fails the job on any FAIL row.
+
+## Session ledger
+
+Commits: b1c3473 (secret-name audit verdict), ff2ff2d (miri mitigation
+verdict), d2e80bb (minimum-kernel lane audit verdict), 8d930a3 (output
+color law), e26adaa (shared loading indicator), cb06184 (hostile
+torture leg). Benchmark A/B: the .rs changes touch output/exit paths
+only - no render-loop surface - so the 10s density/entropy/fps A/B is
+skipped honestly; CI compiles and runs the full suite.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
