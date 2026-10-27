@@ -60,9 +60,9 @@ fn render_line_for(cap: ColorCapability, frame: char, label: &str, secs: f64) ->
 
 /// A scoped loading indicator for a blocking step.
 ///
-/// Start it before the blocking call, let it fall out of scope (or call
-/// [`Spinner::done`]) after — the terminal line it borrowed is erased
-/// either way, and errors propagating through `?` clean up for free.
+/// Start it before the blocking call, let it fall out of scope after —
+/// the terminal line it borrowed is erased either way, and errors
+/// propagating through `?` clean up for free.
 pub(crate) struct Spinner {
     stop: Option<Arc<AtomicBool>>,
     handle: Option<JoinHandle<()>>,
@@ -106,9 +106,6 @@ impl Spinner {
             handle,
         }
     }
-
-    /// Stop, erase the line, and join the ticker explicitly.
-    pub(crate) fn done(self) {}
 }
 
 impl Drop for Spinner {
