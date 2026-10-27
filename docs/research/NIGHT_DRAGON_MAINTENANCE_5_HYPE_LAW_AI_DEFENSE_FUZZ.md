@@ -25,7 +25,7 @@ repairs the session surfaced, in push order:
 | — | Fuzz target pin | `b4b5fc3` | cargo-fuzz 0.13 musl default countered with GNU host |
 | — | rustfmt canon + doctor verifier sync | `969600a` | 4 fmt drifts; all doctor greps alignment-tolerant |
 | — | Torture first-real-run repairs | `a0a21e3` | stale binary path, signal contract pinned, pump rc fix |
-| — | Flood quit delivery | `41f4c31`+ | deterministic escape-disambiguated quit bursts |
+| — | Flood quit delivery | `fb60245` | deterministic escape-disambiguated quit bursts |
 | — | Last canon-drift greps | `18a3ae8` | optimization/target_features verifiers synced |
 
 CI estate at `18a3ae8`: CI, Gate-keepers, Fuzz, Miri, CodeQL,
