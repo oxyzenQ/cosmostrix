@@ -101,7 +101,7 @@ shape: one user, one machine, one terminal.
 
 | Deployment | Verdict | Binding evidence |
 | --- | --- | --- |
-| Local desktop terminal (Linux/mac/BSD/Windows/Termux) | THE designed use; best-in-class guarantees | restore family, adaptive pacing, power mgmt, endurance RIS |
+| Local desktop terminal (Linux/mac/BSD/Windows/Termux) | THE designed use; the deepest guarantees in the codebase live here (5-layer restore, multi-hour endurance) | restore family, adaptive pacing, power mgmt, endurance RIS |
 | SSH session from a desktop to any server | Fully supported hybrid; disconnect-recoverable | TERMINAL_COMPATIBILITY SSH section, recover_to_tty |
 | Web/browser terminal farm (xterm.js-class hosts) | Supported hybrid; Tier-2 exists for exactly this | backpressure + RIS, per-host FPS caps |
 | Server, per-user interactive sessions at scale (jump hosts) | Supported; cost is per-session and self-bounded (idle resync ~0, one core max while rendering) | adaptive throttle, frame-bounded memory, TTY gates |
@@ -133,3 +133,21 @@ shape: one user, one machine, one terminal.
   scene that never idles (max-density rain on an 8K terminal) is a
   deliberate one-core load — capacity planning for shared hosts must
   assume that worst case, not the idle average.
+
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->
