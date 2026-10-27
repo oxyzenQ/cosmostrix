@@ -54,11 +54,21 @@ cosmostrix uses these Linux syscalls, each with a minimum kernel version:
 **CI proof at the boundary (night-dragon-maintenance-2):** the floor is
 not only documented, it is executed. The `supermassive-kernel.yml`
 kernel-floor lane boots the REAL intrepid GA 2.6.27 kernel in a KVM
-micro-VM on every push and runs the static release binary's full
-headless E2E battery inside it, as root - the "runs on any Linux kernel
-2.6.27+" promise proven at the exact boundary kernel, live, per commit.
-The kernel-best lane proves the other envelope on the newest mainline
+micro-VM on every push and runs the static binary's full headless E2E
+battery inside it, as root - the "runs on any Linux kernel 2.6.27+"
+promise proven at the exact boundary kernel, live, per commit. The
+kernel-best lane proves the other envelope on the newest mainline
 stable kernel.
+
+**Kernel/ISA interplay (read before choosing a build):** the lane's
+payload is the baseline x86-64 (SSE2) static musl build - the exact
+pairing of this section's kernel floor with the CPU minimum below. A
+v3-baked binary cannot execute on kernels older than 2.6.35: those
+kernels never enable YMM state in XCR0, so the first VEX-encoded
+instruction raises #UD (SIGILL) even on an AVX2-capable CPU under KVM
+host-passthrough. The v3/v4 release shapes therefore carry a
+practical kernel floor of 2.6.35+ on top of the code's 2.6.27 syscall
+floor (see the CPU Architecture table).
 
 **Note on `getrandom`:** The `rand` crate uses `getrandom` (kernel 3.17+)
 when available, and falls back to `/dev/urandom` on older kernels. The
@@ -218,8 +228,8 @@ The prior 1.97.x pins fixed an LLVM miscompilation present since Rust
 | Architecture | Profile | CPU Features | Notes |
 |--------------|---------|--------------|-------|
 | x86-64-v1 | `release` / `pro` | SSE2 (2001) | Baseline — runs on any x86-64 CPU |
-| x86-64-v3 | `pro-linux-amd64-v3-musl` | AVX2 (2013) | Modern CPUs (Haswell+, Ryzen+) — static musl release shape |
-| x86-64-v4 | `pro-linux-amd64-v4-musl` | AVX-512 (2017) | Server/workstation CPUs — static musl release shape |
+| x86-64-v3 | `pro-linux-amd64-v3-musl` | AVX2 (2013) | Modern CPUs (Haswell+, Ryzen+) — static musl release shape; needs kernel 2.6.35+ (YMM state) |
+| x86-64-v4 | `pro-linux-amd64-v4-musl` | AVX-512 (2017) | Server/workstation CPUs — static musl release shape; needs kernel 2.6.35+ (YMM state) |
 | aarch64 | `pro-android-aarch64` | NEON | Android/Termux, Apple Silicon |
 | aarch64 macOS | `pro-macos-aarch64-native` | NEON | Apple M1/M2/M3 |
 | x86-64 FreeBSD | `pro-freebsd-amd64` | native (host CPU) | FreeBSD 13+, GhostBSD |

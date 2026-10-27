@@ -34,17 +34,28 @@
 #     holds the userland equally era-honest instead of dragging a
 #     2026 glibc into a 2008 guest.
 #
-# Build shape (the owner's from-source law): the lane builds the
-# pro-linux-amd64-v3-musl alias - a release-page artifact shape,
-# never a bare `cargo build --release`. The musl-static shape is the
+# Build shape (the owner's from-source law, the two-shape law): every
+# lane builds through a named alias with --locked, never a bare
+# `cargo build --release`. The BEST lane builds the release-page
+# artifact shape (pro-linux-amd64-v3-musl) - the exact static binary
+# the release page ships. The FLOOR lane builds the baseline-musl
+# alias (pro-linux-amd64-baseline-musl) - the docs' minimum pairing
+# (kernel 2.6.27, CPU x86-64-v1) - because a v3-baked binary cannot
+# execute on the floor kernel at all: kernels older than 2.6.35 never
+# enable YMM state in XCR0, so the first VEX-encoded instruction
+# raises #UD (SIGILL) even under KVM host-passthrough on an AVX2 CPU
+# (proven live: the v3 attempt trapped invalid-opcode at bring-up on
+# 2.6.27). The floor is a KERNEL claim - the lane proves it with the
+# docs' CPU-minimum shape, while the release binaries' own ISA
+# envelope (v3/v4) carries its documented CPU row in
+# docs/SYSTEM_REQUIREMENTS.md. The musl-static shape stays the
 # honest payload for an initramfs guest (no dynamic loader, no glibc
-# kernel floor, no userland coupling) and it is the exact shape the
-# docs name "the most portable cosmostrix build". The alias's
-# target-cpu=x86-64-v3 needs the guest CPU to expose AVX2, so the
-# boot uses KVM host-passthrough (-cpu host) - under TCG emulation
-# the v3 binary would SIGILL, which is also why the lane FAILS
-# LOUDLY instead of falling back when /dev/kvm is unusable (nested
-# virt is a GitHub runner guarantee on every current Linux image).
+# kernel floor, no userland coupling). The v3 alias on the best lane
+# needs the guest CPU to expose AVX2, so the boot uses KVM
+# host-passthrough (-cpu host) - under TCG emulation the v3 binary
+# would SIGILL, which is also why the lane FAILS LOUDLY instead of
+# falling back when /dev/kvm is unusable (nested virt is a GitHub
+# runner guarantee on every current Linux image).
 #
 # VM shape (the sibling zejtron's kernel-floor lane, proven live in
 # that estate's CI): direct kernel boot, no disk, serial console to
@@ -162,18 +173,24 @@ jobs:
           prefix-key: supermassive-kernel-floor
           cache-on-failure: true
 
-      # The from-source law: the payload the micro-VM exercises is a
-      # binary the release ships (the pro-linux-amd64-v3-musl alias),
-      # never a bare `cargo build --release`. The step-level RUSTFLAGS
-      # carries the strict warning gate plus the alias's exact -C
-      # token: cargo precedence gives RUSTFLAGS env shadow over the
-      # alias's build.rustflags config, so without it the v3 pin
-      # would be silently dropped (and the micro-VM's -cpu host would
-      # then be load-bearing for a binary that is no longer v3).
-      - name: Build the pro-v3-musl binary (the release static shape)
+      # The from-source law, floor side: the payload the micro-VM
+      # exercises is a baseline x86-64 (SSE2) static musl build
+      # through the named baseline-musl alias with --locked - the
+      # docs' minimum pairing (kernel 2.6.27, CPU x86-64-v1) - never
+      # a bare `cargo build --release`, and deliberately NOT the v3
+      # release shape: kernels older than 2.6.35 never enable YMM
+      # state in XCR0, so a target-cpu=v3 binary raises #UD (SIGILL)
+      # on the first VEX instruction even under KVM host-passthrough
+      # on an AVX2 host CPU (proven live on 2.6.27: trap invalid
+      # opcode at bring-up). The step-level RUSTFLAGS carries the
+      # strict warning gate only - no target-cpu token, that is the
+      # entire point of this shape. The release shapes stay v3/v4
+      # (docs/SYSTEM_REQUIREMENTS.md CPU table); this profile exists
+      # only for the kernel-floor proof.
+      - name: Build the baseline-musl binary (the documented floor shape)
         env:
-          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
-        run: cargo pro-linux-amd64-v3-musl --locked
+          RUSTFLAGS: "-D warnings"
+        run: cargo pro-linux-amd64-baseline-musl --locked
 
       # The floor kernel: the intrepid (8.10) GA release-day image
       # (2.6.27-*), resolved from the LIVE old-releases pool. The
@@ -280,7 +297,7 @@ jobs:
           mkdir -p rootfs/{bin,dev,etc,proc,sys,tmp,run,opt/cosmostrix/.sandbox}
           cp pkg-busybox/bin/busybox rootfs/bin/busybox
           ln -s busybox rootfs/bin/sh
-          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix" \
+          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/pro-linux-amd64-baseline-musl/cosmostrix" \
             rootfs/opt/cosmostrix/cosmostrix
           chmod 755 rootfs/opt/cosmostrix/cosmostrix rootfs/bin/busybox
           echo floor > rootfs/opt/cosmostrix/.sandbox/lane

@@ -229,6 +229,19 @@ inherits = "pro"
 [profile.pro-linux-amd64-v4-musl]
 inherits = "pro"
 
+# The floor-lane shape (not a release shape): baseline x86-64 (SSE2)
+# static musl, no target-cpu pin. The kernel-floor lane boots the
+# REAL 2.6.27 floor kernel, and a target-cpu=v3 binary cannot execute
+# on any kernel older than 2.6.35: the kernel never enables YMM state
+# in XCR0 on those kernels, so the first VEX-encoded instruction
+# raises #UD (SIGILL) even on an AVX2-capable CPU. The docs' kernel
+# floor (2.6.27) pairs with the docs' CPU minimum (x86-64-v1), and
+# this profile is exactly that pairing - see the kernel-floor lane in
+# .github/workflows/supermassive-kernel.yml and the alias mirror in
+# .cargo/config.toml.
+[profile.pro-linux-amd64-baseline-musl]
+inherits = "pro"
+
 [profile.pro-macos-aarch64-native]
 inherits = "pro"
 

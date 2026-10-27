@@ -72,6 +72,28 @@ pro-linux-amd64-v4-musl = [
   "x86_64-unknown-linux-musl",
 ]
 
+# The floor-lane shape (NOT a release shape - nothing in the release
+# matrix builds it): baseline x86-64 (SSE2) static musl, deliberately
+# carrying no target-cpu pin. The kernel-floor lane boots the REAL
+# 2.6.27 floor kernel, and a v3-baked binary cannot execute there:
+# kernels older than 2.6.35 never enable YMM state in XCR0, so the
+# first VEX-encoded instruction raises #UD (SIGILL) even under KVM
+# host-passthrough on an AVX2 CPU. The docs' kernel floor (2.6.27)
+# pairs with the docs' CPU minimum (x86-64-v1); this alias is exactly
+# that pairing. Profile mirror: [profile.pro-linux-amd64-baseline-musl]
+# in Cargo.toml.
+pro-linux-amd64-baseline-musl = [
+  "build",
+  "--profile",
+  "pro-linux-amd64-baseline-musl",
+  "--config",
+  "env.COSMOSTRIX_BUILD=\"linux-amd64-baseline-musl\"",
+  "--config",
+  "env.COSMOSTRIX_PROFILE=\"pro-linux-amd64-baseline-musl\"",
+  "--target",
+  "x86_64-unknown-linux-musl",
+]
+
 pro-macos-aarch64-native = [
   "build",
   "--profile",
