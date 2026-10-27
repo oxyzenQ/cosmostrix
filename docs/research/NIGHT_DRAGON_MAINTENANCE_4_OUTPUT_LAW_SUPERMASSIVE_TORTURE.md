@@ -48,6 +48,37 @@ variable name, and the naming set matches the zejtron reference 1:1
 where the surfaces overlap. Nothing to rename; no commit-level churn
 warranted beyond this record.
 
+## 2. Miri 30-minute hang mitigation — verdict: ALREADY IN PLACE, three layers
+
+The owner's incident (miri build hanging past 30 minutes because miri
+interpreted docs-burden tests) was already answered on this repo in the
+night-dragon-maintenance-1 pass, ported from the zejtron lane. This
+audit re-verified every layer against the live tree:
+
+1. Admission law (.github/workflows/miri.yml header +
+   scripts/lib/miri.sh MIRI_AUDIT_MODULES): the miri lane audits the
+   six pointer/alloc/UB families only — never the docs lane. The
+   documented incident shape (two full-text README/CHANGELOG scan tests
+   burning ~23 interpreted minutes) cannot re-enter without an explicit
+   `#[cfg_attr(miri, ignore = "reason")]` opt-out, and a fresh grep
+   confirms the six families carry no docs-scan or unbounded-loop test
+   bodies today (so zero ignore attrs are needed).
+2. Fail-fast cap: the miri job runs `timeout-minutes: 20` — sized to
+   the measured record (the interpreted step's own docs record is 1-3
+   min, ~5x headroom) — so any future burden test dies loudly inside
+   the budget instead of hanging the runner for half an hour.
+3. Ownership of the burden work: the docs assertions live in the
+   `docs_tests` module (test/docs_tests/, included via src/main.rs and
+   verified present) and run natively under `cargo test` in ci.yml —
+   the assertions still run per commit, just never under miri's
+   interpreter. Miri also cancels superseded runs (concurrency group,
+   cancel-in-progress) so rapid pushes cannot queue duplicate hangs.
+
+Verdict: the incident class is structurally closed — burden tests are
+admitted nowhere, the budget cannot be exceeded silently, and the
+assertions lost nothing (they run in the fast lane every push). No
+further mitigation warranted.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
