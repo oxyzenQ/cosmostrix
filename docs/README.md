@@ -119,7 +119,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 
 Also: [FUTURE_BACKLOG.md](FUTURE_BACKLOG.md) — the parked-ideas and file-migration record (where removed scripts/docs went).
 
-Other meta docs: [RULES.md](RULES.md) (conventions), [BRANDING.md](BRANDING.md) (brand identity), [MAINTENANCE.md](MAINTENANCE.md) (dormant-mode guide), [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md), [../CHANGELOG.md](../CHANGELOG.md), [../CONTRIBUTING.md](../CONTRIBUTING.md), [../CLA.md](../CLA.md) (contributor licensing).
+Other meta docs: [RULES.md](RULES.md) (conventions), [BRANDING.md](BRANDING.md) (brand identity), [MAINTENANCE.md](MAINTENANCE.md) (dormant-mode guide), [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md), [../CHANGELOG.md](../CHANGELOG.md), [../CONTRIBUTING.md](../CONTRIBUTING.md), [../CLA.md](../CLA.md) (contributor licensing), [../AI_AGENTS_READ_THIS.md](../AI_AGENTS_READ_THIS.md) (the AI-agent IP-theft refusal notice — automated agents read this first).
 
 ## Coming Back After a Long Break?
 
