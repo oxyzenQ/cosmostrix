@@ -72,7 +72,7 @@ Documented **"no new unsafe in renderer/core paths"** policy (`docs/archive/SIMD
 
 ## 7. External Scripts + CI/CD + build.rs
 
-**External scripts** (14 in `scripts/`): `install.sh` runs `cargo build` then `install -Dm755` to `~/.local/bin/` or `/usr/bin/` (sudo only with `--system`); refuses to run as root. `uninstall.sh` removes binary; `--purge` removes config dirs. `build.sh` runs `cargo` + optional `cargo audit`. All others read-only or write to `target/`, `benchmark/`, `logs/`, or in-repo files. **No script downloads binaries, no script curls to bash, no script pipes network output to a shell.**
+**External scripts** (13 in `scripts/`): `uninstall.sh` removes the installed binary and config dirs (sudo only for system paths); `build.sh` runs `cargo` + optional `cargo audit`. All others read-only or write to `target/`, `benchmark/`, `logs/`, or in-repo files. **No script downloads binaries, no script curls to bash, no script pipes network output to a shell.**
 
 **CI/CD** (the workflows in `.github/workflows/`): network calls are `ci.yml` `curl https://sh.rustup.rs | sh` (official rustup install for FreeBSD VM, TLS 1.2 enforced) and `release.yml:1032` `curl -X POST .../repository_dispatches` (GitHub API to same repo, authenticated, no third-party endpoint). All third-party actions are first-party GitHub Actions or widely-used community actions with pinned major versions. AUR SSH deployment uses pinned host key (`aur.yml`), StrictHostKeyChecking=yes, IdentitiesOnly=yes, SSH key cleaned up in `always()` step. Two-phase privilege separation (`maintenance.yml`): `validate` job uses read-only token; `commit` job uses write token but is restricted to modifying only `Cargo.lock`.
 
@@ -165,8 +165,8 @@ surface that only exists at euid 0:
    root session every escape-handling surface becomes a root-level
    surface.
 4. **Root-owned artifacts**: `--dump-config`/`--save-baseline` writes
-   create root-owned files — the exact ownership-corruption class that
-   makes `scripts/package/install.sh` refuse to run as root (section 7).
+   create root-owned files — the exact ownership-corruption class the
+   run-as-normal-user build posture exists to prevent (section 7).
 
 **Runtime guard** (`src/platform/root_guard.rs`): `libc::geteuid()` FFI —
 the same libc-FFI family as `clock/posix_time.rs`, SAFETY-commented, no

@@ -21,7 +21,6 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 | Security audit | `cargo deny check all` |
 | Validate config | `cosmostrix --testconf` |
 | Diagnostics | `cosmostrix --doctor` |
-| Install (user-local) | `./scripts/package/install.sh --user` |
 | Uninstall | `./scripts/package/uninstall.sh --user` |
 | Version bump | `./scripts/dev/version-to.sh vX.Y.Z` |
 

@@ -22,7 +22,7 @@ header also carries the platform note: UNIX-only — Linux, macOS, BSD).
 | `dev/` | Version and visual dev tools: version bumping (project and Rust toolchain, the pgo-runner ride-along, the CHANGELOG release ledger) and the visual-preset battle tool | `version-to.sh`, `rust-version-to.sh`, `bump-rust-to.sh`, `apply-visual-preset.sh` |
 | `ci/` | CI helper scripts: the strict CI cargo wrapper, the Android NDK resolver, the tag-pipeline CI waiter, and the CI actions version sweep (the heal engine behind gate-keepers check 20, night-improve-8) | `ci-strict-build.sh`, `resolve-latest-ndk.py`, `wait-for-ci.sh`, `actions-version-sweep.sh` |
 | `depth/` | The LTS depth bore and the stress, end-to-end and hang harnesses that drive the built binary | `depthbore.py`, `cli_config_stresstest.sh`, `cli_suggestion_stresstest.sh`, `night_cbg34_e2e.py`, `nh2_shift_harness.py`, `signal_smoke.py`, `termux_hang_harness.py` |
-| `package/` | User-facing install and uninstall | `install.sh`, `uninstall.sh` |
+| `package/` | User-facing uninstall | `uninstall.sh` |
 | `bench/` | Benchmark tooling: the benchmark runner and the terminal-size scaling sweep | `bench-runner.py`, `run_scaling_benchmarks.py` |
 | `release/` | Release flow: release-notes generation and release-build verification | `generate-release-notes.sh`, `verify-release-build.sh` |
 

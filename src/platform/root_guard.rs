@@ -41,8 +41,9 @@
 //! The canonical policy text ("Running as Root") lives in
 //! docs/SECURITY_AUDIT.md; this warning cites it exactly once
 //! (NIGHT-docs-8 tell-once rule — cite, do not re-tell). Precedent:
-//! scripts/package/install.sh refuses to run as root for its cargo-build step;
-//! this guard extends the non-root posture to the shipped binary.
+//! the package scripts never take root for user paths (uninstall.sh
+//! scopes sudo to system paths only); this guard extends the non-root
+//! posture to the shipped binary.
 
 use crate::output::{eprintln_safe, warn_bold};
 
@@ -75,7 +76,7 @@ pub(crate) fn is_effective_root() -> bool {
 /// The root-usage warning, one entry per line. Line 0 is the headline
 /// (rendered bold warning yellow); the rest are plain two-space-indented
 /// body lines matching the multi-line error style of cli/ux.rs and
-/// scripts/package/install.sh. Fixed app constants — no user data is
+/// scripts/package/uninstall.sh. Fixed app constants — no user data is
 /// interpolated, so nothing needs escaping beyond `eprintln_safe!`'s
 /// broken-pipe safety.
 #[must_use]

@@ -121,7 +121,7 @@ to work unchanged.
 | Type | Mode | Examples |
 |------|------|----------|
 | Directories | 755 | `src/`, `docs/`, `scripts/`, `benchmark/` |
-| Shell scripts | 755 | `*.sh` (build.sh, gate-keepers.sh, install.sh, etc.) |
+| Shell scripts | 755 | `*.sh` (build.sh, gate-keepers.sh, uninstall.sh, etc.) |
 | Python scripts | 755 | `*.py` (bench-runner.py, visual-mode-audit.py, etc.) |
 | Rust source | 644 | `*.rs` |
 | Config files | 644 | `*.toml`, `*.yaml`, `*.yml`, `*.json` |

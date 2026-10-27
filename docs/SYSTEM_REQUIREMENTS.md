@@ -18,7 +18,7 @@ specifies the minimum supported system configuration.
 | **musl (Linux musl)** | 1.2.0 (2019) | 1.2.5+ | Static binary, no glibc dependency |
 | **Rust toolchain** | 1.98.1 (2026-09) | latest stable | MSRV declared in `Cargo.toml` |
 | **RAM** | 8 MiB free | 16+ MiB | Peak RSS ~4.2 MiB at 120x40 |
-| **CPU** | x86-64-v1 (SSE2) | x86-64-v3 (AVX2) | v3/v4 profiles auto-selected by `install.sh` |
+| **CPU** | x86-64-v1 (SSE2) | x86-64-v3 (AVX2) | v3/v4 profiles auto-selected by `scripts/build.sh release` |
 | **Terminal** | ANSI 16-color | TrueColor (24-bit) | Auto-detected via `COLORTERM` / `TERM` |
 
 ## Kernel Version Requirements (Linux)
@@ -216,12 +216,13 @@ The prior 1.97.x pins fixed an LLVM miscompilation present since Rust
 | aarch64 macOS | `pro-macos-aarch64-native` | NEON | Apple M1/M2/M3 |
 | x86-64 FreeBSD | `pro-freebsd-amd64` | native (host CPU) | FreeBSD 13+, GhostBSD |
 
-**`install.sh` auto-detects** the CPU microarchitecture level and builds
-the optimal profile (Linux only):
+**`./scripts/build.sh release` auto-detects** the CPU microarchitecture
+level and dispatches to the matching named cargo alias (the custom build
+path — never a bare `cargo build --release`):
 
-- AVX-512 detected -> `pro-linux-amd64-v4-gnu`
-- AVX2 detected -> `pro-linux-amd64-v3-gnu`
-- Neither -> `release` (v1 baseline, works everywhere)
+- AVX-512 detected -> `cargo pro-linux-amd64-v4-gnu`
+- AVX2 detected -> `cargo pro-linux-amd64-v3-gnu`
+- Neither -> `cargo pro-native` (host-optimal codegen, baseline-safe)
 
 On FreeBSD, use `cargo pro-freebsd-amd64` directly.
 
