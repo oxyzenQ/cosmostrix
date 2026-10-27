@@ -107,11 +107,18 @@ fi
 # this leg lives here on purpose - a session this lane can actually
 # strip. (The regular CI lanes prove the same contract every push:
 # their shape is cron-like, no ctty by construction.)
-if setsid "$BIN" --duration 2 >"${LOG}/out-headless-guard.log" 2>&1; then
-	note "headless guard (setsid: interactive refused a ctty-less session)" FAIL
-	FAILS=$((FAILS + 1))
+if command -v setsid >/dev/null 2>&1; then
+	if setsid "$BIN" --duration 2 >"${LOG}/out-headless-guard.log" 2>&1; then
+		note "headless guard (setsid: interactive refused a ctty-less session)" FAIL
+		FAILS=$((FAILS + 1))
+	else
+		note "headless guard (setsid: interactive refused a ctty-less session)" PASS
+	fi
 else
-	note "headless guard (setsid: interactive refused a ctty-less session)" PASS
+	# A missing setsid must not degrade into a silent PASS (the leg
+	# would see exit 127 and read it as a refusal). Loud FAIL.
+	note "headless guard (setsid missing - cannot strip the ctty)" FAIL
+	FAILS=$((FAILS + 1))
 fi
 
 # Direction 2 - the pty quit-path depth, root, real ptys. Budgets
