@@ -165,18 +165,18 @@ verify_info_output() {
 	out="$("$bin" --doctor)"
 	printf '%s\n' "$out"
 
-	grep -Eq "^  build: ${expected}$" <<<"$out" || fail "Expected build '$expected' in $bin --doctor output"
+	grep -Eq "^[[:space:]]+build:[[:space:]]+${expected}$" <<<"$out" || fail "Expected build '$expected' in $bin --doctor output"
 	grep -Fqx "  optimization: ${optimization}" <<<"$out" || fail "Expected optimization: $optimization in $bin --doctor output"
-	grep -Eq '^  dispatch: static optimized build$' <<<"$out" || fail "Expected dispatch 'static optimized build' in $bin --doctor output"
-	grep -Eq "^  cpu_baseline: ${baseline}$" <<<"$out" || fail "Expected cpu_baseline: $baseline in $bin --doctor output"
-	grep -Eq '^  lto: fat$' <<<"$out" || fail "Expected lto: fat in $bin --doctor output"
-	grep -Eq '^  panic: unwind$' <<<"$out" || fail "Expected panic: unwind in $bin --doctor output"
-	grep -Eq '^  strip: yes$' <<<"$out" || fail "Expected strip: yes in $bin --doctor output"
+	grep -Eq '^  dispatch:[[:space:]]+static optimized build$' <<<"$out" || fail "Expected dispatch 'static optimized build' in $bin --doctor output"
+	grep -Eq "^[[:space:]]+cpu_baseline:[[:space:]]+${baseline}$" <<<"$out" || fail "Expected cpu_baseline: $baseline in $bin --doctor output"
+	grep -Eq '^  lto:[[:space:]]+fat$' <<<"$out" || fail "Expected lto: fat in $bin --doctor output"
+	grep -Eq '^  panic:[[:space:]]+unwind$' <<<"$out" || fail "Expected panic: unwind in $bin --doctor output"
+	grep -Eq '^  strip:[[:space:]]+yes$' <<<"$out" || fail "Expected strip: yes in $bin --doctor output"
 	for feature in $required; do
-		grep -Eq "^  target_features: .*${feature}" <<<"$out" || fail "Expected target feature '$feature' in $bin --doctor output"
+		grep -Eq "^[[:space:]]+target_features:[[:space:]]+.*${feature}" <<<"$out" || fail "Expected target feature '$feature' in $bin --doctor output"
 	done
 	for feature in $denied; do
-		if grep -Eq "^  target_features: .*${feature}" <<<"$out"; then
+		if grep -Eq "^[[:space:]]+target_features:[[:space:]]+.*${feature}" <<<"$out"; then
 			fail "Unexpected target feature '$feature' in $bin --doctor output for $expected"
 		fi
 	done

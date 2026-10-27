@@ -28,12 +28,12 @@
 //!   up through ordinary RAII.
 
 use std::io::{self, IsTerminal, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use super::{color_capability, grey_open, ok_bold_open, reset, ColorCapability};
+use super::{ColorCapability, color_capability, grey_open, ok_bold_open, reset};
 
 /// Braille spinner frames — subtle, modern, premium. Single source for
 /// every loading lane (benchmark + the blocking-fetch indicator).

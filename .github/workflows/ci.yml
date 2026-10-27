@@ -290,14 +290,14 @@ jobs:
           BUILD_ID="${{ matrix.build }}"
           OUT="$(${BIN} --doctor)"
           echo "${OUT}"
-          grep -E "^  build: ${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
-          grep -E "^  dispatch: static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
-          grep -E "^  lto: fat$" <<<"${OUT}" || { echo "::error::Expected lto: fat"; exit 1; }
-          grep -E "^  panic: unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
-          grep -E "^  strip: yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
+          grep -E "^[[:space:]]+build:[[:space:]]+${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
+          grep -E "^[[:space:]]+dispatch:[[:space:]]+static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
+          grep -E "^[[:space:]]+lto:[[:space:]]+fat$" <<<"${OUT}" || { echo "::error::Expected lto: fat"; exit 1; }
+          grep -E "^[[:space:]]+panic:[[:space:]]+unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
+          grep -E "^[[:space:]]+strip:[[:space:]]+yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
           # v18: Verify FEATURES section surfaces cinematic & endurance subsystems
           grep -Fq "FEATURES" <<<"${OUT}" || { echo "::error::FEATURES section missing"; exit 1; }
-          grep -Fq "parallax_layers: 3" <<<"${OUT}" || { echo "::error::parallax_layers must be 3"; exit 1; }
+          grep -Eq "^[[:space:]]+parallax_layers:[[:space:]]+3" <<<"${OUT}" || { echo "::error::parallax_layers must be 3"; exit 1; }
           grep -Fq "endurance_subsystem" <<<"${OUT}" || { echo "::error::endurance_subsystem missing"; exit 1; }
           grep -Fq "hud_overlay" <<<"${OUT}" || { echo "::error::hud_overlay missing"; exit 1; }
           grep -Fq "click_wave" <<<"${OUT}" || { echo "::error::click_wave missing"; exit 1; }
@@ -596,14 +596,14 @@ jobs:
             echo "${OUT}"
             printf '%s\n' "${OUT}" | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
             printf '%s\n' "${OUT}" | grep -Fq "BUILD" || { echo "::error::BUILD section missing"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -E "^  build: ${BUILD_ID}$" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -E "^  dispatch: static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -E "^  lto: fat$" || { echo "::error::Expected lto: fat"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -E "^  strip: yes$" || { echo "::error::Expected strip: yes"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^[[:space:]]+build:[[:space:]]+${BUILD_ID}$" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^[[:space:]]+dispatch:[[:space:]]+static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^[[:space:]]+lto:[[:space:]]+fat$" || { echo "::error::Expected lto: fat"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^[[:space:]]+panic:[[:space:]]+unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^[[:space:]]+strip:[[:space:]]+yes$" || { echo "::error::Expected strip: yes"; exit 1; }
             # v18: Verify FEATURES section surfaces cinematic & endurance subsystems
             printf '%s\n' "${OUT}" | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Eq "^[[:space:]]+parallax_layers:[[:space:]]+3" || { echo "::error::parallax_layers must be 3"; exit 1; }
             printf '%s\n' "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
             printf '%s\n' "${OUT}" | grep -Fq "hud_overlay" || { echo "::error::hud_overlay missing"; exit 1; }
             printf '%s\n' "${OUT}" | grep -Fq "click_wave" || { echo "::error::click_wave missing"; exit 1; }
@@ -689,10 +689,10 @@ jobs:
           OUT=""
           if OUT="$(${BIN} --doctor 2>&1)"; then
             echo "${OUT}"
-            grep -E "^  build: ${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
+            grep -E "^[[:space:]]+build:[[:space:]]+${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
             grep -Fx "  optimization: ${OPTIMIZATION}" <<<"${OUT}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
-            grep -E "^  dispatch: static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
-            grep -E "^  cpu_baseline: ${BASELINE}$" <<<"${OUT}" || { echo "::error::Expected cpu_baseline: ${BASELINE}"; exit 1; }
+            grep -E "^[[:space:]]+dispatch:[[:space:]]+static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
+            grep -E "^[[:space:]]+cpu_baseline:[[:space:]]+${BASELINE}$" <<<"${OUT}" || { echo "::error::Expected cpu_baseline: ${BASELINE}"; exit 1; }
             for feature in ${REQUIRED}; do
               grep -F "  target_features:" <<<"${OUT}" | grep -Fq "${feature}" || { echo "::error::Expected target feature ${feature}"; exit 1; }
             done
@@ -702,12 +702,12 @@ jobs:
                 exit 1
               fi
             done
-            grep -E "^  lto: fat$" <<<"${OUT}" || { echo "::error::Expected lto: fat"; exit 1; }
-            grep -E "^  panic: unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
-            grep -E "^  strip: yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
+            grep -E "^[[:space:]]+lto:[[:space:]]+fat$" <<<"${OUT}" || { echo "::error::Expected lto: fat"; exit 1; }
+            grep -E "^[[:space:]]+panic:[[:space:]]+unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
+            grep -E "^[[:space:]]+strip:[[:space:]]+yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
             # v18: Verify FEATURES section surfaces cinematic & endurance subsystems
             grep -Fq "FEATURES" <<<"${OUT}" || { echo "::error::FEATURES section missing"; exit 1; }
-            grep -Fq "parallax_layers: 3" <<<"${OUT}" || { echo "::error::parallax_layers must be 3"; exit 1; }
+            grep -Eq "^[[:space:]]+parallax_layers:[[:space:]]+3" <<<"${OUT}" || { echo "::error::parallax_layers must be 3"; exit 1; }
             grep -Fq "endurance_subsystem" <<<"${OUT}" || { echo "::error::endurance_subsystem missing"; exit 1; }
             grep -Fq "hud_overlay" <<<"${OUT}" || { echo "::error::hud_overlay missing"; exit 1; }
             grep -Fq "click_wave" <<<"${OUT}" || { echo "::error::click_wave missing"; exit 1; }
@@ -789,15 +789,15 @@ jobs:
           $out = ($outLines | ForEach-Object { $_.TrimEnd("`r") }) -join "`n"
           $out
           # v17: --doctor has 'build:' field in SYSTEM section (not 'variant:' in BUILD)
-          $pat = "(?m)^  build: " + [regex]::Escape($build) + "\s*$"
+          $pat = "(?m)^\s+build:\s+" + [regex]::Escape($build) + "\s*$"
           if ($out -notmatch $pat) {
             throw "Expected build '$build' in cosmostrix --doctor output"
           }
           foreach ($pat in @(
-            "(?m)^  dispatch: static optimized build\s*$",
-            "(?m)^  lto: fat\s*$",
-            "(?m)^  panic: unwind\s*$",
-            "(?m)^  strip: yes\s*$"
+            "(?m)^\s+dispatch:\s+static optimized build\s*$",
+            "(?m)^\s+lto:\s+fat\s*$",
+            "(?m)^\s+panic:\s+unwind\s*$",
+            "(?m)^\s+strip:\s+yes\s*$"
           )) {
             if ($out -notmatch $pat) {
               throw "Expected metadata pattern '$pat' in cosmostrix --doctor output"

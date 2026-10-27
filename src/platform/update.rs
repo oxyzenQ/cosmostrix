@@ -218,11 +218,7 @@ fn report_update_status(current_version: &str, body: &str) -> Result<(), String>
         normalize_version(&latest_tag)
     );
     println_safe!("{}Status:{}  {status}", grey_open(), reset());
-    println_safe!(
-        "{}Source:{}  {RELEASES_URL}",
-        grey_open(),
-        reset()
-    );
+    println_safe!("{}Source:{}  {RELEASES_URL}", grey_open(), reset());
 
     Ok(())
 }

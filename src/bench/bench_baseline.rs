@@ -47,11 +47,7 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
     // calm grey tier — secondary context never renders plain white.
     println_safe!("{}", brand_bold("BASELINE COMPARISON"));
     println_safe!("{}───────────────────{}", grey_open(), reset());
-    println_safe!(
-        "{}  baseline:{} {baseline_path}",
-        grey_open(),
-        reset()
-    );
+    println_safe!("{}  baseline:{} {baseline_path}", grey_open(), reset());
 
     // Check if screen sizes match
     let base_cols = baseline.get("cols").or_else(|| baseline.get("config.cols"));
