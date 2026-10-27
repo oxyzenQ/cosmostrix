@@ -271,17 +271,23 @@ def leg_input_flood(binary: str, mass_path: Path, workdir: Path) -> bool:
     ]
 
     def tick(master: int, elapsed: float) -> None:
-        if elapsed >= 4.5:
+        if elapsed < 4.5:
+            # About 200 writes per second: 20 bursts of ~10 bytes.
+            for _ in range(20):
+                try:
+                    os.write(master, random.choice(junk_pool))
+                except OSError:
+                    return  # child already gone
             return
-        # About 200 writes per second: 20 bursts of ~10 bytes per tick.
-        for _ in range(20):
+        # The quit bursts run AFTER the flood stops: the pool's lone
+        # ESC bytes can legally swallow the byte that follows one
+        # (ESC + q parses as Alt+q, not the quit key), so a single q
+        # wedged against the flood's tail is a coin flip. Each burst
+        # leads with a benign key that closes any dangling ESC state,
+        # then the quit key - realistic user retry, deterministic win.
+        if 4.6 <= elapsed < 6.0:
             try:
-                os.write(master, random.choice(junk_pool))
-            except OSError:
-                return  # child already gone
-        if elapsed >= 4.2:
-            try:
-                os.write(master, b"q")  # the quit key must win through the flood
+                os.write(master, b"xq")
             except OSError:
                 pass
 
