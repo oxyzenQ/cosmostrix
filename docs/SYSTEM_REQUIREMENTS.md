@@ -60,6 +60,17 @@ promise proven at the exact boundary kernel, live, per commit. The
 kernel-best lane proves the other envelope on the newest mainline
 stable kernel.
 
+The floor lane's bring-up includes an entropy seed: the quiescent
+micro-VM has no interrupt entropy sources (no disk, no input
+devices, no network), so a 2.6.27 pool credits no entropy on its
+own - while the `rand` crate's fallback for kernels without
+`getrandom(2)` polls `/dev/random` with no timeout before it opens
+`/dev/urandom`. The init therefore credits the pool via the
+RNDADDENTROPY ioctl (scripts/sandbox/entropy_seed.rs, a one-file
+static helper packed only on this lane) before the payload, standing
+in for the interrupt entropy a real 2.6.27 machine earns within
+seconds of boot.
+
 **Kernel/ISA interplay (read before choosing a build):** the lane's
 payload is the baseline x86-64 (SSE2) static musl build - the exact
 pairing of this section's kernel floor with the CPU minimum below. A
@@ -73,7 +84,12 @@ floor (see the CPU Architecture table).
 **Note on `getrandom`:** The `rand` crate uses `getrandom` (kernel 3.17+)
 when available, and falls back to `/dev/urandom` on older kernels. The
 fallback works on all Linux versions, so `getrandom` is NOT a hard
-requirement.
+requirement - but its readiness contract polls `/dev/random` (no
+timeout) until the pool holds credit before the first open, and a
+quiescent headless machine (a device-less micro-VM) can starve that
+poll for minutes. The kernel-floor CI lane credits the guest pool
+before the payload for exactly this reason (see the CI-proof
+paragraph above).
 
 ## C Library Requirements
 

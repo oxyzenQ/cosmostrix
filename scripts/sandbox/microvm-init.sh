@@ -160,6 +160,25 @@ else
 	echo "SANDBOX-RESULT: kernel witness (release $(uname -r), moving-latest) - PASS"
 fi
 
+# The era kernel's entropy pool, credited before anything that
+# needs randomness. The floor kernel predates getrandom(2) (3.17+),
+# so the payload's first RNG seed falls back to /dev/urandom - and
+# that fallback polls /dev/random with no timeout until the pool
+# holds credit. A quiescent micro-VM (no disk, no input devices)
+# earns none on its own, where a real machine earns it from
+# interrupt timing within seconds of boot. The packer ships a
+# static helper only on this lane (the best lane's kernel serves
+# getrandom(2) and packs none); it credits the pool via the
+# RNDADDENTROPY ioctl and the row gates the lane like every
+# other bring-up probe.
+if [ -x "$Z/.sandbox/entropy-seed" ]; then
+	if "$Z/.sandbox/entropy-seed" >/dev/console 2>&1; then
+		note "entropy seed (RNDADDENTROPY pool credit before the payload)" PASS
+	else
+		note "entropy seed (RNDADDENTROPY pool credit before the payload)" FAIL
+	fi
+fi
+
 # The lean prelude: the binary runs and answers --version on this
 # kernel, before any payload spends its budget.
 if "$Z/cosmostrix" --version >/dev/console 2>&1; then

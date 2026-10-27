@@ -192,6 +192,26 @@ jobs:
           RUSTFLAGS: "-D warnings"
         run: cargo pro-linux-amd64-baseline-musl --locked
 
+      # The era kernel's entropy pool must be credited before the
+      # battery: a quiescent 2.6.27 micro-VM (no disk, no input
+      # devices, no network) accrues no pool credit, and the rand
+      # crate's fallback - getrandom(2) is 3.17+, absent here - polls
+      # /dev/random with an infinite timeout before it opens
+      # /dev/urandom, so the payload's first RNG seed wedges the bench
+      # leg until the outer budget expires. A real 2.6.27 machine
+      # credits the pool from its own interrupt entropy within seconds
+      # of boot; this toy initramfs has no devices to jitter, so the
+      # init runs this static helper as its first bring-up probe and
+      # the RNDADDENTROPY ioctl does the crediting the kernel's way.
+      # One file, std only, no cargo: rustc builds it directly, the
+      # same toolchain and musl target the payload step just used.
+      - name: Build the entropy-seed helper (the era pool credit)
+        run: >-
+          rustc --edition 2021 -O -D warnings -C target-feature=+crt-static
+          --target x86_64-unknown-linux-musl
+          -o "$GITHUB_WORKSPACE/target/entropy-seed"
+          "$GITHUB_WORKSPACE/scripts/sandbox/entropy_seed.rs"
+
       # The floor kernel: the intrepid (8.10) GA release-day image
       # (2.6.27-*), resolved from the LIVE old-releases pool. The
       # resolver takes the LOWEST 2.6.27-N in the pool (the
@@ -300,6 +320,9 @@ jobs:
           cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/pro-linux-amd64-baseline-musl/cosmostrix" \
             rootfs/opt/cosmostrix/cosmostrix
           chmod 755 rootfs/opt/cosmostrix/cosmostrix rootfs/bin/busybox
+          cp "$GITHUB_WORKSPACE/target/entropy-seed" \
+            rootfs/opt/cosmostrix/.sandbox/entropy-seed
+          chmod 755 rootfs/opt/cosmostrix/.sandbox/entropy-seed
           echo floor > rootfs/opt/cosmostrix/.sandbox/lane
           cp "$GITHUB_WORKSPACE/scripts/sandbox/floor-payload.sh" \
             rootfs/opt/cosmostrix/.sandbox/payload.sh
