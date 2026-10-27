@@ -300,7 +300,7 @@ mod tests {
 
     /// NIGHT-hunter-7: the curl argv contract — silent, 15 s total-time
     /// cap, GitHub JSON accept + UA, and the trailing http_code line that
-    /// `check_curl_output` parses. Any drift here breaks status parsing.
+    /// `curl_body` parses. Any drift here breaks status parsing.
     #[test]
     fn curl_args_contract() {
         assert_eq!(
@@ -369,18 +369,19 @@ mod tests {
         assert!(CANONICAL_NO_FETCHER_MSG.contains(CANONICAL_RELEASES_URL));
     }
 
-    /// NIGHT-hunter-7: curl output parsing — trailing status line split,
-    /// non-200 classification, and the up-to-date report path.
+    /// NIGHT-hunter-7: curl output parsing — trailing status line split
+    /// and non-200 classification (the parse side of the fetch/parse/
+    /// report split; the report side is `report_update_status`).
     #[test]
-    fn curl_output_parses_status_and_reports() {
+    fn curl_body_parses_status_and_body() {
         // Simulated curl stdout: JSON body + trailing http_code line.
         let mut output = std::process::Command::new("true").output().unwrap();
         output.stdout = b"{\"tag_name\":\"v9.9.9\"}\n200".to_vec();
-        assert!(check_curl_output("9.9.9", &output).is_ok());
+        assert_eq!(curl_body(&output).unwrap(), "{\"tag_name\":\"v9.9.9\"}");
 
         output.stdout = b"{\"message\":\"Not Found\"}\n404".to_vec();
         assert_eq!(
-            check_curl_output("9.9.9", &output),
+            curl_body(&output),
             Err("no latest GitHub release found for oxyzenQ/cosmostrix".to_string())
         );
     }

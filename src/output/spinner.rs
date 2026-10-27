@@ -27,7 +27,7 @@
 //!   thread, erases the line, and joins, so early-error returns clean
 //!   up through ordinary RAII.
 
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
