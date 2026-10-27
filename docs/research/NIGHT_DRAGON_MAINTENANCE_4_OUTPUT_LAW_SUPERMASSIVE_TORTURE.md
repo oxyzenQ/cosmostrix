@@ -79,6 +79,38 @@ admitted nowhere, the budget cannot be exceeded silently, and the
 assertions lost nothing (they run in the fast lane every push). No
 further mitigation warranted.
 
+## 3. Minimum-kernel low-spec lane audit — verdict: floor is 2.6.27 (documented and live-proven); a 5.15.0 lane would be redundant
+
+The directive asked for the missing supermassive low-spec leg at the
+project's minimum kernel, citing 5.15.0. The depth audit found a
+different documented truth:
+
+- The docs' kernel law (docs/SYSTEM_REQUIREMENTS.md): the per-syscall
+  table's highest REQUIRED entry is `inotify_init1` at 2.6.27 (live
+  config reload via the notify crate); `getrandom` (3.17) carries an
+  explicit /dev/urandom fallback and `io_uring` (5.1) is documented as
+  NOT used. The stated law is "Practical minimum: Linux 2.6.27
+  (December 2008)" with the recommended column at 5.0+.
+- A repo-wide scan for a 5.15.0 kernel statement returns zero kernel
+  hits — every `5.15` match in the tree is an entropy value from
+  benchmark prose (bits, not versions).
+- The low-spec KVM lane the directive wants already exists and boots
+  the REAL documented floor: supermassive-kernel.yml `kernel_floor`
+  runs the intrepid GA 2.6.27 kernel in a micro-VM with the era-
+  contemporary busybox userland and the battery as root inside the
+  guest (night-dragon-maintenance-2), paired with `kernel_best` on the
+  newest mainline kernel.
+
+A 5.15.0 lane would sit strictly between the two existing lanes:
+2.6.27 already proves the binary boots and renders on a kernel twelve
+major versions OLDER than 5.15, and kernel_best proves the newest.
+Anything 5.15.0 can prove about low-spec behavior is already implied by
+the floor lane passing. Adding it would be a redundant leg — the
+over-engineering the standing LTS rule orders to skip. If 5.15.0 ever
+becomes a real support boundary, the syscall table is the place that
+must first grow a 5.15-only requirement (it has none today); the lane
+would then follow the docs, not precede them.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
