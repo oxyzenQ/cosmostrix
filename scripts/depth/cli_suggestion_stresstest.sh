@@ -22,10 +22,10 @@ set -uo pipefail
 # stays preferred when present so a dev-workstation run is unchanged.
 BIN="./target/debug/cosmostrix"
 if [ ! -x "$BIN" ]; then
-	BIN="./target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix"
+	BIN="./target/x86_64-unknown-linux-musl/pro-linux-amd64-v4-musl/cosmostrix"
 fi
 if [ ! -x "$BIN" ]; then
-	BIN="./target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix"
+	BIN="./target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
 fi
 if [ ! -x "$BIN" ]; then
 	BIN="./target/pro-native/cosmostrix"

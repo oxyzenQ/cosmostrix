@@ -10,7 +10,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-TARGET="x86_64-unknown-linux-gnu"
+TARGET="x86_64-unknown-linux-musl"
 BIN_NAME="cosmostrix"
 NO_BUILD=0
 LOCKED="--locked"
@@ -20,11 +20,15 @@ usage() {
 Usage: scripts/release/verify-release-build.sh [--no-build] [--unlocked] [profile...]
 
 Profiles default to:
-  pro-linux-amd64-v3-gnu pro-linux-amd64-v4-gnu pro-linux-amd64-v3-musl
+  pro-linux-amd64-v3-musl pro-linux-amd64-v4-musl
 
-The script builds Linux x86_64 release variants, prints binary sizes, runs
-safe variants with --doctor, verifies build metadata, and checks stripped status on
-Unix. x86-64-v4 is scanned without execution unless the host supports AVX-512F.
+These are the shipped release shapes: the fully static musl pair
+(night-dragon-maintenance-6). The script builds Linux x86_64 release
+variants, prints binary sizes, runs safe variants with --doctor,
+verifies build metadata, and checks stripped status on Unix.
+x86-64-v4 is scanned without execution unless the host supports
+AVX-512F. The x86_64-unknown-linux-musl rustup target must be
+installed (rustup target add x86_64-unknown-linux-musl).
 EOF
 }
 
@@ -63,8 +67,6 @@ have_avx512f() {
 
 build_id_for_profile() {
 	case "$1" in
-	pro-linux-amd64-v3-gnu) printf 'linux-amd64-v3-gnu' ;;
-	pro-linux-amd64-v4-gnu) printf 'linux-amd64-v4-gnu' ;;
 	pro-linux-amd64-v3-musl) printf 'linux-amd64-v3-musl' ;;
 	pro-linux-amd64-v4-musl) printf 'linux-amd64-v4-musl' ;;
 	*) fail "Unsupported profile '$1'" ;;
@@ -73,8 +75,6 @@ build_id_for_profile() {
 
 rustflags_for_profile() {
 	case "$1" in
-	pro-linux-amd64-v3-gnu) printf -- '-C target-cpu=x86-64-v3' ;;
-	pro-linux-amd64-v4-gnu) printf -- '-C target-cpu=x86-64-v4' ;;
 	pro-linux-amd64-v3-musl) printf -- '-C target-cpu=x86-64-v3' ;;
 	pro-linux-amd64-v4-musl) printf -- '-C target-cpu=x86-64-v4' ;;
 	*) fail "Unsupported profile '$1'" ;;
@@ -83,8 +83,6 @@ rustflags_for_profile() {
 
 baseline_for_profile() {
 	case "$1" in
-	pro-linux-amd64-v3-gnu) printf 'x86-64-v3' ;;
-	pro-linux-amd64-v4-gnu) printf 'x86-64-v4' ;;
 	pro-linux-amd64-v3-musl) printf 'x86-64-v3' ;;
 	pro-linux-amd64-v4-musl) printf 'x86-64-v4' ;;
 	*) fail "Unsupported profile '$1'" ;;
@@ -93,8 +91,6 @@ baseline_for_profile() {
 
 optimization_for_profile() {
 	case "$1" in
-	pro-linux-amd64-v3-gnu) printf 'x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)' ;;
-	pro-linux-amd64-v4-gnu) printf 'x86-64-v4 baseline (AVX-512)' ;;
 	pro-linux-amd64-v3-musl) printf 'x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static' ;;
 	pro-linux-amd64-v4-musl) printf 'x86-64-v4 baseline (AVX-512) + musl static' ;;
 	*) fail "Unsupported profile '$1'" ;;
@@ -103,8 +99,6 @@ optimization_for_profile() {
 
 required_features_for_profile() {
 	case "$1" in
-	pro-linux-amd64-v3-gnu) printf 'avx2 bmi2 fma' ;;
-	pro-linux-amd64-v4-gnu) printf 'avx512f avx512bw avx512cd avx512dq avx512vl' ;;
 	pro-linux-amd64-v3-musl) printf 'avx2 bmi2 fma' ;;
 	pro-linux-amd64-v4-musl) printf 'avx512f avx512bw avx512cd avx512dq avx512vl' ;;
 	*) fail "Unsupported profile '$1'" ;;
@@ -230,7 +224,13 @@ while (($#)); do
 done
 
 if ((${#profiles[@]} == 0)); then
-	profiles=(pro-linux-amd64-v3-gnu pro-linux-amd64-v4-gnu pro-linux-amd64-v3-musl)
+	profiles=(pro-linux-amd64-v3-musl pro-linux-amd64-v4-musl)
+fi
+
+# Preflight: the musl target must be installed before cargo can resolve
+# the triple (night-dragon-maintenance-6). Fail with the exact fix.
+if ((NO_BUILD == 0)) && ! rustup target list --installed 2>/dev/null | grep -qx 'x86_64-unknown-linux-musl'; then
+	fail "The x86_64-unknown-linux-musl target is not installed. Fix: rustup target add x86_64-unknown-linux-musl"
 fi
 
 for profile in "${profiles[@]}"; do
@@ -255,7 +255,7 @@ for profile in "${profiles[@]}"; do
 	log "Binary size: $(binary_size "$bin")"
 
 	case "$profile" in
-	pro-linux-amd64-v4-gnu | pro-linux-amd64-v4-musl)
+	pro-linux-amd64-v4-musl)
 		if have_avx512f; then
 			verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
 		else
@@ -263,7 +263,7 @@ for profile in "${profiles[@]}"; do
 			scan_binary "$bin" "$expected" "$baseline" "$optimization" "$required"
 		fi
 		;;
-	pro-linux-amd64-v3-gnu | pro-linux-amd64-v3-musl)
+	pro-linux-amd64-v3-musl)
 		if have_avx2; then
 			verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
 		else

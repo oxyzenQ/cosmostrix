@@ -11,8 +11,8 @@
 
 set -uo pipefail
 
-BIN="./target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix"
-[ -x "$BIN" ] || BIN="./target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix"
+BIN="./target/x86_64-unknown-linux-musl/pro-linux-amd64-v4-musl/cosmostrix"
+[ -x "$BIN" ] || BIN="./target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
 [ -x "$BIN" ] || BIN="./target/pro-native/cosmostrix"
 [ -x "$BIN" ] || BIN="./target/release/cosmostrix"
 PASS=0

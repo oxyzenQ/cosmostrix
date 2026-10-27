@@ -19,7 +19,7 @@
 #   ./scripts/depth/apply-visual-preset.sh list       # list available presets
 #
 # After applying, rebuild for the change to take effect:
-#   ./scripts/build.sh release   (named-alias dispatch: cargo pro-linux-amd64-v3-gnu on AVX2 hosts)
+#   ./scripts/build.sh release   (named-alias dispatch: cargo pro-linux-amd64-v3-musl on AVX2 hosts)
 #
 # The script patches ONLY the 17 battle parameters (the preset identity
 # package). The Option F inherited values (speed / length / density /

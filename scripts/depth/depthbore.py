@@ -82,8 +82,8 @@ import time
 #    dispatch paths, night-dragon-maintenance-3) ──────────────────────
 
 DEFAULT_BINS = (
-    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
-    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+    "target/x86_64-unknown-linux-musl/pro-linux-amd64-v4-musl/cosmostrix",
+    "target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix",
     "target/pro-native/cosmostrix",
     "target/release/cosmostrix",
     "target/debug/cosmostrix",

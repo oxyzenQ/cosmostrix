@@ -54,8 +54,8 @@ OUTPUT_DIR = REPO_ROOT / "benchmark"
 # first, keep target/release as the legacy fallback.
 def _resolve_binary() -> Path:
     for rel in (
-        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
-        "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+        "target/x86_64-unknown-linux-musl/pro-linux-amd64-v4-musl/cosmostrix",
+        "target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix",
         "target/pro-native/cosmostrix",
         "target/release/cosmostrix",
     ):
@@ -190,7 +190,7 @@ def main() -> int:
     if not BINARY.exists():
         print(f"error: cosmostrix binary not found at {BINARY}", file=sys.stderr)
         print(
-            "run: ./scripts/build.sh release (named-alias dispatch, e.g. cargo pro-linux-amd64-v3-gnu)",
+            "run: ./scripts/build.sh release (named-alias dispatch, e.g. cargo pro-linux-amd64-v3-musl)",
             file=sys.stderr,
         )
         return 1

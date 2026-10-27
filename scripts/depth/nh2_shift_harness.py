@@ -60,8 +60,8 @@ BIN = os.environ.get("BIN") or next(
     (
         c
         for c in (
-            "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
-            "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+            "target/x86_64-unknown-linux-musl/pro-linux-amd64-v4-musl/cosmostrix",
+            "target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix",
             "target/pro-native/cosmostrix",
             "target/release/cosmostrix",
         )

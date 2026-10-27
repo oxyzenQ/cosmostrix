@@ -57,8 +57,8 @@ import time
 # harness itself is fine). Debug stays preferred when present; the
 # pro-alias outputs (build.sh release dispatch) come next.
 _BIN_CANDIDATES = (
-    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v4-gnu/cosmostrix",
-    "target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/cosmostrix",
+    "target/x86_64-unknown-linux-musl/pro-linux-amd64-v4-musl/cosmostrix",
+    "target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix",
     "target/pro-native/cosmostrix",
     "target/release/cosmostrix",
 )
