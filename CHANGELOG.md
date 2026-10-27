@@ -37,6 +37,30 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### license: pricing ladder revision — flagship-premium 5-tier model
+
+- Business raised from $5,199 to $12,999/year; Company tier split
+  into Enterprise Internal ($64,999/year, internal-only) and
+  OEM / Redistribution ($149,999/year, embedding rights) — the
+  previous Company tier conflated internal enterprise use with
+  redistribution rights.
+- Grandfathering clause added to COMMERCIAL_LICENSE.md: buyers who
+  paid before a price move keep their purchased price for their
+  purchased term; renewals after term end follow the current table.
+- Value Justification section added to COMMERCIAL_LICENSE.md,
+  grounding the price in measurable surface (code depth, doc depth,
+  tooling depth, six original motion-math systems, three locked
+  engines, fourteen rain styles, five-OS cross-platform, seven
+  licensed patterns, PGO nitro build).
+- README `## Commercial Licensing` table synced to the 5-tier
+  ladder with a pointer to the canonical table in
+  COMMERCIAL_LICENSE.md.
+- docs/LICENSING_FAQ.md synced: the tier-selection, pricing, and
+  rebranding answers name the new tiers, and the Company-use
+  section becomes Enterprise use.
+- Docs-only change: no source, build, or test surface touched, so no
+  A/B benchmark per house rule.
+
 ### build: night-improve-4 — the Rust edition upgrades 2021 to 2024: the language bump lands across both crates with zero behavior change
 
 - Both Cargo.toml manifests (root crate and pgo-runner) move to
