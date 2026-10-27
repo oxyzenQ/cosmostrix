@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Night Dragon Maintenance 3 — Prerelease Law, Disclaimer Placement, Alias Law, eBPF Depth Audit
 
 Owner: oxyzenQ | Session: night-dragon-maintenance-3 | Date: 2026-10-27
