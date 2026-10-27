@@ -59,6 +59,18 @@ Terminal Matrix-rain renderers today live inside one of three walls. They redraw
 
 cosmostrix refuses all three walls — it writes only the cells that changed, colors in perceptual OKLab space, and schedules the scene's mood by time of day, all CPU-only, all inside the terminal you already own. The three Dragon Engines below are how.
 
+## vs traditional tools
+
+| Tool | Approach | Diff-based | CPU-only | Perceptual color | Daemon |
+|------|----------|------------|----------|------------------|--------|
+| `cmatrix` | C / ncurses classic cascade | No | Yes | No | No |
+| `unimatrix` | Python / curses, Unicode glyph variety | No | Yes | No | No |
+| `tmatrix` | C++ / ncurses digital-rain replica | No | Yes | No | No |
+| `cxxmatrix` | C++ frame renderer (rain, banners, figures) | No | Yes | No | No |
+| **cosmostrix** | **Cinematic three-engine renderer** | **Yes** | **Yes** | **Yes (OKLab)** | **No** |
+
+Every cell was checked against the tool's own documentation, and against the repo's web-audited ecosystem survey (2026-09-05) recorded in [docs/archive/CHANGELOG-V100-ERA.md](docs/archive/CHANGELOG-V100-ERA.md): the surveyed field is plain column cascades — no diff-based render path, no perceptual color pipeline, no daemon anywhere in it. cosmostrix's own cells trace to its docs: the diff engine to [The Cosmic Dragon](#the-cosmic-dragon-diff-based-rendering-engine), the CPU-only discipline to [Limitations](#limitations).
+
 ## About — Three Dragon Engines
 
 cosmostrix is built on **three cooperating engines** that split the work along clean boundaries: *what cells changed* (Cosmic Dragon), *what color a cell becomes* (Chroma Dragon), and *what mood the rain should have* (Crystal Dragon).
