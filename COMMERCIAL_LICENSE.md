@@ -128,13 +128,19 @@ Every paid tier grants the right to use cosmostrix in commercial work
 without GPL-3.0-only copyleft obligations, plus priority support from the
 maintainer:
 
-- **Individual ($99/year)** — solo developers and freelancers with annual
-  revenue under $100K.
-- **Business ($5,199/year)** — small and medium businesses with annual
-  revenue from $100K to $10M.
-- **Company ($100,199/year)** — enterprises above $10M annual revenue, and
-  any buyer who needs redistribution rights: embedding or reselling
-  cosmostrix inside your own products. Redistribution additionally requires
+- **Individual ($99/year)** — solo developers and freelancers with
+  annual revenue under $100K.
+- **Business ($12,999/year)** — small and medium businesses with
+  annual revenue from $100K to $10M.
+- **Enterprise Internal ($64,999/year)** — enterprises above $10M
+  annual revenue for internal use only. This tier does NOT grant
+  redistribution rights: the licensee may run cosmostrix in
+  production, build internal tools around it, and deploy it inside
+  the enterprise, but may not embed or resell it inside a
+  distributed product.
+- **OEM / Redistribution ($149,999/year)** — any buyer who needs to
+  embed or resell cosmostrix inside their own product. This tier
+  grants redistribution rights. Redistribution additionally requires
   trademark permission (see [TRADEMARK.md](TRADEMARK.md)).
 
 ## Unauthorized Use — Read This Before You Steal
