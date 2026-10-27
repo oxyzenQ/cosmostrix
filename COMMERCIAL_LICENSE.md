@@ -55,6 +55,16 @@ Multi-year contracts are available at the owner's discretion: 20% off a
 2-year contract, 30% off a 3-year contract. No free tier above Personal is
 granted without explicit owner approval.
 
+## Grandfathering
+
+Buyers who paid before a price move are grandfathered at the price they
+bought, for the term they bought. Existing Business-tier customers at
+$5,199 and Company-tier customers at $100,199 keep their purchased price
+for their purchased term; new licenses follow the current table. A
+grandfathered buyer who renews after their term ends renews at the
+current table — the grandfathering protects the purchased term, not a
+perpetual rate.
+
 ### Pricing Philosophy
 
 cosmostrix is a professional-grade renderer, and it is priced like one.
