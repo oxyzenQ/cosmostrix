@@ -51,6 +51,26 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install ci-gate tools (every seat installs its own)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # night-dragon-maintenance-7 (zelynic night-dragon-maintenance-10
+          # lineage): this job runs wait-for-ci.sh OUTSIDE the wholesale
+          # cosmic-dragon-guard seat - the exact geometry that killed
+          # zelynic v80.0.1-night.1, where one publish lane trusted the
+          # runner image's apt set and died in fourteen seconds on the
+          # first tag that stepped on the gap. curl and jq are runner
+          # staples today; the law is that this seat installs what it
+          # runs instead of trusting the image. wait-for-ci.sh fail-closes
+          # on a missing tool, so this census pays the seat's own bill
+          # before the gate asks for it.
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=5 update -qq
+            sudo apt-get -o Acquire::Retries=5 install -y -qq jq
+          fi
+          jq --version
+
       - name: Wait for the branch CI on the tagged commit
         shell: bash
         env:

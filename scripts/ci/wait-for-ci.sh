@@ -81,6 +81,28 @@ WORKFLOW_PATH="${WAIT_WORKFLOW_PATH:-.github/workflows/ci.yml}"
 : "${GITHUB_SHA:?GITHUB_SHA is required}"
 : "${GITHUB_TOKEN:?GITHUB_TOKEN is required}"
 
+# ── Tool census (fail-close; night-dragon-maintenance-7) ──────────
+# This gate runs in the release and crates-io publish seats OUTSIDE
+# the wholesale cosmic-dragon-guard seat - the exact geometry of the
+# zelynic v80.0.1-night.1 incident: one publish lane trusted the
+# runner image's apt set, the first tag to carry a gate stepped on
+# the gap, and the job died in fourteen seconds. curl and jq are
+# runner staples today, but the class law is that a seat installs
+# what it runs. A missing jq would kill newest_run under set -e
+# with a bare "command not found", and inside classify_failed_run
+# it would read as "failed with no failed jobs" - an infra
+# verdict, re-run budget burned on a wrong diagnosis. A tool this
+# gate needs that is absent must stop the seat HERE, named, with
+# its install hint.
+for tool in curl jq; do
+	if ! command -v "${tool}" >/dev/null 2>&1; then
+		echo "::error::wait-for-ci.sh: required tool '${tool}' is not installed in this seat." >&2
+		echo "::error::Every seat installs its own tools - the wholesale lane is not a tool provider." >&2
+		echo "::error::Install it in the calling workflow before this step (ubuntu: sudo apt-get install -y ${tool})." >&2
+		exit 1
+	fi
+done
+
 deadline=$(($(date +%s) + TIMEOUT_SECS))
 grace_until=$(($(date +%s) + GRACE_SECS))
 infra_retries_left="${WAIT_INFRA_RETRIES:-2}"

@@ -110,6 +110,15 @@
 # Exit codes:
 #   0 = all checks passed
 #   1 = one or more checks failed
+#
+#   The summary prints passed / failed / skipped, and skipped gates
+#   are listed by name: a check whose tool is absent in this seat
+#   did not run here, and a partial run must never masquerade as a
+#   full one (night-dragon-maintenance-7, the zejtron/zelynic
+#   verdict port). Exit codes are unchanged - the local seat stays
+#   usable on minimal machines, and the CI wholesale seat
+#   (cosmic-dragon-guard.yml, which installs every pinned tool)
+#   stays the enforcer.
 
 set -euo pipefail
 
@@ -121,7 +130,18 @@ NC='\033[0m' # No Color
 
 PASS=0
 FAIL=0
+SKIP=0
 FIX_MODE=false
+# The verdict port (night-dragon-maintenance-7, zelynic
+# night-dragon-maintenance-10 lineage): a summary that counts only
+# passes and failures absorbs a skipped gate into silence - the
+# zelynic night-dragon-maintenance-9 false green (markdownlint
+# absent locally, seventeen violations counted only in CI) was
+# exactly that shape. Every skipped or failed gate is recorded by
+# name and the summary prints both lists, so a partial run can
+# never masquerade as a full one.
+SKIPPED_SECTIONS=()
+FAILED_SECTIONS=()
 
 if [[ "${1:-}" == "--fix" || "${1:-}" == "--fix-all" ]]; then
 	FIX_MODE=true
@@ -129,9 +149,20 @@ fi
 
 info() { echo -e "${GREEN}[PASS]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+# A skipped gate is a gate that did not run in this seat -
+# tallied and named in the summary, never silently absorbed into
+# a pass line. The CI wholesale seat installs every pinned tool
+# and runs every section on every push, so anything skipped here
+# is still enforced somewhere.
+skip() {
+	warn "$1"
+	SKIP=$((SKIP + 1))
+	SKIPPED_SECTIONS+=("$1")
+}
 fail() {
 	echo -e "${RED}[FAIL]${NC} $1"
 	FAIL=$((FAIL + 1))
+	FAILED_SECTIONS+=("$1")
 }
 header() {
 	echo ""
@@ -184,7 +215,7 @@ if command -v shellcheck >/dev/null 2>&1; then
 		PASS=$((PASS + 1))
 	fi
 else
-	warn "shellcheck not installed — skipping"
+	skip "shellcheck not installed — skipping (apt-get install shellcheck)"
 fi
 
 # ── 1c. shfmt -d (format check) ────────────────────────────────────────────
@@ -216,7 +247,7 @@ if command -v shfmt >/dev/null 2>&1; then
 		PASS=$((PASS + 1))
 	fi
 else
-	warn "shfmt not installed — skipping (https://github.com/mvdan/sh)"
+	skip "shfmt not installed — skipping (https://github.com/mvdan/sh)"
 fi
 
 # ── 2. Yamllint ────────────────────────────────────────────────────────────
@@ -246,7 +277,7 @@ if command -v yamllint >/dev/null 2>&1; then
 		fail "yamllint: errors found in YAML files"
 	fi
 else
-	warn "yamllint not installed — skipping"
+	skip "yamllint not installed — skipping (pip install yamllint)"
 fi
 
 # ── 3. Actionlint ──────────────────────────────────────────────────────────
@@ -259,7 +290,7 @@ if command -v actionlint >/dev/null 2>&1; then
 		fail "actionlint: errors found in workflow files"
 	fi
 else
-	warn "actionlint not installed — skipping"
+	skip "actionlint not installed — skipping (go install github.com/rhysd/actionlint/cmd/actionlint@latest)"
 fi
 
 # ── 4. TOML Syntax ─────────────────────────────────────────────────────────
@@ -279,7 +310,7 @@ if command -v python3 >/dev/null 2>&1; then
 		fail "TOML: ${TOML_ERR} file(s) have syntax errors"
 	fi
 else
-	warn "python3 not installed — skipping"
+	skip "python3 not installed — skipping (TOML syntax unchecked)"
 fi
 
 # ── 5. Markdownlint ────────────────────────────────────────────────────────
@@ -305,7 +336,7 @@ if command -v markdownlint >/dev/null 2>&1 || command -v npx >/dev/null 2>&1; th
 		fi
 	fi
 else
-	warn "markdownlint not installed — skipping"
+	skip "markdownlint not installed — skipping (npm install -g markdownlint-cli)"
 fi
 
 # ── 6. Codespell ──────────────────────────────────────────────────────────
@@ -325,7 +356,7 @@ if command -v codespell >/dev/null 2>&1; then
 		fi
 	fi
 else
-	warn "codespell not installed — skipping"
+	skip "codespell not installed — skipping (pip install codespell)"
 fi
 
 # ── 6b. Python lint (ruff) ─────────────────────────────────────────────────
@@ -383,7 +414,7 @@ if [ -n "$PY_FILES" ]; then
 			PASS=$((PASS + 1))
 		fi
 	else
-		warn "ruff not installed — skipping (pip install ruff, or fetch the static binary from https://github.com/astral-sh/ruff/releases)"
+		skip "ruff not installed — skipping (pip install ruff, or fetch the static binary from https://github.com/astral-sh/ruff/releases)"
 	fi
 else
 	info "ruff: no .py files found"
@@ -410,7 +441,7 @@ if [ -f scripts/gates/check-headers.sh ]; then
 		fi
 	fi
 else
-	warn "check-headers.sh not found — skipping"
+	skip "check-headers.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── 8. LOC Guard (800-line hard cap) ───────────────────────────────────────
@@ -439,7 +470,7 @@ if [ -f scripts/gates/check-rs-loc.sh ]; then
 		fail "LOC guard: some .rs files exceed 800 lines"
 	fi
 else
-	warn "check-rs-loc.sh not found — skipping"
+	skip "check-rs-loc.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── 9. Rust Version Sync ───────────────────────────────────────────────────
@@ -452,7 +483,7 @@ if [ -f scripts/gates/check-rust-version-sync.sh ]; then
 		fail "Rust version: sources out of sync"
 	fi
 else
-	warn "check-rust-version-sync.sh not found — skipping"
+	skip "check-rust-version-sync.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── 10. Documentation Disclaimer ───────────────────────────────────────────
@@ -477,7 +508,7 @@ if [ -f scripts/gates/inject-disclaimer.sh ]; then
 		fi
 	fi
 else
-	warn "inject-disclaimer.sh not found — skipping"
+	skip "inject-disclaimer.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── 11. Symbol-Only Output Guard (v80.0.0-beta.2) ──────────────────────────
@@ -490,7 +521,7 @@ if [ -f scripts/gates/check-symbol-only-output.sh ]; then
 		fail "symbol-only: icon glyphs found in output surfaces (v80.0.0-beta.2 rule)"
 	fi
 else
-	warn "check-symbol-only-output.sh not found — skipping"
+	skip "check-symbol-only-output.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── 12. Comment Style (markdown emphasis ban, 2026-09-04) ──────────────────
@@ -505,7 +536,7 @@ if [ -f scripts/gates/check-comment-style.py ] && command -v python3 >/dev/null 
 		fail "comment-style: decorative markdown emphasis in comments (see docs/COMMENT_STYLE.md)"
 	fi
 else
-	warn "check-comment-style.py or python3 not found — skipping"
+	skip "check-comment-style.py or python3 not found — skipping"
 fi
 
 # ── 13. Language Audit (pure-English rule, 2026-09-11) ─────────────────────
@@ -524,7 +555,7 @@ if [ -f scripts/gates/language_audit.py ] && command -v python3 >/dev/null 2>&1;
 		fail "language-audit: non-English human language content found (see scripts/gates/language_audit.py)"
 	fi
 else
-	warn "language_audit.py or python3 not found — skipping"
+	skip "language_audit.py or python3 not found — skipping"
 fi
 
 # ── 14. File Permission Guard (644/755 owner rule, 2026-09-13) ─────────────
@@ -552,7 +583,7 @@ if [ -f scripts/gates/check-permissions.sh ]; then
 		fi
 	fi
 else
-	warn "check-permissions.sh not found — skipping"
+	skip "check-permissions.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── 15. Emoji Sweep (repo-wide, NIGHT-hunt-48) ─────────────────────────
@@ -573,7 +604,7 @@ if [ -f scripts/gates/emoji-audit.py ] && command -v python3 >/dev/null 2>&1; th
 		fail "emoji sweep: emoji found (python3 scripts/gates/emoji-audit.py --fix, then review the replacements)"
 	fi
 else
-	warn "emoji-audit.py or python3 not found — skipping"
+	skip "emoji-audit.py or python3 not found — skipping"
 fi
 
 # ── 16. CI Path-Filter Hygiene (glob-only, NIGHT-boost-1) ─────────────
@@ -592,7 +623,7 @@ if [ -f scripts/gates/check-ci-path-filters.py ] && command -v python3 >/dev/nul
 		fail "ci-path-filters: hardcoded filename entries in workflow path filters (see scripts/gates/check-ci-path-filters.py)"
 	fi
 else
-	warn "check-ci-path-filters.py or python3 not found — skipping"
+	skip "check-ci-path-filters.py or python3 not found — skipping"
 fi
 
 # ── 17. Scripts LOC Guard (1000-line hard cap, NIGHT-lts-1) ─────────────
@@ -612,7 +643,7 @@ if [ -f scripts/gates/check-scripts-loc.sh ]; then
 		fail "scripts LOC guard: some scripts exceed 1000 lines without a # LOC_EXEMPT: marker"
 	fi
 else
-	warn "check-scripts-loc.sh not found — skipping"
+	skip "check-scripts-loc.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── 18. Name-Case Rule (owner mandate, NIGHT-dinner-2) ─────────────────
@@ -635,9 +666,9 @@ if [ -f scripts/gates/check-name-case.py ] && command -v python3 >/dev/null 2>&1
 		fail "name-case: wrong-case project name found (see the file:line:token list above)"
 	fi
 elif [ ! -f scripts/gates/check-name-case.py ]; then
-	warn "check-name-case.py not found — skipping"
+	skip "check-name-case.py not found — skipping (tree fault: the gate script itself is missing)"
 else
-	warn "python3 not installed — skipping"
+	skip "python3 not installed — skipping (name-case unchecked)"
 fi
 
 # ── 19. Release-notes shape contract (dinner-11) ───────────────────────
@@ -659,7 +690,7 @@ if [ -f scripts/gates/check-release-notes-shapes.sh ]; then
 		fail "release-notes shapes: the generator broke its shape contract (see the shape list above)"
 	fi
 else
-	warn "check-release-notes-shapes.sh not found — skipping"
+	skip "check-release-notes-shapes.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── 20. Actions-Pin Health (night-improve-8) ────────────────────────────
@@ -684,7 +715,7 @@ if [ -f scripts/gates/check-actions-pins.sh ]; then
 		fail "actions-pin health: pins behind in strict mode, or an auto-heal landed and needs review (re-run the gate)"
 	fi
 else
-	warn "check-actions-pins.sh not found — skipping"
+	skip "check-actions-pins.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── 21. Hype-Vocabulary Rule (night-dragon-maintenance-5) ────────────────
@@ -704,19 +735,31 @@ if [ -f scripts/gates/check-hype-words.py ] && command -v python3 >/dev/null 2>&
 		fail "hype-vocabulary: banned hype token found (see the file:line:token list above)"
 	fi
 elif [ ! -f scripts/gates/check-hype-words.py ]; then
-	warn "check-hype-words.py not found — skipping"
+	skip "check-hype-words.py not found — skipping (tree fault: the gate script itself is missing)"
 else
-	warn "python3 not installed — skipping"
+	skip "python3 not installed — skipping (hype-vocabulary unchecked)"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo -e "  Gatekeeper Results: ${GREEN}${PASS} passed${NC}, ${RED}${FAIL} failed${NC}"
+echo -e "  Gatekeeper Results: ${GREEN}${PASS} passed${NC}, ${RED}${FAIL} failed${NC}, ${YELLOW}${SKIP} skipped${NC}"
+if [ "$SKIP" -gt 0 ]; then
+	echo "  Skipped gates - not run in this seat; the CI wholesale seat"
+	echo "  (cosmic-dragon-guard.yml) installs every pinned tool and"
+	echo "  enforces them on every push:"
+	for section in "${SKIPPED_SECTIONS[@]}"; do
+		echo "    - ${section}"
+	done
+fi
 echo "═══════════════════════════════════════════════════════════════"
 
 if [ "$FAIL" -gt 0 ]; then
 	echo -e "${RED}COMMIT BLOCKED: ${FAIL} check(s) failed.${NC}"
+	echo "Failed sections:"
+	for section in "${FAILED_SECTIONS[@]}"; do
+		echo "  - ${section}"
+	done
 	if ! $FIX_MODE; then
 		echo "Fix the issues above, or run: ./scripts/gate-keepers.sh --fix-all"
 		echo "(codespell findings are never auto-fixed - review those manually)"
