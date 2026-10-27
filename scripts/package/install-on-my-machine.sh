@@ -155,9 +155,17 @@ echo "   built: ${BINARY}"
 
 # 4. Verify: the official-build signature string every locally built
 # binary carries (README: the embedded 'Cosmic Dragon — Official
-# Build by rezky_nightky (oxyzenQ)' marker, discoverable via strings),
-# then the version report from the installed path.
-if ! strings "${BINARY}" 2>/dev/null | grep -q "Official Build by rezky_nightky"; then
+# Build by rezky_nightky (oxyzenQ)' marker) - a direct raw-byte search
+# of the artifact, not a strings(1) pipe. Why: strings lives in
+# binutils, which is NOT a prerequisite of this script (the musl
+# aliases link self-contained via the toolchain's own musl runtime and
+# lld, so a box can build the release tier without ever installing
+# binutils) - and the old check swallowed a missing strings
+# (2>/dev/null) into a false 'refusing to install'. grep is already a
+# hard dependency (the CPU detect reads /proc/cpuinfo through it), so
+# this check adds zero new tools and cannot false-positive on a
+# missing one.
+if ! grep -aFq "Official Build by rezky_nightky" "${BINARY}"; then
 	echo "error: the built binary does not carry the official-build" >&2
 	echo "  signature string - the build environment or the source tree" >&2
 	echo "  is not what the release law expects. Refusing to install." >&2
