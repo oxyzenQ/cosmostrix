@@ -676,6 +676,19 @@ Owner-verified receive addresses (rezky_nightky / oxyzenQ). All three passed off
 
 Support is optional. The project remains open-source.
 
+## Intellectual Property & Trademark
+
+**cosmostrix** is the exclusive intellectual property of **rezky_nightky (oxyzenQ)**. Source code is licensed under **GPL-3.0-only** (see [LICENSE](LICENSE)); the name, logo, and branding ("the Marks") are governed by [TRADEMARK.md](TRADEMARK.md), are NOT covered by the GPL, and are reserved by the owner. This project is **NOT for sale** — unauthorized rebranding, relicensing, or source-code theft is strictly prohibited.
+
+**Forking policy** — two categories with different rules (full text in [TRADEMARK.md §4](TRADEMARK.md)):
+
+- **Contribution forks** (bug fixes, features, PRs back to upstream): allowed without permission. Keep the cosmostrix name, logo, and branding unchanged — no rename or rebrand required. Just open a PR.
+- **Non-contribution forks** (rebrand, relaunch, derivative product, commercial offering): require owner discussion first. MUST use a different project name + different branding. Open a GitHub Issue before public release.
+
+For trademark licensing or written permission, contact **rezky_nightky (oxyzenQ)** — <https://github.com/oxyzenQ>.
+
+Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+
 ## Commercial Licensing
 
 Companies using this in production need a commercial license. cosmostrix is
@@ -708,19 +721,6 @@ unauthorized-use warning.
 The voluntary crypto donations under [Support](#support) above are tips for
 the open-source project — separate from commercial licensing; they grant no
 commercial rights.
-
-## Intellectual Property & Trademark
-
-**cosmostrix** is the exclusive intellectual property of **rezky_nightky (oxyzenQ)**. Source code is licensed under **GPL-3.0-only** (see [LICENSE](LICENSE)); the name, logo, and branding ("the Marks") are governed by [TRADEMARK.md](TRADEMARK.md), are NOT covered by the GPL, and are reserved by the owner. This project is **NOT for sale** — unauthorized rebranding, relicensing, or source-code theft is strictly prohibited.
-
-**Forking policy** — two categories with different rules (full text in [TRADEMARK.md §4](TRADEMARK.md)):
-
-- **Contribution forks** (bug fixes, features, PRs back to upstream): allowed without permission. Keep the cosmostrix name, logo, and branding unchanged — no rename or rebrand required. Just open a PR.
-- **Non-contribution forks** (rebrand, relaunch, derivative product, commercial offering): require owner discussion first. MUST use a different project name + different branding. Open a GitHub Issue before public release.
-
-For trademark licensing or written permission, contact **rezky_nightky (oxyzenQ)** — <https://github.com/oxyzenQ>.
-
-Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
 
 <p align="center"><em>built with curiosity</em></p>
 
