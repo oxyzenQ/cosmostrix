@@ -43,6 +43,18 @@
 #                       temp repo, on every push
 #                       (scripts/gates/check-release-notes-shapes.sh,
 #                       dinner-11, zelynic dinner-26 lineage)
+#  20.  Actions-pin health - every uses: pin in the workflows tree
+#                       is read against the upstream release surface,
+#                       warn-default (advisory), verdicts cached
+#                       (scripts/gates/check-actions-pins.sh,
+#                       night-improve-8, zelynic improve-39/40 lineage)
+#  21.  Hype vocabulary - the grandiose-claim family named in the
+#                       docs/BRANDING.md section 6 fence fails the push
+#                       outside the frozen records; the gate parses the
+#                       list from its single home at runtime, and the
+#                       owner-kept words stay legal
+#                       (scripts/gates/check-hype-words.py,
+#                       night-dragon-maintenance-5)
 #
 # Every tool listed above is installed below - a check that silently skips
 # because its tool is missing is a check that does not exist (incident:

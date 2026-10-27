@@ -86,6 +86,47 @@ Technically precise but not cold; confident but not arrogant. **Principles**: di
 
 **Avoid**: "cosmostrix is the world's most revolutionary groundbreaking terminal experience that will completely transform how you think about terminals!"
 
+### Banned hype vocabulary (machine-enforced)
+
+Grandiose claims are banned in every tracked file - source comments
+included. A "world-first" is an unfalsifiable marketing claim: no
+reader can verify it, so it reads as bluster and invites the skeptic
+reflex ("toy project" replies under the announcement) instead of the
+technical respect the project earns with benchmarks. State the
+property and the measurement; never the crown.
+
+The banned tokens live in the fence below - one per line,
+case-insensitive, substring-matched. `scripts/gates/check-hype-words.py`
+reads this block at runtime (the list has exactly one home; the gate
+never carries its own copy) and fails the push on any hit outside the
+exempt set: the frozen records (`docs/archive/**`, `CHANGELOG.md`
+released history) are never rewritten, and this document is exempt
+whole-file because the law must be able to name what it bans.
+
+`masterclass` and `curiosity` are owner-kept words and are NOT on the
+list.
+
+```text
+# cosmostrix banned hype vocabulary - one token per line, no literals elsewhere
+world-first
+world's first
+world's most
+world's best
+masterpiece
+revolutionary
+groundbreaking
+game-changer
+unparalleled
+unrivaled
+unprecedented
+state-of-the-art
+cutting-edge
+best-in-class
+blazing-fast
+mind-blowing
+jaw-dropping
+```
+
 **Commit messages** follow [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): description` — e.g. `feat(renderer): add parallax depth layer`, `fix(windows): correct ANSI escape on conhost`, `perf(core): reduce allocation in hot path`.
 
 ## 7. GitHub Presence

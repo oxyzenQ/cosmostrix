@@ -36,8 +36,9 @@
 //! At this allocation rate and heap size, glibc malloc beats mimalloc on
 //! tail latency (p99 frame time +15% with mimalloc). Custom allocators
 //! only win when there's heavy churn or large heap fragmentation to amortize
-//! — neither applies here. Keep it simple: System is best-in-class for this
-//! workload, and avoiding a C dependency keeps the build pure Rust.
+//! — neither applies here. Keep it simple: System is the measured winner
+//! for this workload, and avoiding a C dependency keeps the build pure
+//! Rust.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;

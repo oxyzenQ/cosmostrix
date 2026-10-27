@@ -3,7 +3,7 @@
 # NIGHT-research-9: the neural network — the fourteenth rain style
 
 The owner's question (the quasar rating round): a neural network
-as the next rain style, or another masterpiece option? The
+as the next rain style, or another candidate? The
 registry answered for itself: three cosmic styles (the black
 hole, the solar flare, the quasar), one biology style (the DNA
 helix), two emergent-nature styles (the physarum, the
