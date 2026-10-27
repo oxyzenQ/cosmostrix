@@ -114,7 +114,15 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
             let note = format!(
                 "[signal] graceful signal handler install failed ({e}) — SIGTERM cleanup degraded; watchdog backstop remains active"
             );
-            eprintln_safe!("{note}");
+            // The printed copy rides the calm grey tier (output color law,
+            // night-dragon-maintenance-4); the stored runtime warning stays
+            // plain so post-exit drains and logs keep their raw bytes.
+            eprintln_safe!(
+                "{}{}{}",
+                crate::output::grey_open(),
+                note,
+                crate::output::reset()
+            );
             crate::config::live_config_state::push_runtime_warning(&note);
         }
     }
@@ -159,7 +167,12 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
         // shell for the whole suspend window. Warn pre-alt-screen and
         // buffer for the post-exit drain.
         let note = "[signal] suspend/resume handler install failed — Ctrl+Z will leave the terminal in raw mode while suspended; avoid Ctrl+Z or use `reset` after resume".to_string();
-        eprintln_safe!("{note}");
+        eprintln_safe!(
+            "{}{}{}",
+            crate::output::grey_open(),
+            note,
+            crate::output::reset()
+        );
         crate::config::live_config_state::push_runtime_warning(&note);
     }
 

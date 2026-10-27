@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::output::println_safe;
+use crate::output::{brand_bold, grey_open, ok_bold, println_safe, reset, warn_bold};
 use std::process::Command;
 
 const GITHUB_API_URL: &str = "https://api.github.com/repos/oxyzenQ/cosmostrix/releases/latest";
@@ -185,20 +185,41 @@ fn check_curl_output(current_version: &str, output: &std::process::Output) -> Re
 
 /// Compare `current_version` against the latest release tag in `body`
 /// and print the user-facing update report.
+///
+/// Output color law (night-dragon-maintenance-4): the title rides the
+/// bold brand purple tier, the key labels and the source URL ride the
+/// calm grey tier (secondary context, zelynic grammar), and the Status
+/// verdict carries the state's own tier — bold ok green for a healthy
+/// current install, bold warning yellow when an update is available —
+/// so the one line a user scans for is never plain white.
 fn report_update_status(current_version: &str, body: &str) -> Result<(), String> {
     let latest_tag = extract_tag_name(body)
         .ok_or_else(|| "could not parse latest release tag from GitHub response".to_string())?;
     let status = match compare_versions(current_version, &latest_tag) {
-        UpdateStatus::UpToDate => "up to date",
-        UpdateStatus::UpdateAvailable => "update available",
-        UpdateStatus::CurrentIsNewer => "current is newer than latest release",
+        UpdateStatus::UpToDate => ok_bold("up to date"),
+        UpdateStatus::UpdateAvailable => warn_bold("update available"),
+        UpdateStatus::CurrentIsNewer => ok_bold("current is newer than latest release"),
     };
 
-    println_safe!("cosmostrix update check");
-    println_safe!("Current: {}", normalize_version(current_version));
-    println_safe!("Latest:  {}", normalize_version(&latest_tag));
-    println_safe!("Status:  {status}");
-    println_safe!("Source:  {RELEASES_URL}");
+    println_safe!("{}", brand_bold("cosmostrix update check"));
+    println_safe!(
+        "{}Current:{} {}",
+        grey_open(),
+        reset(),
+        normalize_version(current_version)
+    );
+    println_safe!(
+        "{}Latest:{}  {}",
+        grey_open(),
+        reset(),
+        normalize_version(&latest_tag)
+    );
+    println_safe!("{}Status:{}  {status}", grey_open(), reset());
+    println_safe!(
+        "{}Source:{}  {RELEASES_URL}",
+        grey_open(),
+        reset()
+    );
 
     Ok(())
 }

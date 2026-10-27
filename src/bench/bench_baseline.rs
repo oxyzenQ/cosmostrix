@@ -12,7 +12,7 @@
 //! Comparison flags regressions/improvements per-metric: 5% for FPS,
 //! 10% for frame-time / ns-per-cell, 15% for CPU, 20% for dirty cells.
 
-use crate::output::println_safe;
+use crate::output::{brand_bold, grey_open, println_safe, reset};
 use std::collections::HashMap;
 
 /// Metrics to compare with regression/improvement thresholds.
@@ -42,9 +42,16 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
     let current = parse_json_flat(current_json);
 
     println_safe!();
-    println_safe!("BASELINE COMPARISON");
-    println_safe!("───────────────────");
-    println_safe!("  baseline: {baseline_path}");
+    // Output color law (night-dragon-maintenance-4): the comparison title
+    // rides the bold brand tier, the rule and the label lines ride the
+    // calm grey tier — secondary context never renders plain white.
+    println_safe!("{}", brand_bold("BASELINE COMPARISON"));
+    println_safe!("{}───────────────────{}", grey_open(), reset());
+    println_safe!(
+        "{}  baseline:{} {baseline_path}",
+        grey_open(),
+        reset()
+    );
 
     // Check if screen sizes match
     let base_cols = baseline.get("cols").or_else(|| baseline.get("config.cols"));

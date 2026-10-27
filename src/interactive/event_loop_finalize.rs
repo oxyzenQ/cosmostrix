@@ -158,7 +158,15 @@ pub(crate) fn finalize_session(
     // position for a summary). Now the user sees the one-liner first,
     // then the detailed report below it.
     if cfg.perf_stats {
-        crate::output::eprintln_safe!("{}", final_fps_line);
+        // Output color law (night-dragon-maintenance-4): the one-line FPS
+        // summary is secondary context above the detailed report — it
+        // rides the calm grey tier instead of plain white.
+        crate::output::eprintln_safe!(
+            "{}{}{}",
+            crate::output::grey_open(),
+            final_fps_line,
+            crate::output::reset()
+        );
     }
 
     // Print the perf report AFTER the final FPS header — stdout is

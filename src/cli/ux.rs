@@ -69,7 +69,12 @@ const HELP_FOOTER: &str = "For more information, try '--help'.";
 #[cold]
 pub(crate) fn die_input(msg: impl AsRef<str>) -> ! {
     print_branded_error(msg.as_ref());
-    eprintln_safe!("\n{HELP_FOOTER}");
+    eprintln_safe!(
+        "\n{}{}{}",
+        crate::output::grey_open(),
+        HELP_FOOTER,
+        crate::output::reset()
+    );
     std::process::exit(2);
 }
 
@@ -82,7 +87,12 @@ pub(crate) fn die_input(msg: impl AsRef<str>) -> ! {
 pub(crate) fn die_input_with_usage(msg: impl AsRef<str>) -> ! {
     print_branded_error(msg.as_ref());
     print_usage_line();
-    eprintln_safe!("\n{HELP_FOOTER}");
+    eprintln_safe!(
+        "\n{}{}{}",
+        crate::output::grey_open(),
+        HELP_FOOTER,
+        crate::output::reset()
+    );
     std::process::exit(2);
 }
 
@@ -293,7 +303,12 @@ pub(crate) fn exit_clap_error(mut e: clap::Error, cmd: &mut Command) -> ! {
     // intercepts --help manually to print its curated reference manual
     // (see early_returns). Append the footer ourselves so clap-side
     // errors end exactly like ux-side errors.
-    eprintln_safe!("\n{HELP_FOOTER}");
+    eprintln_safe!(
+        "\n{}{}{}",
+        crate::output::grey_open(),
+        HELP_FOOTER,
+        crate::output::reset()
+    );
     std::process::exit(2);
 }
 

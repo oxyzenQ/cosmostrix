@@ -185,7 +185,9 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             errors += 1;
         }
         eprintln_safe!(
-            "testconf: known keys: {}",
+            "{}testconf: known keys:{} {}",
+            crate::output::grey_open(),
+            crate::output::reset(),
             configfile::known_keys().join(", ")
         );
     }
@@ -196,14 +198,22 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // optionally fix it for clarity (move the key BEFORE any [section] header).
     if !parsed.promoted_keys.is_empty() {
         println_safe!(
-            "testconf: info: {} key(s) auto-promoted to root scope (TOML mis-nesting, fixed):",
-            parsed.promoted_keys.len()
+            "{}testconf: info: {} key(s) auto-promoted to root scope (TOML mis-nesting, fixed):{}",
+            crate::output::grey_open(),
+            parsed.promoted_keys.len(),
+            crate::output::reset()
         );
         for (from, to) in &parsed.promoted_keys {
-            println_safe!("testconf:   {from}  →  {to}");
+            println_safe!(
+                "{}testconf:   {from}  →  {to}{}",
+                crate::output::grey_open(),
+                crate::output::reset()
+            );
         }
         println_safe!(
-            "testconf: hint: move these keys BEFORE any [section] header to silence this notice"
+            "{}testconf: hint: move these keys BEFORE any [section] header to silence this notice{}",
+            crate::output::grey_open(),
+            crate::output::reset()
         );
     }
 
@@ -411,7 +421,12 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         );
     } else {
         // Success: print to stdout (not stderr) so scripts can capture it.
-        println_safe!("testconf: PASS — config is valid");
+        // The PASS verdict rides the bold ok green tier (output color law,
+        // night-dragon-maintenance-4) — a success line is never plain white.
+        println_safe!(
+            "{}",
+            crate::output::ok_bold("testconf: PASS — config is valid")
+        );
     }
     Ok(())
 }
