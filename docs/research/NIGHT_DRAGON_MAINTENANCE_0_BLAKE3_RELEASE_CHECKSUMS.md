@@ -133,3 +133,20 @@ verdict, recorded so the next audit does not re-derive it.
 | ebpf prebuilt blake3 + regen lane + permanent feature | NOT APPLICABLE (evidence above; owner decision if ever wanted) |
 | sha256 upgrade | NOT APPLICABLE (never present in release sidecars) |
 | secret name consistency | CONSISTENT, zero change |
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->
