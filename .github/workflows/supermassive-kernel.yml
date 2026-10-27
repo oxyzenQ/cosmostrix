@@ -119,6 +119,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # The kernel can change; /dev/kvm is a GitHub runner guarantee
       # (nested virt is enabled on every current Linux hosted image)
@@ -422,6 +424,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # Same loud KVM gate as the floor lane (no TCG fallback: the
       # v3 payload's AVX2 needs -cpu host).

@@ -87,6 +87,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install nightly Rust
         uses: dtolnay/rust-toolchain@nightly
