@@ -707,6 +707,20 @@ For trademark licensing or written permission, contact **rezky_nightky (oxyzenQ)
 
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
 
+## What You're Actually Licensing
+
+Companies that buy a commercial tier are not just getting a rain binary. They are licensing the architectural patterns that power it:
+
+1. **The Cosmic Dragon diff-based rendering engine** — back-buffer comparison, RLE-batched ANSI emission, dirty-region tracking.
+2. **The Chroma Dragon OKLab perceptual color pipeline** — locked at Phase 9-D.
+3. **The Crystal Dragon ambient scheduler** — time-of-day phase scheduling, point-based temperature grouping, OKLab smooth transitions.
+4. **The phosphor persistence decay model** — per-layer decay multipliers, bottom-row acceleration.
+5. **The 3-layer parallax composition math** — independent speed/brightness/length/density multipliers.
+6. **The 14 rain styles' motion math** — Lorenz, Navier-Stokes FLIP/PIC, Physarum stigmergy, boids, FABRIK, Keplerian, and the rest.
+7. **The PGO nitro build recipe** — `./scripts/build.sh pgo`, the 3-stage instrument -> benchmark -> optimize pipeline.
+
+The Personal tier (GPL-3.0) is free; the paid tiers license these patterns for proprietary, closed-source, and SaaS use. Prices live once, in [Commercial Licensing](#commercial-licensing) and [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
+
 ## Commercial Licensing
 
 Companies using this in production need a commercial license. cosmostrix is
