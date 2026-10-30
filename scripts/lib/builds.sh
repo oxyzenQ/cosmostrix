@@ -58,9 +58,11 @@ build_debug() {
 # The alias law (night-dragon-maintenance-3, owner directive): release
 # builds ride the named cargo alias family — never a bare
 # `cargo build --release`. The CPU detection reuses lib/pgo.sh
-# detect_cpu_target (sourced by the entry script). The pro-native
-# fallback carries no --target pin, so the build always matches the
-# running machine on any host the script supports.
+# detect_cpu_target (sourced by the entry script). The Linux fallback
+# rides the static pro-native-musl lane (same target as the v3/v4 legs);
+# the catch-all fallback rides pro-native-gnu (no --target pin, the
+# host-default triple) so the build always matches the running machine
+# on any host the script supports.
 pick_release_alias() {
 	local os arch cpu
 	os="$(uname -s 2>/dev/null || echo unknown)"
@@ -77,18 +79,18 @@ pick_release_alias() {
 			echo "pro-linux-amd64-v3-musl|target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/${PROJECT_NAME}|-Ctarget-cpu=x86-64-v3"
 			;;
 		*)
-			echo "pro-native|target/pro-native/${PROJECT_NAME}|-Ctarget-cpu=native"
+			echo "pro-native-musl|target/x86_64-unknown-linux-musl/pro-native-musl/${PROJECT_NAME}|-Ctarget-cpu=native"
 			;;
 		esac
 		;;
 	Darwin:arm64)
-		echo "pro-macos-aarch64-native|target/aarch64-apple-darwin/pro-macos-aarch64-native/${PROJECT_NAME}|-Ctarget-cpu=native"
+		echo "pro-macos-aarch64|target/aarch64-apple-darwin/pro-macos-aarch64/${PROJECT_NAME}|-Ctarget-cpu=native"
 		;;
 	FreeBSD:x86_64 | FreeBSD:amd64)
 		echo "pro-freebsd-amd64|target/x86_64-unknown-freebsd/pro-freebsd-amd64/${PROJECT_NAME}|-Ctarget-cpu=native"
 		;;
 	*)
-		echo "pro-native|target/pro-native/${PROJECT_NAME}|-Ctarget-cpu=native"
+		echo "pro-native-gnu|target/pro-native-gnu/${PROJECT_NAME}|-Ctarget-cpu=native"
 		;;
 	esac
 }
@@ -123,7 +125,7 @@ build_release() {
 	# target before cargo can resolve the triple. Fail with the exact fix
 	# instead of a bare linker error deep in the build.
 	case "${alias}" in
-	pro-linux-amd64-*)
+	pro-linux-amd64-*|pro-native-musl)
 		if ! rustup target list --installed 2>/dev/null | grep -qx 'x86_64-unknown-linux-musl'; then
 			log_error "The ${alias} alias builds the x86_64-unknown-linux-musl target, which is not installed"
 			echo "  Fix: rustup target add x86_64-unknown-linux-musl"

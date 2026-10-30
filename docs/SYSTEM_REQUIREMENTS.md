@@ -247,7 +247,7 @@ The prior 1.97.x pins fixed an LLVM miscompilation present since Rust
 | x86-64-v3 | `pro-linux-amd64-v3-musl` | AVX2 (2013) | Modern CPUs (Haswell+, Ryzen+) — static musl release shape; needs kernel 2.6.35+ (YMM state) |
 | x86-64-v4 | `pro-linux-amd64-v4-musl` | AVX-512 (2017) | Server/workstation CPUs — static musl release shape; needs kernel 2.6.35+ (YMM state) |
 | aarch64 | `pro-android-aarch64` | NEON | Android/Termux, Apple Silicon |
-| aarch64 macOS | `pro-macos-aarch64-native` | NEON | Apple M1/M2/M3 |
+| aarch64 macOS | `pro-macos-aarch64` | NEON | Apple M1/M2/M3 |
 | x86-64 FreeBSD | `pro-freebsd-amd64` | native (host CPU) | FreeBSD 13+, GhostBSD |
 
 **`./scripts/build.sh release` auto-detects** the CPU microarchitecture
@@ -256,7 +256,7 @@ path — never a bare `cargo build --release`):
 
 - AVX-512 detected -> `cargo pro-linux-amd64-v4-musl`
 - AVX2 detected -> `cargo pro-linux-amd64-v3-musl`
-- Neither -> `cargo pro-native` (host-optimal codegen, baseline-safe)
+- Neither -> `cargo pro-native-musl` (static) or `cargo pro-native-gnu` (glibc hosts); host-optimal codegen, baseline-safe
 
 On FreeBSD, use `cargo pro-freebsd-amd64` directly.
 

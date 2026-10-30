@@ -20,16 +20,16 @@ BINARY_NAME="${BINARY_NAME:-cosmostrix}"
 # the static musl pair, so the benchmark exercises what ships):
 #   AVX-512 (avx512f) → pro-linux-amd64-v4-musl
 #   AVX2              → pro-linux-amd64-v3-musl
-#   ARM NEON          → pro-native  (aarch64)
+#   ARM NEON          → pro-native-gnu  (aarch64)
 #   Fallback          → pro
 
 auto_detect_build_profile() {
 	local arch
 	arch=$(uname -m 2>/dev/null || echo "unknown")
 
-	# ARM / AArch64 — use pro-native for -march=native
+	# ARM / AArch64 — use pro-native-gnu for -march=native
 	if [[ "$arch" == aarch64 || "$arch" == arm64 ]]; then
-		echo "pro-native"
+		echo "pro-native-gnu"
 		return 0
 	fi
 
@@ -113,9 +113,9 @@ probe_bin() {
 	# Profile priority: most optimized first
 	local -a profiles=(
 		pro-linux-amd64-v4-musl pro-linux-amd64-v3-musl
-		pro-macos-aarch64-native pro-win-amd64 pro-win-aarch64
+		pro-macos-aarch64 pro-win-amd64 pro-win-aarch64
 		pro-freebsd-amd64 pro-android-aarch64
-		pro-native pro
+		pro-native-gnu pro
 		release
 		pgo-use pgo-instrument
 		debug
@@ -433,7 +433,7 @@ run_sweep() {
 	if [[ -z "$bin" || ! -x "$bin" ]]; then
 		echo "[sweep] No usable binary found." >&2
 		echo "[sweep] Build first with any profile, e.g.:" >&2
-		echo "[sweep]   cargo pro-linux-amd64-v4-musl   # or pro-linux-amd64-v3-musl, pro-native, release" >&2
+		echo "[sweep]   cargo pro-linux-amd64-v4-musl   # or pro-linux-amd64-v3-musl, pro-native-gnu, release" >&2
 		echo "[sweep]   ./benchmark/benchmark.sh sweep --build pro-linux-amd64-v4-musl" >&2
 		echo "[sweep]   SWEEP_BIN=./my-custom-binary ./benchmark/benchmark.sh sweep" >&2
 		exit 1
@@ -629,14 +629,14 @@ sweep)
 	echo "  sweep                       Sweep 1x1 to 8K with auto-detected binary" >&2
 	echo "  sweep --auto                Auto-detect CPU, build optimal profile, sweep" >&2
 	echo "  sweep --build pro-linux-amd64-v4-musl  Build then sweep" >&2
-	echo "  sweep --build pro-native   Build pro-native then sweep" >&2
+	echo "  sweep --build pro-native-gnu   Build pro-native-gnu then sweep" >&2
 	echo "  sweep --build release      Build release then sweep" >&2
-	echo "  sweep ./target/pro-native/cosmostrix  Sweep with explicit binary" >&2
+	echo "  sweep ./target/pro-native-gnu/cosmostrix  Sweep with explicit binary" >&2
 	echo "" >&2
 	echo "  --auto detection order:" >&2
 	echo "    AVX-512 (avx512f)  -> pro-linux-amd64-v4-musl" >&2
 	echo "    AVX2              -> pro-linux-amd64-v3-musl" >&2
-	echo "    ARM NEON          -> pro-native" >&2
+	echo "    ARM NEON          -> pro-native-gnu" >&2
 	echo "    Fallback          -> pro" >&2
 	echo "" >&2
 	echo "Environment:" >&2
@@ -662,7 +662,7 @@ fi
 if [[ -n "${BENCH_BIN2:-}" ]]; then
 	PRO_NATIVE_BIN="$BENCH_BIN2"
 else
-	PRO_NATIVE_BIN="${ROOT_DIR}/target/pro-native/$BINARY_NAME"
+	PRO_NATIVE_BIN="${ROOT_DIR}/target/pro-native-gnu/$BINARY_NAME"
 	if [[ ! -x "$PRO_NATIVE_BIN" ]]; then
 		# Try to find a second distinct binary; if not, use same as first
 		PRO_NATIVE_BIN=$(probe_bin) || echo "$RELEASE_BIN"
@@ -678,10 +678,10 @@ if [[ "$RELEASE_BIN" == "$PRO_NATIVE_BIN" ]]; then
 	RELEASE_BIN="${ROOT_DIR}/target/release/$BINARY_NAME"
 	PRO_NATIVE_BIN="$RELEASE_BIN"
 else
-	echo "[1/5] Build (release + pro-native)"
+	echo "[1/5] Build (release + pro-native-gnu)"
 	JOBS="$(get_jobs)"
 	(cargo build --profile release --jobs "${JOBS}") >/dev/null
-	(cargo pro-native --jobs "${JOBS}") >/dev/null
+	(cargo pro-native-gnu --jobs "${JOBS}") >/dev/null
 fi
 
 if [[ -z "${BENCH_FRAMES}" ]]; then
@@ -730,7 +730,7 @@ if [ -x /usr/bin/time ]; then
 	COSMOSTRIX_BENCH_COLS="$BENCH_COLS" COSMOSTRIX_BENCH_LINES="$BENCH_LINES" \
 		/usr/bin/time -v "$RELEASE_BIN" --fps "$BENCH_FPS" --bench-frames "$BENCH_FRAMES" >"$BENCH_DIR/time-release.txt" 2>&1 || true
 	COSMOSTRIX_BENCH_COLS="$BENCH_COLS" COSMOSTRIX_BENCH_LINES="$BENCH_LINES" \
-		/usr/bin/time -v "$PRO_NATIVE_BIN" --fps "$BENCH_FPS" --bench-frames "$BENCH_FRAMES" >"$BENCH_DIR/time-pro-native.txt" 2>&1 || true
+		/usr/bin/time -v "$PRO_NATIVE_BIN" --fps "$BENCH_FPS" --bench-frames "$BENCH_FRAMES" >"$BENCH_DIR/time-pro-native-gnu.txt" 2>&1 || true
 else
 	echo "- /usr/bin/time not found; skipping."
 fi
@@ -740,7 +740,7 @@ if have perf; then
 	COSMOSTRIX_BENCH_COLS="$BENCH_COLS" COSMOSTRIX_BENCH_LINES="$BENCH_LINES" \
 		perf stat -d "$RELEASE_BIN" --fps "$BENCH_FPS" --bench-frames "$BENCH_FRAMES" 2>"$BENCH_DIR/perf-release.txt" || true
 	COSMOSTRIX_BENCH_COLS="$BENCH_COLS" COSMOSTRIX_BENCH_LINES="$BENCH_LINES" \
-		perf stat -d "$PRO_NATIVE_BIN" --fps "$BENCH_FPS" --bench-frames "$BENCH_FRAMES" 2>"$BENCH_DIR/perf-pro-native.txt" || true
+		perf stat -d "$PRO_NATIVE_BIN" --fps "$BENCH_FPS" --bench-frames "$BENCH_FRAMES" 2>"$BENCH_DIR/perf-pro-native-gnu.txt" || true
 else
 	echo "- perf not found; skipping."
 fi

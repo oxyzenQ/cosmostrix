@@ -97,28 +97,33 @@ jobs:
             platform: linux-amd64-v3-musl
             profile: pro-linux-amd64-v3-musl
             rustflags: "-C target-cpu=x86-64-v3"
-            build: linux-amd64-v3-musl
+            # night-dragon-maintenance-T1: the release label is the alias
+            # name verbatim (the estate "every build shape starts with
+            # pro-" law) — a downloaded release binary reports
+            # "Build: pro-linux-amd64-v3-musl"; local alias builds stamp
+            # the same name under the `local-` marker instead.
+            build: pro-linux-amd64-v3-musl
             checks: true
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-musl
             platform: linux-amd64-v4-musl
             profile: pro-linux-amd64-v4-musl
             rustflags: "-C target-cpu=x86-64-v4"
-            build: linux-amd64-v4-musl
+            build: pro-linux-amd64-v4-musl
             checks: false
           - os: macos-latest
             target: aarch64-apple-darwin
             platform: darwin-aarch64-native
-            profile: pro-macos-aarch64-native
+            profile: pro-macos-aarch64
             rustflags: "-C target-cpu=native"
-            build: darwin-aarch64-native
+            build: pro-macos-aarch64
             checks: false
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             platform: windows-x86_64
             profile: pro-win-amd64
             rustflags: "-C target-cpu=x86-64"
-            build: windows-x86_64
+            build: pro-win-amd64
             checks: false
           # Windows ARM64 (Snapdragon X / Copilot+ PCs): native build on the
           # windows-11-arm hosted runner. Verified compile-clean on 2026-08-23
@@ -131,7 +136,7 @@ jobs:
             platform: windows-arm64
             profile: pro-win-aarch64
             rustflags: "-C target-cpu=native"
-            build: windows-arm64
+            build: pro-win-aarch64
             checks: false
 
     steps:
@@ -321,8 +326,8 @@ jobs:
             # only the musl leg exercised this case).
             # night-dragon-maintenance-6: the gnu cases are retired with
             # their legs; the musl pair is the full matrix now.
-            linux-amd64-v3-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
-            linux-amd64-v4-musl) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512) + musl static"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
+            linux-amd64-v3-musl|pro-linux-amd64-v3-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
+            linux-amd64-v4-musl|pro-linux-amd64-v4-musl) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512) + musl static"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
             *) BASELINE=""; OPTIMIZATION=""; REQUIRED=""; DENIED="" ;;
           esac
 
@@ -678,7 +683,7 @@ jobs:
         shell: bash
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-          COSMOSTRIX_BUILD: android-aarch64-native
+          COSMOSTRIX_BUILD: pro-android-aarch64
           COSMOSTRIX_PROFILE: pro-android-aarch64
         run: |
           set -euo pipefail
@@ -699,12 +704,12 @@ jobs:
         run: |
           set -euo pipefail
           BIN="target/aarch64-linux-android/pro-android-aarch64/cosmostrix"
-          BUILD_ID="android-aarch64-native"
+          BUILD_ID="pro-android-aarch64"
           echo "Verifying embedded build metadata in binary: ${BUILD_ID}"
           if command -v strings >/dev/null 2>&1; then
             TEXT="$(strings "${BIN}")"
           else
-            TEXT="$(grep -aE 'android-aarch64-native|static optimized build|fat|unwind|yes' "${BIN}" || true)"
+            TEXT="$(grep -aE 'pro-android-aarch64|static optimized build|fat|unwind|yes' "${BIN}" || true)"
           fi
           grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
           grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
@@ -975,7 +980,7 @@ jobs:
             cd "$GITHUB_WORKSPACE"
 
             # Build release binary (native FreeBSD, no cross-compile)
-            COSMOSTRIX_BUILD=freebsd-amd64 \
+            COSMOSTRIX_BUILD=pro-freebsd-amd64 \
             COSMOSTRIX_PROFILE=pro-freebsd-amd64 \
             COSMOSTRIX_LTO=fat \
             COSMOSTRIX_STRIP=yes \
@@ -989,7 +994,7 @@ jobs:
             # zelynic aligned-column canon (key padded to the section
             # column), so the value no longer sits one space after the
             # colon — the grep tolerates the padded gap.
-            printf '%s\n' "${OUT}" | grep -E "^  build: +freebsd-amd64$" || { echo "::error::Expected build freebsd-amd64"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^  build: +pro-freebsd-amd64$" || { echo "::error::Expected build pro-freebsd-amd64"; exit 1; }
 
             # Quick benchmark smoke test
             echo "=== Benchmark smoke test ===" && "${BIN}" --benchmark --bench-duration 1 --bench-frames 10 2>&1 | head -5 || true

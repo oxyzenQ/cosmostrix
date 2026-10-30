@@ -247,7 +247,7 @@ jobs:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
-            profile: pro-macos-aarch64-native
+            profile: pro-macos-aarch64
             build: darwin-aarch64-native
     steps:
       - name: Checkout

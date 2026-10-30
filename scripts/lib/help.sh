@@ -28,7 +28,7 @@ details. The recommended one-shot bump+build flow is:
 COMMANDS (essentials):
     debug           Build debug version (default)
     release         Build optimized release via the host-matched pro alias
-                    (AVX-512 -> v4, AVX2 -> v3, else pro-native)
+                    (AVX-512 -> v4, AVX2 -> v3, else pro-native-musl)
     pgo             PGO nitro build (instrument → benchmark → optimize, +5-15% FPS)
                     Pass --auto to auto-detect the best CPU target for this host.
                     Pass --validate to also build a release baseline + compare FPS.

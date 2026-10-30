@@ -213,16 +213,24 @@ panic = "unwind"
 overflow-checks = false
 incremental = false
 
-# pro-native: same as pro but outputs to target/pro-native/ (owner request).
-# The alias in .cargo/config.toml uses --profile pro-native so the binary
-# lands in target/pro-native/cosmostrix instead of target/pro/cosmostrix.
-[profile.pro-native]
+# pro-native-musl / pro-native-gnu: the libc pair that replaces the old
+# bare pro-native profile (night-dragon-maintenance-T1). Same as pro but
+# each outputs to its own target/<profile>/ directory (owner request:
+# a native build must never clobber target/pro/cosmostrix). The alias in
+# .cargo/config.toml mirrors the names 1:1; the musl half builds the
+# x86_64-unknown-linux-musl target (static), the gnu half builds the
+# host-default triple for glibc desktops/servers.
+[profile.pro-native-musl]
+inherits = "pro"
+
+[profile.pro-native-gnu]
 inherits = "pro"
 
 # NIGHT-blade-1: profile names mirror the cargo aliases 1:1 (see
 # .cargo/config.toml) — the name carries arch + baseline + libc.
-# night-dragon-maintenance-6: the gnu profile pair is retired with its
-# aliases; the Linux x86_64 release shapes are the static musl pair.
+# night-dragon-maintenance-6: the Linux x86_64 release shapes are the
+# static musl pair. The pro-native-gnu profile above is the LOCAL
+# glibc dev lane only — no release artifact ships from it.
 [profile.pro-linux-amd64-v3-musl]
 inherits = "pro"
 
@@ -242,7 +250,7 @@ inherits = "pro"
 [profile.pro-linux-amd64-baseline-musl]
 inherits = "pro"
 
-[profile.pro-macos-aarch64-native]
+[profile.pro-macos-aarch64]
 inherits = "pro"
 
 [profile.pro-win-amd64]

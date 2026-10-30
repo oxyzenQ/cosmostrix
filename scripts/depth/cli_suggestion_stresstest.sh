@@ -28,7 +28,7 @@ if [ ! -x "$BIN" ]; then
 	BIN="./target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
 fi
 if [ ! -x "$BIN" ]; then
-	BIN="./target/pro-native/cosmostrix"
+	BIN="./target/pro-native-gnu/cosmostrix"
 fi
 if [ ! -x "$BIN" ]; then
 	BIN="./target/release/cosmostrix"

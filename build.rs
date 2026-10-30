@@ -398,7 +398,8 @@ fn detected_x86_baseline(features: &HashSet<String>) -> &'static str {
     } else {
         // Below v3: no dedicated build profile (v1/v2 removed; only v3/v4
         // exist in .cargo/config.toml + Cargo.toml). Report as generic
-        // baseline — users should use `pro` or `pro-native` for these CPUs.
+        // baseline — users should use `pro-native-musl` or `pro-native-gnu`
+        // for these CPUs.
         "x86-64-baseline"
     }
 }
@@ -411,7 +412,11 @@ fn verify_cpu_baseline(
 ) {
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
-    let official_linux_x86 = (build_id.starts_with("linux-amd64-")
+    // The label may carry the `local-` lane marker (the inferred fallback
+    // and the alias env values both stamp it, night-dragon-maintenance-T1);
+    // strip it once so the official-shape check sees the bare lane name.
+    let label = build_id.strip_prefix("local-").unwrap_or(build_id);
+    let official_linux_x86 = (label.starts_with("linux-amd64-")
         || profile_name.starts_with("pro-linux-amd64-v"))
         && os == "linux"
         && arch == "x86_64";
@@ -464,12 +469,15 @@ fn optimization_label(build_id: &str, baseline: &str, features: &HashSet<String>
             }
         }
         // v1/v2 build profiles were removed; CPUs below v3 get a generic
-        // baseline label. Users with v1/v2-only CPUs should use `pro` or
-        // `pro-native` (generic + native tuning) instead of a v-specific profile.
+        // baseline label. Users with v1/v2-only CPUs should use the
+        // pro-native pair (generic triple + native tuning) instead of a
+        // v-specific profile.
         "x86-64-baseline" if has_all_features(features, &["sse", "sse2"]) => {
-            "x86-64 baseline (SSE/SSE2 — use `pro` or `pro-native`)"
+            "x86-64 baseline (SSE/SSE2 — use `pro-native-musl` or `pro-native-gnu`)"
         }
-        "x86-64-baseline" => "x86-64 baseline (sub-SSE2 — use `pro` or `pro-native`)",
+        "x86-64-baseline" => {
+            "x86-64 baseline (sub-SSE2 — use `pro-native-musl` or `pro-native-gnu`)"
+        }
         "aarch64-native" => "aarch64 target build",
         "unknown" => "generic target build",
         _ => "generic CPU baseline build",
@@ -477,7 +485,12 @@ fn optimization_label(build_id: &str, baseline: &str, features: &HashSet<String>
 }
 
 fn is_native_tuned_build(build_id: &str) -> bool {
-    if build_id.starts_with("android-") {
+    // The android/NDK lane is never a native-tuned build even when the
+    // NDK defaults leak a target-cpu token; the label may carry the
+    // `local-` lane marker and the `pro-` brand rung (the T1 label
+    // contract), so strip the marker before the family check.
+    let label = build_id.strip_prefix("local-").unwrap_or(build_id);
+    if label.starts_with("android-") || label.starts_with("pro-android-") {
         return false;
     }
 
@@ -611,6 +624,14 @@ fn git_short_sha() -> Option<String> {
 }
 
 fn infer_build_id(features: &HashSet<String>) -> String {
+    // night-dragon-maintenance-T1 (the estate-wide build-label contract,
+    // the zelynic law): a build whose label was not pinned by an alias
+    // or by CI is a LOCAL host build — a plain `cargo build --release` —
+    // and its label carries the `local-` marker so `-V` names the lane
+    // honestly. Alias builds stamp "local-pro-..." via their env config
+    // and release binaries stamp "pro-..." via the release workflow; the
+    // inferred fallback is the third lane of the same grammar. The inner
+    // shape is unchanged: <os>-<arch>[-<cpu-baseline>][-<libc>].
     let os_raw = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_else(|_| "unknown".to_string());
     let os = match os_raw.as_str() {
         "macos" => "darwin",
@@ -654,14 +675,14 @@ fn infer_build_id(features: &HashSet<String>) -> String {
             } else {
                 "v1"
             };
-            format!("{os}-{arch_label}-{variant}{env_suffix}")
+            format!("local-{os}-{arch_label}-{variant}{env_suffix}")
         } else {
-            format!("{os}-{arch}")
+            format!("local-{os}-{arch}")
         }
     } else if os == "linux" {
-        format!("{os}-{arch_label}{env_suffix}")
+        format!("local-{os}-{arch_label}{env_suffix}")
     } else {
-        format!("{os}-{arch}-native")
+        format!("local-{os}-{arch}-native")
     }
 }
 
@@ -845,6 +866,21 @@ mod tests {
         assert_eq!(claimed_x86_baseline("pro-linux-v3"), Some("x86-64-v3"));
         assert_eq!(claimed_x86_baseline("linux-amd64-musl"), None);
         assert_eq!(claimed_x86_baseline("pro"), None);
+        // night-dragon-maintenance-T1: the alias labels carry the
+        // `local-` lane marker and the `pro-` brand rung — the inner
+        // -vN- token must keep claiming through both wrappers.
+        assert_eq!(
+            claimed_x86_baseline("local-pro-linux-amd64-v3-musl"),
+            Some("x86-64-v3")
+        );
+        assert_eq!(
+            claimed_x86_baseline("local-pro-native-musl"),
+            None
+        );
+        assert_eq!(
+            claimed_x86_baseline("local-linux-amd64-v1-gnu"),
+            None
+        );
     }
 
     #[test]

@@ -11,7 +11,7 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 |------|---------|
 | Build (debug) | `cargo build` |
 | Build (release) | `cargo build --release` |
-| Build (optimized, AVX-512) | `cargo pro-native` |
+| Build (optimized, host-native) | `cargo pro-native-musl` (static) or `cargo pro-native-gnu` (glibc hosts) |
 | Build (PGO nitro) | `./scripts/build.sh pgo` |
 | Test (full suite) | `cargo test --all --locked` |
 | Test (build-script suite) | `rustc --edition 2024 --test build.rs -o /tmp/cosmostrix-build-script-tests && /tmp/cosmostrix-build-script-tests` |

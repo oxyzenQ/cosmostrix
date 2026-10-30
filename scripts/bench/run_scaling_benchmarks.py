@@ -56,7 +56,7 @@ def _resolve_binary() -> Path:
     for rel in (
         "target/x86_64-unknown-linux-musl/pro-linux-amd64-v4-musl/cosmostrix",
         "target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix",
-        "target/pro-native/cosmostrix",
+        "target/pro-native-gnu/cosmostrix",
         "target/release/cosmostrix",
     ):
         candidate = REPO_ROOT / rel
