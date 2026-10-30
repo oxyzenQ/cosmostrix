@@ -789,6 +789,10 @@ obligations.
 | Enterprise Internal  | $64,999/year   | Enterprise (>$10M/year), internal use only, NO redistribution |
 | OEM / Redistribution | $149,999/year  | Embedding the architectural patterns in a shipped product     |
 
+OEM is available as annual ($149,999/year) or perpetual ($249,999
+one-time + 20%/year maintenance); both grant the same redistribution
+rights. Full terms in COMMERCIAL_LICENSE.md.
+
 Full terms, payment instructions, the grandfathering clause, and the
 authoritative pricing table live in
 [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).

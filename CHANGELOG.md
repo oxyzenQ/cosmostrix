@@ -39,6 +39,14 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### License
+
+- **OEM perpetual path added** — the OEM tier now offers the same two
+  paths zelynic ships: annual ($149,999/year) or perpetual ($249,999
+  one-time + 20%/year maintenance). Both grant the same redistribution
+  rights. Business ($12,999), Enterprise Internal ($64,999), Individual
+  ($99) unchanged.
+
 ### audit: night-dragon-lts-3 / lts-4 — five-rubric depth audit; three fix commits and one honest report
 
 - Audit report lands in
