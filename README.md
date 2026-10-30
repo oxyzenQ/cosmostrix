@@ -141,6 +141,43 @@ The Dragon's roar is not loud — it is precise.
 |--------|---------|--------|
 | `main` | The cinematic three-engine renderer (Cosmic, Chroma, Crystal Dragon) | Active |
 
+## What this renderer is not — and why that matters
+
+Three misconceptions follow every terminal Matrix-rain renderer. Each
+one is honest to correct.
+
+**1. "Aesthetic renderer = shallow renderer."**
+The visual is the surface. Below it: three locked engines (Cosmic
+Dragon diff-based render, Chroma Dragon OKLab Phase 9-D color
+pipeline, Crystal Dragon ambient scheduler), 110K lines of Rust, 14
+rain styles — six of them original motion-math systems
+(Navier-Stokes FLIP/PIC, Physarum stigmergy, Lorenz RK4, boids
+spatial hash, FABRIK chain dynamics, Keplerian orbits) — and 27,685
+lines of markdown documentation across 173 documents. The aesthetic
+is *what you see*. It is not *all there is*. Every engine is locked
+by invariant tests on every commit.
+
+**2. "FPS ceiling = engine limitation."**
+The engine sustains ~100K avg_fps on `monolith` at 80×24 on a 2-vCPU
+cloud Xeon (headless, dry I/O). The 60–240 FPS you see on screen is
+**your terminal's ANSI parse ceiling**, not the engine's. Alacritty,
+kitty, WezTerm — 60–240. Slower terminals — lower. The engine is
+never the bottleneck; the terminal is. This is terminal physics, not
+a code limit. See [Limitations](#limitations).
+
+**3. "CPU-only = underpowered."**
+GPU bitmap rendering was evaluated and rejected — not for
+performance, but because it changes the character-grid aesthetic.
+Every glyph on screen is a real Unicode codepoint in a real terminal
+cell, selectable and copy-pasteable. A GPU framebuffer would break
+that property. CPU-only is a design choice, not a constraint. See
+[docs/archive/cosmic_dragon/EXPLORATION.md](docs/archive/cosmic_dragon/EXPLORATION.md).
+
+The honest framing: this is a cinematic renderer with an opinionated
+aesthetic. If you want a screensaver, any Matrix-rain tool will do.
+If you want a diff-based renderer with locked engines and original
+motion math, that is what you are reading.
+
 ## Features
 
 ### Rendering
