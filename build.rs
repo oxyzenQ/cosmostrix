@@ -873,14 +873,8 @@ mod tests {
             claimed_x86_baseline("local-pro-linux-amd64-v3-musl"),
             Some("x86-64-v3")
         );
-        assert_eq!(
-            claimed_x86_baseline("local-pro-native-musl"),
-            None
-        );
-        assert_eq!(
-            claimed_x86_baseline("local-linux-amd64-v1-gnu"),
-            None
-        );
+        assert_eq!(claimed_x86_baseline("local-pro-native-musl"), None);
+        assert_eq!(claimed_x86_baseline("local-linux-amd64-v1-gnu"), None);
     }
 
     #[test]
