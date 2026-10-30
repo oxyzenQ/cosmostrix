@@ -38,6 +38,25 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### audit: night-dragon-lts-3 / lts-4 — five-rubric depth audit; three fix commits and one honest report
+
+- Audit report lands in
+  `docs/audits/NIGHT_DRAGON_LTS_3_AUDIT_2026-10-31.md`: panic surface
+  verified empty, zombies removed, security amplifiers closed, and the
+  skip-if-peak verdicts (optimization, concurrency, terminal restore)
+  recorded with their reasons.
+- Three code commits ride the round: the last production
+  `unreachable!` defused plus a `cdf_select` contract pin; verified
+  zombie removal (`Cloud::set_async`, the `DRAGON_ACTIVE_*` trio) and
+  a 22-line byte-identical Levenshtein consolidation; white-hat
+  hardening (Levenshtein 128-byte input cap with sentinel, O_EXCL
+  atomic config write, capped `--compare-baseline` read, clamped
+  bench warmup).
+- Verified per commit: check/fmt/clippy `-D warnings` clean, 110
+  targeted unit tests, gate-keepers 20 passed / 0 failed, and a 10 s
+  A/B benchmark (base vs HEAD binary) showing identical visuals and
+  noise-level perf deltas.
+
 ### release: PGO nitro release packages retired — the static musl pair is the full shipped matrix
 
 - `release.yml` drops the `build_pgo` job: the two nitro PGO release
