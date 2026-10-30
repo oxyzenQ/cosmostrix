@@ -13,6 +13,7 @@ Index:
 - [Custom blocks](#custom-blocks)
 - [Rendering engine](#rendering-engine)
 - [Config validation](#config-validation)
+- [Deployment and scale (desktop / server / ultra scale)](#deployment-and-scale-desktop--server--ultra-scale)
 
 ## Colors & OKLab
 
@@ -288,6 +289,67 @@ REMOVED in v80.0.0-beta.2 — so following it produced a fresh error.
 The recipe now shows the complete-block contract (all seven
 `[scene-custom]` fields required). If you see the essay, migrate to a
 `[scene-custom.<name>]` block and reference it by name at top level.
+
+## Deployment and scale (desktop / server / ultra scale)
+
+### Q: What is the best way to run cosmostrix on a desktop?
+
+A: Interactive mode in a truecolor terminal. The engine is CPU-only and
+never the bottleneck — the terminal's ANSI parser is — so a modern
+emulator (Alacritty, kitty, WezTerm, ghostty) is the whole tuning job:
+it decides whether the rain lands at 60-240 FPS. Memory stays around
+4-5 MiB on one core with the default config. For a hands-off machine
+leave the defaults on: `power_dragon` (the adaptive power/performance
+coordinator in `src/central_control_power_dragon/`) paces the render
+loop against terminal activity — an idle desktop drops to half the
+base target FPS, active use restores it — so an unattended machine
+throttles without any manual knob. For a kiosk or lock-screen
+style setup use `--screensaver` (the only behavioral difference: `q`
+exits and interactive keys still work — see
+[`SCREENSAVER_MODE.md`](SCREENSAVER_MODE.md)); the HUD (`i` key) is a
+live overlay, not a separate mode, and costs nothing when hidden.
+
+### Q: What is the best usage on a headless server or over SSH?
+
+A: Same single static binary, zero setup: a missing config file is a
+normal first run (all values default — `src/config/configfile_load.rs`),
+no daemon runs, and the renderer is one process writing ANSI frames to
+stdout. Use the fully static musl
+release shapes (`pro-linux-amd64-v3-musl` / `pro-linux-amd64-v4-musl`;
+the `pro-linux-amd64-baseline-musl` shape is the documented pairing for
+kernel-floor machines, verified down to a real 2.6.27 kernel — see
+[`SYSTEM_REQUIREMENTS.md`](SYSTEM_REQUIREMENTS.md)). On a dumb or
+minimal `$TERM` the output degrades to mono/16-color automatically; on
+SSH/tmux the notes in
+[`TERMINAL_COMPATIBILITY.md`](TERMINAL_COMPATIBILITY.md) apply. For
+measurement on a headless box never pipe interactive mode — the
+pipe-friendly lanes are `--benchmark` (text) and `--benchmark --json`
+(machine): they run the engine with a fixed frame budget, disable the
+input-driven particles, and print a report instead of raw frames (the
+fatal-usage catalog lives in
+[`USAGE_PIPE_REDIRECT.md`](USAGE_PIPE_REDIRECT.md)).
+
+### Q: How far does cosmostrix scale — what happens at ultra-large terminal sizes?
+
+A: The cost model stays flat per cell. The four scaling proofs
+(measured in [`PERFORMANCE_ACROSS_SCALES.md`](PERFORMANCE_ACROSS_SCALES.md)
+and re-checkable on your own hardware with `--benchmark`):
+
+| Property | Verified range | Behavior |
+|---|---|---|
+| Per-cell cost | 20x20 -> 400x200 | ~80 ns/cell, O(1) (small uptick at 400x200 = cache pressure) |
+| Hot-path allocation | 6x6 -> 400x200 | 3.00 allocs/frame constant, zero from the render path |
+| Memory | 6x6 -> 400x200 | 3.7 -> 8.0 MiB, linear in cell count |
+| Dirty ratio | 6x6 -> 400x200 | 5.4% -> 1.8% — the diff engine writes FEWER cells (relatively) as the screen grows |
+
+The practical ceiling is the terminal, not the engine: throughput on a
+2-vCPU cloud Xeon reaches ~100K avg FPS on `monolith` at 80x24 with a
+headless dry-I/O run, while interactive FPS is bounded by the
+emulator's parse speed. On constrained hardware the effective knobs
+are scene choice (`monolith` is the cheapest shape), `density`,
+`--no-effects`, and a lower `target_fps`; the endurance lane
+([`ENDURANCE.md`](ENDURANCE.md)) is the long-session stability
+contract for machines that stay up for weeks.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
