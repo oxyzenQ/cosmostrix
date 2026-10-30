@@ -52,8 +52,14 @@ pub(crate) fn canonical_build_label() -> &'static str {
 /// the `GITHUB_SHA` env var (CI), then `.cargo_vcs_info.json` (crates.io
 /// tarball builds — `cargo install cosmostrix` — where cargo embeds the
 /// packaging commit's sha1 in the published tarball; NIGHT-hunt-2 fix).
-/// `None` therefore means a build with no recoverable source revision;
-/// renderers should display "unknown" rather than an empty string.
+/// `None` therefore means a build with no recoverable source revision.
+/// Display contract (night-dragon-maintenance-T1): the human `-V`
+/// report OMITS the commit parenthetical entirely when this is `None`
+/// — a bare "(unknown)" reads as a defect, and the absent parentheses
+/// carry the same information honestly. The machine-readable lanes
+/// (benchmark JSON and the benchmark report's git_sha field) keep the
+/// literal "unknown" string instead: their schemas are LTS-stable and
+/// every field must stay present with a string value.
 #[must_use]
 pub(crate) fn build_commit_short() -> Option<&'static str> {
     match option_env!("COSMOSTRIX_GIT_SHA") {
@@ -66,7 +72,16 @@ pub(crate) fn build_commit_short() -> Option<&'static str> {
 pub(crate) fn version_report() -> String {
     let version = env!("CARGO_PKG_VERSION");
     let build = canonical_build_label();
-    let commit = build_commit_short().unwrap_or("unknown");
+    // night-dragon-maintenance-T1: the commit sha rides in parentheses
+    // only when it is actually known. A build with no recoverable sha
+    // (a source tarball with neither .git nor .cargo_vcs_info.json)
+    // previously rendered "Build: <id> (unknown)" — the parenthetical
+    // claimed a fact it could not back. Omit the parentheses instead:
+    // same information, no dead-end token to hunt for in audits.
+    let build_line = match build_commit_short() {
+        Some(commit) => format!("Build: {build} ({commit})"),
+        None => format!("Build: {build}"),
+    };
     let build_time = option_env!("COSMOSTRIX_BUILD_TIME").unwrap_or("unknown");
     let description = env!("CARGO_PKG_DESCRIPTION");
     // Pull the official-build signature into the version report so the
@@ -92,7 +107,7 @@ pub(crate) fn version_report() -> String {
     let engine_line = "Engine: The Cosmic Dragon Diff-Based Rendering Engine";
     let body = format!(
         "{engine_line}\n\
-         Build: {build} ({commit})\n\
+         {build_line}\n\
          Build-time: {build_time}\n\
          Signature: {signature}\n\
          Copyright: (c) 2026 {authors}\n\
