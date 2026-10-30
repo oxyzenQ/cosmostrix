@@ -159,7 +159,14 @@ pub(crate) fn trace_config_diff(
                     }
                     (None, Some(n)) => added.push(format!("{}: {}", k, n)),
                     (Some(o), None) => removed.push(format!("{}: {}", k, o)),
-                    (None, None) => unreachable!(),
+                    // night-dragon-lts-3: defused the former
+                    // unreachable!() here. The key comes from the union
+                    // of both maps, so (None, None) is impossible today,
+                    // but one future refactor of the key collection
+                    // would have turned this into a live crash inside a
+                    // debug-trace path. Silently skipping is the correct
+                    // behavior for a key that exists in neither map.
+                    (None, None) => {}
                 }
             }
             if !changed.is_empty() {

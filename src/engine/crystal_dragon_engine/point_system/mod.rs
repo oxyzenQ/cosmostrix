@@ -205,11 +205,22 @@ pub(crate) fn uniform_select(
 }
 
 /// Draw a theme from the CDF via binary search.
+///
+/// night-dragon-lts-3 contract pin: `themes` must be non-empty. Both
+/// current call sites guard via `group_themes(group)` + `is_empty()`
+/// early-returns; the `debug_assert` makes a future unguarded caller
+/// loud in development instead of relying on a non-local invariant.
+/// The `saturating_sub` keeps the historical belt against a
+/// `partition_point` overshoot without the underflow foot-gun.
 pub(crate) fn cdf_select(cdf: &[f32], themes: &[ColorScheme], mt: &mut StdRng) -> ColorScheme {
+    debug_assert!(
+        !themes.is_empty(),
+        "cdf_select requires a non-empty theme list (callers guard with is_empty)"
+    );
     let u_dist = Uniform::new(0.0f32, 1.0f32).expect("uniform f32 always valid");
     let u = u_dist.sample(mt);
     let idx = cdf.partition_point(|&c| c < u);
-    themes[idx.min(themes.len() - 1)]
+    themes[idx.min(themes.len().saturating_sub(1))]
 }
 
 // ── calc-v1 (preserved — legacy option, no memory) ──────────────────────
