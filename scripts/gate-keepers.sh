@@ -12,6 +12,14 @@
 #   ./scripts/gate-keepers.sh           # Run all checks
 #   ./scripts/gate-keepers.sh --fix    # Run with auto-fix where possible
 #
+# Python bytecode guard (night-dragon-maintenance-T1): the checks below
+# shell out to python3 repeatedly (tomllib TOML validation, the
+# scripts/gates/*.py audits, ruff). PYTHONDONTWRITEBYTECODE=1 keeps
+# them from writing __pycache__/ bytecode caches into the source tree;
+# when tooling runs as root those caches are root-owned and later block
+# a normal user's rm -rf of the checkout. See KNOWN_ISSUES.md.
+export PYTHONDONTWRITEBYTECODE=1
+#
 # Checks performed (exclude Rust core code — use `cargo clippy` for that):
 #   1.  Shell scripts (strict triad):
 #         1a. bash -n   — syntax check (fast fail-fast pre-filter)

@@ -30,6 +30,17 @@
 
 set -euo pipefail
 
+# Python bytecode guard (night-dragon-maintenance-T1): every python
+# invocation under this script (lib/quality.sh ruff/tomllib probes and
+# the gates it shells out to) must not write __pycache__/ bytecode
+# caches into the source tree. When project tooling ever runs as root
+# (CI containers, recovery shells), those caches are written with root
+# ownership and a normal user can no longer remove or rebuild the
+# checkout (rm -rf fails with Permission denied on scripts/**/__pycache__).
+# PYTHONDONTWRITEBYTECODE=1 stops the cache from ever being written;
+# see KNOWN_ISSUES.md for the incident record and remediation steps.
+export PYTHONDONTWRITEBYTECODE=1
+
 # Resolve this script's directory so the lib/ modules can be sourced
 # regardless of the caller's working directory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

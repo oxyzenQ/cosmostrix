@@ -492,6 +492,64 @@ the rain is visible before editing the config.
 
 ---
 
+## Developer tooling: root-run python scripts leave root-owned `__pycache__/` caches in the checkout
+
+### Symptom
+
+`rm -rf` of the checkout (or of `scripts/`) fails with
+`Permission denied` on paths like
+`scripts/__pycache__/<name>.cpython-314.pyc` and
+`scripts/lib/__pycache__/*.pyc` when those caches were produced by a
+python script that ran as root (CI container shells, recovery
+sessions, `sudo`-invoked gates). The `.pyc` bytecode files (and their
+`__pycache__/` directories) carry root ownership, so the normal user
+account can no longer delete or replace them.
+
+### Cause
+
+CPython caches compiled bytecode in a `__pycache__/` directory next to
+each imported module. The cache writer does not degrade privileges and
+inherits the effective uid: run the tooling as root once and the
+checkout gains root-owned state. This is standard python behavior, not
+a cosmostrix bug — but project tooling (`scripts/gates/*.py`,
+`scripts/supermassive/*.py`, `scripts/bench/*.py`, the tomllib TOML
+probes) imports and executes enough python to hit it.
+
+### Prevention (implemented, night-dragon-maintenance-T1)
+
+The project's python-invoking shell entrypoints now export
+`PYTHONDONTWRITEBYTECODE=1` before any python runs:
+
+- `scripts/build.sh` (covers `lib/quality.sh` probes and everything it
+  shells out to)
+- `scripts/gate-keepers.sh` (covers the TOML validation, the gate
+  scripts, and ruff invocations)
+
+With the variable set, CPython skips bytecode writing entirely: no
+`__pycache__/` directory is created, root or not. Developers running
+the standalone python scripts directly (without the shell entrypoints)
+should export the same variable in their environment.
+
+### Remediation (existing contaminated checkouts)
+
+Remove the root-owned caches with the privileges that created them,
+then verify the tree is clean:
+
+```sh
+sudo find . -type d -name __pycache__ -prune -exec rm -rf {} +
+sudo find . -type f -name '*.pyc' -delete
+```
+
+Re-running `rm -rf` as the normal user then succeeds. Running the
+tooling as the normal user (never `sudo`) prevents recurrence.
+
+### Status
+
+Prevention merged in night-dragon-maintenance-T1. No runtime surface
+is affected — this is developer tooling hygiene only.
+
+---
+
 ## Reporting new issues
 
 If you encounter an issue not listed here, please open a GitHub issue
