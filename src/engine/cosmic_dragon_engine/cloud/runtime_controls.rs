@@ -229,12 +229,6 @@ impl Cloud {
         // then rain cells are written on top.
     }
 
-    pub fn set_async(&mut self, on: bool) {
-        self.async_mode = on;
-        self.set_column_speeds();
-        self.update_droplet_speeds();
-    }
-
     pub fn set_chars_per_sec(&mut self, cps: f32) {
         self.chars_per_sec = sanitize_speed_for_style(cps, self.rain_style);
         self.recalc_droplets_per_sec();

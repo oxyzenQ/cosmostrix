@@ -385,22 +385,11 @@ pub(crate) const DRAGON_POOL_MAX: usize = 3;
 /// deficit-bounded by the spawn accumulator).
 pub(crate) const DRAGON_FIXED_ACTIVE: usize = 3;
 
-/// Base active-dragon ratio (DEPRECATED by NIGHT-research-5 owner
-/// directive — kept for compatibility but the active count is now
-/// fixed at DRAGON_FIXED_ACTIVE regardless of density).
-#[allow(dead_code)]
-pub(crate) const DRAGON_ACTIVE_BASE: f32 = 0.005;
-
-/// Density multiplier (DEPRECATED by NIGHT-research-5 owner
-/// directive — kept for compatibility but the active count is now
-/// fixed at DRAGON_FIXED_ACTIVE regardless of density).
-#[allow(dead_code)]
-pub(crate) const DRAGON_ACTIVE_DENSITY_MULT: f32 = 0.030;
-
-/// Maximum active-dragon ratio cap (DEPRECATED by NIGHT-research-5
-/// owner directive — kept for compatibility).
-#[allow(dead_code)]
-pub(crate) const DRAGON_ACTIVE_MAX: f32 = 0.030;
+// night-dragon-lts-3 dragon hunt: the deprecated DRAGON_ACTIVE_BASE /
+// DRAGON_ACTIVE_DENSITY_MULT / DRAGON_ACTIVE_MAX trio is deleted. It
+// was zero-referenced since NIGHT-research-5 fixed the active count at
+// DRAGON_FIXED_ACTIVE; the owner's LTS-3 "remove zombie code" directive
+// is the removal mandate the NIGHT_LONG_HORIZON_1 audit was waiting on.
 
 /// Spawn rate multiplier for dragon generation. Steady state needs
 /// target/avg_lifetime dragons per second; 0.35x target + floor 1.5

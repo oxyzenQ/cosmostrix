@@ -319,7 +319,7 @@ pub(crate) fn suggest_closest_theme(input: &str) -> Option<&'static str> {
     }
     let mut best: Option<(&'static str, usize)> = None;
     for theme in THEMES.iter() {
-        let dist = theme_edit_distance(&input_lower, theme.name);
+        let dist = crate::cli::suggestion::edit_distance(&input_lower, theme.name);
         if dist <= 2 {
             match best {
                 None => best = Some((theme.name, dist)),
@@ -328,7 +328,7 @@ pub(crate) fn suggest_closest_theme(input: &str) -> Option<&'static str> {
             }
         }
         for &alias in theme.aliases {
-            let dist = theme_edit_distance(&input_lower, alias);
+            let dist = crate::cli::suggestion::edit_distance(&input_lower, alias);
             if dist <= 2 {
                 match best {
                     None => best = Some((theme.name, dist)),
@@ -341,31 +341,11 @@ pub(crate) fn suggest_closest_theme(input: &str) -> Option<&'static str> {
     best.map(|(name, _)| name)
 }
 
-/// Levenshtein edit distance between two strings. Dedicated copy kept here
-/// so `theme/mod.rs` is self-contained (the `cli::edit_distance` helper is
-/// private to the CLI parse path).
-fn theme_edit_distance(a: &str, b: &str) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
-    let (m, n) = (a.len(), b.len());
-    if m == 0 {
-        return n;
-    }
-    if n == 0 {
-        return m;
-    }
-    let mut prev: Vec<usize> = (0..=n).collect();
-    let mut curr: Vec<usize> = vec![0; n + 1];
-    for i in 1..=m {
-        curr[0] = i;
-        for j in 1..=n {
-            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
-            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
-        }
-        std::mem::swap(&mut prev, &mut curr);
-    }
-    prev[n]
-}
+// night-dragon-lts-3 dragon hunt: the local `theme_edit_distance` copy
+// was deleted — it was byte-identical to `cli::edit_distance`, whose
+// doc comment explicitly invites sibling modules to share it (the old
+// "private to the CLI parse path" justification comment had drifted:
+// the helper is `pub(crate)` precisely so consolidation works).
 
 #[must_use]
 fn metadata_for_scheme(scheme: ColorScheme) -> Option<&'static ThemeInfo> {

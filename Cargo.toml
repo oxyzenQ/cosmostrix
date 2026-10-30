@@ -300,14 +300,13 @@ strip = false
 #
 # File-level `#![allow(...)]` attrs that remain in the source tree:
 #
-#   - `#![cfg_attr(not(test), allow(dead_code))]` in cloud/monolith_tests.rs
-#     (Dragon Hunt v2 Phase 2 surgical marker for a test-only API surface
-#     that is deliberately kept but not yet wired into the production
-#     render path). A global `[lints]` setting cannot replace it —
-#     `dead_code = "deny"` would break the build, `dead_code = "allow"`
-#     would silence ALL dead code and undo Phase 2's triage. Leave it
-#     file-local. The 6 atmosphere_*.rs markers from DHv2 Phase 2 were
-#     removed when those files were deleted in commit 07b44b5.
+#   - none. night-dragon-lts-3 truth pass: the last one — the DHv2
+#     Phase 2 surgical marker in cloud/monolith_tests.rs — left with
+#     that file (it no longer exists anywhere in the tree), and the
+#     6 atmosphere_*.rs markers were removed when those files were
+#     deleted in commit 07b44b5. A global `[lints]` dead_code override
+#     is still deliberately avoided: `deny` breaks intentional
+#     platform stubs, `allow` would undo the dead-code triage.
 
 [lints.clippy]
 # Project-wide clippy lint configuration. The default clippy policy (all

@@ -64,6 +64,12 @@
 
 /// Convert an sRGB byte (0–255) to linear light (0.0–1.0).
 /// Uses the exact sRGB transfer function (IEC 61966-2-1).
+///
+/// night-dragon-lts-3 mirror note: `color_tune.rs` carries a float-domain
+/// twin (`srgb_to_linear_f32` / `linear_to_srgb_f32`) — same IEC 61966-2-1
+/// curve, but it returns unrounded f32 and rounds later at the u8 re-encode
+/// step. The rounding point differs by design (INV-19 parity contracts
+/// pin each side); change both together.
 #[inline]
 fn srgb_to_linear(c: u8) -> f32 {
     let cs = c as f32 / 255.0;

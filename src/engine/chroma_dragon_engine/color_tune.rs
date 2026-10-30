@@ -199,6 +199,11 @@ fn apply_tune_rgb(r: u8, g: u8, b: u8, tune: &ColorTune, segment_mult: f32) -> (
     )
 }
 
+// night-dragon-lts-3 mirror note: these two float-domain transfers share
+// the IEC 61966-2-1 curve with `gradient/mod.rs::srgb_to_linear` /
+// `linear_to_srgb` (u8-domain, rounds at return). The rounding point
+// differs by design (INV-19 parity contracts pin each side); change
+// both together.
 fn srgb_to_linear_f32(c: f32) -> f32 {
     let cs = c / 255.0;
     if cs <= 0.04045 {
