@@ -8,7 +8,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | every push + every PR (unfiltered) | fmt, clippy, test, build, security audit, version sync |
-| `release.yml` | tag push `v*` (CI-gated: waits for the `ci.yml` run on the tagged SHA — NIGHT-improve-1) | 8-platform binaries + checksums + GPG sign + GitHub Release |
+| `release.yml` | tag push `v*` (CI-gated: waits for the `ci.yml` run on the tagged SHA — NIGHT-improve-1) | 7-platform binaries + checksums + GPG sign + GitHub Release (PGO nitro release packages retired — night-dragon-maintenance-T1) |
 | `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) | `cargo update` + audit + commit if validation passes |
 | `gitbot-audit.yml` | daily cron + every push/PR (unfiltered) | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
@@ -284,9 +284,9 @@ the registry (re-pushed tags / re-runs stay green), and publishes with
 
 ## Build matrix (release.yml)
 
-Linux x86_64 (`v3`, `v4`, `musl`), Linux aarch64, macOS aarch64, Windows x86_64, Windows aarch64, Android aarch64 (cross-compiled).
+Linux x86_64 static musl (`v3`, `v4` — the night-dragon-maintenance-6 pair), macOS aarch64, Windows x86_64, Windows aarch64, FreeBSD amd64 (native on the release lane), Android aarch64 (cross-compiled). The PGO nitro release packages are retired (night-dragon-maintenance-T1); the nitro build remains a local capability (`./scripts/build.sh pgo`).
 
-Linux x86_64 baselines: `v3` = `-C target-cpu=x86-64-v3`, `v4` = `-C target-cpu=x86-64-v4`, `musl` = `x86-64-v3` static. v1/v2 were dropped in v10.0.0 (modern CPUs support v3).
+Linux x86_64 baselines: `v3` = `-C target-cpu=x86-64-v3` + musl static, `v4` = `-C target-cpu=x86-64-v4` + musl static (the shipped static pair). v1/v2 were dropped in v10.0.0 (modern CPUs support v3).
 
 ## Packaging output
 

@@ -38,6 +38,28 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### release: PGO nitro release packages retired — the static musl pair is the full shipped matrix
+
+- `release.yml` drops the `build_pgo` job: the two nitro PGO release
+  packages (`cosmostrix-<tag>-linux-amd64-v3-musl-pgo.tar.gz` and the
+  v4 twin) are no longer built, signed, or published. Reason: the PGO
+  performance edge is not needed in the shipped set and long stability
+  wins — every release minute goes to the seven standard packages.
+- The publish job's `needs` list drops `build_pgo` accordingly. The
+  shipped matrix is 7 archives across 7 OS/arch targets: the static
+  musl v3/v4 pair, darwin aarch64, windows x64/arm64, freebsd amd64,
+  android aarch64.
+- The PGO nitro build stays a LOCAL capability: `./scripts/build.sh
+  pgo` (instrument -> benchmark -> optimize), the `pgo-instrument` /
+  `pgo-use` cargo profiles, the `pgo-runner` crate, and the `pgo:
+  yes/no` doctor line are all untouched. Only the release packaging is
+  retired.
+- Stale release-matrix doc numbers corrected while auditing the
+  removal: MAINTENANCE.md said "11 release archives" (the real count
+  was 9) and listed a "linux aarch64" leg that does not exist;
+  ABOUT_CI.md said "8-platform binaries" and carried the same phantom
+  "Linux aarch64" leg while omitting the FreeBSD release lane.
+
 ### license: pricing ladder revision — flagship-premium 5-tier model
 
 - Business raised from $5,199 to $12,999/year; Company tier split

@@ -780,173 +780,11 @@ jobs:
           path: dist/*.tar.gz*
           if-no-files-found: error
 
-  build_pgo:
-    name: Cosmic Dragon - Build PGO nitro (${{ matrix.platform }})
-    # PGO is Linux x86_64-only by design:
-    #   - macOS, Windows, FreeBSD, and ARM targets either lack PGO toolchain
-    #     support, gain nothing from PGO (ARM is already well-tuned by LLVM),
-    #     or would burn CI minutes on builds that cannot be distributed.
-    #   - The matrix below only lists the static musl pair (linux-amd64-
-    #     v3-musl / v4-musl, night-dragon-maintenance-6) and `runs-on` is
-    #     pinned to ubuntu-24.04, so this job is structurally Linux-only.
-    #     Other platforms fall through to the standard `build_packages` job
-    #     which uses their normal optimized profile.
-    #   - A job-level `if:` cannot reference the `runner` context (it is only
-    #     populated after the runner is allocated), so the Linux guard is
-    #     enforced structurally via `runs-on` rather than via an expression.
-    runs-on: ubuntu-24.04
-    needs: ci_gate
-    timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux-amd64-v3-musl
-            target_cpu: x86-64-v3
-          - platform: linux-amd64-v4-musl
-            target_cpu: x86-64-v4
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          components: rustfmt, clippy, llvm-tools-preview
-
-      - name: Ensure llvm-tools-preview installed (override rust-toolchain.toml)
-        shell: bash
-        run: |
-          # rust-toolchain.toml in the repo only lists rustfmt + clippy.
-          # It overrides the dtolnay/rust-toolchain components list, so
-          # llvm-tools-preview (which provides llvm-profdata for PGO) is
-          # NOT installed. Install it explicitly here.
-          rustup component add llvm-tools-preview
-          # Verify llvm-profdata is findable
-          PROFDATA="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-profdata"
-          if [ -x "${PROFDATA}" ]; then
-            echo "llvm-profdata found at: ${PROFDATA}"
-          else
-            echo "::error::llvm-profdata not found after installing llvm-tools-preview"
-            exit 1
-          fi
-
-      # night-dragon-maintenance-6: PGO artifacts are release packages, so
-      # they ride the same static musl law as the rest of the matrix. The
-      # musl self-contained libc objects ship with the rustup target; the
-      # musl-gcc wrapper covers any C host helper during instrumentation.
-      - name: Install musl toolchain (PGO musl target)
-        shell: bash
-        run: |
-          set -euo pipefail
-          # NIGHT-dinner-1: apt rides its own retry knob — a flaky
-          # mirror fetch must not read as a code failure.
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y musl-tools
-          rustup target add x86_64-unknown-linux-musl
-
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Set cargo build jobs
-        shell: bash
-        run: |
-          set -euo pipefail
-          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
-          if [[ -z "${JOBS}" ]]; then
-            JOBS="$(nproc 2>/dev/null || true)"
-          fi
-          if [[ -z "${JOBS}" ]]; then
-            JOBS=2
-          fi
-          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
-
-      - name: PGO build (3-stage instrument, benchmark, optimize)
-        shell: bash
-        env:
-          COSMOSTRIX_TARGET_CPU: ${{ matrix.target_cpu }}
-          COSMOSTRIX_TARGET: x86_64-unknown-linux-musl
-        run: |
-          set -euo pipefail
-          # Use the build.sh pgo command which handles all 3 stages
-          # including llvm-profdata auto-detection from rustup.
-          #
-          # COSMOSTRIX_TARGET_CPU sets the FINAL binary's target-cpu.
-          # The instrumented binary (Stage 1) uses a safe default
-          # (x86-64-v3 on x86_64) so it can execute on the runner to
-          # collect profile data — even when matrix.target_cpu is v4
-          # and the runner lacks AVX-512. Profile data is CPU-feature-
-          # independent (it captures branch frequencies, not SIMD
-          # codegen), so v3 instrumentation + v4 final is sound.
-          ./scripts/build.sh pgo
-
-      - name: Verify PGO binary
-        shell: bash
-        run: |
-          set -euo pipefail
-          BIN="target/x86_64-unknown-linux-musl/pgo-use/cosmostrix"
-          if [ ! -f "${BIN}" ]; then
-            echo "::error::PGO binary not found at ${BIN}"
-            exit 1
-          fi
-          echo "PGO binary size: $(du -h "${BIN}" | cut -f1)"
-          # v4 binaries may SIGILL on runners without AVX-512; use --doctor
-          # which is pure computation (no SIMD hot path). If it crashes, fall
-          # back to strings verification.
-          if OUT="$("${BIN}" --doctor 2>&1)"; then
-            grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" <<<"${OUT}" || { echo "::error::Doctor report missing"; exit 1; }
-            grep -Fq "FEATURES" <<<"${OUT}" || { echo "::error::FEATURES section missing"; exit 1; }
-            echo "PGO binary verified via --doctor."
-          else
-            echo "::warning::${BIN} --doctor exited non-zero (likely AVX-512 SIGILL). Verifying via strings."
-            TEXT="$(strings "${BIN}")"
-            grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected dispatch metadata"; exit 1; }
-            echo "PGO binary verified via strings (v4 fallback)."
-          fi
-
-      - name: Package PGO binary
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
-          TAG="${TAG## }"
-          TAG="${TAG%% }"
-          if [[ "${TAG}" != v* ]]; then
-            TAG="v${TAG}"
-          fi
-          ARCHIVE="cosmostrix-${TAG}-${{ matrix.platform }}-pgo.tar.gz"
-          BIN="target/x86_64-unknown-linux-musl/pgo-use/cosmostrix"
-          mkdir -p staging
-          cp "${BIN}" staging/cosmostrix
-          cp README.md staging/
-          cp LICENSE staging/ 2>/dev/null || true
-          tar -czf "${ARCHIVE}" -C staging .
-          echo "archive=${ARCHIVE}" >> "$GITHUB_ENV"
-          ls -lh "${ARCHIVE}"
-          # Generate all 3 checksums for consistency with build_packages
-          sha512sum "${ARCHIVE}" > "${ARCHIVE}.sha512sum"
-          if ! command -v b3sum >/dev/null 2>&1; then
-            cargo install b3sum --locked --quiet || true
-          fi
-          if command -v b3sum >/dev/null 2>&1; then
-            b3sum "${ARCHIVE}" > "${ARCHIVE}.b3sum"
-          else
-            echo "::warning::b3sum unavailable - ${ARCHIVE}.b3sum sidecar skipped (sha512sum + shake256 still generated)"
-          fi
-          python3 -c "import hashlib; print(hashlib.shake_256(open('${ARCHIVE}','rb').read()).hexdigest(64) + '  ${ARCHIVE}')" > "${ARCHIVE}.shake256"
-
-      - name: Upload PGO artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: cosmostrix-${{ matrix.platform }}-pgo
-          path: cosmostrix-*-${{ matrix.platform }}-pgo.tar.gz*
-          retention-days: 30
+  # night-dragon-maintenance-T1: the PGO nitro release packages
+  # (cosmostrix-<tag>-linux-amd64-v3-musl-pgo.tar.gz and the v4 twin)
+  # are retired from the shipped matrix - long stability over the PGO
+  # performance edge. The nitro build remains a local capability only:
+  # ./scripts/build.sh pgo (instrument -> benchmark -> optimize).
 
   build_freebsd:
     name: Cosmic Dragon - Build (freebsd native)
@@ -1035,7 +873,7 @@ jobs:
     name: Cosmic Dragon - Publish GitHub Release
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    needs: [build_packages, build_android, build_pgo, build_freebsd]
+    needs: [build_packages, build_android, build_freebsd]
     permissions:
       contents: write
 
