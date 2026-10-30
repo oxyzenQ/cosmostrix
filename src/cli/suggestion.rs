@@ -22,6 +22,16 @@
 // Value suggestion (v80.0.0-beta.1 Z-master-1B did-you-mean audit)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Inputs longer than this are never suggestion candidates.
+///
+/// night-dragon-lts-3 hardening: the Levenshtein DP is O(m*n) over the
+/// raw input. Bounded by the 1 MiB config cap, a hostile multi-hundred-KB
+/// `color =` value previously cost ~1e12 cell updates and tens of MB of
+/// DP buffers at startup for a suggestion nobody wants. 128 bytes covers
+/// every real candidate (color/scene/theme/charset names and enum values,
+/// longest ~30 bytes) with room to spare.
+const EDIT_DISTANCE_MAX_INPUT: usize = 128;
+
 /// Levenshtein edit distance (shared engine; the copies in `cli/mod.rs`
 /// and `config_hints/mod.rs` predate this consolidation point).
 ///
@@ -29,6 +39,12 @@
 /// over domain-specific candidate lists (colors, scenes, charsets,
 /// enum values, custom block names).
 pub(crate) fn edit_distance(a: &str, b: &str) -> usize {
+    // Sentinel distance: callers compare `dist <= 2`, so an oversized
+    // input can never win a closest-match contest — it simply never
+    // gets a suggestion.
+    if a.len() > EDIT_DISTANCE_MAX_INPUT || b.len() > EDIT_DISTANCE_MAX_INPUT {
+        return usize::MAX;
+    }
     let a: Vec<char> = a.chars().collect();
     let b: Vec<char> = b.chars().collect();
     let (m, n) = (a.len(), b.len());

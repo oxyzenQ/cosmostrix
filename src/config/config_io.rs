@@ -56,12 +56,36 @@ pub(crate) fn write_config_atomic(target_path: &str, text: &str) -> std::io::Res
             .unwrap_or("config.toml")
     );
     let tmp_path = parent.join(&tmp_name);
-    std::fs::write(&tmp_path, text)?;
+    // night-dragon-lts-3 hardening: create the temp with O_EXCL instead
+    // of a blind fs::write. The temp name is predictable
+    // (<name>.tmp.<pid>); a symlink planted at that path used to be
+    // followed, redirecting the write. create_new refuses to write
+    // through a pre-existing entry. A stale temp from a crashed run
+    // whose pid was recycled is unlinked (never followed — remove_file
+    // drops the link itself) and the create is retried once.
+    let mut tmp_file = match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp_path)
+    {
+        Ok(file) => file,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            let _ = std::fs::remove_file(&tmp_path);
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&tmp_path)?
+        }
+        Err(e) => return Err(e),
+    };
+    use std::io::Write;
+    tmp_file.write_all(text.as_bytes())?;
     // fsync for crash-durability. If it fails, rename still proceeds (data
     // is in page cache). Surface error only if rename itself fails.
-    if let Ok(file) = std::fs::File::open(&tmp_path) {
-        let _ = file.sync_all();
-    }
+    // Syncs the same handle we wrote through — the old open-again-for-sync
+    // step had a window where the entry could be swapped underneath.
+    let _ = tmp_file.sync_all();
+    drop(tmp_file);
     std::fs::rename(&tmp_path, target)?;
     Ok(())
 }

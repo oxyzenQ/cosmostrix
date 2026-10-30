@@ -35,8 +35,14 @@ pub(crate) fn save_baseline(path: &str, json: &str) -> Result<(), String> {
 /// Compare current benchmark JSON against a saved baseline JSON.
 /// Prints a comparison table to stdout.
 pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> Result<(), String> {
-    let baseline_text = std::fs::read_to_string(baseline_path)
-        .map_err(|e| format!("error: cannot read baseline '{baseline_path}': {e}"))?;
+    // night-dragon-lts-3 hardening: the baseline read previously used an
+    // unbounded fs::read_to_string. Baselines are small JSON (KBs); route
+    // the read through the shared 1 MiB cap so a hostile or accidental
+    // multi-GB file at --compare-baseline cannot OOM the bench process
+    // (same Read::take law the config loader enforces since S-master-3-v2).
+    let baseline_text =
+        crate::config::config_io::read_config_capped(std::path::Path::new(baseline_path))
+            .map_err(|e| format!("error: cannot read baseline '{baseline_path}': {e}"))?;
 
     let baseline = parse_json_flat(&baseline_text);
     let current = parse_json_flat(current_json);

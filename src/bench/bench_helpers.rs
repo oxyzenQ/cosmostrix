@@ -64,9 +64,14 @@ pub(crate) fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
 /// that were actually just a typo'd env var being ignored.
 pub(crate) fn bench_warmup_secs() -> u64 {
     const DEFAULT: u64 = 2;
+    // night-dragon-lts-3: clamp the override. Warmup is a pre-bench sleep;
+    // a typo like 36000 (or a hostile env) previously slept unbounded and
+    // read as a hung bench run. 3600 s (one hour) is far beyond any real
+    // JIT warmup need.
+    const MAX: u64 = 3600;
     match env::var("COSMOSTRIX_BENCH_WARMUP_SECS") {
         Ok(raw) => match raw.parse::<u64>() {
-            Ok(secs) => secs,
+            Ok(secs) => secs.min(MAX),
             Err(_) => {
                 use std::io::Write;
                 let _ = std::io::stderr().write_fmt(format_args!(
