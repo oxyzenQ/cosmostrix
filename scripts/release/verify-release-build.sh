@@ -16,7 +16,7 @@ NO_BUILD=0
 LOCKED="--locked"
 
 usage() {
-        cat <<'EOF'
+	cat <<'EOF'
 Usage: scripts/release/verify-release-build.sh [--no-build] [--unlocked] [profile...]
 
 Profiles default to:
@@ -33,248 +33,248 @@ EOF
 }
 
 log() {
-        printf '[INFO] %s\n' "$*"
+	printf '[INFO] %s\n' "$*"
 }
 
 pass() {
-        printf '[PASS] %s\n' "$*"
+	printf '[PASS] %s\n' "$*"
 }
 
 fail() {
-        printf '[FAIL] %s\n' "$*" >&2
-        exit 1
+	printf '[FAIL] %s\n' "$*" >&2
+	exit 1
 }
 
 have_avx2() {
-        if [[ -r /proc/cpuinfo ]]; then
-                grep -q '^flags.* avx2' /proc/cpuinfo
-        elif command -v sysctl >/dev/null 2>&1; then
-                sysctl -a 2>/dev/null | grep -E 'machdep.cpu.features|machdep.cpu.leaf7_features' | grep -qi 'AVX2'
-        else
-                return 1
-        fi
+	if [[ -r /proc/cpuinfo ]]; then
+		grep -q '^flags.* avx2' /proc/cpuinfo
+	elif command -v sysctl >/dev/null 2>&1; then
+		sysctl -a 2>/dev/null | grep -E 'machdep.cpu.features|machdep.cpu.leaf7_features' | grep -qi 'AVX2'
+	else
+		return 1
+	fi
 }
 
 have_avx512f() {
-        if [[ -r /proc/cpuinfo ]]; then
-                grep -q '^flags.* avx512f' /proc/cpuinfo
-        elif command -v sysctl >/dev/null 2>&1; then
-                sysctl -a 2>/dev/null | grep -E 'machdep.cpu.features|machdep.cpu.leaf7_features' | grep -qi 'AVX512F'
-        else
-                return 1
-        fi
+	if [[ -r /proc/cpuinfo ]]; then
+		grep -q '^flags.* avx512f' /proc/cpuinfo
+	elif command -v sysctl >/dev/null 2>&1; then
+		sysctl -a 2>/dev/null | grep -E 'machdep.cpu.features|machdep.cpu.leaf7_features' | grep -qi 'AVX512F'
+	else
+		return 1
+	fi
 }
 
 build_id_for_profile() {
-        case "$1" in
-        pro-linux-amd64-v3-musl) printf 'pro-linux-amd64-v3-musl' ;;
-        pro-linux-amd64-v4-musl) printf 'pro-linux-amd64-v4-musl' ;;
-        *) fail "Unsupported profile '$1'" ;;
-        esac
+	case "$1" in
+	pro-linux-amd64-v3-musl) printf 'pro-linux-amd64-v3-musl' ;;
+	pro-linux-amd64-v4-musl) printf 'pro-linux-amd64-v4-musl' ;;
+	*) fail "Unsupported profile '$1'" ;;
+	esac
 }
 
 rustflags_for_profile() {
-        case "$1" in
-        pro-linux-amd64-v3-musl) printf -- '-C target-cpu=x86-64-v3' ;;
-        pro-linux-amd64-v4-musl) printf -- '-C target-cpu=x86-64-v4' ;;
-        *) fail "Unsupported profile '$1'" ;;
-        esac
+	case "$1" in
+	pro-linux-amd64-v3-musl) printf -- '-C target-cpu=x86-64-v3' ;;
+	pro-linux-amd64-v4-musl) printf -- '-C target-cpu=x86-64-v4' ;;
+	*) fail "Unsupported profile '$1'" ;;
+	esac
 }
 
 baseline_for_profile() {
-        case "$1" in
-        pro-linux-amd64-v3-musl) printf 'x86-64-v3' ;;
-        pro-linux-amd64-v4-musl) printf 'x86-64-v4' ;;
-        *) fail "Unsupported profile '$1'" ;;
-        esac
+	case "$1" in
+	pro-linux-amd64-v3-musl) printf 'x86-64-v3' ;;
+	pro-linux-amd64-v4-musl) printf 'x86-64-v4' ;;
+	*) fail "Unsupported profile '$1'" ;;
+	esac
 }
 
 optimization_for_profile() {
-        case "$1" in
-        pro-linux-amd64-v3-musl) printf 'x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static' ;;
-        pro-linux-amd64-v4-musl) printf 'x86-64-v4 baseline (AVX-512) + musl static' ;;
-        *) fail "Unsupported profile '$1'" ;;
-        esac
+	case "$1" in
+	pro-linux-amd64-v3-musl) printf 'x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static' ;;
+	pro-linux-amd64-v4-musl) printf 'x86-64-v4 baseline (AVX-512) + musl static' ;;
+	*) fail "Unsupported profile '$1'" ;;
+	esac
 }
 
 required_features_for_profile() {
-        case "$1" in
-        pro-linux-amd64-v3-musl) printf 'avx2 bmi2 fma' ;;
-        pro-linux-amd64-v4-musl) printf 'avx512f avx512bw avx512cd avx512dq avx512vl' ;;
-        *) fail "Unsupported profile '$1'" ;;
-        esac
+	case "$1" in
+	pro-linux-amd64-v3-musl) printf 'avx2 bmi2 fma' ;;
+	pro-linux-amd64-v4-musl) printf 'avx512f avx512bw avx512cd avx512dq avx512vl' ;;
+	*) fail "Unsupported profile '$1'" ;;
+	esac
 }
 
 denied_features_for_profile() {
-        case "$1" in
-        *) printf '' ;;
-        esac
+	case "$1" in
+	*) printf '' ;;
+	esac
 }
 
 binary_size() {
-        local bin="$1"
-        if command -v du >/dev/null 2>&1; then
-                du -h "$bin" | awk '{print $1}'
-        else
-                wc -c <"$bin"
-        fi
+	local bin="$1"
+	if command -v du >/dev/null 2>&1; then
+		du -h "$bin" | awk '{print $1}'
+	else
+		wc -c <"$bin"
+	fi
 }
 
 scan_binary() {
-        local bin="$1"
-        local expected="$2"
-        local baseline="$3"
-        local optimization="$4"
-        local required="$5"
-        local text
+	local bin="$1"
+	local expected="$2"
+	local baseline="$3"
+	local optimization="$4"
+	local required="$5"
+	local text
 
-        if command -v strings >/dev/null 2>&1; then
-                text="$(strings "$bin")"
-        else
-                text="$(grep -aE 'linux_amd64|linux-amd64|x86-64-v|static optimized build|fat|unwind|yes' "$bin" || true)"
-        fi
+	if command -v strings >/dev/null 2>&1; then
+		text="$(strings "$bin")"
+	else
+		text="$(grep -aE 'linux_amd64|linux-amd64|x86-64-v|static optimized build|fat|unwind|yes' "$bin" || true)"
+	fi
 
-        grep -Fq "$expected" <<<"$text" || fail "Missing embedded build variant '$expected' in $bin"
-        grep -Fq "$optimization" <<<"$text" || fail "Missing embedded optimization '$optimization' in $bin"
-        grep -Fq "static optimized build" <<<"$text" || fail "Missing embedded dispatch metadata in $bin"
-        grep -Fq "$baseline" <<<"$text" || fail "Missing embedded cpu_baseline '$baseline' in $bin"
-        grep -Fq "fat" <<<"$text" || fail "Missing embedded lto metadata 'fat' in $bin"
-        grep -Fq "unwind" <<<"$text" || fail "Missing embedded panic metadata 'unwind' in $bin"
-        grep -Fq "yes" <<<"$text" || fail "Missing embedded strip metadata 'yes' in $bin"
-        for feature in $required; do
-                grep -Fq "$feature" <<<"$text" || fail "Missing embedded target feature '$feature' in $bin"
-        done
-        pass "Embedded metadata scan passed for $expected"
+	grep -Fq "$expected" <<<"$text" || fail "Missing embedded build variant '$expected' in $bin"
+	grep -Fq "$optimization" <<<"$text" || fail "Missing embedded optimization '$optimization' in $bin"
+	grep -Fq "static optimized build" <<<"$text" || fail "Missing embedded dispatch metadata in $bin"
+	grep -Fq "$baseline" <<<"$text" || fail "Missing embedded cpu_baseline '$baseline' in $bin"
+	grep -Fq "fat" <<<"$text" || fail "Missing embedded lto metadata 'fat' in $bin"
+	grep -Fq "unwind" <<<"$text" || fail "Missing embedded panic metadata 'unwind' in $bin"
+	grep -Fq "yes" <<<"$text" || fail "Missing embedded strip metadata 'yes' in $bin"
+	for feature in $required; do
+		grep -Fq "$feature" <<<"$text" || fail "Missing embedded target feature '$feature' in $bin"
+	done
+	pass "Embedded metadata scan passed for $expected"
 }
 
 verify_info_output() {
-        local bin="$1"
-        local expected="$2"
-        local baseline="$3"
-        local optimization="$4"
-        local required="$5"
-        local denied="$6"
-        local out
+	local bin="$1"
+	local expected="$2"
+	local baseline="$3"
+	local optimization="$4"
+	local required="$5"
+	local denied="$6"
+	local out
 
-        out="$("$bin" --doctor)"
-        printf '%s\n' "$out"
+	out="$("$bin" --doctor)"
+	printf '%s\n' "$out"
 
-        grep -Eq "^[[:space:]]+build:[[:space:]]+${expected}$" <<<"$out" || fail "Expected build '$expected' in $bin --doctor output"
-        grep -Fqx "  optimization: ${optimization}" <<<"$out" || fail "Expected optimization: $optimization in $bin --doctor output"
-        grep -Eq '^  dispatch:[[:space:]]+static optimized build$' <<<"$out" || fail "Expected dispatch 'static optimized build' in $bin --doctor output"
-        grep -Eq "^[[:space:]]+cpu_baseline:[[:space:]]+${baseline}$" <<<"$out" || fail "Expected cpu_baseline: $baseline in $bin --doctor output"
-        grep -Eq '^  lto:[[:space:]]+fat$' <<<"$out" || fail "Expected lto: fat in $bin --doctor output"
-        grep -Eq '^  panic:[[:space:]]+unwind$' <<<"$out" || fail "Expected panic: unwind in $bin --doctor output"
-        grep -Eq '^  strip:[[:space:]]+yes$' <<<"$out" || fail "Expected strip: yes in $bin --doctor output"
-        for feature in $required; do
-                grep -Eq "^[[:space:]]+target_features:[[:space:]]+.*${feature}" <<<"$out" || fail "Expected target feature '$feature' in $bin --doctor output"
-        done
-        for feature in $denied; do
-                if grep -Eq "^[[:space:]]+target_features:[[:space:]]+.*${feature}" <<<"$out"; then
-                        fail "Unexpected target feature '$feature' in $bin --doctor output for $expected"
-                fi
-        done
-        pass "--doctor metadata passed for $expected"
+	grep -Eq "^[[:space:]]+build:[[:space:]]+${expected}$" <<<"$out" || fail "Expected build '$expected' in $bin --doctor output"
+	grep -Fqx "  optimization: ${optimization}" <<<"$out" || fail "Expected optimization: $optimization in $bin --doctor output"
+	grep -Eq '^  dispatch:[[:space:]]+static optimized build$' <<<"$out" || fail "Expected dispatch 'static optimized build' in $bin --doctor output"
+	grep -Eq "^[[:space:]]+cpu_baseline:[[:space:]]+${baseline}$" <<<"$out" || fail "Expected cpu_baseline: $baseline in $bin --doctor output"
+	grep -Eq '^  lto:[[:space:]]+fat$' <<<"$out" || fail "Expected lto: fat in $bin --doctor output"
+	grep -Eq '^  panic:[[:space:]]+unwind$' <<<"$out" || fail "Expected panic: unwind in $bin --doctor output"
+	grep -Eq '^  strip:[[:space:]]+yes$' <<<"$out" || fail "Expected strip: yes in $bin --doctor output"
+	for feature in $required; do
+		grep -Eq "^[[:space:]]+target_features:[[:space:]]+.*${feature}" <<<"$out" || fail "Expected target feature '$feature' in $bin --doctor output"
+	done
+	for feature in $denied; do
+		if grep -Eq "^[[:space:]]+target_features:[[:space:]]+.*${feature}" <<<"$out"; then
+			fail "Unexpected target feature '$feature' in $bin --doctor output for $expected"
+		fi
+	done
+	pass "--doctor metadata passed for $expected"
 }
 
 verify_stripped() {
-        local bin="$1"
+	local bin="$1"
 
-        if [[ "$(uname -s)" != "Linux" && "$(uname -s)" != "Darwin" ]]; then
-                log "Skipping stripped check on $(uname -s)"
-                return 0
-        fi
+	if [[ "$(uname -s)" != "Linux" && "$(uname -s)" != "Darwin" ]]; then
+		log "Skipping stripped check on $(uname -s)"
+		return 0
+	fi
 
-        if command -v file >/dev/null 2>&1; then
-                local desc
-                desc="$(file "$bin")"
-                printf '%s\n' "$desc"
-                grep -qiE 'not stripped' <<<"$desc" && fail "Binary is not stripped according to file: $bin"
-        fi
+	if command -v file >/dev/null 2>&1; then
+		local desc
+		desc="$(file "$bin")"
+		printf '%s\n' "$desc"
+		grep -qiE 'not stripped' <<<"$desc" && fail "Binary is not stripped according to file: $bin"
+	fi
 
-        if command -v readelf >/dev/null 2>&1; then
-                if readelf -S "$bin" | grep -Eq '\.(debug|symtab)'; then
-                        fail "Binary still contains debug/symtab sections: $bin"
-                fi
-        fi
+	if command -v readelf >/dev/null 2>&1; then
+		if readelf -S "$bin" | grep -Eq '\.(debug|symtab)'; then
+			fail "Binary still contains debug/symtab sections: $bin"
+		fi
+	fi
 
-        pass "Stripped check passed for $bin"
+	pass "Stripped check passed for $bin"
 }
 
 profiles=()
 while (($#)); do
-        case "$1" in
-        --help | -h)
-                usage
-                exit 0
-                ;;
-        --no-build)
-                NO_BUILD=1
-                shift
-                ;;
-        --unlocked)
-                LOCKED=""
-                shift
-                ;;
-        *)
-                profiles+=("$1")
-                shift
-                ;;
-        esac
+	case "$1" in
+	--help | -h)
+		usage
+		exit 0
+		;;
+	--no-build)
+		NO_BUILD=1
+		shift
+		;;
+	--unlocked)
+		LOCKED=""
+		shift
+		;;
+	*)
+		profiles+=("$1")
+		shift
+		;;
+	esac
 done
 
 if ((${#profiles[@]} == 0)); then
-        profiles=(pro-linux-amd64-v3-musl pro-linux-amd64-v4-musl)
+	profiles=(pro-linux-amd64-v3-musl pro-linux-amd64-v4-musl)
 fi
 
 # Preflight: the musl target must be installed before cargo can resolve
 # the triple (night-dragon-maintenance-6). Fail with the exact fix.
 if ((NO_BUILD == 0)) && ! rustup target list --installed 2>/dev/null | grep -qx 'x86_64-unknown-linux-musl'; then
-        fail "The x86_64-unknown-linux-musl target is not installed. Fix: rustup target add x86_64-unknown-linux-musl"
+	fail "The x86_64-unknown-linux-musl target is not installed. Fix: rustup target add x86_64-unknown-linux-musl"
 fi
 
 for profile in "${profiles[@]}"; do
-        expected="$(build_id_for_profile "$profile")"
-        baseline="$(baseline_for_profile "$profile")"
-        optimization="$(optimization_for_profile "$profile")"
-        required="$(required_features_for_profile "$profile")"
-        denied="$(denied_features_for_profile "$profile")"
-        bin="target/${TARGET}/${profile}/${BIN_NAME}"
+	expected="$(build_id_for_profile "$profile")"
+	baseline="$(baseline_for_profile "$profile")"
+	optimization="$(optimization_for_profile "$profile")"
+	required="$(required_features_for_profile "$profile")"
+	denied="$(denied_features_for_profile "$profile")"
+	bin="target/${TARGET}/${profile}/${BIN_NAME}"
 
-        log "Verifying ${profile} (${expected})"
+	log "Verifying ${profile} (${expected})"
 
-        if ((NO_BUILD == 0)); then
-                rustflags="$(rustflags_for_profile "$profile")"
-                COSMOSTRIX_BUILD="$expected" \
-                        COSMOSTRIX_PROFILE="$profile" \
-                        RUSTFLAGS="$rustflags" \
-                        cargo build --profile "$profile" --target "$TARGET" ${LOCKED:+$LOCKED}
-        fi
+	if ((NO_BUILD == 0)); then
+		rustflags="$(rustflags_for_profile "$profile")"
+		COSMOSTRIX_BUILD="$expected" \
+			COSMOSTRIX_PROFILE="$profile" \
+			RUSTFLAGS="$rustflags" \
+			cargo build --profile "$profile" --target "$TARGET" ${LOCKED:+$LOCKED}
+	fi
 
-        [[ -x "$bin" ]] || fail "Binary not found or not executable: $bin"
-        log "Binary size: $(binary_size "$bin")"
+	[[ -x "$bin" ]] || fail "Binary not found or not executable: $bin"
+	log "Binary size: $(binary_size "$bin")"
 
-        case "$profile" in
-        pro-linux-amd64-v4-musl)
-                if have_avx512f; then
-                        verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
-                else
-                        log "Skipping execution for ${expected}; host lacks AVX-512F"
-                        scan_binary "$bin" "$expected" "$baseline" "$optimization" "$required"
-                fi
-                ;;
-        pro-linux-amd64-v3-musl)
-                if have_avx2; then
-                        verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
-                else
-                        log "Skipping execution for ${expected}; host lacks AVX2"
-                        scan_binary "$bin" "$expected" "$baseline" "$optimization" "$required"
-                fi
-                ;;
-        *)
-                verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
-                ;;
-        esac
+	case "$profile" in
+	pro-linux-amd64-v4-musl)
+		if have_avx512f; then
+			verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
+		else
+			log "Skipping execution for ${expected}; host lacks AVX-512F"
+			scan_binary "$bin" "$expected" "$baseline" "$optimization" "$required"
+		fi
+		;;
+	pro-linux-amd64-v3-musl)
+		if have_avx2; then
+			verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
+		else
+			log "Skipping execution for ${expected}; host lacks AVX2"
+			scan_binary "$bin" "$expected" "$baseline" "$optimization" "$required"
+		fi
+		;;
+	*)
+		verify_info_output "$bin" "$expected" "$baseline" "$optimization" "$required" "$denied"
+		;;
+	esac
 
-        verify_stripped "$bin"
+	verify_stripped "$bin"
 done

@@ -125,7 +125,7 @@ build_release() {
 	# target before cargo can resolve the triple. Fail with the exact fix
 	# instead of a bare linker error deep in the build.
 	case "${alias}" in
-	pro-linux-amd64-*|pro-native-musl)
+	pro-linux-amd64-* | pro-native-musl)
 		if ! rustup target list --installed 2>/dev/null | grep -qx 'x86_64-unknown-linux-musl'; then
 			log_error "The ${alias} alias builds the x86_64-unknown-linux-musl target, which is not installed"
 			echo "  Fix: rustup target add x86_64-unknown-linux-musl"
