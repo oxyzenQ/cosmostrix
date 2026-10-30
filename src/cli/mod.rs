@@ -89,16 +89,29 @@ pub(crate) fn clap_styles() -> ClapStyles {
         // error labels plain red, tip/suggestion lines GREEN (clap's
         // default `valid` color), and invalid values YELLOW — three
         // hues that disagreed with the branded ux.rs path (brand red
-        // #FF5A5A errors, suggestion white #DCEBFF tips, warn yellow
-        // #FFEB3C). These three entries align clap's error rendering
-        // with the crate::output semantic palette so both surfaces
-        // (clap-rendered and ux-rendered) now look identical:
+        // #FF5A5A errors, warn yellow #FFEB3C). These entries align
+        // clap's error rendering with the crate::output semantic
+        // palette so both surfaces (clap-rendered and ux-rendered)
+        // look identical.
+        //
+        // night-dragon-maintenance-T1 (the zelynic hunt-39 tier law,
+        // the one-line decision): `valid` — the style clap paints
+        // SUGGESTION CANDIDATES with (a similar argument's spelling, a
+        // possible-values entry) — rides the calm-grey grammar tier
+        // #8B8B8B, the same RGB the output layer's grey slot
+        // (src/output/grey.rs) rides. Candidates are typeable grammar,
+        // and grammar is grey wherever it appears (the flag-row law
+        // above is the same tier). The boundary holds: the typed
+        // MISTAKE keeps the invalid yellow, tip PROSE renders in the
+        // terminal default color, and runnable VALUE suggestions keep
+        // the white suggestion tier (#DCEBFF) in the ux-rendered lane
+        // — values are content, not grammar.
         .error(
             ClapStyle::new()
                 .effects(ClapEffects::BOLD)
                 .fg_color(Some(ClapColor::Rgb(ClapRgbColor(255, 90, 90)))),
         )
-        .valid(ClapStyle::new().fg_color(Some(ClapColor::Rgb(ClapRgbColor(220, 235, 255)))))
+        .valid(ClapStyle::new().fg_color(Some(ClapColor::Rgb(ClapRgbColor(139, 139, 139)))))
         .invalid(ClapStyle::new().fg_color(Some(ClapColor::Rgb(ClapRgbColor(255, 235, 60)))))
 }
 
