@@ -51,6 +51,21 @@ All prices are annual, pegged to USD, and payable in cryptocurrency (see
 | Enterprise Internal  | $64,999/year   | Enterprise (>$10M/year), internal use only, NO redistribution |
 | OEM / Redistribution | $149,999/year  | Embedding the architectural patterns in a shipped product     |
 
+**OEM pricing note:** the OEM tier offers two equivalent paths —
+annual ($149,999/year) for buyers who prefer opex, and perpetual
+($249,999 one-time + $49,999.80/year maintenance, i.e. 20%) for
+buyers who prefer capex and want to cap long-term risk. Total cost
+comparison over multi-year horizons (annual figures undiscounted):
+
+- 1 year: annual = $149,999; perpetual = $299,998.80
+- 3 years: annual = $449,997; perpetual = $399,998.40
+- 5 years: annual = $749,995; perpetual = $499,998
+- 10 years: annual = $1,499,990; perpetual = $749,997
+
+The perpetual option is not stackable with the multi-year discount
+(already priced as a multi-year commitment). Grandfathering applies to
+whichever path the buyer purchased (see [Grandfathering](#grandfathering)).
+
 Multi-year contracts are available at the owner's discretion: 20% off a
 2-year contract, 30% off a 3-year contract. No free tier above Personal is
 granted without explicit owner approval.
