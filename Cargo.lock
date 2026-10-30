@@ -177,7 +177,7 @@ checksum = "7f8f80099a98041a3d1622845c271458a2d73e688351bf3cb999266764b81d48"
 
 [[package]]
 name = "cosmostrix"
-version = "100.0.9"
+version = "100.0.10-night.1"
 dependencies = [
  "bitvec",
  "clap",
