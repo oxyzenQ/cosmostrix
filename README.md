@@ -827,6 +827,7 @@ obligations.
 | -------------------- | -------------- | ------------------------------------------------------------- |
 | Personal             | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions    |
 | Individual           | $99/year       | Solo devs, freelancers, revenue < $100K/year                  |
+| Professional        | $1,899/year    | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
 | Business             | $12,999/year   | SMB, revenue $100K–$10M/year                                  |
 | Enterprise Internal  | $64,999/year   | Enterprise (>$10M/year), internal use only, NO redistribution |
 | OEM / Redistribution | $149,999/year  | Embedding the architectural patterns in a shipped product     |

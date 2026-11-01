@@ -47,6 +47,13 @@ when the version line closes.
   one-time + 20%/year maintenance). Both grant the same redistribution
   rights. Business ($12,999), Enterprise Internal ($64,999), Individual
   ($99) unchanged.
+- **Professional tier added** ($1,899/year) — teams up to 5 seats,
+  revenue under $500K, priority support with SLA. Fills the 131x
+  jump from Individual ($99) to Business ($12,999), which left
+  small studios and creative teams without a fitting tier. Zejtron
+  already has the analogous tier at the same price; this brings
+  cosmostrix to portfolio parity. Individual $99 and Business
+  $12,999 are unchanged (byte-identical).
 
 ### audit: night-dragon-lts-3 / lts-4 — five-rubric depth audit; three fix commits and one honest report
 

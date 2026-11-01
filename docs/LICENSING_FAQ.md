@@ -32,12 +32,21 @@ tiers and pricing.
 
 ### Q: Which tier do I need?
 
-A: Tiers follow annual revenue: under $100K/year means Individual,
-between $100K and $10M/year means Business, above $10M/year means
-Enterprise Internal (internal use only, no redistribution). Any
+A: Tiers follow team shape and annual revenue: under $100K/year means
+Individual (solo seat), up to 5 seats at revenue under $500K/year
+means Professional, $100K–$10M/year means Business, above $10M/year
+means Enterprise Internal (internal use only, no redistribution). Any
 redistribution of cosmostrix — embedding or reselling it inside a
 shipped product — requires the OEM / Redistribution tier regardless of
 revenue.
+
+### Q: I'm a team of 3 developers on a $250K/year revenue. Which tier?
+
+A: Professional ($1,899/year) covers teams up to 5 seats at revenue
+under $500K, with priority support. Individual ($99) is solo-seat
+only; Business ($12,999) is for teams at revenue $100K–$10M — but
+$12,999 is disproportionately heavy for a team of 3. Professional
+exists precisely to fill that gap.
 
 ## Pricing
 
