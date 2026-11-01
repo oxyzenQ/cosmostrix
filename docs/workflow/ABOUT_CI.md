@@ -223,7 +223,10 @@ of `max(CI, release)`).
 GitHub's own infrastructure fails sometimes: a release-asset URL
 answering 500 mid-download (observed in the owner's fleet: the shfmt
 install step, `curl: (22)`, the run dying before a single gate
-executed), a runner evicted mid-job, a workflow that never started. A
+executed), the shfmt version resolve answering 403 after the shared
+runner IP spent its unauthenticated API pool (gate-keepers run 926:
+seven `curl: (22)` lines, the step dead before a single gate ran), a
+runner evicted mid-job, a workflow that never started. A
 red gate that is GitHub's fault must never read as a code fault — and
 an irreversible release or crates.io publish must not stall on it.
 The mitigation is layered, each layer aimed at an observed failure
@@ -266,6 +269,20 @@ class:
    install snippet and the AUR PKGBUILD's `curl_flags` (which gains
    `--retry-all-errors`) — a transient GitHub-side 5xx must not fail
    a user's install either.
+5. **The api.github.com resolve rides the run's token**
+   (cosmic-dragon-guard.yml): unauthenticated reads of
+   `api.github.com` share the 60 req/hour per-IP pool on the
+   hosted-runner egress, so a busy pool answers 403 to the shfmt
+   version resolve — and a quota outlives the 300 s retry window, so
+   the retry contract alone cannot clear it (observed: gate-keepers
+   run 926, seven `curl: (22)` lines, zero gates executed). The
+   resolve now sends the run's ephemeral `GH_TOKEN` as the Bearer
+   header plus the `X-GitHub-Api-Version` date header, lifting the
+   cap to the authenticated 1,000 req/hour; `persist-credentials`
+   stays false and no standing secret is added. The binary download
+   keeps its bare curl on purpose: it redirects onto the release
+   CDN, and an Authorization header forwarded across that redirect
+   can taint the signed asset URL.
 
 ## crates.io publishing
 

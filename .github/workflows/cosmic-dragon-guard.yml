@@ -84,6 +84,8 @@ jobs:
           persist-credentials: false
 
       - name: Install gate-keeper dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           sudo apt-get -o Acquire::Retries=5 update -qq && sudo apt-get -o Acquire::Retries=5 install -y -qq shellcheck
@@ -112,8 +114,23 @@ jobs:
           # re-attempts; without -f a 5xx error page lands in the
           # binary and dies later inside shfmt with a misleading
           # error.
+          # NIGHT-dinner-1, second class (gate-keepers run 926): the
+          # resolve answers 403 — unauthenticated reads of
+          # api.github.com share the 60 req/hour per-IP pool on the
+          # hosted-runner egress, a busy pool fails the whole step,
+          # and a quota outlives the 300 s retry window, so the retry
+          # contract alone cannot clear it (seven curl exit-22 lines
+          # is that contract exhausting). The resolve therefore rides
+          # the run's ephemeral GH_TOKEN as a Bearer header, which
+          # lifts the cap to the authenticated 1,000 req/hour. The
+          # binary download stays unauthenticated on purpose: it
+          # redirects onto the release CDN, and an Authorization
+          # header forwarded across that redirect can taint the
+          # signed asset URL.
           SHFMT_VERSION="$(curl -fsSL --retry 6 --retry-all-errors \
             --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/mvdan/sh/releases/latest | jq -r '.tag_name')"
           sudo curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 \
             --retry-max-time 300 --connect-timeout 15 \
