@@ -47,6 +47,7 @@ All prices are annual, pegged to USD, and payable in cryptocurrency (see
 | -------------------- | -------------- | ------------------------------------------------------------- |
 | Personal             | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions    |
 | Individual           | $99/year       | Solo devs, freelancers, revenue < $100K/year                  |
+| Professional        | $1,899/year    | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
 | Business             | $12,999/year   | SMB, revenue $100K–$10M/year                                  |
 | Enterprise Internal  | $64,999/year   | Enterprise (>$10M/year), internal use only, NO redistribution |
 | OEM / Redistribution | $149,999/year  | Embedding the architectural patterns in a shipped product     |
@@ -65,6 +66,13 @@ comparison over multi-year horizons (annual figures undiscounted):
 The perpetual option is not stackable with the multi-year discount
 (already priced as a multi-year commitment). Grandfathering applies to
 whichever path the buyer purchased (see [Grandfathering](#grandfathering)).
+
+**Professional vs Individual.** Individual ($99/year) is a
+single-seat license for solo developers and freelancers with revenue
+under $100K. Professional ($1,899/year) covers teams of up to 5
+seats at revenue under $500K, with priority support and a response
+SLA. The 7 architectural patterns licensed are identical across
+both — Professional adds seats and support, not patterns.
 
 Multi-year contracts are available at the owner's discretion: 20% off a
 2-year contract, 30% off a 3-year contract. No free tier above Personal is
@@ -155,6 +163,8 @@ maintainer:
 
 - **Individual ($99/year)** — solo developers and freelancers with
   annual revenue under $100K.
+- **Professional ($1,899/year)** — teams of up to 5 seats with
+  annual revenue under $500K, priority support with a response SLA.
 - **Business ($12,999/year)** — small and medium businesses with
   annual revenue from $100K to $10M.
 - **Enterprise Internal ($64,999/year)** — enterprises above $10M
