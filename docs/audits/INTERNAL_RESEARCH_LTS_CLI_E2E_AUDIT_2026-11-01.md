@@ -52,7 +52,7 @@ reachability and resource-lifecycle surfaces (308 `.rs` files under
 | 7 | Unbounded memory growth | — | **All capped.** Live-reload warning/diag buffers (64, deduped), debug traces (1000), HUD ring buffers ([60]), endurance RSS ring (60), droplet pool recycled, ghost events (`GHOST_MAX_ACTIVE`), ANSI buffers plateau at max frame size (grid clamped 1024x500) |
 | 8 | Terminal restore lattice | — | **Every catchable exit path covered** (drop, signal, panic hook + skip-reenter flag, watchdog 1-3s raw-fd force-exit, Ctrl-Z/SIGCONT with double-cleanup race closed, constructor-failure pre-return cleanup, wedged-drop 2s shutdown guard). Remaining gaps are the documented ones: SIGKILL on non-Linux Unix (finding 2 doc truth now matches), Windows forced-termination (KNOWN_ISSUES) |
 | 9 | `--benchmark --json` machine-readable contract | — | **Valid strict JSON** (jq-verified): NaN/Inf emit null, control chars escaped, user-derived strings (scene/charset/custom names) cannot break parseability. All 19 report sections present |
-| 10 | UX nits, verified intentional, no action: `--json` silently ignored by `--list-*` (documented benchmark-only flag); `--crystal-dragon` help shows `<true|false>` while the parser accepts the 8-alias bool vocabulary (`1|0|yes|no|on|off` — help's "numeric rejected with a hint" promise verified live for `--crystal-dragon 10`); fork-while-single-threaded ordering invariant enforced by comment only (verified holding: guard spawn precedes all thread installs in `event_loop_setup`); one bounded intentional `String::leak()` at startup (default message text, once per process) | LOW | Documented here; no change (owner peak-directive: no over-engineering) |
+| 10 | UX nits, verified intentional, no action: `--json` silently ignored by `--list-*` (documented benchmark-only flag); `--crystal-dragon` help shows the boolean placeholder while the parser accepts the 8-alias bool vocabulary (true, false, 1, 0, yes, no, on, off — accepted case-insensitively; the help's "numeric rejected with a hint" promise verified live for `--crystal-dragon 10`); fork-while-single-threaded ordering invariant enforced by comment only (verified holding: guard spawn precedes all thread installs in `event_loop_setup`); one bounded intentional `String::leak()` at startup (default message text, once per process) | LOW | Documented here; no change (owner peak-directive: no over-engineering) |
 
 ## Real-usage battery results (32 probes)
 
@@ -82,3 +82,21 @@ cargo test docs_tests               # 21 passed
 cargo clippy                        # clean
 cosmostrix --benchmark --bench-duration 10 --screen-size 80x24 --json
 ```
+
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->
