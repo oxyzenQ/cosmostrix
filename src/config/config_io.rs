@@ -79,15 +79,26 @@ pub(crate) fn write_config_atomic(target_path: &str, text: &str) -> std::io::Res
         Err(e) => return Err(e),
     };
     use std::io::Write;
-    tmp_file.write_all(text.as_bytes())?;
-    // fsync for crash-durability. If it fails, rename still proceeds (data
-    // is in page cache). Surface error only if rename itself fails.
-    // Syncs the same handle we wrote through — the old open-again-for-sync
-    // step had a window where the entry could be swapped underneath.
-    let _ = tmp_file.sync_all();
-    drop(tmp_file);
-    std::fs::rename(&tmp_path, target)?;
-    Ok(())
+    let outcome: std::io::Result<()> = (|| {
+        tmp_file.write_all(text.as_bytes())?;
+        // fsync for crash-durability. If it fails, rename still proceeds (data
+        // is in page cache). Surface error only if rename itself fails.
+        // Syncs the same handle we wrote through — the old open-again-for-sync
+        // step had a window where the entry could be swapped underneath.
+        let _ = tmp_file.sync_all();
+        drop(tmp_file);
+        std::fs::rename(&tmp_path, target)
+    })();
+    if outcome.is_err() {
+        // Best-effort cleanup on error (the contract this function's doc
+        // states): a failed write/sync/rename used to early-return with the
+        // temp still on disk, stranding <name>.tmp.<pid> in the config
+        // directory. Unlinking while the handle is open removes only the
+        // directory entry; the fd itself is released when the closure's
+        // captured File drops.
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+    outcome
 }
 
 /// Read a config-sized text file with a hard size cap

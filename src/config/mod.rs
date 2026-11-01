@@ -18,6 +18,9 @@ pub mod config_apply;
 pub mod config_apply_tests;
 pub mod config_hints;
 pub mod config_io;
+#[cfg(test)]
+#[path = "../../test/config/config_io_tests/mod.rs"]
+pub mod config_io_tests;
 pub mod configfile;
 // NIGHT-hunter-22 (wart F1): loader + startup-parse memo (configfile re-export).
 pub mod configfile_load;
