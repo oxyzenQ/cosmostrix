@@ -311,10 +311,12 @@ Every archive ships three checksums (classical SHA-512 plus BLAKE3-256 and quant
 REPO="oxyzenQ/cosmostrix"
 TAG="v100.0.10"
 PLATFORM="linux-amd64-v3-musl"
+
 # The retry contract (NIGHT-dinner-1): a transient GitHub-side 5xx must
 # not fail the install — -f fails on HTTP errors instead of saving the
 # error page as the tarball, --retry-all-errors covers the exit-22 class
 # plain --retry refuses to re-attempt.
+
 CURL_FLAGS=(-f -L --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15)
 curl "${CURL_FLAGS[@]}" -O "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl "${CURL_FLAGS[@]}" -O "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
@@ -362,10 +364,13 @@ cosmostrix is published on [crates.io](https://crates.io/crates/cosmostrix), so 
 
 ```bash
 cargo install cosmostrix
+
 # Build with the exact dependency set the release shipped (recommended)
 cargo install cosmostrix --locked
+
 # Pin a specific version, including pre-releases
 cargo install cosmostrix --version x.z.y-beta.1 --locked
+
 cosmostrix --doctor
 ```
 
@@ -743,7 +748,7 @@ Create a release by pushing a `v*` tag — `git push origin main vX.Y.Z` (commit
 Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD, .SRCINFO, README install tag, docs/workflow/ABOUT_CI.md), then build:
 
 ```bash
-./scripts/dev/version-to.sh vX.Y.Z        # bump to vX.Y.Z across all active files
+./scripts/dev/version-to.sh vX.Y.Z      # bump to vX.Y.Z across all active files
 ./scripts/build.sh release              # optimized release build
 ./scripts/build.sh version-sync         # verify all version refs agree (no build)
 ```
