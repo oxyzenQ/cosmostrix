@@ -13,8 +13,8 @@ non-destructive behavior.
 |---|------|---------|----------------------|-------------------|----------------------|-----------|--------------------------|-------------|
 | 1 | Normal `q` exit | Full via `Terminal::drop()` | No | No | Yes | Yes | No | No |
 | 2 | SIGINT (Ctrl+C) — **DEPRECATED**: SIGINT is no longer caught. Only `q` exits. Ctrl+C at the key level is ignored; `kill -INT` will use OS default (terminate without cleanup). Use SIGTERM/SIGHUP/SIGQUIT for graceful signal exit. | N/A (signal not caught) | No | No | No (OS default) | No | N/A | Depends on OS |
-| 3 | SIGTERM / `pkill -TERM` | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
-| 4 | SIGHUP | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
+| 3 | SIGTERM / `pkill -TERM` | Full via `Terminal::drop()` | No | No | Yes | Yes | No | No |
+| 4 | SIGHUP | Full via `Terminal::drop()` | No | No | Yes | Yes | No | No |
 | 5 | SIGTSTP / Ctrl-Z | Partial — terminal mode suspended, no explicit cleanup | No | No | Deferred (on SIGCONT) | Yes | No | No |
 | 6 | SIGCONT resume | Terminal mode restored, render loop continues | No | No | Yes | Yes | No | No |
 | 7 | SIGKILL / `kill -9` | None — cannot be caught | No | No | Fork guard best-effort (Linux only) | No | Yes (residual state possible) | Potentially |
@@ -72,17 +72,20 @@ fork guard child receive SIGTERM. The child checks `getppid()` — if the
 parent is still alive (ppid != 1), the child exits silently without
 touching stdout, avoiding a race with the parent's buffered writer. If
 the parent is already dead (ppid == 1), the child performs terminal
-restoration. The parent handles all cleanup via `Terminal::drop()` with
-the signal-exit viewport clear. Visible residue should be fully cleaned
-after Phase 4B fix.
+restoration. The parent handles all cleanup via `Terminal::drop()`,
+identical to a normal `q` exit. (The Phase 4B signal-exit viewport clear
+was later removed — see docs/TERMINAL_KILL_CLEANUP.md:
+`LeaveAlternateScreen` alone swaps the alternate buffer out invisibly, so
+no rain residue reaches the main screen.)
 
 ### 4. SIGHUP
 
 SIGHUP is delivered when the controlling terminal is disconnected (e.g.
 SSH session drops, terminal emulator closes). Same signal-exit path as
 SIGTERM/SIGQUIT. The signal handler sets `GRACEFUL_SHUTDOWN` and
-`signal_exit`, and the main loop runs the full cleanup including the
-viewport clear. Note that if the terminal is already disconnected, the
+`signal_exit`, and the main loop runs the full cleanup (same as a `q`
+exit — no extra viewport clear). Note that if the terminal is already
+disconnected, the
 ANSI escape sequences may not reach a display — but the terminal mode
 restoration via `tcsetattr()` is still attempted.
 
@@ -312,9 +315,11 @@ immediately.
   SIGTERM/SIGHUP/SIGQUIT from `kill` are still caught and trigger
   the signal-exit cleanup path.)
 
-- **SIGTERM should be clean for visible residue after Phase 4B fix.**
-  The signal-exit viewport clear prevents rain frame residue on the
-  main screen during buffer switch.
+- **SIGTERM is clean for visible residue.** Cleanup is identical to a
+  `q` exit: `LeaveAlternateScreen` swaps the alternate buffer out
+  invisibly, so rain residue never reaches the main screen. (The Phase
+  4B signal-exit viewport clear was removed to protect VTE scrollback —
+  see docs/TERMINAL_KILL_CLEANUP.md.)
 
 - **Windows Terminal reset path is user-verified via issue #15.**
   cosmostrix does not claim specific cleanup guarantees on Windows

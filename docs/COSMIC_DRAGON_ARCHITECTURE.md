@@ -117,7 +117,7 @@ The Cosmic Dragon survives every kill signal through a 3-layer process guard:
                     │    GRACEFUL_SHUTDOWN          │
                     │  -> Main loop exits cleanly    │
                     │  -> Terminal::drop() cleanup   │
-                    │  -> Signal-exit viewport clear │
+                    │  -> drop() restores terminal   │
                     └──────────────────────────────┘
                                   │
                     ┌─────────────▼────────────────┐
@@ -143,8 +143,10 @@ The Cosmic Dragon survives every kill signal through a 3-layer process guard:
 - `q` key -> `cloud.raining = false` -> main loop exits -> `Terminal::drop()`
 - SIGTERM -> signal handler -> `GRACEFUL_SHUTDOWN` atomic -> main loop exits -> `Terminal::drop()`
 - `Terminal::drop()` runs the full restore sequence (Layer 1-3 ANSI + crossterm)
-- Signal-exit viewport clear: clears the visible screen BEFORE leaving
-  alternate screen, so rain residue doesn't flash on the main screen
+- No extra viewport clear: cleanup is the same as a normal `q` exit —
+  `LeaveAlternateScreen` swaps the alternate buffer out invisibly, so
+  rain residue never reaches the main screen (the old signal-exit
+  `Clear(All)` step was removed to protect VTE scrollback)
 
 ### Layer 2: Fork Guard (SIGKILL, Linux-only)
 

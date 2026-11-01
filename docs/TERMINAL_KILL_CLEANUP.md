@@ -72,18 +72,20 @@ section below for the deprecated behavior.
 
 Signal handler sets `GRACEFUL_SHUTDOWN` and a `signal_exit` flag. Main loop
 notices `GRACEFUL_SHUTDOWN`, exits the render loop, sets `SHUTDOWN`, and
-`Terminal::drop()` runs cleanup. Because `signal_exit` is set, the cleanup
-path includes an additional step before leaving the alternate screen:
+`Terminal::drop()` runs cleanup.
 
-- **Signal-exit viewport clear**: `MoveTo(0,0)` + `Clear(All)` + flush
-  inside the alternate screen buffer, then `LeaveAlternateScreen`.
+- **No extra viewport clear on signal exit**: the cleanup path is
+  byte-identical to a normal `q` exit. The old signal-exit viewport clear
+  (`MoveTo(0,0)` + `Clear(All)` + flush before `LeaveAlternateScreen`)
+  was removed — an in-alt-screen `\x1b[2J` can wipe the main screen's
+  scrollback on VTE-based emulators (see the "REMOVED Clear(All)" note
+  in `src/engine/cosmic_dragon_engine/terminal/cleanup.rs`).
+  `LeaveAlternateScreen` alone swaps the alternate buffer out invisibly,
+  so rain residue never reaches the main screen; terminal mode, cursor,
+  and color state are still fully restored.
 
-This ensures the last rain frame is erased from the visible viewport before
-the terminal emulator switches back to the main screen. Without this,
-terminal emulators may briefly show the last rain frame content on the
-main screen during the alternate-to-main transition.
-
-The signal handler thread blocks until `SHUTDOWN` is observed.
+The signal handler thread blocks until `SHUTDOWN` is observed (with a
+3-second force-exit fallback if graceful cleanup wedges).
 
 ### Ctrl-C (SIGINT) — DEPRECATED
 
