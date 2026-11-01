@@ -48,7 +48,15 @@ highlight = "all"
 workspace-default-features = "allow"
 external-default-features = "allow"
 allow = []
-deny = []
+# Portfolio parity (2026-11-01): serde and serde_json are banned,
+# matching zelynic's ruleset. The JSON lane is hand-written in
+# src/bench/bench_json.rs (manual serializer, zero dependencies) and
+# the derive stack is not in the graph - Cargo.lock carries zero
+# serde crates.
+deny = [
+    { crate = "serde", reason = "hand-written JSON lane in src/bench/bench_json.rs; the derive stack is not in the graph" },
+    { crate = "serde_json", reason = "hand-written JSON parser + writer replace it" },
+]
 # Transitive dependency duplicates that cannot be resolved without upstream
 # changes. These are caused by the dependency tree pulling in different
 # major versions of the same crate through different paths:
