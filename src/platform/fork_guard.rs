@@ -4,10 +4,17 @@
 //! Fork guard — extracted from `main.rs` to keep that file under the
 //! 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
-//! Protects the terminal from being left in raw mode when cosmostrix is
-//! killed unexpectedly (SIGKILL, segfault, OOM). Three platform strategies:
-//! Linux (fork + prctl), other Unix (background thread polling getppid),
-//! Windows (no-op, ConPTY auto-restores).
+//! Protects the terminal from being left in raw mode after an unexpected
+//! death. Coverage is per platform and is NOT uniform:
+//! - Linux (fork + prctl): the guard CHILD survives cosmostrix's own
+//!   SIGKILL, segfault, and OOM kill, and restores the terminal.
+//! - Other Unix (background thread polling getppid): the thread lives
+//!   inside the cosmostrix process, so it dies with it — it recovers only
+//!   from PARENT death (the shell/wrapper being killed while the rain
+//!   survives). cosmostrix's own SIGKILL is unrecoverable there; the user
+//!   must run `reset` or `cosmostrix --reset-terminal`. See
+//!   docs/TERMINAL_KILL_CLEANUP.md for the honest platform matrix.
+//! - Windows (no-op, ConPTY auto-restores).
 //!
 //! Re-exported from `main.rs` via `pub(crate) use` so the existing
 //! `crate::spawn_kill9_terminal_guard()` call site resolves unchanged.
@@ -23,14 +30,16 @@ use crate::diagnostics::info::env_var_truthy;
 #[cfg(unix)]
 use std::io::IsTerminal;
 
-/// Fork guard: protects the terminal from being left in raw mode when
-/// cosmostrix is killed unexpectedly (SIGKILL, segfault, OOM).
+/// Fork guard: protects the terminal from being left in raw mode after an
+/// unexpected death — cosmostrix ITSELF on Linux (SIGKILL, segfault, OOM),
+/// the PARENT process on other Unix (see the platform notes below).
 ///
 /// When cosmostrix starts, it switches the terminal to raw mode. Normally
 /// `Terminal::drop()` restores the original settings on graceful exit.
 /// But SIGKILL bypasses all Rust cleanup — the terminal stays broken:
 /// no echo, no line buffering, keys produce garbage. The user must blindly
-/// type `reset` or `stty sane` to recover.
+/// type `reset` or `stty sane` to recover (or run
+/// `cosmostrix --reset-terminal` on a fresh line).
 ///
 /// Three strategies by platform:
 ///
@@ -48,6 +57,14 @@ use std::io::IsTerminal;
 ///   (one syscall per 500ms). This covers macOS (no prctl), BSD (no
 ///   prctl), and Android (fork may be restricted by seccomp, but threads
 ///   always work).
+///
+///   LIMITATION (do not oversell this strategy): the polling thread runs
+///   inside the cosmostrix process itself. If cosmostrix is SIGKILLed,
+///   crashes, or is OOM-killed, the kernel destroys every thread with the
+///   process and NO restore fires — this strategy only sees parent death.
+///   Only the Linux fork+prctl child (a separate process) can survive
+///   cosmostrix's own death. docs/TERMINAL_KILL_CLEANUP.md documents the
+///   same gap under "macOS/BSD are not covered".
 ///
 /// - Windows: No-op. ConPTY (Windows Terminal, PowerShell 7+) automatically
 ///   restores console state when the attached process exits, even on
@@ -252,8 +269,10 @@ pub fn spawn_kill9_terminal_guard() {
     // S4 (stability harden): if thread spawn fails (extreme resource
     // exhaustion / RLIMIT_NPROC), silently skip the guard instead of
     // panicking. The panic hook + watchdog still cover graceful shutdown;
-    // this guard only adds SIGKILL/crash recovery. A missing guard is
-    // strictly better than a crash at startup.
+    // this guard only adds PARENT-death recovery (a same-process thread
+    // cannot survive cosmostrix's own SIGKILL — only the Linux fork+prctl
+    // child can). A missing guard is strictly better than a crash at
+    // startup.
     if std::thread::Builder::new()
         .name("cx-term-guard".to_string())
         .spawn(move || {
