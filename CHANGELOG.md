@@ -41,6 +41,27 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### message: default overlay text now reads "Experience with cosmostrix"
+
+- `default_message_text()` (src/types/constants.rs) reworded from
+  `"Experience cosmostrix v<CARGO_PKG_VERSION>"` to
+  `"Experience with cosmostrix v<CARGO_PKG_VERSION>"` — the default
+  bordered overlay in interactive mode reads naturally now. All
+  dynamic consumers (startup verbose output, live-reload fallback,
+  stuck-cell sweep fixtures) pick the new string up through the
+  function; no call site hardcoded the old text.
+- Comment and doc references synced so nothing stale survives:
+  the generated configfile template, the USER_CONFIG_KEYS comment,
+  the phosphor_anomaly wiring note, the live-reload rejection test
+  comment, the hunt-36 module doc, and the LIVE_RELOAD_BEHAVIOR.md
+  precedence list. The README tagline (`Experience cosmostrix.`)
+  is marketing prose, not the runtime default, and stays as-is.
+- A/B bench (10 s, cinematic + monolith, 2 runs each,
+  `benchmark/bench-labs/night_xenric_msg/`): statistical tie on every
+  metric — bench mode never renders the overlay
+  (`message_active = false` on all eight runs), so the change is
+  rendered-output-only by construction.
+
 ### license: full relicense from GPL-3.0-only to AGPL-3.0-only
 
 - The open-source license is now AGPL-3.0-only (the license that

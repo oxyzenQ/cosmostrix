@@ -46,7 +46,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 #                                   # engrave | hologram | glitch | scorch | cascade | radar
 
 # Message notes: max 200 characters; no message anywhere -> interactive
-# mode shows the bordered default "Experience cosmostrix
+# mode shows the bordered default "Experience with cosmostrix
 # v<version>"; benchmark mode never shows an overlay.
 
 # -- Motion ----------------------------------------------------------

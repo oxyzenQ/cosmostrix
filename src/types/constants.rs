@@ -549,12 +549,12 @@ pub(crate) const MESSAGE_MAX_LEN: usize = 200;
 ///
 /// Built dynamically from `env!("CARGO_PKG_VERSION")` so the version
 /// number is never stale — it tracks the Cargo.toml `[package] version`
-/// field at compile time. Format: `"cosmostrix v50.0.0-beta.3"`.
+/// field at compile time. Format: `"Experience with cosmostrix v50.0.0-beta.3"`.
 ///
 /// Kept as a function (not a `const`) because `format!` is not `const fn`
 /// on stable Rust. The cost is one allocation per process startup, which
 /// is invisible next to the rest of Cloud construction.
 #[must_use]
 pub(crate) fn default_message_text() -> String {
-    format!("Experience cosmostrix v{}", env!("CARGO_PKG_VERSION"))
+    format!("Experience with cosmostrix v{}", env!("CARGO_PKG_VERSION"))
 }
