@@ -273,11 +273,21 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     // ── Motion ────────────────────────────────────────────────────
     eprintln_safe!("{}", output::brand_bold("  ── Motion ──"));
     output::eprintln_verbose("fps:", &format!(" {target_fps:.1}"));
-    let caps_for_source = crate::termdetect::detect();
-    output::eprintln_verbose(
-        "fps_source:",
-        &format!(" {} (dynamic default)", caps_for_source.dynamic_fps_source),
-    );
+    // Honest-reporting rule (masterclass clean-output audit): the
+    // dynamic-default source line is only true of THIS run when the
+    // dynamic default actually won the FPS resolution. When an explicit
+    // source (cli/config/scene/xtermjs_cap) won, `fps_precedence:` below
+    // already names the winner, and an unconditional "fps_source: ...
+    // (dynamic default)" line would read as if terminal detection drove
+    // the effective FPS. So the line prints only under the
+    // dynamic_default precedence.
+    if *fps_precedence == "dynamic_default" {
+        let caps_for_source = crate::termdetect::detect();
+        output::eprintln_verbose(
+            "fps_source:",
+            &format!(" {} (dynamic default)", caps_for_source.dynamic_fps_source),
+        );
+    }
     output::eprintln_verbose("fps_precedence:", &format!(" {fps_precedence}"));
     output::eprintln_verbose("speed:", &format!(" {speed:.1}"));
     output::eprintln_verbose(
