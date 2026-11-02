@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Integration tests for `cloud::phosphor::apply_anomalies` — Phase 6
 //! (palette-aware anomaly halos).

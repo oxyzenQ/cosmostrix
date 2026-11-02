@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # Weekly Miri verification of the 6 pure-Rust modules audited in
 # docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md.

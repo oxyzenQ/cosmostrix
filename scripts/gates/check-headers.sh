@@ -3,7 +3,7 @@
 # COSMOSTRIX SPDX HEADER CHECK
 #
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # ─────────────────────────────────────────────────────────────────────────────
 # PLATFORM: UNIX-only (Linux, macOS, BSD).
@@ -15,8 +15,8 @@
 # headers. Fails if any included file is missing the header or has the wrong
 # license identifier.
 #
-# Required: SPDX-License-Identifier: GPL-3.0-only
-# Rejected: MIT (project is GPL-3.0-only licensed)
+# Required: SPDX-License-Identifier: AGPL-3.0-only
+# Rejected: MIT (project is AGPL-3.0-only licensed)
 #
 # Included file types: *.rs, *.sh, *.py, *.toml, *.yml, *.yaml, *.md
 # Scope: git-tracked files only (untracked files are skipped)
@@ -35,7 +35,7 @@ MISSING=0
 WRONG=0
 CHECKED=0
 
-EXPECTED_LICENSE="GPL-3.0-only"
+EXPECTED_LICENSE="AGPL-3.0-only"
 REJECTED_LICENSE="MIT"
 
 while IFS= read -r -d '' file; do

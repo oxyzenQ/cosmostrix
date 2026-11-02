@@ -1,6 +1,6 @@
 # Performance Across Scales — Deep Audit
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > **Engine:** The Cosmic Dragon Diff-Based Rendering Engine
 > **Methodology:** `cosmostrix --benchmark --json --screen-size WxH --bench-duration 2`

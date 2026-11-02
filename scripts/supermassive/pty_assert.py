@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # PLATFORM: UNIX-only (Linux, macOS, BSD). Reads bytes written by
 #   pty_smoke.py; no pty of its own.
 """Byte assertions over pty smoke captures (night-improve-7).

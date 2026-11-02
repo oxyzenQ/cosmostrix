@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # PLATFORM: UNIX-only (Linux, macOS, BSD).
 #   Uses nproc, command -v, bash arrays. Will not run on Windows.
@@ -491,7 +491,7 @@ run_sweep() {
 	cpu_model=$(awk '/^model name[[:space:]]*:/ { sub(/^model name[[:space:]]*: */, ""); print; exit }' /proc/cpuinfo 2>/dev/null || sysctl -n machdep.cpu.brand_string 2>/dev/null || true)
 
 	{
-		echo "<!-- SPDX-License-Identifier: GPL-3.0-only -->"
+		echo "<!-- SPDX-License-Identifier: AGPL-3.0-only -->"
 		echo ""
 		echo "# cosmostrix Size Sweep"
 		echo ""

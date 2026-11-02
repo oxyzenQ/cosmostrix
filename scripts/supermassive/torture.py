@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 """Supermassive torture battery - the brutal server-simulation leg.
 
 night-dragon-maintenance-4, owner directive: the supermassive CI must

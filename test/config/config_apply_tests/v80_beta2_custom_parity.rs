@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! v80.0.0-beta.2 custom-name parity + fps-intent + CLI-priority tests.
 //! Extracted from `config_apply_tests/mod.rs` to keep that source file

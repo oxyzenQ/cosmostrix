@@ -1,9 +1,9 @@
 # cosmostrix Trademark & Intellectual Property
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 **Owner:** rezky_nightky (oxyzenQ)
 **Repository:** <https://github.com/oxyzenQ/cosmostrix>
-**Source license:** GPL-3.0-only
+**Source license:** AGPL-3.0-only
 
 Commercial licensing is separate from trademark licensing. See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
 
@@ -12,7 +12,7 @@ Commercial licensing is separate from trademark licensing. See [COMMERCIAL_LICEN
 cosmostrix — including its source code, logo, name, and all associated
 branding materials (collectively, the "Marks") — is the exclusive intellectual
 property of **rezky_nightky (oxyzenQ)**. The source code is licensed under
-GPL-3.0-only. The Marks are NOT covered by the GPL and are reserved by the
+AGPL-3.0-only. The Marks are NOT covered by the AGPL and are reserved by the
 owner.
 
 The cosmostrix logo was created through AI-assisted generation under the
@@ -36,7 +36,7 @@ and is treated as such.
 
 - Running cosmostrix from the official repository for personal or
   internal use.
-- Forking the source code under the terms of GPL-3.0-only for the
+- Forking the source code under the terms of AGPL-3.0-only for the
   purpose of contributing back to cosmostrix (bug fixes, features,
   PRs). Contribution forks may keep the cosmostrix name, logo, and
   branding unchanged — no rename or rebrand required — as long as
@@ -86,7 +86,7 @@ redistribution under a different identity. These forks:
   public release. Open a GitHub Issue or contact via the repository.
 - MUST use a different project name (not "cosmostrix").
 - MUST use different branding (logo, color scheme, etc.).
-- MUST preserve the GPL-3.0-only license and copyright notice.
+- MUST preserve the AGPL-3.0-only license and copyright notice.
 - MUST clearly state that the fork is derived from cosmostrix but is
   NOT cosmostrix and is NOT endorsed by rezky_nightky (oxyzenQ).
 

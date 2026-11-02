@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Genesis contracts (NIGHT-research-7 part 3, law 0): the birth
 //! sequence the style entry replays — soup, ladder, windup,

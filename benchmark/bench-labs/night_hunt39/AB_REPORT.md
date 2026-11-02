@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-hunt-39 / NIGHT-hunt-38-supermassive A/B report — 10 s benches, release profile
 

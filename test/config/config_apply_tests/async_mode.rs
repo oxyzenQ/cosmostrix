@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Tests for the `--async-mode` CLI flag (v50-beta.3: replaces `--uniform`).
 //! Extracted from `config_apply_tests/mod.rs` to keep that source file under

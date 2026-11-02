@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-research-8 tests: the quasar rain style (the thirteenth
 //! style, the rain feeds the engine). The contracts here pin the

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Dragon Engine v2 depth-verify: adaptive phosphor ("the rain breathes
 //! with your CPU").

@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Docs LTS completeness audit (NIGHT-docs-2) — all documents complete before the stable LTS release
 

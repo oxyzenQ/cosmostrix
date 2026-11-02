@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The capture economy (NIGHT-research-8, law 3's executable
 //! half): the free-slot scans and the absorption handler — the

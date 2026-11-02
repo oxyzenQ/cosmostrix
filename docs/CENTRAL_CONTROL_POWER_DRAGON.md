@@ -1,7 +1,7 @@
 # `central_control_power_dragon/` — Power, Performance & Adaptive Coordinator
 
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > **Document ID**: POWER-ARCH-001
 > **Date**: 2026-08

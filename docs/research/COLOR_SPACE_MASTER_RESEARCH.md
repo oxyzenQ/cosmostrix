@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Color Space Master Research — Is Anything Beyond OKLab Worth It? (NIGHT-research-3, 2026-09-05)
 

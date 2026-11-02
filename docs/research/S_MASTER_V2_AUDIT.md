@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # S-master-v2 (1/2/3/4) Audit — Dragon Hunt / Optimize / Security / Stability LTS (2026-09-01)
 

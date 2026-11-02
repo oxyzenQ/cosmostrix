@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Post-exit verbose reporting — extracted from `main.rs` to keep that
 //! file under the 800-LOC cap, lives under `output/` per src/RULES.md

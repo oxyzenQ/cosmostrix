@@ -1,5 +1,5 @@
 # Benchmark
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 This folder contains the benchmark script and interpretation notes for
 cosmostrix performance measurements.

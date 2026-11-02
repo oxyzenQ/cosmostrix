@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! crystal_dragon_control tests, extracted from inline `mod tests { ... }` block in
 //! crystal_dragon_control.rs (Pattern D → Pattern C unification).

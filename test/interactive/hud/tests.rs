@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 // LOC_EXEMPT: HUD regression tests — 24-row layout assertions + chroma gradient
 // + metric setter sanitization. Splitting would fragment the layout contract
 // tests from the setter tests they guard.

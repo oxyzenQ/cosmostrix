@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-hunter-26 resize tests: a terminal resize must NOT restart
 //! the message-fill-style reveal (owner report 2026-09-10: "the mfs

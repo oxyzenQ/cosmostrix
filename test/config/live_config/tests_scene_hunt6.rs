@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! S-master-HUNT-6 scene-bundle contract (v80.0.0-alpha.1, 2026-09-03).
 //!

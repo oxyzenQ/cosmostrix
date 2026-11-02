@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-special-2 tests: the aeolian rain style (ninth style, the
 //! invented string weave — the rain plays the instrument). The

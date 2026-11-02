@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Core dna-helix-style behavior contracts (NIGHT-research-7):
 //! scene resolution, spawn density + the calm-sky sparse dial, the

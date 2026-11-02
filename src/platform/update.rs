@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::output::spinner::Spinner;
 use crate::output::{brand_bold, grey_open, ok_bold, println_safe, reset, warn_bold};

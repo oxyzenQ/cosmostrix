@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Tests for rejection-log (bug #14), validate_and_send error path,
 //! live-reload message/msg-mode, and ambient snapback.

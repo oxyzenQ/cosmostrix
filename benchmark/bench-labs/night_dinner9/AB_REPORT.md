@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-diner-9 A/B report — 10 s benches, release profile: sha2 0.10.9 vs 0.11.0
 

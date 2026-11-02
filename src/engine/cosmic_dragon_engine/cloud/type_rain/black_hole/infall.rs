@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Black hole glyph infall (NIGHT-special-1 stage 3): the third act —
 //! the rain itself becomes the accretion material. The module owns

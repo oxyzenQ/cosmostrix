@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Z-master-v2 LTS Audit — Killer Features / CLI / Config Harmony (2026-09-01)
 

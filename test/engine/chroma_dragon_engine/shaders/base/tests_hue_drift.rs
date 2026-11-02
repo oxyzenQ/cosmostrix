@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Tests for global hue drift (`hue_drift_offset` + integration with
 //! `resolve_cell_color`). Extracted from `tests.rs` to keep the source

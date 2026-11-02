@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-hunter-24 (F-24-1) — the colors-custom load contract lived on only one side
 

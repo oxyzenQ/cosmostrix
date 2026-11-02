@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Monolith drawing helpers — extracted from
 //! `cloud/type_rain/monolith/monolith.rs` to

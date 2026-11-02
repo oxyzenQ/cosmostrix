@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-depthtest-3 — the 64-char block-name blind spot + the config.toml line-1-to-end depth stress test
 

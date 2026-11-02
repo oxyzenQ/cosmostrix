@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Scene-custom profile override functions — extracted from
 //! `scene_custom/mod.rs` to keep that file under the 800-LOC hard cap

@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-lts-3 — the master restart-consistency audit: 'r' restarts from zero like a fresh launch, across every type rain
 

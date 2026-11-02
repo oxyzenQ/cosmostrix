@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! cosmostrix Logo intro — a four-phase cinematic that reveals the
 //! project's ASCII logo and dissolves it into Matrix rain.

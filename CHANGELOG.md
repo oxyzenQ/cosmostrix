@@ -1,5 +1,5 @@
 # Changelog
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 cosmostrix uses [SemVer](https://semver.org/). Git tags use a leading `v` (e.g. `v50.0.0`).
 
@@ -40,6 +40,37 @@ v100.0.8
 The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
+
+### license: full relicense from GPL-3.0-only to AGPL-3.0-only
+
+- The open-source license is now AGPL-3.0-only (the license that
+  already governs the sibling project). LICENSE now carries the
+  verbatim GNU Affero General Public License v3 text; the
+  dual-license statement lives in README.md, NOTICE,
+  COMMERCIAL_LICENSE.md and docs/LICENSING_FAQ.md exactly as before.
+- Every SPDX header across the tree updates from
+  `GPL-3.0-only` to `AGPL-3.0-only` (866 files: src, test, scripts,
+  docs, benchmark, fuzz, pgo-runner, .github, .cargo, assets). The
+  `scripts/gates/check-headers.sh` gate now expects and enforces
+  `AGPL-3.0-only`.
+- Manifest and packaging follow: `Cargo.toml` `license` field (so
+  `cosmostrix --version` and `--doctor` report the new SPDX
+  expression via `CARGO_PKG_LICENSE`), `deny.toml` gains
+  `AGPL-3.0-only` in the allow list (the workspace crate is part of
+  the lock graph cargo-deny scans; the GPL-3.0 entries stay for the
+  dependency graph), and the AUR package updates both `PKGBUILD`
+  and `.SRCINFO` to `AGPL3`.
+- Living docs restate the current terms under AGPL naming:
+  README.md (license section, pricing table, IP notice),
+  COMMERCIAL_LICENSE.md, docs/LICENSING_FAQ.md, TRADEMARK.md,
+  CLA.md, CONTRIBUTING.md, docs/SECURITY_AUDIT.md,
+  AI_AGENTS_READ_THIS.md, NOTICE. Historical records
+  (archived changelog eras, docs/archive/audits, docs/research,
+  benchmark research notes) keep their period-correct prose; only
+  their current-law SPDX headers changed.
+- The Commercial License path is unchanged: same tiers, same
+  pricing, same contact. No version bump rides this commit; the
+  owner decides when the license change ships in a release.
 
 ### License
 

@@ -1,9 +1,9 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # cosmostrix Licensing FAQ
 
 Short answers to the recurring licensing questions. cosmostrix is
-dual-licensed — GPL-3.0-only for open-source use, plus a Commercial License
+dual-licensed — AGPL-3.0-only for open-source use, plus a Commercial License
 for proprietary use. Full terms live in
 [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
 
@@ -22,7 +22,7 @@ Index:
 
 ### Q: Can I use this at my company for free?
 
-A: Only if you comply with GPL-3.0-only — which means releasing your
+A: Only if you comply with AGPL-3.0-only — which means releasing your
 modifications and the combined work as open source under the same license.
 If your company cannot meet those copyleft obligations, buy a commercial
 license instead. See [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) for
@@ -71,7 +71,7 @@ and enterprise buyers who profit from the work.
 A: It is theft, and it is treated as theft. Taking the code — or any
 fork, copy, or derivative of it — into a closed-source commercial
 product without contacting the owner and paying for the license violates
-GPL-3.0-only, the Commercial License, and [TRADEMARK.md](../TRADEMARK.md).
+AGPL-3.0-only, the Commercial License, and [TRADEMARK.md](../TRADEMARK.md).
 The owner rezky_nightky (oxyzenQ) pursues takedowns and legal action
 where warranted. If the price is the barrier, contact the owner — terms
 are discussed in good faith. See the full unauthorized-use warning in
@@ -91,7 +91,7 @@ hours. Payment addresses and the full process are in
 
 ### Q: Do I need a license for hobby use?
 
-A: No. GPL-3.0-only fully covers personal, hobby, educational, and other
+A: No. AGPL-3.0-only fully covers personal, hobby, educational, and other
 non-commercial use at no cost. A commercial license only exists for
 proprietary and commercial use.
 
@@ -113,7 +113,7 @@ A: No separate signature. The DCO-style `Signed-off-by:` line on your
 commits (`git commit -s` adds it automatically) accepts the
 [Contributor License Agreement](../CLA.md), or you can comment
 `I have read the CLA and I agree` on the PR. The CLA grants the owner
-the right to dual-license the project (GPL-3.0-only + Commercial)
+the right to dual-license the project (AGPL-3.0-only + Commercial)
 while you keep full copyright to your contribution — without it, a
 commercial license could not cover code that includes your work.
 

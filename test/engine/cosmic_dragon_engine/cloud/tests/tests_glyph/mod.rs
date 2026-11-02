@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-research-26 tests: the glyph rain style — the classic
 //! per-column rain (the droplet family's sole member, the "matrix"

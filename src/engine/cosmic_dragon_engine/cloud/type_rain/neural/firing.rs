@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The firing passes (NIGHT-research-9) — the machine's drama:
 //! the genesis seams' choreography, the neuron fire and the

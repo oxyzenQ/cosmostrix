@@ -1,6 +1,6 @@
 # Triple Engine LTS Audit — v50.0.0-beta.4
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > Internal independent QA session covering the three rendering engines on the
 > road to stable LTS: Cosmic Dragon (diff-based render), Chroma Dragon (OKLab

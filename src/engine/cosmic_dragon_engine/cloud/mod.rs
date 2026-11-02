@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 // LOC_EXEMPT: Cloud struct + core impls — splitting would scatter the
 // 30+ coupled struct fields and their invariants across files (state
 // machine flags like drift_active/user_override_since_ambient/ambient_schedule_active

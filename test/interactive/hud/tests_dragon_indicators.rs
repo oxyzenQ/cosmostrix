@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // v50.0.0-beta.6: power-dragon and crystal-dragon on/off HUD indicators.
 // Extracted from tests.rs to keep that file under the 800-LOC cap.

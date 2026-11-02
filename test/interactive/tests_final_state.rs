@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Final-runtime-state tracker tests (S-master-LOGIC-1, v80.0.0-beta.2).
 //!

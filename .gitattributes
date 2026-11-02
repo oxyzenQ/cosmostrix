@@ -1,6 +1,6 @@
 # cosmostrix Git Attributes
 # Force consistent behavior across all operating systems (Linux/Windows/macOS)
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # Set LF line endings for all text files (auto-detect text vs binary)
 * text=auto eol=lf

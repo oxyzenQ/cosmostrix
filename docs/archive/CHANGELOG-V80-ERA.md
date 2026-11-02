@@ -1,5 +1,5 @@
 # Changelog — v80 Era
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 The v80 era: the S-master hunts and crystal-dragon work that built the
 v80.0.0 line (alpha.1 through final), plus the Z-master harmony

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The invented-math contracts of the corona arcade
 //! (NIGHT-special-4, laws 1, 3, 4, 5): the loop-count scaling, the

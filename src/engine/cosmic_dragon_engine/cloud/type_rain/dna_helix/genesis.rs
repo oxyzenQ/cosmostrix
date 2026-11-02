@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! DNA genesis intro (NIGHT-research-7 part 3): the pure phase
 //! math for the molecule's birth sequence, split from `helix.rs`

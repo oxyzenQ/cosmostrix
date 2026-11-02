@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-hunter-23 (F-23-1) — the intro-color gate read the wrong key; the watcher's 8-param signature
 

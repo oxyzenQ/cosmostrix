@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # cosmostrix Contributor License Agreement (CLA)
 
@@ -16,11 +16,11 @@ irrevocable** license to:
 
 - Use, reproduce, modify, and distribute your Contribution.
 - **Relicense your Contribution under any license**, including but not
-  limited to GPL-3.0-only, the cosmostrix Commercial License, or any
+  limited to AGPL-3.0-only, the cosmostrix Commercial License, or any
   future license the Owner chooses.
 
 This grant is necessary because cosmostrix is dual-licensed
-(GPL-3.0-only + Commercial, see
+(AGPL-3.0-only + Commercial, see
 [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)). Without it, the Owner
 could not legally offer commercial licenses covering code that includes
 your Contribution.
@@ -64,7 +64,7 @@ You accept these terms by either:
   `git commit -s` adds it automatically from your git identity), **or**
 - Commenting `I have read the CLA and I agree` on your pull request.
 
-Nothing here reduces the GPL-3.0-only rights you hold under
+Nothing here reduces the AGPL-3.0-only rights you hold under
 [LICENSE](LICENSE) as a recipient of the project.
 
 **Contact:** [with.rezky@gmail.com](mailto:with.rezky@gmail.com)

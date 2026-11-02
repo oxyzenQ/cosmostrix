@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # night-dragon-lts-3 / lts-4 audit — sharpest-skill depth, all-infra coverage: stability, hygiene, optimization, security, LTS
 

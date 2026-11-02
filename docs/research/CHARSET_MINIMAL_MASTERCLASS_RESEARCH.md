@@ -1,6 +1,6 @@
 # Charset "minimal" Masterclass Replacement — Research (Z-master-1B)
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <!-- Copyright (C) 2026 rezky_nightky (oxyzenQ) -->
 
 Status: **RESEARCH ONLY — owner decides, no code changed.** The preset name

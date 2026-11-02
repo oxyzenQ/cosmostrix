@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-hunt-37: colors-custom strictness contract — extracted from
 //! `colors_custom.rs` (and extending it) to keep that file under the

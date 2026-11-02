@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Cinematic math helpers for monolith breathing, hero pulse, and benchmark
 //! classification. These are the only cosmic-dragon-origin functions that survived

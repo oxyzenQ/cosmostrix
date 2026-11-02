@@ -1,6 +1,6 @@
 # RAPL Energy Access Guide
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > How to enable ENERGY metrics in cosmostrix benchmark without running as root.
 

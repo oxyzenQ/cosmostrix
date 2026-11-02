@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Audit test (task flags-audit-3): verify that --bold and --shading-mode
 // actually produce DIFFERENT rendered output. The owner reported that

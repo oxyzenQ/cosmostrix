@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Config file LOADING — extracted from `configfile.rs` (800-LOC file
 //! cap) together with the startup-parse memo (NIGHT-hunter-22, wart F1).

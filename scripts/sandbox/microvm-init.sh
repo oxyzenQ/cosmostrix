@@ -1,6 +1,6 @@
 #!/bin/sh
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # PLATFORM: Linux guest only (PID 1 inside a KVM micro-VM initramfs).
 #
 # The cosmostrix supermassive-kernel sandbox init - PID 1 inside the

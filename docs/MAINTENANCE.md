@@ -1,5 +1,5 @@
 # Maintenance Guide
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 Single reference for maintaining cosmostrix during dormant mode (5-10 year maintenance cycle). Covers build, test, dependency updates, security response, and health-check log.
 

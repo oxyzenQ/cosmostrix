@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-long-horizon-1 audit — the five-phase long-horizon depth audit: stability, hygiene, optimization, security, LTS
 

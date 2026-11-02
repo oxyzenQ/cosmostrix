@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! v50.0.0-beta.7 Z-master-1B: kitty CSI-u Shift+letter shape tests.
 //!

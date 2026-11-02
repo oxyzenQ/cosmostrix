@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-lts-4 — the master endurance audit: CPU, memory, and every other resource over long runs (no GPU, no bloat)
 

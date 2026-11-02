@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # PLATFORM: Linux guest only (inside the kernel-best micro-VM).
 #
 # The kernel-best payload battery - the deepest E2E the estate owns,

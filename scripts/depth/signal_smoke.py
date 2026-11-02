@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 """Signal contract smoke harness (NIGHT-dinner-8).
 
 Exercises the four Unix signal paths cosmostrix owns, under a real

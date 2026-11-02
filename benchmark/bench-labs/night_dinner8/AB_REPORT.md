@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-dinner-8 A/B report — 10 s benches, release profile: signal-hook 0.3.18 vs 0.4.4 (then rand 0.9.5 vs 0.10.x, appended below)
 

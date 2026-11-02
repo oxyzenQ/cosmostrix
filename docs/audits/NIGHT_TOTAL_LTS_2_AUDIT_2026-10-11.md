@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-total-lts-2 audit — the all-infra depth pass: scripts tree, CI workflows, build pipeline, and supply-chain walls, read end to end
 

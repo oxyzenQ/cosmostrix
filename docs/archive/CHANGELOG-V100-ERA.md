@@ -1,5 +1,5 @@
 # Changelog — v100 Era
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 The v100 era: every entry, verbatim, that carried the renderer from
 the v80 line to the v100.0.0 stable release (2026-09-04 to

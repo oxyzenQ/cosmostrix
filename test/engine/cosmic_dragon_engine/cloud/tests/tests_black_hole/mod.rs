@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-special-1 tests: the black hole rain style (eighth style,
 //! the sorgonemous_intrascals scene — the event-horizon ball, its

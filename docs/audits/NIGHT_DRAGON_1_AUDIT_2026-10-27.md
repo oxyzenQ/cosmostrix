@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-dragon-1 audit — the master usage verdict: server, desktop, or hybrid at ultra-massive scale, documented from source
 

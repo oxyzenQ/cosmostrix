@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-depthtest-3: oversized colors-custom block-name validation —
 //! extracted from `colors_custom.rs` to keep that file under the

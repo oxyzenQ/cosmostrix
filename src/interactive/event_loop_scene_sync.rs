@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Runtime scene synchronization for live-reload — extracted from
 //! `event_loop.rs` to keep that file under the 800-LOC cap.

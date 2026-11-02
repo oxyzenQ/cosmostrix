@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 Z-master-v2 (1/2/3) A/B Comparison
 Scene: monolith (80x24, dry benchmark) | Duration: 10s per side

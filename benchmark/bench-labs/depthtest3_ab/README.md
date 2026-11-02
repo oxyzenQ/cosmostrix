@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # depthtest3_ab — NIGHT-depthtest-3 A/B evidence (2026-09-11)
 

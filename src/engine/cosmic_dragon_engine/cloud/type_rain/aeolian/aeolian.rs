@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The aeolian rain state machine (NIGHT-special-2, the ninth
 //! style) — the orchestration pass set: pool, spawn, advance, draw.

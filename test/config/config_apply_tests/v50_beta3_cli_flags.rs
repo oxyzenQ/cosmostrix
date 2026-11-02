@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Tests for the v50-beta.3 CLI flags (`--intro-color`, `--power-dragon`,
 //! `--msg-mode`, `--crystal-dragon`). Extracted from `config_apply_tests/mod.rs`

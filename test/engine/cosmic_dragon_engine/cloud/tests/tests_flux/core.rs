@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Core flux-style behavior contracts (task-19): scene resolution,
 //! family classification, fixed-step determinism, speed scaling,

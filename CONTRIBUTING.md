@@ -1,5 +1,5 @@
 # Contributing to cosmostrix
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > cosmostrix is a professional-grade cinematic Matrix rain renderer built in Rust. Contributions are welcome — especially bug fixes, platform compatibility improvements, and documentation. See [TRADEMARK.md](TRADEMARK.md) §4a for the contribution fork policy. By submitting a PR you accept the [Contributor License Agreement](CLA.md) — the DCO-style `Signed-off-by:` commit line is the acceptance mechanism (Section 3).
 
@@ -69,7 +69,7 @@ Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fi
 adds it automatically from your git identity. This DCO-style line is
 the acceptance of the [Contributor License Agreement](CLA.md): it
 grants the Owner the right to dual-license the project
-(GPL-3.0-only + Commercial, see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md))
+(AGPL-3.0-only + Commercial, see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md))
 while you keep full copyright to your Contribution. PRs without a
 sign-off can instead post the comment `I have read the CLA and I agree`
 on the PR itself.

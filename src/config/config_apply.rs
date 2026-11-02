@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Apply config file values, scene defaults, scene-custom, and glitch-level
 //! cross-cutting merge to parsed CLI args.

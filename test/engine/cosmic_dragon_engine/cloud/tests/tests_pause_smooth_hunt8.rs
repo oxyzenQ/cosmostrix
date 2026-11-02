@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-hunter-8 pause/resume smoothness tests: the wall-clock
 //! subsystems outside the blend easing — the wind-gust state machine

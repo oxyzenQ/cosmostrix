@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-dinner-8 — the major-bump backlog burn-down: signal-hook 0.4 lands compiler-proven, rand 0.10 gets the determinism treatment, and the dragon's heart stays untouched
 

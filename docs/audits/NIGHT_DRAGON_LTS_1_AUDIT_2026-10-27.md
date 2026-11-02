@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-dragon-lts-1 audit — the sharpest skill: the full terminal reset/restore stack, including the render-path terminal files every prior audit deferred
 

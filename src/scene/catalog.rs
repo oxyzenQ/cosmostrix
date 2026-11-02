@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The built-in scene catalog (NIGHT-special-3 extraction, per the
 //! RULES_LOC sibling-file policy: the catalog table outgrew

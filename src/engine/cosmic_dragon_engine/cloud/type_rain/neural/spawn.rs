@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The data entry pass (NIGHT-research-9, law 3's accumulator
 //! half) — the staggered streamer spawn.

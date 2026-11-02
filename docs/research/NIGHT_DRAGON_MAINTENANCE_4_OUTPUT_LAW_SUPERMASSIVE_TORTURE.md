@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Night Dragon Maintenance 4 — Audit Trio, Output Color Law, Loading Indicator, Supermassive Torture
 

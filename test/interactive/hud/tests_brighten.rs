@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Hue-preserving brighten_color tests, extracted from `hud_tests.rs`
 //! as a pre-emptive split to keep both files below the 800-LOC guard

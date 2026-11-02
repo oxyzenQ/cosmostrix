@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # v51.2 Power-Dragon Density Gate + Ambient Overlay Lift — Internal Research Audit
 

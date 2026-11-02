@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-dinner-5 — the dependency strictness policy: which pins protect the LTS, which one was too tight, and which "stuck" update is not ours at all
 

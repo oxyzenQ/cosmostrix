@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-dragon-maintenance-2 — unfiltered CI, the KVM kernel lanes on the real floor and the newest mainline, and the bugs the port caught on the way
 

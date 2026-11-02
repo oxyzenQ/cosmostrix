@@ -5,7 +5,7 @@
 > `src/*.rs` files became module directories). Preserved as a record -
 > cross-check the live source tree before relying on any path.
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > **STATUS: EXECUTED** (commit `69ca2c6`, 2026-08-04).
 >

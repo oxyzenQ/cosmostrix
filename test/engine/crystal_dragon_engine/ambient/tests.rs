@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! ambient tests, extracted from inline `mod tests { ... }` block in
 //! ambient.rs (Pattern D → Pattern C unification).

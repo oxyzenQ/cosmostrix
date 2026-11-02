@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Centralized POSIX wall-clock helpers — single place for `libc::time` +
 //! `libc::localtime_r` / `libc::gmtime_r` FFI.

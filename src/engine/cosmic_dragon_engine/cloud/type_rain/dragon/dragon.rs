@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 // LOC_EXEMPT: NIGHT-enhanced-4 added the entry-reveal animation
 // (entry_progress + target_heading fields, activate_dragon top-down
 // spawn logic, advance pass entry ramp, draw pass reveal gate) which

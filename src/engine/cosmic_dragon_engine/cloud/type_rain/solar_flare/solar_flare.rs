@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The solar flare rain state machine (NIGHT-special-4, the tenth
 //! style) — the orchestration pass set: pool, spawn, advance, draw.

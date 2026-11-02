@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # internal-research LTS pre-landing audit — end-to-end real-usage verification (CLI surface, panic surface, unsafe/leak/growth)
 

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Black hole see-saw roll scheduler (NIGHT-special-1 stage 2.4,
 //! window re-cut NIGHT-research-9): the disk stack's attitude state

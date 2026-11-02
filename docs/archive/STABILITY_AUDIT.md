@@ -1,5 +1,5 @@
 # cosmostrix Terminal Stability Audit Report
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 **Scope**: Terminal safety, input safety, redraw safety, pause/resume, resize, signal handling. **Files analyzed**: `src/engine/cosmic_dragon_engine/terminal/mod.rs`, `src/interactive/event_loop.rs`, `src/interactive/input.rs`, `src/main.rs`, plus supporting modules (`src/interactive/watchdog.rs`, `src/engine/cosmic_dragon_engine/cloud/mod.rs`, `src/engine/cosmic_dragon_engine/cloud/rain.rs`, `src/engine/cosmic_dragon_engine/frame.rs`, `src/types/constants.rs`, `src/interactive/activity.rs`).
 

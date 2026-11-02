@@ -1,5 +1,5 @@
 # Known Issues
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 This file documents known platform-specific quirks, workarounds, and
 planned fixes for cosmostrix. Items here are not bugs in the renderer

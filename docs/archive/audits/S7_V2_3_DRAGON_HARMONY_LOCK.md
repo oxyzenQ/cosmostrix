@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # S-master-7-v2 — 3-Dragon Harmony Audit + Lock Signature (LTS, deeper)
 

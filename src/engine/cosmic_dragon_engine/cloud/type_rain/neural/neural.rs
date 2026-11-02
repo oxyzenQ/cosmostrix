@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The neural network state machine (NIGHT-research-9, the
 //! fourteenth style) — the orchestration pass set: pools, spawn,

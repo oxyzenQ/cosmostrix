@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-diner-11 — the stable-cut pre-flight: cosmostrix audited against zelynic's v11.0.0 generator incident, the exact v100.0.6 shapes run green locally, and the release-notes shape contract becomes gate 19
 

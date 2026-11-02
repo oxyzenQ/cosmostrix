@@ -1,5 +1,5 @@
 # Changelog — v100.0.6 Era
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 The v100.0.6 era: every entry, verbatim, of the post-stable
 maintenance arc that carried v100.0.0 stable through v100.0.6

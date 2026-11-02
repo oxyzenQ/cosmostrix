@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The solar flare draw pass (NIGHT-special-4) — the presentation
 //! half of the orchestration, split from `solar_flare.rs` to honor

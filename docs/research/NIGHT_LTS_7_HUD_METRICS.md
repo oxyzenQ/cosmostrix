@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-lts-7 — the HUD metrics depth audit: realtime, accurate, zero measurable overhead, stable — one e2e-harness robustness fix
 

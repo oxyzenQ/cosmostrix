@@ -1,6 +1,6 @@
 # Depth Bore (LTS Verification)
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 The depth bore is the pre-LTS drill for the bug classes that survive every
 normal hunt. As the bug count approaches zero, the remaining bugs hide in

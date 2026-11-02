@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Ignition contracts (NIGHT-research-8, law 0): the pure phase
 //! math (the timeline ordering, the luminosity and jet fronts,

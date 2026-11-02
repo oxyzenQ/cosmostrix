@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Genome-level behavior contracts (NIGHT-research-7): the turn
 //! (uniform rotation + the projected strand geometry), the pairing

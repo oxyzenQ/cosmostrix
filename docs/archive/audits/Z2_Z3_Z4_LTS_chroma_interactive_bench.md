@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Z-2/Z-3/Z-4 LTS Audit — chroma_dragon_engine + interactive + bench
 

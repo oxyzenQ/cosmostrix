@@ -1,6 +1,6 @@
 # cosmostrix Render Engine — Formal Architecture
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 This document specifies the cosmostrix diff-based terminal rendering
 engine: its data structures, algorithms, complexity class, worst-case

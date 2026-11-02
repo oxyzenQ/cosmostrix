@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Crystal Dragon cadence contract (v80.0.0-alpha.1 S-master-HUNT-6).
 //!

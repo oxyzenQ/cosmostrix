@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-dragon-maintenance-0 — release checksums upgraded to blake3, and the honest verdicts the task list demanded
 

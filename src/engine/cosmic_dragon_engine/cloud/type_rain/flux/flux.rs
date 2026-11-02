@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Liquid matrix rain for the flux scene (task-19, fourth rain style
 //! replacement — supersedes the rejected water-surface ripple style).

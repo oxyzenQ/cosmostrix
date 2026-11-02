@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Black hole rain style (NIGHT-special-1): the ball module, the
 //! stage-2 orbital ring physics module, the stage-2.1 ball rendering

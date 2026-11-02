@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-dragon-lts-2 audit — the all-infra depth pass: every workflow (including the three the last audit never saw), the scripts tree, and the build pipeline re-verified
 

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Ball cell rendering helpers (NIGHT-special-1 stage 2.1): the
 //! free functions that turn one annulus cell into a frame cell —

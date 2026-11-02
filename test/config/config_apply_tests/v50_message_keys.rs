@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Tests for the v50 `message` / `message-border` / `msg-mode` config keys
 //! (the message overlay + msg-mode gate). Extracted from

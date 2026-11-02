@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # cosmostrix night-total-lts-1 audit — the cosmostrix skill (terminal reset + restore system)
 

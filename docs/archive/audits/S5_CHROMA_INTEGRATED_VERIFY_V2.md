@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # S-master-5-v2 — Integrated Chroma Dragon Engine Verification (LTS, deeper)
 

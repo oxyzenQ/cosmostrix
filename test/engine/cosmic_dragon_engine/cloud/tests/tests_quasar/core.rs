@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Core quasar-style behavior contracts (NIGHT-research-8):
 //! scene resolution, the ignition assembly, the capture economy

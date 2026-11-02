@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-special-1 stage 2.2 tests: the formation intro — the hole's
 //! birth sequence (singularity seed -> collapse flare -> horizon

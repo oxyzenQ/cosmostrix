@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-hunter-26 — resize must not restart the message reveal: the mfs "half little reload" (all styles with msg mode active)
 

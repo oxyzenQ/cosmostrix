@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 
 [package]
 name = "cosmostrix"
@@ -8,7 +8,7 @@ edition = "2024"
 rust-version = "1.98"
 authors = ["rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"]
 description = "Professional-grade cinematic Matrix rain renderer for serious terminal environments."
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 repository = "https://github.com/oxyzenQ/cosmostrix"
 # night-improve-11: the docs.rs rustdoc tree is hosted and green -
 # docs.rs/cosmostrix resolves HTTP 200 live (verified against the

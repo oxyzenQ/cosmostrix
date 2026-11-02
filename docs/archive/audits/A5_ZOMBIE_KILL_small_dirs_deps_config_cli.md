@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # A-5 Zombie Kill Stage — Small Dirs + Dependency Tree + Config Keys + CLI Flags
 

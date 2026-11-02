@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 /// `TERM_PROGRAM` values that identify an xterm.js-based Electron host.
 /// All of these ship xterm.js as their terminal renderer and inherit the

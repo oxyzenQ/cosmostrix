@@ -1,5 +1,5 @@
 # Usage: Piping and Redirection — the Fatal-Usage Catalog
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 This document catalogs every way `cosmostrix` can be invoked through a
 pipe or redirection, what actually happens inside the process for each

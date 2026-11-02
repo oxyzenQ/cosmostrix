@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 S-master-4 Stability LTS A/B
 Size     Metric                 A                B                Delta      Verdict

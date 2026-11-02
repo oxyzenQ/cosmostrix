@@ -1,6 +1,6 @@
 # Killer Features Hardening Audit — Z-master-1B (v51.0.0-beta.1)
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <!-- Copyright (C) 2026 rezky_nightky (oxyzenQ) -->
 
 Owner directive: "peak optimize and stability/LTS, no hidden bug, potential

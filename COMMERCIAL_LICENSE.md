@@ -1,13 +1,13 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # cosmostrix Commercial License
 
 cosmostrix is dual-licensed:
 
-- **GPL-3.0-only** for open-source use — see [LICENSE](LICENSE).
+- **AGPL-3.0-only** for open-source use — see [LICENSE](LICENSE).
 - **Commercial License** for proprietary and commercial use — this document.
 
-If your use of cosmostrix satisfies the GPL-3.0-only copyleft terms, you may
+If your use of cosmostrix satisfies the AGPL-3.0-only copyleft terms, you may
 use it for free under the open-source license. If it cannot — because you
 ship a closed-source product, run a paid hosted service, or keep internal
 business tooling proprietary — you need a commercial license. This document
@@ -20,10 +20,10 @@ You need a commercial license if any of the following applies:
 - Your company runs cosmostrix in production as part of its business.
 - You offer a SaaS or any paid hosted service built on cosmostrix.
 - You build internal business tools around cosmostrix and cannot release
-  the surrounding proprietary code under GPL-3.0-only.
+  the surrounding proprietary code under AGPL-3.0-only.
 - You redistribute cosmostrix, in whole or in part, inside a product you
   distribute or sell.
-- Any other use that cannot meet the copyleft obligations of GPL-3.0-only.
+- Any other use that cannot meet the copyleft obligations of AGPL-3.0-only.
 
 ## Who Does NOT Need a Commercial License
 
@@ -33,9 +33,9 @@ You do not need a commercial license for:
 - Non-commercial research and evaluation.
 - Education and teaching.
 - Open-source contributions back to the upstream project — contribution
-  forks are covered by GPL-3.0-only and [TRADEMARK.md](TRADEMARK.md) §4a.
+  forks are covered by AGPL-3.0-only and [TRADEMARK.md](TRADEMARK.md) §4a.
 
-In all of these cases the GPL-3.0-only license in [LICENSE](LICENSE) is
+In all of these cases the AGPL-3.0-only license in [LICENSE](LICENSE) is
 sufficient and no payment is required.
 
 ## Pricing
@@ -45,7 +45,7 @@ All prices are annual, pegged to USD, and payable in cryptocurrency (see
 
 | Tier                 | Price          | Target                                                        |
 | -------------------- | -------------- | ------------------------------------------------------------- |
-| Personal             | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions    |
+| Personal             | Free (AGPL-3.0) | Hobby, personal, non-commercial, open-source contributions    |
 | Individual           | $99/year       | Solo devs, freelancers, revenue < $100K/year                  |
 | Professional        | $1,899/year    | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
 | Business             | $12,999/year   | SMB, revenue $100K–$10M/year                                  |
@@ -152,13 +152,13 @@ figure below is measurable from this repository (cloc 2.04, with
   recipe (`./scripts/build.sh pgo`) that produces the fastest local
   artifact.
 
-The Personal tier (GPL-3.0) is free. The paid tiers license these
+The Personal tier (AGPL-3.0) is free. The paid tiers license these
 patterns for proprietary, closed-source, and SaaS use.
 
 ## What Each Tier Grants
 
 Every paid tier grants the right to use cosmostrix in commercial work
-without GPL-3.0-only copyleft obligations, plus priority support from the
+without AGPL-3.0-only copyleft obligations, plus priority support from the
 maintainer:
 
 - **Individual ($99/year)** — solo developers and freelancers with
@@ -187,7 +187,7 @@ not a gray area and not a loophole. It is theft.
 
 This applies equally to companies and to individuals: lifting the code,
 stripping the license, renaming the project, or laundering it through a
-fork to dodge GPL-3.0-only copyleft while shipping closed source for
+fork to dodge AGPL-3.0-only copyleft while shipping closed source for
 money violates [LICENSE](LICENSE), this document, and
 [TRADEMARK.md](TRADEMARK.md). The owner, rezky_nightky (oxyzenQ),
 enforces these terms with takedown requests and legal action where
@@ -208,7 +208,7 @@ kind of free-rider this project recognizes. The rising price makes such
 theft more deliberate, not less: the enforcements above apply to them
 in full.
 
-The Personal tier is the GPL-3.0-only license itself — free, including its
+The Personal tier is the AGPL-3.0-only license itself — free, including its
 copyleft obligations; no commercial license document is issued.
 
 ## Payment

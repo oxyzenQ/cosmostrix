@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-diner-9 — sha2 0.11.0 takes the last Unchanged line: one function rewritten, identity proven three ways, and the wall-of-Unchanged reaches zero
 

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-depthtest-2 and hunt-30: depth regression suite for the CLI
 //! and config.toml chain (the depthtest-1 stresstest covers fuzzing;

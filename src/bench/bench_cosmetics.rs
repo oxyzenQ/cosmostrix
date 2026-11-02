@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! NIGHT-perf-2: the dedicated bench harness for the paths the Z-6
 //! bench-mode contract skips (owner-approved 2026-09-24).

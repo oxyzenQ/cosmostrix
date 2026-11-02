@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # NIGHT-dinner-5 A/B report — 10 s benches, release profile: clap 4.5.61 vs 4.6.7, then notify 7.0.0 vs 8.2.0
 

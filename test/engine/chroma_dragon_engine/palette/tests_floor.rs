@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Tests for the Phase 7 palette-relative brightness floor and Phase 7-b
 //! body-tail continuity. Extracted from `palette.rs` to keep that file

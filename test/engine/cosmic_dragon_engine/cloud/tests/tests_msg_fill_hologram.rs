@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Render-level tests for the v80.0.0-beta.1 msg-fill-style `hologram` style
 //! (post-engrave follow-up — see

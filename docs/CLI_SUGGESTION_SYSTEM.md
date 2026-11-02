@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # CLI Suggestion System — "tip: a similar value exists" / "tip: a similar argument exists"
 

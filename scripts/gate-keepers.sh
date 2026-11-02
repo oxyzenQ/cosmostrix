@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # PLATFORM: UNIX-only (Linux, macOS, BSD). Optimal for Unix-like
 #   systems only; not for Windows cmd.exe or PowerShell (use WSL or
 #   Git Bash on Windows).
@@ -442,7 +442,7 @@ if [ -f scripts/gates/check-headers.sh ]; then
 			# is worse than a missing one). The check output above lists
 			# exactly which files need the two-line header:
 			#   # Copyright (C) 2026 rezky_nightky
-			#   # SPDX-License-Identifier: GPL-3.0-only
+			#   # SPDX-License-Identifier: AGPL-3.0-only
 			fail "SPDX headers: some files missing license headers (no auto-fix - add the 2-line header listed above)"
 		else
 			fail "SPDX headers: some files missing license headers"

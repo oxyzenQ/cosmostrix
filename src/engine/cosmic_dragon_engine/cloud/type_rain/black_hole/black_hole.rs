@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 // LOC_EXEMPT: NIGHT-special-1 stages 2.1/2.2 added the rim spin
 // (spin_phase + conveyor bookkeeping), the entry spiral gate and the
 // formation intro (formation clock, formed flag, seed-dot rendering,

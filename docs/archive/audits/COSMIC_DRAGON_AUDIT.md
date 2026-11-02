@@ -1,6 +1,6 @@
 # Cosmic Dragon Audit — v50.0.0-alpha.2
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > Internal independent QA session covering visual quality, stability,
 > power management, and competitive depth. Conducted across 6 commits

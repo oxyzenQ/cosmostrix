@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Night Dragon Maintenance 5 — Hype-Vocabulary Law, AI Defense, Fuzz Lane, Docs Depth Audit
 

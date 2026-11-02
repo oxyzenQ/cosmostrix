@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Matrix Bold Audit — Does the Film / Do World-Class Implementations Use Bold?
 

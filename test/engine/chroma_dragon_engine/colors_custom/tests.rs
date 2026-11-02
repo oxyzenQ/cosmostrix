@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! colors-custom unit tests — moved from the inline `mod tests` /
 //! `suggestion_tests` / `precheck_tests` in colors_custom.rs to the

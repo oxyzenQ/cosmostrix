@@ -1,6 +1,6 @@
 # Cosmic Dragon Experimental — Future Technology Explorations
 
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > **Branch**: `cosmic-dragon-experimental`
 > **Status**: research / prototyping / NOT for production

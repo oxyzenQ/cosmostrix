@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 // LOC_EXEMPT: pure tuning-constants file — every style's motion/density
 // constants with their mandatory why-docs, no logic (same data-file class
 // as themes.rs). NIGHT-special-1 stage 2.4 added the three-tier disk

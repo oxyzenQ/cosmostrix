@@ -1,5 +1,5 @@
 # cosmostrix Brand Guidelines
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 Visual identity and communication standards for the cosmostrix project. Ensures consistent branding across all touchpoints — GitHub repository, documentation, releases, community presence.
 
