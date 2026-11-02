@@ -62,6 +62,24 @@ when the version line closes.
   (`message_active = false` on all eight runs), so the change is
   rendered-output-only by construction.
 
+### audit: NIGHT-xenric-1 — engine ultra-long-horizon endurance depth audit
+
+- Audit report lands in
+  `docs/audits/NIGHT_XENRIC_1_ENGINE_ENDURANCE_AUDIT_2026-11-02.md`:
+  the render engine audited against a "useful for millions of years"
+  bar, extending the 2026-09-21 overflow audit with a horizon ladder
+  and a repo-wide census of session-anchored float conversions.
+- Verdict: all surfaces verified at peak, zero code changes. The
+  three session-anchored elapsed consumers use the correct
+  representation (f64 bucket math, f64 phase with modulo wrap before
+  the f32 handoff, u32 hash-only seed); every per-entity timer is
+  re-anchored or envelope-bounded; every hot collection is capped,
+  drained, or equilibrium-bounded; the self-healing layer covers
+  transient corruption. First math wall past the ~585-year OS clock
+  envelope is f64-ms precision at ~285,000 years — nothing to fix.
+- Record-only round (owner rule: audit-if-peak-skip; docs-only
+  changes skip the benchmark).
+
 ### license: full relicense from GPL-3.0-only to AGPL-3.0-only
 
 - The open-source license is now AGPL-3.0-only (the license that
