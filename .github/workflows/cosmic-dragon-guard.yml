@@ -88,6 +88,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # night-T-2 follow-up 18 (the zejtron law): heal the poisoned
+          # Azure resolver first - the mirror rescue below stays as the
+          # second line of defense.
+          printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf.new >/dev/null
+          grep -v '^nameserver' /etc/resolv.conf | sudo tee -a /etc/resolv.conf.new >/dev/null || true
+          sudo mv /etc/resolv.conf.new /etc/resolv.conf
           sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
