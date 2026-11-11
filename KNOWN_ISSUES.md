@@ -267,7 +267,7 @@ HUNT-25 (round 5) is the resync redraw fix; NIGHT-hunt-43 (round 7) is
 the missed second MADV reclaim site; the first three are
 summarized below and detailed in the CHANGELOG.
 
-*Layer 6 (HUNT-26): the park-epoch bug + the P2 resync bomb — the ACTUAL
+*Layer 6 (HUNT-26): the park-epoch bug + the P2 resync cascade — the ACTUAL
 "glitch rain shift" root cause.* The owner's post-e3d1834 report (glitch
 in the first 9-40 s, monolith immune, first charset/color shortkey
 re-triggering it) finally decomposed the symptom empirically with
@@ -362,7 +362,7 @@ three interlocking output-side defects:
    the in-memory `write_all` into the 256 KB BufWriter; the
    `BufWriter::flush()` — where the block actually happens — was
    invisible to the power system.
-3. **P2 health mitigation bomb.** `EnduranceHealth` scored frame
+3. **P2 health mitigation failure loop.** `EnduranceHealth` scored frame
    work in ABSOLUTE ms (`100 - ms*10`, zero at >= 10ms — an
    Alacritty-class calibration). A healthy busy VTE/foot frame
    (12ms of a 16.7ms budget) was classified "investigate"

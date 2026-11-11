@@ -5,7 +5,7 @@
 //!
 //! ```text
 //! Phase 1: Singularity  (0    – 1000 ms)  A point of light pulses at center.
-//! Phase 2: Burst         (1000 – 2500 ms)  Particles explode outward + spiral.
+//! Phase 2: Burst         (1000 – 2500 ms)  Particles burst outward + spiral.
 //! Phase 3: Morph         (2500 – 4000 ms)  Particles slow + turn downward,
 //!                                           colors shift cosmic → palette.
 //! Phase 4: Rain Handoff  (4000 – 5000 ms)  Particles fade; rain engine takes

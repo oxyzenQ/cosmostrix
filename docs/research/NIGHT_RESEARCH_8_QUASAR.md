@@ -11,7 +11,7 @@ style (NIGHT-special-1) is the SAME engine silent; the quasar is
 it running at full power. The neural network stays on the
 style shortlist for a future round — its motion DNA is a graph,
 not a field, and the graph layouts that read well (layered,
-spring-embedded) fight the terminal's grid; the quasar's
+spring-embedded) contend with the terminal's grid; the quasar's
 central-force fields ARE the grid's geometry. The rain feeds the engine: the falling glyph
 is no longer the scene, it is the scene's food.
 

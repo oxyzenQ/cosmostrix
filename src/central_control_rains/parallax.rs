@@ -30,7 +30,7 @@ pub(crate) const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// Deep Focus preset (battle round 2 champion): field lifted,
+/// Deep Focus preset (comparison round 2 champion): field lifted,
 /// head peak tamed. Back pushed into shadow (0.56), front gently
 /// boosted (1.08) for cinematic presence without glare.
 ///   - Back  (0): 0.56 (deep shadow — lifted from noir 0.52)
@@ -40,7 +40,7 @@ pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.56, 0.82,
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// Deep Focus preset (battle round 2 champion): slightly muted head
+/// Deep Focus preset (comparison round 2 champion): slightly muted head
 /// color. Back desaturated (0.52) for shadow haze, front boosted
 /// (1.10) for cinematic color richness without overdrive.
 ///   - Back  (0): 0.52 (shadow haze blend)
@@ -50,7 +50,7 @@ pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.52, 0.84,
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// Deep Focus preset (battle round 2 champion): glare control.
+/// Deep Focus preset (comparison round 2 champion): glare control.
 /// Front head blooms gently (1.24 — tamed from noir 1.30) for
 /// cinematic trail presence. Front-layer heads glow without glare.
 ///   - Back  (0): 0.48 (suppressed — stays in shadow)
@@ -121,7 +121,7 @@ pub(crate) const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
-/// Deep Focus preset (battle round 2 champion): back clears faster,
+/// Deep Focus preset (comparison round 2 champion): back clears faster,
 /// front lingers. Back: 1.9 (quick flicker), mid: 1.15 (smooth
 /// streaks), front: 0.65 (lingering cinematic trail). Effective
 /// rates: back=15.2, mid=9.2, front=5.2. Less residual busyness
@@ -173,7 +173,7 @@ pub(crate) const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 
 /// Per-layer contrast reduction (depth-of-field perceptual blur).
 ///
-/// Deep Focus preset (battle round 2 champion): fog identity kept
+/// Deep Focus preset (comparison round 2 champion): fog identity kept
 /// from noir. Back fogged (0.50) for depth atmosphere, front razor
 /// sharp (0.0). The contrast between shadowy back and sharp front
 /// creates the deep-focus aesthetic — dark entry, crisp resolution.

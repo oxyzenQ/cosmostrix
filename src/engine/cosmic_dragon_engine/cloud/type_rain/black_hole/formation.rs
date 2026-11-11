@@ -9,7 +9,7 @@
 //! the stateless questions).
 //!
 //! Owner question (stage-2 verification round): should the hole
-//! appear suddenly, fade in, or explode from a small dot? The
+//! appear suddenly, fade in, or burst from a small dot? The
 //! physically evocative answer — stellar collapse — is all three in
 //! sequence: a tiny bright singularity seed fades in slowly, the
 //! collapse intensifies it (the cross flare), the event horizon

@@ -720,7 +720,7 @@ Every harness below is one command and traces to a real script or workflow in th
 | [Cosmic Dragon lock suite](docs/COSMIC_DRAGON_ARCHITECTURE.md) | The diff-engine public contract, printed as a lock report | `cargo test cosmic_dragon_incubator::tests::lock -- --nocapture` |
 | [Miri lane](https://github.com/oxyzenQ/cosmostrix/actions/workflows/miri.yml) | Undefined behavior absent from the six audited modules | `./scripts/build.sh miri --no-install` |
 | [Fuzz lane](https://github.com/oxyzenQ/cosmostrix/actions/workflows/fuzz.yml) | Escape-sequence emission stays safe under attack (escape_ctrl target, 60s per push, 900s weekly) | `cargo fuzz run escape_ctrl --target x86_64-unknown-linux-gnu -- -max_total_time=60` |
-| [Supermassive brutal](https://github.com/oxyzenQ/cosmostrix/actions/workflows/supermassive.yml) | The render contract holds under five hostile load shapes: resize-storm, input-flood, signal-storm, config-churn, restart-storm | `python3 scripts/supermassive/torture.py --binary target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix` |
+| [Supermassive torture](https://github.com/oxyzenQ/cosmostrix/actions/workflows/supermassive.yml) | The render contract holds under five hostile load shapes: resize-storm, input-flood, signal-storm, config-churn, restart-storm | `python3 scripts/supermassive/torture.py --binary target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix` |
 | [Kernel lanes](https://github.com/oxyzenQ/cosmostrix/actions/workflows/supermassive-kernel.yml) | The 2.6.27 kernel floor and the latest mainline, both live-proven in KVM micro-VMs | CI lane — `.github/workflows/supermassive-kernel.yml` |
 | [Gate suite](CONTRIBUTING.md) | Headers, language, emoji, hype-word, version-sync, and script-inventory conventions | `./scripts/gate-keepers.sh` |
 
@@ -849,9 +849,12 @@ and full terms. For licensing inquiries contact
 
 Warning: taking cosmostrix — or any fork, copy, or derivative of it — into
 a closed-source commercial product without contacting the owner and paying
-for the license is theft, not a gray area. It violates AGPL-3.0-only, the
-Commercial License, and [TRADEMARK.md](TRADEMARK.md), and the owner
-rezky_nightky (oxyzenQ) enforces it with takedowns and legal action.
+for the license is theft — not a gray area. The honest paths are exactly
+two: comply with AGPL-3.0-only (free, first-class, not a trial), or buy
+the tier your revenue honestly matches. There is no third path that
+leaves you clean. It violates AGPL-3.0-only, the Commercial License, and
+[TRADEMARK.md](TRADEMARK.md), and the owner rezky_nightky (oxyzenQ)
+enforces it with takedowns and legal action.
 See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) for the full
 unauthorized-use warning.
 

@@ -89,7 +89,7 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
                     // draining the PTY) then survived SIGTERM entirely: the
                     // owner's `pkill -f cosmostrix` no-op that only
                     // `kill -9` could end. The nonblocking force-exit makes
-                    // SIGTERM lethal within its 3s grace window on every
+                    // SIGTERM final within its 3s grace window on every
                     // path, including the intro (where the watchdog's
                     // frame-stuck arm is still disarmed).
                     if !SHUTDOWN.load(Ordering::Acquire) {

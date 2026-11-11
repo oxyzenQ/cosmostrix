@@ -44,7 +44,7 @@ pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 
 /// Brightness factor at the extreme edge row of the CRT vignette.
 ///
-/// ## Deep Focus preset (2026-08-23, battle round 2 champion)
+/// ## Deep Focus preset (2026-08-23, comparison round 2 champion)
 /// Set to 0.87 (13% dim) — warm CRT glass, lighter than noir.
 /// The Deep Focus philosophy: gentle vignette, cinematic lens,
 /// reduced fatigue. Edges dim softly like a classic film frame
@@ -117,7 +117,7 @@ pub(crate) const PHOSPHOR_THAW_MAX_CELLS_PER_FRAME: usize = 600;
 
 /// Intensity of the radial vignette (0.0 = none, 1.0 = full black at edges).
 ///
-/// Deep Focus preset (battle round 2 champion): 0.14 (14% corner —
+/// Deep Focus preset (comparison round 2 champion): 0.14 (14% corner —
 /// lighter photographic lens than noir's 20%). Cinematic lens
 /// philosophy — dark corners, deep-focus frame. Corners dim
 /// into shadow.
@@ -125,7 +125,7 @@ pub(crate) const VIGNETTE_INTENSITY: f32 = 0.14;
 
 /// Inner radius (as fraction of half-screen) where vignette starts.
 ///
-/// Deep Focus preset (battle round 2 champion): 0.75 — vignette
+/// Deep Focus preset (comparison round 2 champion): 0.75 — vignette
 /// starts later than noir (0.70). Combined with INTENSITY=0.14,
 /// radial vignette is lighter and starts further out.
 pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.75;
@@ -140,7 +140,7 @@ pub(crate) const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 
 /// Percentage of screen height (from bottom) affected by rain shadow.
 ///
-/// Deep Focus preset (battle round 2 champion): 0.13 (13% of screen
+/// Deep Focus preset (comparison round 2 champion): 0.13 (13% of screen
 /// height) — smaller bottom shadow zone than noir (15%). On a
 /// 40-line terminal this is ~5 rows. Rain fades gently into shadow.
 pub(crate) const RAIN_SHADOW_PCT: f32 = 0.13;
@@ -151,7 +151,7 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 /// Minimum brightness floor for the rain shadow quadratic. The fade curve
 /// never drops below this value, even at the very last row.
 ///
-/// ## Deep Focus preset (2026-08-23, battle round 2 champion)
+/// ## Deep Focus preset (2026-08-23, comparison round 2 champion)
 /// Set to 0.58 (42% dim floor) — lifted shadow floor. Rain gently
 /// dissolves toward the bottom border. Combined with PCT=0.13, the
 /// shadow is lighter than noir: a clear depth gradient in the

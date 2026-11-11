@@ -587,11 +587,11 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
     // must stay above the rain-visibility threshold (~10%) after all 4
     // dimming effects compound — for ANY shipped visual preset.
     //
-    // Preset battle 2 (2026-08-23): the exact champion calibration pins
+    // Preset comparison 2 (2026-08-23): the exact champion calibration pins
     // (bottom-center ~= 0.380, corner ~= 0.302 for Cinema Noir) were
     // relaxed into the cinematic dissolve window below so challenger
     // presets (see docs/research/PRESET_BATTLE_2.md and
-    // scripts/depth/apply-visual-preset.sh) can be battle-tested without
+    // scripts/depth/apply-visual-preset.sh) can be comparison-tested without
     // editing this test. The champion's exact values are documented in
     // docs/VISUAL_IDENTITY.md. The two guards that remain hard:
     //

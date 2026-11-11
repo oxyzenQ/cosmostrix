@@ -26,7 +26,7 @@ use crate::constants::{
 /// top fade is more aggressive (rain enters from deep shadow) while
 /// the bottom fade is gentler (rain dissolves gracefully). The
 /// asymmetry is inherited from Cinema Noir and refined for the
-/// battle round 2 champion — see `docs/VISUAL_IDENTITY.md` for the
+/// comparison round 2 champion — see `docs/VISUAL_IDENTITY.md` for the
 /// preset lineage and `docs/research/VISUAL_MODE_AUDIT.md` for the
 /// compounding math that drove the Deep Focus values.
 #[inline]

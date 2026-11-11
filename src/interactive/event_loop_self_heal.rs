@@ -110,7 +110,7 @@ pub(crate) fn run_self_healer(
             // pipe: the write blocks for seconds, the event loop freezes
             // with it ("particles stuck"), and when the terminal finally
             // drains, particles that expired during the stall vanish in
-            // one step ("auto-dismiss"). That periodic bomb every 30 s
+            // one step ("auto-dismiss"). That periodic reset every 30 s
             // cooldown was the exact reported VTE/foot symptom. Under
             // congestion the madvise (cheap, memory-focused — the actual
             // P2 purpose) is kept and the redraw is skipped; the drain

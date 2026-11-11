@@ -374,7 +374,7 @@ pub(crate) const HEAD_BLOOM_SIGMA: f32 = 1.2;
 /// Peak intensity of the head bloom glow (0.0 = none, 1.0 = full).
 ///
 /// Deep Focus preset: 0.36 — glare-controlled bloom for
-/// cinematic head glow (battle round 2 champion, locked 2026-08-23).
+/// cinematic head glow (comparison round 2 champion, locked 2026-08-23).
 /// See `docs/VISUAL_IDENTITY.md`.
 pub(crate) const HEAD_BLOOM_INTENSITY: f32 = 0.36;
 
@@ -478,14 +478,14 @@ pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 
 /// Number of rows at the bottom affected by edge fade.
 ///
-/// Deep Focus preset: 12 — wider dissolve zone (battle round 2
+/// Deep Focus preset: 12 — wider dissolve zone (comparison round 2
 /// champion). Gentle cinematic exit.
 /// Soft fade — rain trails off into shadow at the bottom edge.
 pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 12;
 
 /// Lip factor for the bottom edge fade (controls curvature).
 ///
-/// Deep Focus preset: 0.82 — smoother junction (battle round 2
+/// Deep Focus preset: 0.82 — smoother junction (comparison round 2
 /// champion).
 /// The Zone 1↔Zone 2 junction creates a gentle curve,
 /// fading perceptibly in the last rows — deep-focus dissolve.
@@ -494,7 +494,7 @@ pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.82;
 /// Minimum brightness factor at the top edge.
 ///
 /// Deep Focus preset: 0.48 (52% dim) — gentler dark entry than
-/// noir (battle round 2 champion, locked 2026-08-23). Rain fades
+/// noir (comparison round 2 champion, locked 2026-08-23). Rain fades
 /// in from shadow at the top border — deep-focus fade-in. Rain
 /// emerges from darkness.
 ///
@@ -510,7 +510,7 @@ pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.48;
 /// Minimum brightness factor at the bottom edge.
 ///
 /// Deep Focus preset: 0.68 (32% dim) — later dissolve than noir
-/// (battle round 2 champion). Rain fades softly toward the bottom.
+/// (comparison round 2 champion). Rain fades softly toward the bottom.
 /// The moderate dim prevents harsh cutoff while keeping ghost
 /// residue manageable — deep-focus aesthetic.
 ///

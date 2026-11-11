@@ -104,7 +104,7 @@ struct Cycle {
 ///    blend-tight envelope would flag accepted behavior.
 ///
 /// 2. The artifact this audit exists to catch: the phosphor
-///    ownership fight dirtied the whole drawn population every
+///    ownership contention dirtied the whole drawn population every
 ///    frame (5x steady on the black hole, 621 cells vs a 125-cell
 ///    steady diff, flipping drawn state against ghost state) — far
 ///    outside 2.0x + 40, keeping a 2.5x separation from the line.
@@ -467,7 +467,7 @@ fn hunt29_resume_cycle_neural() {
 
 // -- Color-mode variants (production parity) --
 //
-// The mono variants above catch the fight through the A20 orphan
+// The mono variants above catch the contention through the A20 orphan
 // path (base_ch without base_fg). Production runs color modes where
 // every structured family's drawn cells carry fg=Some — the A19
 // tracked path — so the color variants audit the same contract at

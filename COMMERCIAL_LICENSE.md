@@ -196,15 +196,15 @@ warranted (see [TRADEMARK.md §5](TRADEMARK.md)).
 Be direct about the ethics: anyone who knows this license exists,
 knows how to contact the owner, and still ships stolen cosmostrix code
 as their own closed-source commercial product is acting in the worst
-possible faith — that is rotten behavior, full stop. If the price is
+possible faith — that is theft, full stop. If the price is
 the barrier, contact the owner: terms are discussed in good faith.
 Choosing to steal instead is a choice, and it is the wrong one.
 
 The raised prices sharpen this warning rather than soften it: a company
 or individual that steals, illegally forks, or launders cosmostrix into
 a closed-source commercial product — while the owner, rezky_nightky
-(oxyzenQ), was one email and one license payment away — is the worst
-kind of free-rider this project recognizes. The rising price makes such
+(oxyzenQ), was one email and one license payment away — commits
+theft, plainly. The rising price makes such
 theft more deliberate, not less: the enforcements above apply to them
 in full.
 

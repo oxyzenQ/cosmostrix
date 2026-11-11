@@ -543,7 +543,7 @@ pub(in super::super) fn clear_cell(
 /// every other motion is ramping from frozen, that strobe is the
 /// only visible movement (the owner's micro jump on the black hole
 /// at sorgonemous_intrascals). The glyph family never had this
-/// fight because Pass 2 of the phosphor decay marks every
+/// problem because Pass 2 of the phosphor decay marks every
 /// droplet-covered cell fresh each frame; monolith had it only for
 /// the spine (clear_spine_phosphor). The structured families apply
 /// the same immunity to their whole drawn set — vacated cells keep

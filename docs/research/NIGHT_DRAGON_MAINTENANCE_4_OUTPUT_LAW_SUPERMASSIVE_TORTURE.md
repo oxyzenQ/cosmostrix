@@ -137,7 +137,7 @@ now shows it, with the fetch phase scoped so the report prints onto a
 clean line (curl body parsing split from reporting). The benchmark's
 own spinner line paints the same green/grey grammar.
 
-## 6. Supermassive hostile torture - the brutal server simulation
+## 6. Supermassive hostile torture - the exacting server simulation
 
 scripts/supermassive/torture.py (new, smoke-proven 5/5 against a
 contract-stub renderer: 69 PASS rows, 0 FAIL, no config residue) runs

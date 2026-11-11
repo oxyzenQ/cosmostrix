@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-# Preset Battle Round 2 — The Long-Usage Championship
+# Preset Comparison Round 2 — The Long-Usage Championship
 
 **Date**: 2026-08-23
-**Reigning champion (entering)**: Cinema Noir (battle 1 winner, 2026-08-17)
+**Reigning champion (entering)**: Cinema Noir (round 1 winner, 2026-08-17)
 **Question**: The owner is not fully convinced by the current champion's tune
 and wants challenger presets designed for **LTS long usage** — one of them
 may become the new shipped default.
@@ -16,7 +16,7 @@ may become the new shipped default.
 > preset (`./scripts/apply-visual-preset.sh cinema-noir`), along with the
 > two other challengers.
 >
-> Signoff: **oxyzenQ** — 2026-08-23 — preset battle round 2 verdict,
+> Signoff: **oxyzenQ** — 2026-08-23 — preset comparison round 2 verdict,
 > long-usage endurance profile.
 
 **How to test each challenger on a real terminal**:
@@ -33,7 +33,7 @@ Switch back any time: `./scripts/apply-visual-preset.sh cinema-noir`.
 
 ## 1. Why Round 2 — What Round 1 Did Not Optimize For
 
-Cinema Noir won battle 1 on **narrative** (emergence -> life -> dissolution)
+Cinema Noir won round 1 on **narrative** (emergence -> life -> dissolution)
 against uniformly-bright challengers. It was tuned for the first-impression
 wow of a cinematic frame. It was never specifically tuned for **watching for
 hours**: sustained wide luminance swing (very dark frame vs bright hero
@@ -179,7 +179,7 @@ visibility floor; bottom values inside the cinematic dissolve window
 test, which now guards ANY shipped preset instead of pinning one
 champion's exact calibration.
 
-## 4. Battle Protocol (Owner)
+## 4. Comparison Protocol (Owner)
 
 1. Run each preset for a real session — not 10 seconds. Recommended order:
    `deep-focus` -> `cinema-noir` (baseline refresh) -> `celluloid` ->
@@ -204,7 +204,7 @@ champion's exact calibration.
   cinematic dissolve window (both still hard asserts) so any preset —
   present or future — is guarded. Verified: all four presets pass the
   full 1651-test suite.
-- No production code was changed by the battle infrastructure; only the
+- No production code was changed by the comparison infrastructure; only the
   test calibration contract (documented as a cosmic-dragon KEY.md unlock
   entry) and docs.
 

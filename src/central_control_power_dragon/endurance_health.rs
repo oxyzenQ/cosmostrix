@@ -272,7 +272,7 @@ mod tests {
         // S-master-HUNT-23 regression: a VTE/foot frame that uses 12ms of
         // its 16.7ms budget (util 0.72) is NORMAL for that terminal class.
         // The old absolute-ms formula (100 - 12*10 = jitter 0) classified
-        // it "investigate" and armed the P2 full-redraw bomb every 30s.
+        // it "investigate" and armed the P2 full-redraw reset every 30s.
         // With the utilization signal this must stay OUT of the
         // investigate band when memory is stable.
         let mut h = EnduranceHealth::new();

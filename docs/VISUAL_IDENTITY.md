@@ -2,12 +2,12 @@
 
 # cosmostrix Visual Identity — Single Source of Truth
 
-**Current identity: Deep Focus preset** (battle round 2 champion, locked
+**Current identity: Deep Focus preset** (comparison round 2 champion, locked
 2026-08-23 by owner verdict — the endurance refinement of the Cinema Noir
 narrative, chosen for LTS long usage).
 
 > **Visual lock (2026-08-23)**: Deep Focus declared champion by owner
-> A/B terminal battle. Signature: **oxyzenQ** — preset round 2 verdict,
+> A/B terminal comparison. Signature: **oxyzenQ** — preset round 2 verdict,
 > long-usage endurance profile. Applied via
 > `scripts/depth/apply-visual-preset.sh deep-focus`; reverts to the previous
 > champion anytime via `./scripts/depth/apply-visual-preset.sh cinema-noir`.
@@ -75,7 +75,7 @@ bottom-corner 0.362 — noir's dissolve, minus the squeeze.
 
 ### Previous champion — Cinema Noir (2026-08-17 -> 2026-08-23)
 
-Superseded by Deep Focus in battle round 2. Full parameter table retained
+Superseded by Deep Focus in comparison round 2. Full parameter table retained
 in [`docs/research/PRESET_BATTLE_2.md`](research/PRESET_BATTLE_2.md);
 reproduced for reference: frame 0.45/0.65/10/0.80, vignette 0.20/0.70, CRT
 0.85, shadow 0.15/0.55, brightness [0.52, 0.80, 1.10], saturation
@@ -92,7 +92,7 @@ contrast reduction [0.50, 0.18, 0.0], phosphor 5.0 / [2.0, 1.2, 0.6] / 2.0.
 
 ## 3. Why Cinema Noir Won — Design Rationale
 
-The champion was decided by an owner-run A/B terminal battle on 2026-08-17
+The champion was decided by an owner-run A/B terminal comparison on 2026-08-17
 against four challengers. The essential insight:
 
 > Neon Sharp (runner-up) was technically excellent — maximum contrast, crisp
@@ -126,11 +126,11 @@ bottom-corner ≈ 0.30 — dark but visible; that is the noir character.
 |-----------|------|------|---------|
 | 1 | v30.2 masterclass retune | 2026-08-09 | Fixed the v30 "too aggressive" regressions; top=0.533/bottom visible |
 | 2 | Option F "Film Matrix Hero" | 2026-08 (RAIN-AUDIT-002) | Rated 10/10; locked as the depth-stack baseline |
-| 3 | Neon Sharp (battle contender) | 2026-08-17 | Runner-up — rejected for lacking narrative |
-| 4 | Cinema Noir | 2026-08-17 | Battle 1 champion (`0d88da5`) — superseded |
-| 5 | **Deep Focus** | 2026-08-23 | **Battle 2 champion — current identity** (owner verdict: long-usage endurance) |
+| 3 | Neon Sharp (comparison contender) | 2026-08-17 | Runner-up — rejected for lacking narrative |
+| 4 | Cinema Noir | 2026-08-17 | Round 1 champion (`0d88da5`) — superseded |
+| 5 | **Deep Focus** | 2026-08-23 | **Round 2 champion — current identity** (owner verdict: long-usage endurance) |
 
-Battle round 2 (Cinema Noir vs Deep Focus / Celluloid / Late Broadcast) is
+Comparison round 2 (Cinema Noir vs Deep Focus / Celluloid / Late Broadcast) is
 documented in
 [`docs/research/PRESET_BATTLE_2.md`](research/PRESET_BATTLE_2.md); Deep
 Focus won the owner's terminal A/B verdict on 2026-08-23.

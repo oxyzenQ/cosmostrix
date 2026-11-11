@@ -383,7 +383,7 @@ fn health_mitigation_hunts23_skips_redraw_when_congested() {
     );
     assert!(
         !cloud.force_draw_everything,
-        "HUNT-23: under output congestion the full-redraw bomb must be \
+        "HUNT-23: under output congestion the P2 full-redraw reset must be \
          skipped — a full-screen ANSI burst into a saturated pipe is what \
          produced the periodic stuck-then-auto-dismiss VTE/foot symptom"
     );
