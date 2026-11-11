@@ -173,7 +173,10 @@ pub(crate) fn die_config_apply_error(e: String) -> ! {
 /// is plain text, never split by a style boundary).
 fn real_usage_styled(cmd: &mut Command) -> clap::builder::StyledStr {
     let rendered = cmd.render_usage();
-    let normalized = rendered.ansi().to_string().replace("[OPTIONS]", "[options]");
+    let normalized = rendered
+        .ansi()
+        .to_string()
+        .replace("[OPTIONS]", "[options]");
     clap::builder::StyledStr::from(normalized)
 }
 
