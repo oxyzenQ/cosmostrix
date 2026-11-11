@@ -34,6 +34,11 @@ jobs:
   ci_gate:
     name: Cosmic Dragon - CI gate (commit+tag push)
     runs-on: ubuntu-24.04
+    # Five-minute law exemption (night-T-1 follow-up, 2026-11-11):
+    # this seat WAITS on the other lanes' wall clocks
+    # (scripts/ci/wait-for-ci.sh) before publishing - its runtime
+    # is bounded by the slowest lane, not by its own work, so the
+    # blanket 5-minute cap is physically wrong for this one seat.
     timeout-minutes: 40
     permissions:
       # Job-level override. The wait itself only needs run listings +
@@ -81,7 +86,7 @@ jobs:
     name: Cosmic Dragon - Build packages (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     needs: ci_gate
-    timeout-minutes: 30
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -587,7 +592,7 @@ jobs:
     name: Cosmic Dragon - Build packages (android-aarch64-native)
     runs-on: ubuntu-24.04
     needs: ci_gate
-    timeout-minutes: 30
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
@@ -790,7 +795,7 @@ jobs:
     name: Cosmic Dragon - Build (freebsd native)
     runs-on: ubuntu-24.04
     needs: ci_gate
-    timeout-minutes: 40
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -872,7 +877,7 @@ jobs:
   publish_release:
     name: Cosmic Dragon - Publish GitHub Release
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 5
     needs: [build_packages, build_android, build_freebsd]
     permissions:
       contents: write

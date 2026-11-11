@@ -119,7 +119,7 @@ jobs:
     name: Cosmic Dragon Guard - CodeQL Analyze
     needs: detect-languages
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
@@ -161,6 +161,15 @@ jobs:
           config-file: .github/codeql/codeql-config.yml
 
       - name: Build (autobuild)
+        # night-T-1 (the five-minute law): the autobuild compile is the
+        # job's long pole. CI-only levers on top - the dev profile's
+        # full debuginfo is bulk the extractor never reads back
+        # (line-tables-only keeps panic backtraces file-and-line
+        # precise), and incremental churn is a one-shot compile's
+        # waste. The local dev profile is untouched.
+        env:
+          RUSTFLAGS: "-C debuginfo=line-tables-only"
+          CARGO_INCREMENTAL: "0"
         uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL analysis
@@ -168,3 +177,7 @@ jobs:
         with:
           category: /auto-detect
           upload: true
+          # night-T-1: the action defaults to a single analysis thread;
+          # 0 = one thread per core, the honest budget on a 4-core
+          # runner under the five-minute law.
+          threads: 0

@@ -45,7 +45,7 @@ jobs:
   security:
     name: Cosmic Dragon Guard - Security audit
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -99,7 +99,7 @@ jobs:
     name: Cosmic Dragon Guard - MSRV
     runs-on: ubuntu-24.04
     needs: [security, version-sync]
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -142,7 +142,7 @@ jobs:
     name: Cosmic Dragon Guard - build.sh -q
     runs-on: ubuntu-24.04
     needs: [security, msrv]
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -193,7 +193,7 @@ jobs:
     name: Cosmic Dragon Guard - Tests (nextest partition ${{ matrix.partition }}/2)
     runs-on: ubuntu-24.04
     needs: [security, msrv]
-    timeout-minutes: 30
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -240,7 +240,7 @@ jobs:
     name: Cosmic Dragon Guard - Build (macos native)
     runs-on: ${{ matrix.os }}
     needs: build_test
-    timeout-minutes: 30
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -319,7 +319,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build_test
     if: github.event_name == 'push'
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -416,7 +416,7 @@ jobs:
     name: Cosmic Dragon Guard - Build (windows aarch64)
     runs-on: windows-latest
     needs: windows_build
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -478,7 +478,7 @@ jobs:
     name: Cosmic Dragon Guard - Build (freebsd native)
     runs-on: ubuntu-24.04
     needs: build_test
-    timeout-minutes: 40
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -566,7 +566,7 @@ jobs:
     name: Cosmic Dragon Guard - Build (linux x86_64 variants)
     runs-on: ubuntu-24.04
     needs: build_test
-    timeout-minutes: 30
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -703,7 +703,7 @@ jobs:
     needs: [version-sync]
     name: Cosmic Dragon Guard - Build (windows)
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -773,7 +773,7 @@ jobs:
     name: Cosmic Dragon Guard - Format + Clippy
     runs-on: ubuntu-24.04
     needs: build_test
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -801,7 +801,7 @@ jobs:
     name: Cosmic Dragon Guard - Dependency policy (cargo-deny)
     runs-on: ubuntu-24.04
     needs: build_test
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7

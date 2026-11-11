@@ -132,13 +132,13 @@ jobs:
   # from-source law is untouched: both artifacts still come from the
   # named aliases with --locked and the exact step-level RUSTFLAGS
   # each lane's shape requires. The qemu outer budgets are trimmed
-  # to the boot's real shape (600 s -> 300 s floor, 900 s -> 480 s
+  # to the boot's real shape (600 s -> 150 s floor, 900 s -> 150 s
   # best) so a wedged guest can never outlive the job budget the
   # five-minute law sets.
   build_floor_musl:
     name: supermassive kernel build - baseline-musl floor payload
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -232,7 +232,7 @@ jobs:
   build_best_musl:
     name: supermassive kernel build - pro-v3-musl best payload
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -280,7 +280,7 @@ jobs:
     name: supermassive kernel floor (intrepid GA 2.6.27, KVM micro-VM)
     runs-on: ubuntu-24.04
     needs: [build_floor_musl]
-    timeout-minutes: 7
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -341,7 +341,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/kfloor && cd /tmp/kfloor
           POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/l/linux"
-          LISTING="$(curl -fsSL --retry 5 --max-time 180 "$POOL/")"
+          LISTING="$(curl -fsSL --retry 2 --max-time 45 "$POOL/")"
           IMG="$(printf '%s' "$LISTING" \
             | grep -oE 'linux-image-2\.6\.27-[0-9]+-generic_[^"]+_amd64\.deb' \
             | sort -u -V | head -1 || true)"
@@ -352,7 +352,11 @@ jobs:
             exit 1
           fi
           echo "resolved: $IMG (the intrepid GA release-day kernel)"
-          curl -fsSL --retry 5 --max-time 300 -o "$IMG" "$POOL/$IMG"
+          # night-T-1 (the five-minute law, fetch bounds): the old
+          # --retry 5 / --max-time 300 pair let a slow archive-mirror
+          # attempt chain into a 310 s step. Bounded now: one resume
+          # (-C -) retry inside a 150 s cap per transfer.
+          curl -fsSL --retry 1 --max-time 150 -C - -o "$IMG" "$POOL/$IMG"
           dpkg -x "$IMG" pkg
           VMLINUZ="$(find pkg/boot -name 'vmlinuz-2.6.27-*' | head -1)"
           if [ -z "$VMLINUZ" ]; then
@@ -391,13 +395,13 @@ jobs:
           POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/b/busybox"
           ERA_DEB="busybox-initramfs_1.10.2-1ubuntu6_amd64.deb"
           DIST="https://old-releases.ubuntu.com/ubuntu/dists/intrepid/main/binary-amd64/Packages.gz"
-          if curl -fsI --retry 5 --max-time 60 "$POOL/$ERA_DEB" >/dev/null; then
+          if curl -fsI --retry 2 --max-time 20 "$POOL/$ERA_DEB" >/dev/null; then
             BUSY="$ERA_DEB"
             echo "resolved: $BUSY (pinned intrepid GA busybox-initramfs, era-true)"
-            curl -fsSL --retry 5 --max-time 300 -o "$BUSY" "$POOL/$BUSY"
+            curl -fsSL --retry 1 --max-time 60 -C - -o "$BUSY" "$POOL/$BUSY"
           else
             echo "pinned era deb HEAD-probe failed - resolving from the intrepid dists index"
-            PKGS="$(curl -fsSL --retry 5 --max-time 180 "$DIST" | gzip -d || true)"
+            PKGS="$(curl -fsSL --retry 2 --max-time 45 "$DIST" | gzip -d || true)"
             FNAME="$(printf '%s' "$PKGS" \
               | awk '/^Package: busybox-initramfs$/{f=1;next} f&&/^$/{exit} f&&/^Filename: /{print $2; exit}' || true)"
             if [ -z "$FNAME" ]; then
@@ -408,7 +412,7 @@ jobs:
             fi
             BUSY="$(basename "$FNAME")"
             echo "resolved: $BUSY (from the intrepid dists index, era-true)"
-            curl -fsSL --retry 5 --max-time 300 -o "$BUSY" "https://old-releases.ubuntu.com/ubuntu/$FNAME"
+            curl -fsSL --retry 1 --max-time 60 -C - -o "$BUSY" "https://old-releases.ubuntu.com/ubuntu/$FNAME"
           fi
           dpkg -x "$BUSY" pkg-busybox
           SRCBB="$(find pkg-busybox -name busybox -type f | head -1)"
@@ -475,7 +479,7 @@ jobs:
           MEM=$(( TOTAL_MB / 8 )); [ "$MEM" -lt 1024 ] && MEM=1024
           echo "envelope: $SMP vCPU / $MEM MB (low, of $CORES cores / $TOTAL_MB MB on the runner)"
           set +e
-          timeout 300 qemu-system-x86_64 \
+          timeout 150 qemu-system-x86_64 \
             -machine pc,accel=kvm -cpu host \
             -m "$MEM" -smp "$SMP" \
             -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
@@ -537,7 +541,7 @@ jobs:
     name: supermassive kernel best (latest mainline, KVM micro-VM, pty depth)
     runs-on: ubuntu-24.04
     needs: [build_best_musl]
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -605,7 +609,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/kbest && cd /tmp/kbest
           BASE="https://kernel.ubuntu.com/mainline"
-          LISTING="$(curl -fsSL --retry 5 --max-time 180 "$BASE/")"
+          LISTING="$(curl -fsSL --retry 2 --max-time 30 "$BASE/")"
           TAGS="$(printf '%s' "$LISTING" \
             | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?/' \
             | sort -u -Vr | head -8 | sed 's|/$||' || true)"
@@ -619,9 +623,21 @@ jobs:
           FOUND=""
           BESTTAG=""
           FIRST_LISTING=""
+          # night-T-1 (the five-minute law, fetch budget): the walk
+          # rides a hard SECONDS budget, so an upstream brownout (the
+          # 503 storm that hung this lane for 9m46s) fails fast and
+          # re-runnable instead of eating the whole job budget. The
+          # old --retry 5 / --max-time 600 curl pair let one brownout
+          # chain past the ten-minute ceiling; every transfer below
+          # is now bounded and the walk itself is bounded here.
+          FETCH_BUDGET=$(( SECONDS + 210 ))
           while IFS= read -r TAG; do
+            if [ "$SECONDS" -ge "$FETCH_BUDGET" ]; then
+              echo "skip: remaining tags not probed - the fetch budget (210s) is spent"
+              break
+            fi
             DIR="$BASE/$TAG"
-            DLIST="$(curl -fsSL --retry 5 --max-time 180 "$DIR/" || true)"
+            DLIST="$(curl -fsSL --retry 2 --max-time 30 "$DIR/" || true)"
             if [ -z "$FIRST_LISTING" ]; then
               FIRST_LISTING="$DLIST"
             fi
@@ -637,11 +653,11 @@ jobs:
               echo "skip: $TAG lists no linux-image *_generic amd64 deb - walking back"
               continue
             fi
-            if ! curl -fsI --retry 5 --max-time 60 "$DIR/$REL" >/dev/null; then
+            if ! curl -fsI --retry 2 --max-time 20 "$DIR/$REL" >/dev/null; then
               echo "skip: $TAG lists $REL but the file HEAD-probes not-ready (mid-upload) - walking back"
               continue
             fi
-            if curl -fsSL --retry 5 --max-time 600 -o "$(basename "$REL")" "$DIR/$REL"; then
+            if curl -fsSL --retry 2 --max-time 120 -o "$(basename "$REL")" "$DIR/$REL"; then
               FOUND="$REL"
               BESTTAG="$TAG"
               echo "resolved: $TAG (the newest mainline stable tag that serves its deb)"
@@ -730,7 +746,7 @@ jobs:
           MEM=$(( TOTAL_MB * 3 / 4 )); [ "$MEM" -lt 2048 ] && MEM=2048
           echo "envelope: $SMP vCPU / $MEM MB (best, of $CORES cores / $TOTAL_MB MB on the runner)"
           set +e
-          timeout 480 qemu-system-x86_64 \
+          timeout 150 qemu-system-x86_64 \
             -machine q35,accel=kvm -cpu host \
             -m "$MEM" -smp "$SMP" \
             -device isa-debug-exit,iobase=0xf4,iosize=0x04 \

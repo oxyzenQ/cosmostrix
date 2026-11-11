@@ -75,7 +75,7 @@ jobs:
     # regression net), 900s on the weekly deep session.
     name: cargo fuzz escape_ctrl
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 5
     env:
       # The fuzzer's toolchain, set by environment rather than by
       # `+nightly` on the command line: cargo-fuzz re-invokes cargo

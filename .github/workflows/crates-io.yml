@@ -57,6 +57,11 @@ jobs:
   ci_gate:
     name: CI gate (commit+tag push)
     runs-on: ubuntu-24.04
+    # Five-minute law exemption (night-T-1 follow-up, 2026-11-11):
+    # this seat WAITS on the other lanes' wall clocks
+    # (scripts/ci/wait-for-ci.sh) before publishing - its runtime
+    # is bounded by the slowest lane, not by its own work, so the
+    # blanket 5-minute cap is physically wrong for this one seat.
     timeout-minutes: 40
     permissions:
       # The wait itself only needs run listings + the checkout
@@ -102,7 +107,7 @@ jobs:
     name: Publish to crates.io (${{ github.ref_name }})
     runs-on: ubuntu-24.04
     needs: ci_gate
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7

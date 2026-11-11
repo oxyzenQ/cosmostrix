@@ -66,7 +66,7 @@ jobs:
     # line: a future docs-scan or unbounded-loop test that inflates
     # the run past this boundary fails loudly instead of hanging (see
     # the header's admission law).
-    timeout-minutes: 20
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v7
