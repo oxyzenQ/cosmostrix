@@ -247,10 +247,23 @@ jobs:
           sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+          # night-T-2 round 11: the arm ports mirror rescue (arm64 lane).
+          # ports.ubuntu.com rides the same flapping ubuntu.com zone; swap
+          # to a mirror that actually carries /ubuntu-ports (verified 200).
+          if [ "${{ matrix.arm_ports_rescue }}" = "true" ]; then
+            sudo sed -i 's|ports\.ubuntu\.com|mirrors.ustc.edu.cn|g' \
+              /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+              /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+          fi
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update
           sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+          if [ "${{ matrix.arm_ports_rescue }}" = "true" ]; then
+            sudo sed -i 's|ports\.ubuntu\.com|mirrors.ustc.edu.cn|g' \
+              /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+              /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+          fi
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y musl-tools
 
       - name: Setup cache
