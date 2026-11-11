@@ -179,10 +179,44 @@ jobs:
   # and every leg below downloads that artifact. The compile is the
   # one long pole of the workflow (the cold-cache ceiling below;
   # warm-cache runs land well under the owner's five-minute target).
+  #
+  # night-arm64-1 (the owner's arm-server law, 2026-11-11): the shape
+  # is now a two-arch matrix. The aarch64 leg builds the fully static
+  # musl release shape on ubuntu-24.04-arm (GitHub's Ubuntu Server
+  # ARM64 host - the modern arm-server support the owner asked for;
+  # the aarch64-musl target's rust-lld linker is already wired in
+  # .cargo/config.toml, and the .cargo alias comment blesses the plain
+  # release build for aarch64 hosts). Its binary is exercised ON the
+  # real ARM CPU by the pty smoke legs below.
   build_musl:
-    name: supermassive build - pro-v3-musl (the release shape)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    name: supermassive build - pro-musl (the release shape, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The x86_64 battery shape - unchanged artifact contract:
+          # the kernel lanes and the soak/torture legs download this
+          # exact name.
+          - arch: x86_64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            build_cmd: cargo pro-linux-amd64-v3-musl --locked
+            rustflags: "-D warnings -C target-cpu=x86-64-v3"
+            bin_tail: pro-linux-amd64-v3-musl/cosmostrix
+            artifact: cosmostrix-pro-v3-musl
+          # The arm64 server shape (night-arm64-1): same release
+          # profile, no target-cpu pin (the arm-server audience runs
+          # everything from Neoverse N1 to Graviton), artifact name
+          # distinct so the x86_64 consumers stay byte-identical.
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            build_cmd: cargo build --release --locked --target aarch64-unknown-linux-musl
+            rustflags: "-D warnings"
+            bin_tail: release/cosmostrix
+            artifact: cosmostrix-pro-musl-aarch64
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -193,7 +227,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
-          targets: x86_64-unknown-linux-musl
+          targets: ${{ matrix.target }}
 
       # night-dragon-maintenance-6: the battery binary is the static
       # musl release shape; the musl-gcc wrapper covers the target's
@@ -211,29 +245,44 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Build the pro-v3-musl binary (the release shape)
+      - name: Build the pro-musl binary (the release shape, ${{ matrix.arch }})
         # Step-level RUSTFLAGS (workflow-level -D warnings is
         # shadowed here on purpose): carries the alias's exact -C
         # token, which RUSTFLAGS env would otherwise drop (env
-        # shadows build.rustflags).
+        # shadows build.rustflags). Per-arch command and flags ride
+        # the matrix (night-arm64-1).
         env:
-          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
-        run: cargo pro-linux-amd64-v3-musl --locked
+          RUSTFLAGS: ${{ matrix.rustflags }}
+        run: ${{ matrix.build_cmd }}
 
       - name: Upload the battery binary
         # upload-artifact does not preserve the exec bit; every
         # consumer restores it after download.
         uses: actions/upload-artifact@v7
         with:
-          name: cosmostrix-pro-v3-musl
-          path: target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix
+          name: ${{ matrix.artifact }}
+          path: target/${{ matrix.target }}/${{ matrix.bin_tail }}
           if-no-files-found: error
 
   pty_smoke:
-    name: supermassive test - pty smoke (quit paths and color tiers)
-    runs-on: ubuntu-24.04
+    name: supermassive test - pty smoke (quit paths and color tiers, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     needs: [build_musl]
     timeout-minutes: 5
+    # night-arm64-1: the same six pty legs run the aarch64 battery
+    # binary on the real ARM CPU (ubuntu-24.04-arm, Ubuntu Server
+    # ARM64) - the arm-server lane proves the quit paths and the
+    # color-tier downgrades are arch-independent.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            artifact: cosmostrix-pro-v3-musl
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            artifact: cosmostrix-pro-musl-aarch64
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -243,7 +292,7 @@ jobs:
       - name: Download the built battery binary
         uses: actions/download-artifact@v8
         with:
-          name: cosmostrix-pro-v3-musl
+          name: ${{ matrix.artifact }}
           path: /tmp/mass-bin
 
       # upload-artifact does not preserve the exec bit; the consumers
@@ -377,7 +426,7 @@ jobs:
   musl_compile:
     name: supermassive build - musl nextest archive (the one compile)
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -528,7 +577,7 @@ jobs:
     name: supermassive test - render soak (memory watch)
     runs-on: ubuntu-24.04
     needs: [build_musl]
-    timeout-minutes: 6
+    timeout-minutes: 5
     # night-improve-10 (owner decision): no event gate. The old
     # schedule-only if rendered this job as a "(push) Skipped" row
     # on every code commit; now every qualifying push produces its
