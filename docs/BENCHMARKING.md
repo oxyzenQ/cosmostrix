@@ -23,7 +23,7 @@ The default benchmark runs **dry** (no I/O) — it measures pure engine throughp
 
 ## Benchmark Modes
 
-| Flag | What it does | When to use |
+| Option | What it does | When to use |
 |------|-------------|-------------|
 | `--benchmark` | Premium 5s benchmark (2s warmup + 3s measurement). Prints FPS, frame-time percentiles, dirty-cell coverage, throughput, MEMORY (RSS), CPU %, component timing, DRIFT. | Default user-facing benchmark |
 | `--bench-frames N` | Legacy CI benchmark. Runs N headless frames, prints compact `BENCH:` output. | CI pipelines, frame-count-based measurement |
@@ -38,7 +38,7 @@ The default benchmark runs **dry** (no I/O) — it measures pure engine throughp
 
 ## `--bench-scene` Strict Validation + Reading the Report
 
-`--bench-scene` is **strict** — only two values accepted, typos are rejected (not silently fallback'd). This is part of the cosmostrix honesty contract: no hidden flags, no hidden behavior.
+`--bench-scene` is **strict** — only two values accepted, typos are rejected (not silently fallback'd). This is part of the cosmostrix honesty contract: no hidden options, no hidden behavior.
 
 | Value | What it measures |
 |-------|------------------|
@@ -47,7 +47,7 @@ The default benchmark runs **dry** (no I/O) — it measures pure engine throughp
 
 Two-layer validation: parse-time (clap `value_parser`, rejects invalid values with "did you mean?" tip) + runtime (`validate_bench_scene`, called at the top of all 3 benchmark entry points). `production-draw` requires `--bench-io` (the production draw path routes through `BenchIoWriter`).
 
-The `--benchmark` report is organized into sections: `BENCHMARK ENVIRONMENT` (system info, git SHA, Rust version, profile), `RENDERER` (engine config, `gpu_usage: not_applicable`), `CONFIG` (CLI flags + config file), `PERFORMANCE` (FPS, frame-time percentiles, jitter, stability), `MEMORY` (RSS), `CPU` (process CPU %), `COMPONENT TIMING` (per-subsystem frame budget), `DRIFT` (first-half vs second-half FPS delta), `RESOURCE` (energy/power on Linux), `THROUGHPUT` (glyphs/sec, ANSI bytes/sec).
+The `--benchmark` report is organized into sections: `BENCHMARK ENVIRONMENT` (system info, git SHA, Rust version, profile), `RENDERER` (engine config, `gpu_usage: not_applicable`), `CONFIG` (CLI options + config file), `PERFORMANCE` (FPS, frame-time percentiles, jitter, stability), `MEMORY` (RSS), `CPU` (process CPU %), `COMPONENT TIMING` (per-subsystem frame budget), `DRIFT` (first-half vs second-half FPS delta), `RESOURCE` (energy/power on Linux), `THROUGHPUT` (glyphs/sec, ANSI bytes/sec).
 
 ## What Runs in Benchmark Mode (Critical Path Only)
 

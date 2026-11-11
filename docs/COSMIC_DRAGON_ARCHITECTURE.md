@@ -176,7 +176,7 @@ macOS and Windows don't have this guard — they rely on Layer 3.
 
 ## Defense-in-Depth: Config Security
 
-All file-reading/writing CLI flags enforce the same strict whitelist:
+All file-reading/writing CLI options enforce the same strict whitelist:
 
 ```
 ┌─────────────────────────────────────────────────────────┐

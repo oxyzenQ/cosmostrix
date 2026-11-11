@@ -4,7 +4,7 @@
 
 Config-driven time-of-day scene switching — replaces the archived
 `adaptive-custom` subsystem (eliminated with the atmosphere engine at commit
-`07b44b5`) with a simpler contract: **config-only** (no CLI flag),
+`07b44b5`) with a simpler contract: **config-only** (no CLI option),
 **instant switch** (no blend window), and a **dynamic idle/wake scheduler
 thread** (zero CPU between phase boundaries).
 
@@ -327,7 +327,7 @@ configured delay. The default is `AUTO_SNAPBACK_DELAY_SECS = 30.0` in
 #### Config-tunable snapback delay (v50.0.0-beta.7)
 
 The snapback delay is now configurable via the `ambient-snapback-secs`
-config key (config-only, no CLI flag):
+config key (config-only, no CLI option):
 
 ```toml
 # Default: 30 seconds (when unset)
@@ -364,7 +364,7 @@ not config edits.
 
 #### Verbose + final runtime state visibility (v50.0.0-beta.7 LTS)
 
-The `--verbose` / `-v` flag now reports the **effective** ambient
+The `--verbose` / `-v` option now reports the **effective** ambient
 configuration in two places so the user can verify what is actually in
 effect, not just what was set at startup:
 
@@ -464,7 +464,7 @@ edit does not visually kick ambient off.
 
 **Re-apply deferral parity (v80.0.0-beta.2 S-master-HUNT)**: the rebuild
 re-apply is gated on the PRE-rebuild `user_override_since_ambient`. When
-the CLI deferral is still running (CLI flags present, the ambient has not
+the CLI deferral is still running (CLI options present, the ambient has not
 applied yet) or the user overrode with a shortkey, a config edit DEFERS
 the re-application — the tracker stays armed and
 `try_auto_snapback` applies the entry after `ambient-snapback-secs` of
@@ -510,9 +510,9 @@ Commenting the entries back in recovers exactly like startup: the
 scheduler refires the current phase (AB-09 identity reset on empty) and
 ambient takes over again on the next poll.
 
-### CLI Flag
+### CLI Option
 
-**None.** Ambient is config-only — there is no `--ambient` CLI flag. This
+**None.** Ambient is config-only — there is no `--ambient` CLI option. This
 matches the archived `adaptive-custom` contract (which was also config-
 only) and is consistent with cosmostrix's naming convention: time-driven
 schedulers have no CLI analog (you can't "pass --ambient 12-00" at startup
@@ -569,7 +569,7 @@ scheduler events:
 - [Atmosphere Subsystem Archival](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md) —
   the full elimination record (file list, KEPT-vs-DELETED table, revival
   guidance).
-- [Rules](RULES.md) — project conventions and CLI flag policy.
+- [Rules](RULES.md) — project conventions and CLI option policy.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

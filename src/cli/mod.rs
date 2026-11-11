@@ -467,5 +467,6 @@ pub(crate) mod cli_explicit;
 pub(crate) mod cli_parse;
 pub(crate) mod early_returns;
 pub(crate) mod help_detail;
+pub(crate) mod help_text;
 pub(crate) mod suggestion;
 pub(crate) mod ux;

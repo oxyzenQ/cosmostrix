@@ -140,7 +140,7 @@ After 5-10 years of dormancy, external services may be unavailable. The pinned t
 - `cosmostrix --testconf` validates the default config without errors.
 - `cosmostrix --doctor` reports no hard failures (warnings are acceptable).
 - No new dependencies were added without owner approval.
-- No existing CLI flag, config key, scene name, color theme, or charset preset was removed or renamed.
+- No existing CLI option, config key, scene name, color theme, or charset preset was removed or renamed.
 - All CI workflows pass on push to main.
 - No behavioral regression: `--benchmark` throughput on the pinned toolchain must not decrease by more than 5% from the last logged Health Check result.
 
@@ -150,7 +150,7 @@ From v100.0.0 onward, the following are **frozen** (no breaking changes
 without a major version bump; the freeze originally took effect at
 v50.0.0 and carries forward through every major since):
 
-- **CLI flags**: all flags in `--help` (names, short/long forms, value types)
+- **CLI options**: all options in `--help` (names, short/long forms, value types)
 - **Config format**: `config.toml` keys, value types, and TOML structure
 - **Scene names**: all built-in scene names
 - **Color scheme names**: all built-in color scheme names (`THEME_COUNT` in `src/theme/mod.rs`)

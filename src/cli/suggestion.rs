@@ -313,7 +313,7 @@ mod tests {
 
     #[test]
     fn closest_long_flag_ci_tie_breaks_to_last_candidate() {
-        // Two exact ties ("lis" vs both 11-char flags = 0.7576): the
+        // Two exact ties ("lis" vs both 11-char options = 0.7576): the
         // LAST candidate in declaration order wins, mirroring clap's
         // ascending-sort-then-pop engine.
         let candidates = ["list-colors", "list-scenes"];

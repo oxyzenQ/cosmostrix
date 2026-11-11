@@ -126,7 +126,7 @@ fn resolve_color_source(
         return None;
     }
     if cli_explicit_color {
-        return Some("CLI flag");
+        return Some("CLI option");
     }
     let cfg_has_color = configfile::load_config_file(config_path)
         .keys()

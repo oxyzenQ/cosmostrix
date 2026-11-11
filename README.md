@@ -68,7 +68,7 @@ Every claim below maps to a mechanism that verifies it — the Verifier column p
 | 5-layer terminal recovery | `--reset-terminal`: RIS reset, alternate-screen exit, cursor restore, terminal attributes reset, scrollback clear | [docs/TERMINAL_KILL_CLEANUP.md](docs/TERMINAL_KILL_CLEANUP.md) |
 | Self-healing under pressure | P1 auto scene downgrade to `low-power` on sustained pressure, P2 endurance mitigation with full redraw and memory reclaim, both self-restoring | [docs/archive/LTS_AUDIT_SELF_HEALING.md](docs/archive/LTS_AUDIT_SELF_HEALING.md) |
 | Endurance telemetry | Endurance Health Score 0-100, activity prediction, idle coalescing, `madvise` memory reclaim for long-running sessions | [docs/ENDURANCE.md](docs/ENDURANCE.md) |
-| Typo-proof CLI | Close-miss suggestions on every flag, value, scene, color, and charset surface; migration hints for removed flags | `./scripts/depth/cli_suggestion_stresstest.sh` |
+| Typo-proof CLI | Close-miss suggestions on every option, value, scene, color, and charset surface; migration hints for removed options | `./scripts/depth/cli_suggestion_stresstest.sh` |
 | xterm.js OOM guard | Auto-detection of xterm.js hosts with a hard, non-configurable 30 FPS cap | [docs/TERMINAL_COMPATIBILITY.md](docs/TERMINAL_COMPATIBILITY.md) |
 | PGO nitro builds | 3-stage instrument -> benchmark -> optimize recipe for the fastest local artifact | `./scripts/build.sh pgo` |
 
@@ -201,7 +201,7 @@ motion math, that is what you are reading.
 ### Scenes & Colors
 
 - **Built-in scenes** — core atmospheres, curated scenes, and milestone/tribute/honor scenes. The full list with each scene's character lives in [Scenes](#scenes) below.
-- **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene <name>` (auto-promotes custom names) or `--scene-custom <name>`, or the `scene = "<name>"` config key. v80.0.0-beta.2 (S-master-LOGIC-3) + NIGHT-research-5: a block is a COMPLETE seven-dimension profile — `rain`, `color`/`colors-custom`, `charset`/`charset-custom`, `fps`, `speed`, `density`, `glitch-level`, ALL required (incomplete blocks are rejected); `rain` picks any of the fourteen rain styles by canonical label (`glyph`, `monolith`, `vortex`, `flux`, `lorenz`, `dragon`, `physarum`, `black_hole`, `aeolian`, `solar_flare`, `dna_helix`, `murmuration`, `quasar`, `neural` — e.g. `rain = "lorenz"`); `base-scene` inheritance is REMOVED (the block's `rain` field is the only non-glyph source); all three selection surfaces (CLI flags, config key, live-reload edit) accept custom names uniformly, and at runtime a present block field overrides the locked CLI startup value (config wins — the CLI lock is only the fallback). An invalid `rain` label (a typo like `rain = "glyphj"`) is rejected by `--testconf`, startup, and the live-reload watcher like any other invalid value — never silently ignored (NIGHT-hunt-31).
+- **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene <name>` (auto-promotes custom names) or `--scene-custom <name>`, or the `scene = "<name>"` config key. v80.0.0-beta.2 (S-master-LOGIC-3) + NIGHT-research-5: a block is a COMPLETE seven-dimension profile — `rain`, `color`/`colors-custom`, `charset`/`charset-custom`, `fps`, `speed`, `density`, `glitch-level`, ALL required (incomplete blocks are rejected); `rain` picks any of the fourteen rain styles by canonical label (`glyph`, `monolith`, `vortex`, `flux`, `lorenz`, `dragon`, `physarum`, `black_hole`, `aeolian`, `solar_flare`, `dna_helix`, `murmuration`, `quasar`, `neural` — e.g. `rain = "lorenz"`); `base-scene` inheritance is REMOVED (the block's `rain` field is the only non-glyph source); all three selection surfaces (CLI options, config key, live-reload edit) accept custom names uniformly, and at runtime a present block field overrides the locked CLI startup value (config wins — the CLI lock is only the fallback). An invalid `rain` label (a typo like `rain = "glyphj"`) is rejected by `--testconf`, startup, and the live-reload watcher like any other invalid value — never silently ignored (NIGHT-hunt-31).
 - **Custom color palettes** — `[colors-custom.<name>]` blocks define 2–9-stop TrueColor palettes (complete blocks: `bg` AND `rain` — missing either is a hard error, and more than 9 stops is rejected since the OKLab engine resamples every palette to 9 perceptual samples); referenced via `--color <name>` (custom palette names accepted) or `--colors-custom <name>`, the `color = "<name>"` config key (custom names accepted, same as charset — v80.0.0-beta.2), or from scenes.
 - **Custom charsets** — `[charset-custom.<name>]` blocks define character sets from Unicode ranges; referenced via `--charset <name>`.
 - Dozens of built-in color themes and character sets (`--list-colors` / `--list-charsets` print the live catalog).
@@ -228,7 +228,7 @@ motion math, that is what you are reading.
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 10×5, and on low terminals (raw console TTY, dumb, pure-CPU renderers — NIGHT-hunter-18) the default auto-skips; an explicit `--intro` overrides. Press `q` to skip mid-animation.
 - Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes forward/reverse, `s`/`S` cycle charsets (Shift or CapsLock produces uppercase — kitty-protocol terminals reporting the base codepoint + SHIFT are normalized internally), `r` full fresh restart (NIGHT-hunter-27): re-applies the CURRENT scene's builtin defaults (color, charset, speed, density, glitch level, rain style — wiping every runtime change you made via `c`/`C`, `s`/`S`, `Up`/`Down`, `[`/`]`, or a live-reloaded config key; custom scenes re-apply their `[scene-custom]` block), then restarts from zero exactly like a fresh launch (the RNG re-seeds and the choreographed families replay their birth sequences — the black hole re-forms, the DNA molecule re-transcribes, the quasar re-ignites, the neural machine re-runs its genesis) + restart message typewriter + the scene's fps intent, `p` pause/resume, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed. Shift is the ONLY modifier accepted — Ctrl/Alt/Super/Hyper/Meta/Fn combos are always rejected. The paused-mode key contract is documented once, in Runtime Controls below.
-- Typo-friendly CLI — every flag and value surface suggests on close misspellings: long flags (`--scne` → `--scene`), enum values (`--glitch-level sutble` → `subtle`), colors, scenes, charsets, custom palette/scene names, and short shorthands (`-mfss` → `--msg-fill-style`). Removed flags get migration hints instead. See docs/RULES.md "Did you mean?" coverage inventory.
+- Typo-friendly CLI — every option and value surface suggests on close misspellings: long options (`--scne` → `--scene`), enum values (`--glitch-level sutble` → `subtle`), colors, scenes, charsets, custom palette/scene names, and short shorthands (`-mfss` → `--msg-fill-style`). Removed options get migration hints instead. See docs/RULES.md "Did you mean?" coverage inventory.
 
 ### Benchmarking & Build
 
@@ -444,7 +444,7 @@ cosmostrix --intro cosmic                             # cosmic burst intro befor
 
 ## CLI Reference
 
-Run `cosmostrix --help` for the full reference manual (CLI flags, runtime controls, rendering philosophy). The CLI flags below are grouped exactly as `--help` groups them.
+Run `cosmostrix --help` for the full reference manual (CLI options, runtime controls, rendering philosophy). The CLI options below are grouped exactly as `--help` groups them.
 
 ```text
 COMMON OPTIONS
@@ -531,7 +531,7 @@ ADVANCED (stable, supported; intentionally not in clap's auto-list — documente
                                --bench-all > --benchmark > --bench-frames)
 ```
 
-Explicit CLI flags always override scene and scene-custom values.
+Explicit CLI options always override scene and scene-custom values.
 
 ## Runtime Controls
 
@@ -624,15 +624,15 @@ To generate a starter config, use `--dump-config` with an explicit path:
 cosmostrix --dump-config ~/.config/cosmostrix/config.toml
 ```
 
-`--dump-config` refuses to overwrite an existing file (data-loss guard; pass `--force` to overwrite deliberately). The refusal suggests writing to a sibling like `config.new.toml` — a suggestion that satisfies every validation rule the flag enforces (the `.toml` final extension included), so following it verbatim works.
+`--dump-config` refuses to overwrite an existing file (data-loss guard; pass `--force` to overwrite deliberately). The refusal suggests writing to a sibling like `config.new.toml` — a suggestion that satisfies every validation rule the option enforces (the `.toml` final extension included), so following it verbatim works.
 
 Shell redirection (`cosmostrix --dump-config > file`) is **blocked** — cosmostrix detects stdout-redirected-to-file and refuses to write, because the shell bypasses the whitelist. Use the explicit path form above for file output. Piping to another command (`cosmostrix --dump-config | less`) is allowed for viewing.
 
-Precedence: defaults -> config file -> scene/scene-custom layers -> explicit CLI flags.
+Precedence: defaults -> config file -> scene/scene-custom layers -> explicit CLI options.
 
 ### Custom Character Sets
 
-Custom charsets live in `config.toml` under `[charset-custom.<name>]` and replace the legacy `--charset-file <path>` CLI flag (removed in v25). Define a named glyph pool once, then activate it from the CLI or config:
+Custom charsets live in `config.toml` under `[charset-custom.<name>]` and replace the legacy `--charset-file <path>` CLI option (removed in v25). Define a named glyph pool once, then activate it from the CLI or config:
 
 ```toml
 [charset-custom.zen]
@@ -759,7 +759,7 @@ Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD,
 
 From **v100.0.0** onward, the following are **frozen** — no breaking changes without a major version bump:
 
-- CLI flags (names, short/long forms, value types)
+- CLI options (names, short/long forms, value types)
 - Config format (`config.toml` keys, value types, TOML structure)
 - Built-in scene, color scheme, and charset preset names
 - Runtime controls (keyboard shortcuts)

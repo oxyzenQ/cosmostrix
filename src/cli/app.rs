@@ -271,11 +271,11 @@ pub(crate) struct CliExplicit {
     pub scene: bool,
     pub glitch_level: bool,
     /// Track whether `--crystal-dragon` was set on CLI (intent
-    /// preservation: CLI flag wins over config.toml on live reload).
+    /// preservation: CLI option wins over config.toml on live reload).
     pub crystal_dragon: bool,
     /// v80.0.0-alpha.1: track `--crystal-dragon-secs` CLI explicit — a
-    /// tuning flag still counts as user intent for the v80 ambient
-    /// startup deferral contract ("ANY CLI flag present → ambient waits
+    /// tuning option still counts as user intent for the v80 ambient
+    /// startup deferral contract ("ANY CLI option present → ambient waits
     /// for the snapback delay"), so any() covers it by construction.
     pub crystal_dragon_secs: bool,
     /// v50.0.0-alpha.7: track `--power-dragon` CLI explicit (was missing;
@@ -330,11 +330,11 @@ impl CliExplicit {
     /// Drives the v50.0.0-beta.7 ambient startup deferral ("CLI wins
     /// first, then ambient takes over after ambient-snapback-secs").
     /// v80.0.0-beta.1: previously an inline `||` chain in event_loop.rs listing
-    /// only 15 of the 21 flags — `--bold`, `--shading-mode`,
+    /// only 15 of the 21 options — `--bold`, `--shading-mode`,
     /// `--color-bg`, `--colors-custom`, `--scene-custom`, and
     /// `-mfs`/`--msg-fill-style` did NOT defer ambient even though the
-    /// documented rule says "ANY CLI flag". The method covers all
-    /// fields, so future flags are included by construction.
+    /// documented rule says "ANY CLI option". The method covers all
+    /// fields, so future options are included by construction.
     #[must_use]
     pub(crate) const fn any(self) -> bool {
         self.color
@@ -457,7 +457,7 @@ impl CloudConfig {
         // temperature group system for palette drift.
         cloud.crystal_dragon = self.crystal_dragon;
         // v80.0.0-alpha.1: apply the tunable polling interval (the
-        // "future CLI flags can override crystal_dragon_control here"
+        // "future CLI options can override crystal_dragon_control here"
         // promise from the original comment is now real for this field).
         // v80.0.0-alpha.1 (S-master-HUNT-3, owner bug: "--crystal-dragon-secs 6 still used
         // 60s"): the min-dwell anti-flicker floor now YIELDS to an explicit

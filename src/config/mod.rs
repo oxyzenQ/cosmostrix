@@ -703,7 +703,7 @@ pub struct Args {
     #[arg(
         long = "message-border",
         hide = true,
-        help = "(internal) message box border flag; use -mb instead"
+        help = "(internal) message box border option; use -mb instead"
     )]
     pub message_border: bool,
 

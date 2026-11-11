@@ -94,7 +94,7 @@ scene-custom blocks, bad ambient times, CRLF endings, BOM prefixes. Every
 mutant must be classified cleanly — rc=2 with the diagnostic on stderr
 and a clean stdout, or rc=0 (accepted) — and accepted mutants get sampled
 PTY boots. Panics, hangs, timeouts and garbage stdout are bugs at any
-depth. A CLI flag-combination matrix re-pins the precedence ladder at the
+depth. A CLI option-combination matrix re-pins the precedence ladder at the
 same time.
 
 ### Part 5 — Drift-Soak (the bounded 24 h proxy)
@@ -141,7 +141,7 @@ The first full bore found and fixed three bugs, then passed
 ## Relationship to the Other Harnesses
 
 The depthtest-5/6/7/8 harnesses pin specific contracts (config error
-streams, CLI flag error streams, reference graphs, ambient/crystal PTY
+streams, CLI option error streams, reference graphs, ambient/crystal PTY
 harmony) at assertion depth. The depthbore is the breadth-first drill
 across the five hidden-bug classes — it re-pins a few of their contracts
 as it passes (the doctor strict ladder, the version rescue, the

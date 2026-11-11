@@ -49,7 +49,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     let cpu = diagnostics::detect_cpu_info();
     let ri = renderer_info::renderer_info(effective);
 
-    let mut r = Report::new("COSMOSTRIX DIAGNOSTICS REPORT");
+    let mut r = Report::new("cosmostrix diagnostics report · doctor");
 
     // v17: BUILD section (merged from --info)
     {

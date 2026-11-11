@@ -7,14 +7,18 @@
 //! --doctor, --perf-stats, --benchmark, and any future diagnostics:
 //!
 //! - a `━━━ TITLE ━━━` banner in bold brand purple — the heavy-rule
-//!   canon; the all-caps title text itself stays untouched (the
-//!   BRANDING.md all-caps display-banner law, and the release CI greps
-//!   for the literal title)
+//!   canon; titles ride the zelynic report-title canon since night-T-1
+//!   (2026-11-11): program-led lowercase shapes like
+//!   "cosmostrix diagnostics report · doctor" (BRANDING.md carries the
+//!   surviving all-caps family, and the CI lanes grep the new literal)
 //! - lean single-column fields: two-space indent, colon-attached key,
 //!   values aligned on one padded column per section — zelynic's
 //!   `  {:<11} {}` shape, widened per section when its keys run long
 //! - `! message` advisory bullets (zelynic's warnings grammar), the
 //!   mark painted in bold warning yellow when ANSI is available
+//! - a closing usage pointer (night-T-1): every helper output ends
+//!   with `Usage: cosmostrix [options] e.g ...` — the one-line way
+//!   back to the CLI, painted in the calm grey grammar tier
 //!
 //! The render is machine-friendly by construction: piped surfaces lose
 //! every escape (the capability ladder returns plain text), and the
@@ -33,6 +37,13 @@ const BANNER_GLYPH: &str = "\u{2501}";
 /// puts the value 14 columns in. Sections whose longest key+colon
 /// exceeds the floor widen to fit — alignment stays exact either way.
 const LABEL_WIDTH_FLOOR: usize = 11;
+
+/// night-T-1 (owner directive, 2026-11-11): the usage pointer every
+/// helper output closes with — the whole grammar plus one concrete
+/// example on one line, so any report names its own way back to the
+/// CLI (the zelynic helper-output canon: "each helper output adds
+/// usage").
+const USAGE_NOTE: &str = "Usage: cosmostrix [options] e.g cosmostrix -c rainbow -v";
 
 /// Build the `━━━ TITLE ━━━` banner line (plain text; the renderer
 /// wraps it in bold brand purple when the surface supports ANSI).
@@ -147,6 +158,20 @@ impl Report {
             }
         }
 
+        // night-T-1: the usage pointer closes every helper output —
+        // one blank line, then the grammar-plus-example line in the
+        // calm grey grammar tier when ANSI is available.
+        lines.push(String::new());
+        lines.push(if ansi {
+            format!(
+                "{}{USAGE_NOTE}{}",
+                crate::output::grey_open(),
+                crate::output::reset()
+            )
+        } else {
+            USAGE_NOTE.to_string()
+        });
+
         lines
     }
 
@@ -218,8 +243,8 @@ mod tests {
         // Three glyphs per side, spaces around the title — the exact
         // zelynic flagship shape.
         assert_eq!(
-            banner_line("COSMOSTRIX DIAGNOSTICS REPORT"),
-            "\u{2501}\u{2501}\u{2501} COSMOSTRIX DIAGNOSTICS REPORT \u{2501}\u{2501}\u{2501}"
+            banner_line("cosmostrix diagnostics report · doctor"),
+            "\u{2501}\u{2501}\u{2501} cosmostrix diagnostics report · doctor \u{2501}\u{2501}\u{2501}"
         );
     }
 
@@ -283,6 +308,12 @@ mod tests {
         assert_eq!(lines[4], "  lto:        fat");
         // The advisory rides the zelynic warnings grammar.
         assert_eq!(lines[5], "  ! check the linker flags");
-        assert_eq!(lines.len(), 6);
+        // night-T-1: the usage pointer closes the report.
+        assert_eq!(lines[6], "");
+        assert_eq!(
+            lines[7],
+            "Usage: cosmostrix [options] e.g cosmostrix -c rainbow -v"
+        );
+        assert_eq!(lines.len(), 8);
     }
 }

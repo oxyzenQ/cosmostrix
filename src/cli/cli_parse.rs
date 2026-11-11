@@ -17,7 +17,7 @@
 //!     (integer seconds only — benchmark windows are whole seconds).
 //!
 //! `parse_duration` and `parse_secs_f64` share one unit table
-//! ([`unit_secs`]) so every seconds-scale input in cosmostrix — CLI flags
+//! ([`unit_secs`]) so every seconds-scale input in cosmostrix — CLI options
 //! (`--crystal-dragon-secs`, `--duration`, `--bench-duration`) and config
 //! keys (`crystal-dragon-secs`, `ambient-snapback-secs`) — accepts the
 //! identical `45` / `45.5` / `45s` / `1m` / `2h15m30s` vocabulary

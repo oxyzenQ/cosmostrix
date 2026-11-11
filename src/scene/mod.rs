@@ -299,11 +299,11 @@ pub(crate) fn show_scene_text(info: &SceneInfo) -> String {
     // rain_style is always set (it's not an Option), so always show it.
     out.push_str(&format!("    rain-style   = {}\n", cfg.rain_style.as_str()));
 
-    // v50.0.0-beta.7: note that CLI flags override scene values at runtime.
+    // v50.0.0-beta.7: note that CLI options override scene values at runtime.
     // --show-scene shows the scene's builtin defaults; actual runtime values
-    // may differ when CLI flags like --color, --speed, --charset-custom etc.
+    // may differ when CLI options like --color, --speed, --charset-custom etc.
     // are passed alongside --scene.
-    out.push_str("\n  Note: CLI flags (--color, --speed, --charset, etc.) override\n");
+    out.push_str("\n  Note: CLI options (--color, --speed, --charset, etc.) override\n");
     out.push_str("  scene values at runtime. This output shows the scene's builtin\n");
     out.push_str("  defaults only.\n");
 

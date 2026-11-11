@@ -156,7 +156,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             .current_phase(now_min)
             .cloned();
         crate::lr_trace!(
-            "ambient: startup — CLI flags detected, deferring ambient apply until snapback. Entry: {:?}",
+            "ambient: startup — CLI options detected, deferring ambient apply until snapback. Entry: {:?}",
             deferred_entry.as_ref().map(|e| &e.scene)
         );
         ctx.ambient.last_applied_entry = deferred_entry;

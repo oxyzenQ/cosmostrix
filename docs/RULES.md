@@ -52,9 +52,12 @@ All core, config, and script files must carry an SPDX license identifier. See `s
   `<!-- COSMOSTRIX-DISCLAIMER -->` marker and its `COSMOSTRIX-*`
   siblings, the all-caps banner comment titles heading the `scripts/`
   gate files, and the all-caps display titles the binary prints
-  (`COSMOSTRIX BENCHMARK`, `COSMOSTRIX DIAGNOSTICS REPORT`,
+  (`COSMOSTRIX BENCHMARK`,
   `COSMOSTRIX PERFORMANCE REPORT`) plus the em-dash hero line in
-  diagnostics output.
+  diagnostics output. night-T-1 (2026-11-11): the diagnostics report
+  title rides the zelynic report-title canon instead — program-led
+  lowercase, `cosmostrix diagnostics report · doctor` — and the CI
+  lanes grep that literal.
 - Nothing is excluded from the scan: every tracked file and every
   tracked path is checked, hidden trees (`.github/`, `.cargo/`) and
   `docs/archive/` included. Archived historical documents were
@@ -166,24 +169,24 @@ assert!(include_str!("../aur/cosmostrix-bin/PKGBUILD").contains(&format!("pkgver
 
 ### Atmosphere Engine (REMOVED 2026-08-05)
 
-Fully eliminated at commit `07b44b5` (Dragon Hunt v2 Phase 6 Tier E item 31). All `src/atmosphere_*.rs` source files, `--atmosphere-mode` / `--atmosphere-regime` CLI flags, `atmosphere-mode` / `atmosphere-regime` / `adaptive-custom.*` config keys, and `atmosphere-*` scene-custom presets have been removed. Historical reference: `docs/archive/specs/ATMOSPHERE_ENGINE.md` (design spec), `docs/archive/specs/CINEMATIC_BREATHING.md` (vocabulary spec), `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` (full elimination record). Subsystems still sharing the "atmosphere" name but NOT deleted (separate subsystems): `src/engine/chroma_dragon_engine/post/climate/mod.rs` (Chroma Dragon post-FX shader), `AtmosphericEvolution` struct in `src/engine/cosmic_dragon_engine/cloud/ecosystem.rs` (cloud drift/gust events).
+Fully eliminated at commit `07b44b5` (Dragon Hunt v2 Phase 6 Tier E item 31). All `src/atmosphere_*.rs` source files, `--atmosphere-mode` / `--atmosphere-regime` CLI options, `atmosphere-mode` / `atmosphere-regime` / `adaptive-custom.*` config keys, and `atmosphere-*` scene-custom presets have been removed. Historical reference: `docs/archive/specs/ATMOSPHERE_ENGINE.md` (design spec), `docs/archive/specs/CINEMATIC_BREATHING.md` (vocabulary spec), `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` (full elimination record). Subsystems still sharing the "atmosphere" name but NOT deleted (separate subsystems): `src/engine/chroma_dragon_engine/post/climate/mod.rs` (Chroma Dragon post-FX shader), `AtmosphericEvolution` struct in `src/engine/cosmic_dragon_engine/cloud/ecosystem.rs` (cloud drift/gust events).
 
 ### Live Config Reload + Config Validation
 
 Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild on change (not delta apply). `--testconf` validates all keys + values strictly. Startup rejects invalid config (exit 2). Live reload rejects invalid config (exit 2, error printed to stderr AFTER terminal restore). Malformed lines (no `=` or empty key/value) -> error. Unknown keys -> error. Invalid values -> error. Duplicate keys or duplicate `[section]` headers -> error (NIGHT-depthtest-2: real TOML rejects both; the forgiving parser records them in `ParsedConfig.duplicate_keys` / `duplicate_sections` and all three surfaces — startup, `--testconf`, watcher — reject in lockstep, while the values map keeps the historical merge/last-wins semantics for the `COSMOSTRIX_SKIP_STARTUP_VALIDATION` bypass). An explicit `--config <path>` that cannot be read (missing, unreadable, oversized) -> hard error with the read reason (NIGHT-depthtest-2: previously a silent empty parse ran pure defaults; the default-path load still falls back to `/etc` + built-in defaults — a missing default config is a normal first run). No silent fallback. No warnings. Errors only. Modules: `live_config.rs`, `testconf.rs` (shared validation), `config_apply_diagnostics.rs` (startup parse-error message construction).
 
-### CLI Flag Policy
+### CLI Option Policy
 
 - **Suggestion coverage** (v80.0.0-beta.1 audit + Z-master-1X consistency audit — every CLI/value surface suggests on typos, unified to the `tip: a similar ... exists` format; the legacy `Did you mean` format was fully removed):
-  - Long-flag typos (`--scne`): clap's built-in `suggestions` feature (jaro similarity) renders `tip: a similar argument exists: '--<flag>'` itself — v100.0.0-nightly.1 (2026-09-04) deleted the `extract_clap_suggestion()` string-parser that used to re-append a second tip line (the duplicate-tip bug the owner reported); clap's own render is the single source, styled white via the `valid` style in `cli::clap_styles()`, with the real usage line + help footer appended by `cli::ux::exit_clap_error` (the custom Levenshtein engine + hand-maintained KNOWN_LONG_FLAGS list were removed in v50.0.0-beta.7 after the `--disable-effects` rename drift bug). Case-variant typos clap's case-sensitive Jaro cannot see (`--LIS`, `--HELPSS`) are rescued by `cli::ux::enrich_unknown_arg_suggestion`: a case-insensitive Jaro pass (`jaro_ci`/`closest_long_flag_ci` in `cli/suggestion.rs`, same > 0.7 threshold, ties to the last candidate mirroring clap's sort-then-pop) injects the match as clap's OWN `SuggestedArg` context before the render — same tip position and style, never a second tip, silent wherever clap is silent.
-  - Enum-value typos on clap `value_enum` flags (`--intro`, `--msg-fill-style`, `--bench-scene`, ...): clap's built-in `tip: a similar value exists`.
-  - Enum-value typos on prevalidator-intercepted flags (`--glitch-level`, `--monolith-size`, `--color-bg`): `validate_enum_value()` in `src/validation/mod.rs` appends `tip: a similar value exists: '<value>'` via the shared `format_value_suggestion` + `closest_value_match` (edit distance ≤ 2).
+  - Long-option typos (`--scne`): clap's built-in `suggestions` feature (jaro similarity) renders `tip: a similar argument exists: '--<flag>'` itself — v100.0.0-nightly.1 (2026-09-04) deleted the `extract_clap_suggestion()` string-parser that used to re-append a second tip line (the duplicate-tip bug the owner reported); clap's own render is the single source, styled white via the `valid` style in `cli::clap_styles()`, with the real usage line + help footer appended by `cli::ux::exit_clap_error` (the custom Levenshtein engine + hand-maintained KNOWN_LONG_FLAGS list were removed in v50.0.0-beta.7 after the `--disable-effects` rename drift bug). Case-variant typos clap's case-sensitive Jaro cannot see (`--LIS`, `--HELPSS`) are rescued by `cli::ux::enrich_unknown_arg_suggestion`: a case-insensitive Jaro pass (`jaro_ci`/`closest_long_flag_ci` in `cli/suggestion.rs`, same > 0.7 threshold, ties to the last candidate mirroring clap's sort-then-pop) injects the match as clap's OWN `SuggestedArg` context before the render — same tip position and style, never a second tip, silent wherever clap is silent.
+  - Enum-value typos on clap `value_enum` options (`--intro`, `--msg-fill-style`, `--bench-scene`, ...): clap's built-in `tip: a similar value exists`.
+  - Enum-value typos on prevalidator-intercepted options (`--glitch-level`, `--monolith-size`, `--color-bg`): `validate_enum_value()` in `src/validation/mod.rs` appends `tip: a similar value exists: '<value>'` via the shared `format_value_suggestion` + `closest_value_match` (edit distance ≤ 2).
   - Color values (`-c`/`--color`): `closest_color_name()` in `src/cli/mod.rs` (edit distance ≤ 2 over builtin names + aliases).
   - Scene values (`--scene`): `scene_suggestion_tip()` in `src/config/config_apply.rs` (builtin scenes + `[scene-custom.<name>]` blocks).
   - Charset values (`-C`/`--charset`/`--charset-custom`): `charset_from_str()` suggests from `CHARSET_PRESET_NAMES` (custom `[charset-custom.<name>]` names are listed by `--list-charsets` but not suggested — the parser has no config access).
   - Custom palette names (`--colors-custom`, `color =`): `load_custom_palette()` suggests from the defined `[colors-custom.<name>]` blocks.
   - Custom scene names (`--scene-custom`): `unknown_custom_scene_error()` in `src/scene_custom/mod.rs`.
-  - Short-flag shorthand typos (`-mfss`): `cli/argv_expand.rs` exits with `Did you mean --msg-fill-style?`.
+  - Short-option shorthand typos (`-mfss`): `cli/argv_expand.rs` exits with `Did you mean --msg-fill-style?`.
   - Removed flags (`--preset`, `--low-power`, ...): migration-hint table in `src/validation/mod.rs` (REMOVED_FLAGS — a different concern: renamed/removed flags get migration guidance, not typo suggestions).
   - Unknown config.toml keys: `config_hints` suggests known-key patterns.
   - Shared engine: `edit_distance` + `closest_value_match` live in `src/cli/suggestion.rs` (edit distance ≤ 2, case-insensitive, deterministic first-best tie-break) — the same policy everywhere.

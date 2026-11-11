@@ -61,11 +61,11 @@ cosmostrix exposes tuning at **two layers**:
 
 ### 2.1 Runtime user-facing tuning (no rebuild needed)
 
-These are knobs exposed via CLI flags or `cosmostrix.toml` config
+These are knobs exposed via CLI options or `cosmostrix.toml` config
 file. They cover the **most common** visual adjustments and can be
 tweaked without rebuilding the binary.
 
-| Knob | CLI flag | Config key | Effect |
+| Knob | CLI option | Config key | Effect |
 |------|----------|------------|--------|
 | Color palette | `--color <name>` | `color = "green"` | Sets the rain hue family |
 | Charset | `--charset <name>` | `charset = "katakana"` | Sets glyph set per droplet |
@@ -86,7 +86,7 @@ tweaked without rebuilding the binary.
 | Color tune (global) | `--color-tune "k=v,k=v"` | `color.tune.<brightness\|saturation\|head\|body\|tail>` | Global brightness/saturation/head/body/tail multiplier |
 
 > **Removed (2026-08-05, atmosphere engine elimination):** the
-> `--atmosphere-mode` / `--atmosphere-regime` CLI flags, the
+> `--atmosphere-mode` / `--atmosphere-regime` CLI options, the
 > `atmosphere-mode` / `atmosphere-regime` / `adaptive-custom.*` config
 > keys, and all `atmosphere-*` scene-custom presets have been removed.
 > Historical reference: `docs/archive/specs/ATMOSPHERE_ENGINE.md` and

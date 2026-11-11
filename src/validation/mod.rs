@@ -84,7 +84,7 @@ pub(crate) const REMOVED_FLAGS: &[(&str, &str)] = &[
     ),
     (
         "--mouse",
-        "error: --mouse has been removed in v17.0.0.\n  Mouse hover/click visual effects are now ALWAYS ON (cursor glow + dual-ring click wave).\n  Mouse reporting is also always active (blocks text selection).\n  No flag needed — the effect is part of cosmostrix's signature interactive experience.",
+        "error: --mouse has been removed in v17.0.0.\n  Mouse hover/click visual effects are now ALWAYS ON (cursor glow + dual-ring click wave).\n  Mouse reporting is also always active (blocks text selection).\n  No option needed — the effect is part of cosmostrix's signature interactive experience.",
     ),
     (
         "--charset-file",
@@ -134,7 +134,7 @@ pub(crate) const REMOVED_FLAGS: &[(&str, &str)] = &[
     ),
     (
         "--check-updated",
-        "error: --check-updated has been removed in v50.0.0-alpha.7.\n  Replaced by --check-update (the canonical flag name).\n  Example: cosmostrix --check-update",
+        "error: --check-updated has been removed in v50.0.0-alpha.7.\n  Replaced by --check-update (the canonical option name).\n  Example: cosmostrix --check-update",
     ),
     (
         "--brightness",

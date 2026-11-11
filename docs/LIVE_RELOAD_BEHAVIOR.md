@@ -117,7 +117,7 @@ checking `cli_explicit`. If the user started cosmostrix with
 DOES have the `cli.crystal_dragon` guard).
 
 **Root cause**: `power-dragon` and `async-mode` were config-only keys
-when `rebuild_cloud_config` was written. The CLI flags
+when `rebuild_cloud_config` was written. The CLI options
 (`--power-dragon`, `--async-mode`) were added in v50-beta.3 but the
 live-reload path was not updated to add the intent guard.
 
@@ -255,7 +255,7 @@ v50.0.0-alpha.7. Option D (masterclass) was implemented:
 ### Issue #1: `power-dragon` + `async-mode` CLI intent guards — FIXED
 
 **Was**: live-reload paths read config directly without checking
-`cli_explicit`, so CLI flag `--power-dragon false` was overridden by
+`cli_explicit`, so CLI option `--power-dragon false` was overridden by
 config edit `power-dragon = true` on next reload.
 
 **Now**: added `power_dragon: bool` and `async_mode: bool` fields to
@@ -337,7 +337,7 @@ CLI `--monolith-size` wins over config on live-reload.
 | `density` | `--density` | OK YES | OK YES |
 | `fps` | `--fps` | OK YES | OK YES |
 | `glitch-level` | `--glitch-level` | OK YES | OK YES |
-| `color-bg` | (none) | OK YES | N/A (no CLI flag) |
+| `color-bg` | (none) | OK YES | N/A (no CLI option) |
 | `monolith-size` | `--monolith-size` | OK YES | OK YES (FIXED in alpha.7) |
 | `crystal-dragon` | `--crystal-dragon` | OK YES | OK YES |
 | `crystal-dragon-secs` | `--crystal-dragon-secs` | OK YES (added v80.0.0-alpha.1) | OK YES (config-present-wins; the CLI lock is the fallback) |
@@ -655,7 +655,7 @@ runtime layer (section 13) and v80.0.0-beta.2 INVERTED the scene-custom
 field layer (section 15); base-scene inherited defaults are REMOVED):
 
 ```text
-CLI flags (cli_explicit.*)        # startup only
+CLI options (cli_explicit.*)        # startup only
   > config.toml keys
     > scene-custom block fields   # runtime: these now BEAT the CLI lock
       > (base-scene layer — removed in v80.0.0-beta.2)
@@ -665,7 +665,7 @@ CLI flags (cli_explicit.*)        # startup only
 ## 12. Z-master-2-v2 Audit — CLI Intent Preservation for Config Keys (2026-09-01)
 
 Owner suspicion: "some potential bug" in CLI + config/live-reload. Depth
-audit of every CLI flag with a matching config key found FIVE flags whose
+audit of every CLI option with a matching config key found FIVE options whose
 CLI intent was silently lost on the first live-reload — the exact bug
 class the project had already fixed for monolith-size (Issue #4),
 power-dragon, async-mode, msg-mode, intro-color, message, and color-tune
@@ -674,7 +674,7 @@ these five were never added:
 
 | # | Flag | Bug (before) | Fix |
 |---|------|--------------|-----|
-| 1 | `--bold N` | config `bold` key overrode the CLI flag on every reload (startup gates via `config_value`) | `CliExplicit.bold` + `if !cli.bold` guard in `rebuild_cloud_config` |
+| 1 | `--bold N` | config `bold` key overrode the CLI option on every reload (startup gates via `config_value`) | `CliExplicit.bold` + `if !cli.bold` guard in `rebuild_cloud_config` |
 | 2 | `--shading-mode N` | same class — config `shading-mode` key overrode the flag | `CliExplicit.shading_mode` + guard |
 | 3 | `--color-bg X` | same class — config `color-bg` key overrode the flag | `CliExplicit.color_bg` + guard |
 | 4 | `--colors-custom <name>` | a config `color` key switching to a builtin CLEARED the CLI-owned custom palette (startup never drops it — main.rs checks `--colors-custom` first) | `CliExplicit.colors_custom` + `!cli.colors_custom` gate on the color block AND the scene color-default arm |
@@ -751,7 +751,7 @@ Runtime:  config key > CLI lock > scene defaults > built-in defaults
 ```
 
 - Runtime layering is TEMPORAL: an explicit config key is the most recent
-  user intent, so it overrides the CLI flag — while present.
+  user intent, so it overrides the CLI option — while present.
 - The CLI value stays LOCKED underneath (the pristine startup snapshot
   `startup_cfg`, cloned once in `run_interactive`, never mutated).
   Commenting a key out falls back to the locked startup value — CLI
@@ -771,7 +771,7 @@ Runtime:  config key > CLI lock > scene defaults > built-in defaults
   CLI lock — `config key > CLI lock > scene default`, startup parity);
   `color.tune` / `message` / `msg-mode` rewritten to the fallback pattern
   (key present > CLI lock > default/reset-on-comment for lockless runs —
-  the alpha.7 reset semantics survive for runs with no CLI flag).
+  the alpha.7 reset semantics survive for runs with no CLI option).
 - `event_loop_config_rebuild.rs`: the zeroing REMOVED; new
   `resolve_scene_base_action` delta rule (key present → apply; key just
   removed → `restore_locked_scene_family(base_cfg, startup_cfg)`;
@@ -786,7 +786,7 @@ Runtime:  config key > CLI lock > scene defaults > built-in defaults
   previously listed only 15 of the 21 flags in an inline `||` chain —
   `--bold`, `--shading-mode`, `--color-bg`, `--colors-custom`,
   `--scene-custom`, and `-mfs` did NOT defer ambient despite the
-  documented "ANY CLI flag" rule. `any()` covers all fields by
+  documented "ANY CLI option" rule. `any()` covers all fields by
   construction.
 
 ### Verification
@@ -935,7 +935,7 @@ Owner report (two bugs, one contract):
 ### The contract (owner's words, formalized)
 
 ```text
-Startup:  CLI flags > config.toml > scene defaults > built-in defaults
+Startup:  CLI options > config.toml > scene defaults > built-in defaults
 Runtime:  user shortkeys
             > ambient scene (while a phase is active)
             > config keys (incl. [scene-custom.<name>] block fields)
@@ -1016,7 +1016,7 @@ Owner report (three bugs filed against the S-master-LOGIC-3 build):
 | # | Root cause | Symptom |
 |---|-----------|---------|
 | 1 | The scene-custom TAIL BLOCK in `rebuild_cloud_config` re-applied the block's field layer whenever `scene_custom_name` matched the live scene — INCLUDING when the tracker came from the LOCKED startup snapshot or from `restore_locked_scene_family`. The restore put the CLI-shadowed values back (charset `test`, palette `test`), then the tail block immediately re-derived the block fields over them. | Bug 2: chr/clr stuck on block values after the overlay lifted; persistent across later rebuilds (the base tracker keeps firing). |
-| 2 | The rebuild's ambient re-apply had NO `user_override_since_ambient` gate. During the startup CLI deferral window (CLI flags present, ambient deferred `ambient-snapback-secs`), ANY config edit re-applied the deferred ambient entry instantly — jumping the queue ahead of the "CLI wins first, then ambient" contract. | Bug 1: the CLI fallback looked broken and timing-dependent ("sometimes works, sometimes not") — the ambient scene owned the screen before the user's comment-out edit landed. |
+| 2 | The rebuild's ambient re-apply had NO `user_override_since_ambient` gate. During the startup CLI deferral window (CLI options present, ambient deferred `ambient-snapback-secs`), ANY config edit re-applied the deferred ambient entry instantly — jumping the queue ahead of the "CLI wins first, then ambient" contract. | Bug 1: the CLI fallback looked broken and timing-dependent ("sometimes works, sometimes not") — the ambient scene owned the screen before the user's comment-out edit landed. |
 | 3 | `validate_config_strictly` (startup + live-reload + watcher) SKIPPED `scene-custom.*` keys after the completeness check; only `--testconf` validated block field VALUES. | Bug 3: invalid references passed startup silently and no-oped at runtime. |
 
 ### The refined contract (ownership model)
@@ -1034,7 +1034,7 @@ Tracker LOCK-owned (startup `--scene <custom>` / `--scene-custom`
 selection, or the family was just restored after the config
 `scene`/`ambient.*` overlay lifted):
   the tail block re-applies block fields PER-FIELD gated on the CLI
-  locks — a dimension the user pinned with an explicit CLI flag
+  locks — a dimension the user pinned with an explicit CLI option
   (`-c`, `-C`, `--speed`, ...) keeps its LOCKED startup value; other
   fields still apply (live block EDITS keep working for non-shadowed
   dimensions, the v20 feature).
@@ -1046,7 +1046,7 @@ startup construction and by `restore_locked_scene_family` (the lock).
 
 The lock restore is **verbatim**: `restore_locked_scene_family` copies the
 startup snapshot's resolved scene family (the startup resolution already
-shadowed CLI flags over block fields), and the tail block cannot
+shadowed CLI options over block fields), and the tail block cannot
 re-derive over it. The ambient-overlay-lift revert
 (`revert_ambient_owned_scene`) now restores the snapshot VALUES directly
 too (previously it re-derived via `apply_scene_runtime_with_cfg`, which
@@ -1328,7 +1328,7 @@ CRYSTAL_DRAGON_ENGINE.md).
   (scene/color/charset final == startup; cfg_rebuilds 4/4; honest
   ambient_entries 0); the deferral survives config edits (ambient
   applied via snapback, not an instant rx); human forms verified on
-  CLI flag (`45s` → 45.0s), config key (`10s` → 10.0s), live-reload
+  CLI option (`45s` → 45.0s), config key (`10s` → 10.0s), live-reload
   (`15s` → `1m` → final `60.0s (was 15.0s)`), and `--duration 3s`
   exits at exactly 3.00s.
 - 28 net new tests (2129 total): the zero-key classification + empty-map
@@ -1369,7 +1369,7 @@ stderr only.
 
 An over-length `message = <201+ bytes>` config value passed `--testconf`
 silently ("0 errors") while the real run died LATE in
-`build_cloud_cfg` — misattributed to the CLI flag ("-m text exceeds")
+`build_cloud_cfg` — misattributed to the CLI option ("-m text exceeds")
 even though the user never typed `-m`. Live-reload already enforced the
 cap (S3 harden); `--testconf` blessed what startup rejected. Fixed by
 the shared strict layer: a `message | message-border` arm in

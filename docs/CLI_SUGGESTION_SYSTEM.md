@@ -21,7 +21,7 @@
 | Surface | Format | Example |
 |---------|--------|---------|
 | VALUE typo (enum values: colors, scenes, charsets, glitch-level, msg-fill-style, etc.) | `tip: a similar value exists: '<value>'` | `tip: a similar value exists: 'cinematic'` |
-| ARGUMENT/FLAG typo (unknown `--foo` flags) | `tip: a similar argument exists: '<flag>'` | `tip: a similar argument exists: '--no-effects'` |
+| ARGUMENT/FLAG typo (unknown `--foo` options) | `tip: a similar argument exists: '<flag>'` | `tip: a similar argument exists: '--no-effects'` |
 
 Both formats use the `tip:` prefix (matching clap's own suggestion
 output) and are rendered as a newline-prefixed line so they append
@@ -50,7 +50,7 @@ let tip = crate::cli::suggestion::closest_value_match(raw, allowed)
 
 ### Argument suggestion
 
-Flag suggestions are rendered by clap ITSELF: the `suggestions`
+Option suggestions are rendered by clap ITSELF: the `suggestions`
 feature puts the tip into the error's `SuggestedArg` context, and the
 cosmostrix-configured `valid` style (in `cli::clap_styles()`, part of
 the 2026-09-04 style harmony) renders it WHITE — the NeonWhite head
@@ -89,9 +89,9 @@ plain Levenshtein, single insertion/deletion/substitution = distance
 1) without suggesting unrelated values. Case-insensitive. Ties
 resolve to the FIRST candidate at the best distance.
 
-For FLAG suggestions, clap's own `suggestions` feature (jaro
+For option suggestions, clap's own `suggestions` feature (jaro
 similarity) renders the tip directly — no custom engine, no
-re-rendering, no hand-maintained flag list. The ONE gap: clap's
+re-rendering, no hand-maintained option list. The ONE gap: clap's
 Jaro is case-sensitive, so `--LIS` (all-caps prefix of
 `--list-scenes`) scores zero and renders tip-less while `--lis`
 suggests. `jaro_ci` / `closest_long_flag_ci` close exactly that gap
@@ -157,7 +157,7 @@ The suggestion engine is stresstested at two levels:
 - custom scene `afternon` → `tip: a similar value exists: 'afternoon'`
 - config key `colr` → `tip: a similar value exists: 'color'`
 
-### Flag suggestion tests (structured context, `tests/clap_suggestion.rs`)
+### Option suggestion tests (structured context, `tests/clap_suggestion.rs`)
 
 - `--test` → `SuggestedArg` context points at `--testconf` (the owner's 2026-09-04 case)
 - `--no-effecs` → `SuggestedArg` context points at `--no-effects` (the v50.0.0-beta.7 rename regression)
@@ -195,7 +195,7 @@ bash scripts/depth/cli_suggestion_stresstest.sh
 
 28 cases covering:
 
-- **Long-flag typos** (6 cases): `--no-effecs`, `--colr`, `--crystal-drago`,
+- **Long-option typos** (6 cases): `--no-effecs`, `--colr`, `--crystal-drago`,
   `--msg-fill-styl`, `--verbos`, `--power-drago` — each must produce
   `tip: a similar argument exists: '--<flag>'` and NOT contain the legacy
   `Did you mean` format.
@@ -221,7 +221,7 @@ bash scripts/depth/cli_suggestion_stresstest.sh
   --dump-config` error with the tip/footer — the I/O arm moved from
   the footer-less die_config family to die_input (owner hunt
   2026-09-04) — plus the retry-guidance + footer companion case.
-- **Case-insensitive flag rescue** (3 cases): `--LIS` suggests
+- **Case-insensitive option rescue** (3 cases): `--LIS` suggests
   `--list-scenes`, `--HELPSS` suggests `--help` (both scored zero
   under clap's case-sensitive Jaro), and `--x` stays tip-less
   (silence parity with clap — single chars never clear 0.7).
@@ -238,7 +238,7 @@ files. The migration was mechanical:
 1. Added `format_value_suggestion` helper in `src/cli/suggestion.rs`.
 2. Replaced every `format!("\n  Did you mean '{s}'?")` call site
    with `format_value_suggestion(&s)`.
-3. Updated flag suggestion lines in `main.rs` and `argv_expand.rs`
+3. Updated option suggestion lines in `main.rs` and `argv_expand.rs`
    to use `tip: a similar argument exists: '--<flag>'`.
 4. Updated all test assertions from `contains("Did you mean 'X'?")`
    to `contains("tip: a similar value exists: 'X'")`.

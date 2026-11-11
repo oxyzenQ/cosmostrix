@@ -829,7 +829,7 @@ jobs:
             # Verify via --doctor
             BIN="target/pro-freebsd-amd64/cosmostrix"
             OUT=$("${BIN}" --doctor) || { echo "::error::--doctor failed"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "cosmostrix diagnostics report · doctor" || { echo "::error::Doctor report missing"; exit 1; }
             # night-dragon-maintenance-1: the doctor fields ride the
             # zelynic aligned-column canon (key padded to the section
             # column), so the value no longer sits one space after the

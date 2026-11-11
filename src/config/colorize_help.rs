@@ -53,8 +53,12 @@ pub(crate) fn colorize_help(text: &str) -> String {
             .map(|l| (l, "\n"))
             .unwrap_or((chunk, ""));
 
-        let is_heading =
-            !line.starts_with(' ') && line.ends_with(':') && line == line.to_ascii_uppercase();
+        // night-T-1 (2026-11-11): the zelynic-shaped help head uses
+        // Title case section labels ("Usage:", "Examples:") — they ride
+        // the same heading tier as the all-caps sections.
+        let is_heading = line == "Usage:"
+            || line == "Examples:"
+            || (!line.starts_with(' ') && line.ends_with(':') && line == line.to_ascii_uppercase());
 
         if is_heading {
             // Bold brand purple for section headings (matches --help USAGE:).
@@ -261,6 +265,19 @@ mod tests {
         let heading = colorize_help("DIAGNOSTICS:\n");
         assert!(heading.starts_with(crate::output::brand_bold_open()));
         assert!(heading.ends_with(":\n"));
+    }
+
+    /// night-T-1: the Title case section labels of the zelynic-shaped
+    /// help head ride the same heading tier as the all-caps sections.
+    #[test]
+    fn title_case_section_labels_stay_brand_bold() {
+        for heading in ["Usage:\n", "Examples:\n"] {
+            let out = colorize_help(heading);
+            assert!(
+                out.starts_with(crate::output::brand_bold_open()),
+                "{heading} must render as a heading"
+            );
+        }
     }
 
     /// Flag definition lines render the whole spelling in the calm

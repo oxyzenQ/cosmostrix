@@ -25,14 +25,14 @@
 //! ```text
 //! error: a value is required for '--glitch-ms <GLITCH_MS>' but none was supplied
 //!
-//! Usage: cosmostrix [OPTIONS]
+//! Usage: cosmostrix [options]
 //!
 //! For more information, try '--help'.
 //! ```
 //!
 //! Layers 1-2 append the real usage line ("Usage: cosmostrix
-//! [OPTIONS]" — never clap's suggestion-narrowed "Usage: cosmostrix
-//! --testconf", which reads as if the suggested flag were required)
+//! [options]" — never clap's suggestion-narrowed "Usage: cosmostrix
+//! --testconf", which reads as if the suggested option were required)
 //! plus the help footer. Layers 3-4 append the footer only: their
 //! messages already carry the valid range or migration guidance, so a
 //! usage line would add noise, not information.
@@ -174,7 +174,7 @@ fn print_branded_error(msg: &str) {
 /// separating blank line before it — clap's canonical error shape.
 fn print_usage_line() {
     eprintln_safe!(
-        "\n{}Usage:{} cosmostrix [OPTIONS]",
+        "\n{}Usage:{} cosmostrix [options]",
         crate::output::brand_bold_open(),
         crate::output::reset()
     );
@@ -426,7 +426,7 @@ mod tests {
             "tip must name --list-scenes, got: {rendered}"
         );
         assert!(
-            rendered.contains("Usage: cosmostrix [OPTIONS]"),
+            rendered.contains("Usage: cosmostrix [options]"),
             "rendered error must show the real usage, got: {rendered}"
         );
     }
@@ -525,7 +525,7 @@ mod tests {
         let err = err.format(&mut cmd);
         let rendered = err.render().to_string();
         assert!(
-            rendered.contains("Usage: cosmostrix [OPTIONS]"),
+            rendered.contains("Usage: cosmostrix [options]"),
             "rendered error must show the real usage, got: {rendered}"
         );
         assert!(

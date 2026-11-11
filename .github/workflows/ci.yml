@@ -542,7 +542,7 @@ jobs:
             echo "Verifying build metadata via --doctor: ${BUILD_ID}"
             OUT=$("${BIN}" --doctor) || { echo "::error::--doctor failed for ${BUILD_ID}"; exit 1; }
             echo "${OUT}"
-            printf '%s\n' "${OUT}" | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "cosmostrix diagnostics report · doctor" || { echo "::error::Doctor report missing"; exit 1; }
             printf '%s\n' "${OUT}" | grep -Fq "BUILD" || { echo "::error::BUILD section missing"; exit 1; }
             printf '%s\n' "${OUT}" | grep -E "^[[:space:]]+build:[[:space:]]+${BUILD_ID}$" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
             printf '%s\n' "${OUT}" | grep -E "^[[:space:]]+dispatch:[[:space:]]+static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
