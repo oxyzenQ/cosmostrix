@@ -304,14 +304,44 @@ jobs:
       # archive mirror is the same GitHub-infra failure class as the
       # curl 500s, and apt's default is zero retries).
       - name: Install qemu + cpio
-        run: >-
+        run: |
+          set -euo pipefail
+          # night-T-2 round 14 (the zejtron law): heal the resolver
+          # FIRST - this step apt-gets before the fetch step's own
+          # heal runs, and run 43074366208 hung here for the whole
+          # 120s apt ceiling with zero output (exit 124) when the
+          # Azure resolver went sick mid-storm.
+          printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf.new >/dev/null
+          grep -v '^nameserver' /etc/resolv.conf | sudo tee -a /etc/resolv.conf.new >/dev/null || true
+          sudo mv /etc/resolv.conf.new /etc/resolv.conf
+          echo "resolver front: $(head -2 /etc/resolv.conf | tr '\n' ' ')"
+          # night-T-2 round 11: the azure archive mirror rescue.
           sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq &&
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true \
+          # night-T-2 follow-up 20 (the zejtron law, layer 3 on the
+          # apt side): the first attempt bails fast (45s), and a
+          # failure re-points to a different-CDN mirror
+          # (archive.ubuntu.com) before the generous retry (70s) -
+          # fail fast, fall back, never hang.
+          if ! sudo timeout 45 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq; then
+            echo "mirror rescue: the primary mirror hung - re-pointing to archive.ubuntu.com (different CDN)"
+            sudo sed -i 's|mirrors\.edge\.kernel\.org|archive.ubuntu.com|g' \
+              /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+              /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo timeout 70 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq
+          fi
+          if ! sudo timeout 45 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true \
             -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 \
-            install -y --no-install-recommends qemu-system-x86 cpio
+            install -y --no-install-recommends qemu-system-x86 cpio; then
+            echo "install rescue: retrying qemu on the fallback mirror"
+            sudo sed -i 's|mirrors\.edge\.kernel\.org|archive.ubuntu.com|g' \
+              /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+              /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo timeout 70 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true \
+              -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 \
+              install -y --no-install-recommends qemu-system-x86 cpio
+          fi
 
       - name: Download the lane payload (binary + entropy-seed helper)
         uses: actions/download-artifact@v8
@@ -582,14 +612,44 @@ jobs:
           echo "OK: /dev/kvm present and usable"
 
       - name: Install qemu + cpio
-        run: >-
+        run: |
+          set -euo pipefail
+          # night-T-2 round 14 (the zejtron law): heal the resolver
+          # FIRST - this step apt-gets before the fetch step's own
+          # heal runs, and run 43074366208 hung here for the whole
+          # 120s apt ceiling with zero output (exit 124) when the
+          # Azure resolver went sick mid-storm.
+          printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf.new >/dev/null
+          grep -v '^nameserver' /etc/resolv.conf | sudo tee -a /etc/resolv.conf.new >/dev/null || true
+          sudo mv /etc/resolv.conf.new /etc/resolv.conf
+          echo "resolver front: $(head -2 /etc/resolv.conf | tr '\n' ' ')"
+          # night-T-2 round 11: the azure archive mirror rescue.
           sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq &&
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true \
+          # night-T-2 follow-up 20 (the zejtron law, layer 3 on the
+          # apt side): the first attempt bails fast (45s), and a
+          # failure re-points to a different-CDN mirror
+          # (archive.ubuntu.com) before the generous retry (70s) -
+          # fail fast, fall back, never hang.
+          if ! sudo timeout 45 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq; then
+            echo "mirror rescue: the primary mirror hung - re-pointing to archive.ubuntu.com (different CDN)"
+            sudo sed -i 's|mirrors\.edge\.kernel\.org|archive.ubuntu.com|g' \
+              /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+              /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo timeout 70 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq
+          fi
+          if ! sudo timeout 45 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true \
             -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 \
-            install -y --no-install-recommends qemu-system-x86 cpio
+            install -y --no-install-recommends qemu-system-x86 cpio; then
+            echo "install rescue: retrying qemu on the fallback mirror"
+            sudo sed -i 's|mirrors\.edge\.kernel\.org|archive.ubuntu.com|g' \
+              /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+              /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo timeout 70 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true \
+              -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 \
+              install -y --no-install-recommends qemu-system-x86 cpio
+          fi
 
       - name: Download the lane payload (the v3 release shape)
         uses: actions/download-artifact@v8
