@@ -478,7 +478,14 @@ jobs:
     name: Cosmic Dragon Guard - Build (freebsd native)
     runs-on: ubuntu-24.04
     needs: build_test
-    timeout-minutes: 5
+    # night-T-2 follow-up 23: the measured runtime here is 4:30
+    # (run 43053277736, the last full-green lane) against a 5-minute
+    # cap - 30 seconds of headroom, and run 43079049031 died at 5:03
+    # mid-test-suite when the VM boot ran slow. The cap stays an
+    # anti-hang tripwire (10 minutes still fails fast), but it must
+    # fit the lane's own measured need. The other CI jobs peak at
+    # 2:20, so only this seat moves.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
