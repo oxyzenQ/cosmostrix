@@ -119,7 +119,12 @@ jobs:
     name: Cosmic Dragon Guard - CodeQL Analyze
     needs: detect-languages
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    # night-T-2 follow-up 24: the measured green runtime is 3:46
+    # (run 43079049067) against this 5-minute cap, and run 43082345427
+    # died at 5:07 mid-analysis on a slower extractor pass - the same
+    # knife-edge the freebsd seat rode. The cap stays an anti-hang
+    # tripwire at 10 minutes, sized from the lane's own spread.
+    timeout-minutes: 10
 
     steps:
       - name: Checkout

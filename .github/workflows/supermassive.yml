@@ -574,7 +574,13 @@ jobs:
     name: supermassive test - render soak (memory watch)
     runs-on: ubuntu-24.04
     needs: [build_musl]
-    timeout-minutes: 5
+    # night-T-2 follow-up 24: the soak is time-based by design
+    # (240s burn + boot + build overhead), and its measured full-lane
+    # runtime is 4:07 (run 43079049044) - 53 seconds under a 5-minute
+    # cap, the same knife-edge class that killed the freebsd and
+    # CodeQL seats. 10 minutes keeps the anti-runaway ceiling with
+    # honest headroom for the fixed 240s burn.
+    timeout-minutes: 10
     # night-improve-10 (owner decision): no event gate. The old
     # schedule-only if rendered this job as a "(push) Skipped" row
     # on every code commit; now every qualifying push produces its
