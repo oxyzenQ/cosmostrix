@@ -357,14 +357,24 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/kfloor && cd /tmp/kfloor
-          # night-T-2 round 13: old-releases.ubuntu.com rides the flapping
+          # night-T-2 round 14: the intrepid pool lives on old-releases.ubuntu.com
           # ubuntu.com zone and its Launchpad edge IPs time out from the GH
           # runner network (exit 28). The USTC mirror carries the same
           # intrepid pool (verified 200 on /ubuntu/pool/main/l/linux/) on a
           # different network path entirely. Keep the hosts pin as a fallback
           # (best-effort, never harmful), point the fetch at the mirror.
-          echo "162.213.35.96 old-releases.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
-          POOL="https://mirrors.ustc.edu.cn/ubuntu/pool/main/l/linux"
+          # night-T-2 round 14 (the zejtron law): the Azure resolver on
+          # the runner poisons exactly the ubuntu.com zones while the
+          # rest of the internet answers fine from the same runner.
+          # Put the public resolvers in front of /etc/resolv.conf - one
+          # fix heals apt, the pool curls, and the mainline walk at
+          # once (better than a hosts pin: it never locks traffic to
+          # one possibly-dead IP).
+          printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf.new >/dev/null
+          grep -v '^nameserver' /etc/resolv.conf | sudo tee -a /etc/resolv.conf.new >/dev/null || true
+          sudo mv /etc/resolv.conf.new /etc/resolv.conf
+          echo "resolver front: $(head -2 /etc/resolv.conf | tr '\n' ' ')"
+          POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/l/linux"
           LISTING="$(curl -fsSL --retry-all-errors --retry 3 --retry-delay 3 --connect-timeout 10 --max-time 60 "$POOL/")"
           IMG="$(printf '%s' "$LISTING" \
             | grep -oE 'linux-image-2\.6\.27-[0-9]+-generic_[^"]+_amd64\.deb' \
@@ -416,11 +426,12 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/kfloor
-          # night-T-2 round 13: the busybox fetch rides the USTC mirror too
-          # (the intrepid era pool + dists index both live there, verified).
-          POOL="https://mirrors.ustc.edu.cn/ubuntu/pool/main/b/busybox"
+          # night-T-2 round 14: the busybox fetch rides old-releases.ubuntu.com
+          # (the intrepid era pool + dists index; the zejtron DNS fix in the
+          # floor step above already healed this runner's resolver).
+          POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/b/busybox"
           ERA_DEB="busybox-initramfs_1.10.2-1ubuntu6_amd64.deb"
-          DIST="https://mirrors.ustc.edu.cn/ubuntu/dists/intrepid/main/binary-amd64/Packages.gz"
+          DIST="https://old-releases.ubuntu.com/ubuntu/dists/intrepid/main/binary-amd64/Packages.gz"
           if curl -fsI --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 25 "$POOL/$ERA_DEB" >/dev/null; then
             BUSY="$ERA_DEB"
             echo "resolved: $BUSY (pinned intrepid GA busybox-initramfs, era-true)"
@@ -438,7 +449,7 @@ jobs:
             fi
             BUSY="$(basename "$FNAME")"
             echo "resolved: $BUSY (from the intrepid dists index, era-true)"
-            curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 90 -C - -o "$BUSY" "https://mirrors.ustc.edu.cn/ubuntu/$FNAME"
+            curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 90 -C - -o "$BUSY" "https://old-releases.ubuntu.com/ubuntu/$FNAME"
           fi
           dpkg -x "$BUSY" pkg-busybox
           SRCBB="$(find pkg-busybox -name busybox -type f | head -1)"
@@ -646,9 +657,17 @@ jobs:
           # curl round-robins across the same healthy path a working
           # resolver would have returned. Best-effort: a healthy resolver
           # keeps working, a flapping one stops being the SPOF.
-          echo "185.125.189.74 kernel.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
-          echo "185.125.189.75 kernel.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
-          echo "185.125.189.76 kernel.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
+          # night-T-2 round 14 (the zejtron law): the Azure resolver on
+          # the runner poisons exactly the ubuntu.com zones while the
+          # rest of the internet answers fine from the same runner.
+          # Put the public resolvers in front of /etc/resolv.conf - one
+          # fix heals apt, the pool curls, and the mainline walk at
+          # once (better than a hosts pin: it never locks traffic to
+          # one possibly-dead IP).
+          printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf.new >/dev/null
+          grep -v '^nameserver' /etc/resolv.conf | sudo tee -a /etc/resolv.conf.new >/dev/null || true
+          sudo mv /etc/resolv.conf.new /etc/resolv.conf
+          echo "resolver front: $(head -2 /etc/resolv.conf | tr '\n' ' ')"
           LISTING="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 60 "$BASE/")"
           TAGS="$(printf '%s' "$LISTING" \
             | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?/' \
