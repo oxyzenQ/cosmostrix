@@ -105,13 +105,31 @@
 # (night-dragon-maintenance-6), including the VM lanes in
 # supermassive-kernel.yml.
 #
-# Budgets: pty_smoke 15 min (a warm release build plus about a minute
-# of six sub-10-second pty runs), musl_tests 30 min (a cold musl
-# compile of the workspace dominates), soak 20 min (build plus a
-# 300 s render plus the summary). The pty driver carries its own
-# internal watchdog (--budget) so a wedged child can never outlive
-# the job's outer timeout - the same wedge-guard relationship the
-# zelynic envelopes keep between VM budget and job budget.
+# night-T-1 (the owner's five-minute law, 2026-11-11): the owner
+# waiting 30 minutes on one CI run is a burden, so the workflow is
+# restructured around a hard per-job shape: every battery leg targets
+# five minutes or less. The muscle that buys it is the artifact
+# relay - one build_musl job compiles the release shape ONCE (the
+# same from-source law: the named alias, --locked, the step-level
+# RUSTFLAGS contract), uploads the binary, and every leg downloads
+# it; the musl workspace suite compiles once into a cargo nextest
+# archive and executes as four parallel shards; the soak render is
+# trimmed 300 s -> 240 s so the whole leg - download, render,
+# ceiling check - fits the five-minute target with headroom (the
+# dataset stays longitudinal; the anti-runaway RSS ceiling is
+# unchanged and the calibration read a flat 9.5 MB RSS, two orders
+# of magnitude under it).
+#
+# Budgets: build_musl 12 min (the one compile; its cold-cache
+# ceiling - warm-cache runs land well under the five-minute target),
+# pty_smoke 5 min, torture 5 min, soak 6 min (a 240 s render plus
+# the artifact download and the ceiling check; the target is five),
+# musl_compile 30 min (the one test compile, its cold-cache ceiling),
+# musl_shards 10 min each (the target is five). The pty driver
+# carries its own internal watchdog (--budget) so a wedged child can
+# never outlive the job's outer timeout - the same wedge-guard
+# relationship the zelynic envelopes keep between VM budget and job
+# budget.
 #
 # Every step below rides the owner's retry contract where it touches
 # the network (apt), and the dependency-version policy resolves
@@ -138,10 +156,18 @@ env:
   RUSTFLAGS: "-D warnings"
 
 jobs:
-  pty_smoke:
-    name: supermassive test - pty smoke (quit paths and color tiers)
+  # night-T-1 (the owner's five-minute law, 2026-11-11): the battery
+  # legs no longer each pay a cold musl compile. One job builds the
+  # release shape once - the same from-source law as before: the named
+  # pro-linux-amd64-v3-musl alias, --locked, the step-level RUSTFLAGS
+  # carrying -D warnings and the alias's exact -C target-cpu token -
+  # and every leg below downloads that artifact. The compile is the
+  # one long pole of the workflow (the cold-cache ceiling below;
+  # warm-cache runs land well under the owner's five-minute target).
+  build_musl:
+    name: supermassive build - pro-v3-musl (the release shape)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -179,10 +205,41 @@ jobs:
           RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
         run: cargo pro-linux-amd64-v3-musl --locked
 
+      - name: Upload the battery binary
+        # upload-artifact does not preserve the exec bit; every
+        # consumer restores it after download.
+        uses: actions/upload-artifact@v7
+        with:
+          name: cosmostrix-pro-v3-musl
+          path: target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix
+          if-no-files-found: error
+
+  pty_smoke:
+    name: supermassive test - pty smoke (quit paths and color tiers)
+    runs-on: ubuntu-24.04
+    needs: [build_musl]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the built battery binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cosmostrix-pro-v3-musl
+          path: /tmp/mass-bin
+
+      # upload-artifact does not preserve the exec bit; the consumers
+      # restore it after download.
+      - name: Restore the exec bit
+        run: chmod 755 /tmp/mass-bin/cosmostrix
+
       - name: Quit paths under a real pty
         run: |
           set -euo pipefail
-          BINARY="target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
+          BINARY="/tmp/mass-bin/cosmostrix"
           MASS="/tmp/mass-pty.log"
           rm -f "${MASS}"
           SMOKE=scripts/supermassive/pty_smoke.py
@@ -222,9 +279,8 @@ jobs:
         run: |
           set -euo pipefail
           # The alias-built release shape (the same binary the other
-          # legs exercise) - this step predates the alias migration
-          # and pointed at target/release, which this job never builds.
-          BINARY="target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
+          # legs exercise) - downloaded from the build_musl artifact.
+          BINARY="/tmp/mass-bin/cosmostrix"
           MASS="/tmp/mass-pty.log"
           SMOKE=scripts/supermassive/pty_smoke.py
           ASSERT=scripts/supermassive/pty_assert.py
@@ -290,8 +346,19 @@ jobs:
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
 
-  musl_tests:
-    name: supermassive test - musl workspace nextest
+  # The workspace test battery, the night-T-1 shape: one compile (the
+  # unavoidable pole - a cold musl compile of the whole workspace; the
+  # ceiling stays where the old single leg had it), then four
+  # execution shards that download the nextest archive and each fit
+  # the owner's five-minute target. cargo nextest archive compiles
+  # the same test binaries the old in-job run compiled (the unit
+  # tree, the proptest battery, the safepath floors); the shards
+  # split EXECUTION only - the same partition contract ci.yml's
+  # test_partitions matrix rides. --retries 1 keeps the 486
+  # timing-sensitive tests honest on a loaded shared runner, exactly
+  # like the musl gate leg in the release lane.
+  musl_compile:
+    name: supermassive build - musl nextest archive (the one compile)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -324,22 +391,68 @@ jobs:
         with:
           tool: cargo-nextest
 
-      # The release.yml static musl artifact (pro-linux-amd64-v3-musl)
-      # had never been executed by CI before this leg. The whole
-      # workspace suite (the unit tree, the proptest battery, the
-      # safepath floors) runs here under musl for the first time;
-      # --retries 1 keeps the 486 timing-sensitive tests honest on a
-      # loaded shared runner, exactly like the musl gate leg in the release lane.
-      - name: Tests (nextest under musl)
+      - name: Build the musl test archive
+        run: |
+          set -euo pipefail
+          cargo nextest archive --workspace --locked \
+            --target x86_64-unknown-linux-musl \
+            --archive-file /tmp/musl-tests.tar.zst \
+            --archive-format tar-zst
+
+      - name: Upload the test archive
+        # compression-level 0: the archive is already zstd-compressed;
+        # double-compiling a multi-hundred-MB payload would only burn
+        # the job budget the five-minute law is here to protect.
+        uses: actions/upload-artifact@v7
+        with:
+          name: cosmostrix-musl-tests-archive
+          path: /tmp/musl-tests.tar.zst
+          compression-level: 0
+          if-no-files-found: error
+
+  musl_shards:
+    name: supermassive test - musl nextest shard ${{ matrix.partition }}/4
+    runs-on: ubuntu-24.04
+    needs: [musl_compile]
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Tunable: four shards keep every shard's EXECUTION window
+        # inside the owner's five-minute target (partitioning splits
+        # execution, not compilation - the compile happened once
+        # above).
+        partition: [1, 2, 3, 4]
+    steps:
+      # No checkout: the archive is self-contained (test binaries plus
+      # their data), no source needed at execution time.
+      - name: Install Rust toolchain (cargo for the nextest invocation)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Download the test archive
+        uses: actions/download-artifact@v8
+        with:
+          name: cosmostrix-musl-tests-archive
+          path: /tmp/mass-tests
+
+      - name: Tests (nextest shard under musl)
         run: |
           set -euo pipefail
           MASS="/tmp/mass-musl.log"
           rm -f "${MASS}"
-          if cargo nextest run --workspace --locked \
-            --target x86_64-unknown-linux-musl --retries 1; then
-            echo "MASS-RESULT: musl-nextest exit=0" >> "${MASS}"
+          if cargo nextest run \
+            --archive-file /tmp/mass-tests/musl-tests.tar.zst \
+            --partition count:${{ matrix.partition }}/4 --retries 1; then
+            echo "MASS-RESULT: musl-shard-${{ matrix.partition }} exit=0" >> "${MASS}"
           else
-            echo "MASS-RESULT: musl-nextest FAIL" >> "${MASS}"
+            echo "MASS-RESULT: musl-shard-${{ matrix.partition }} FAIL" >> "${MASS}"
           fi
 
       - name: Verdict
@@ -347,21 +460,21 @@ jobs:
         run: |
           set -euo pipefail
           MASS="/tmp/mass-musl.log"
-          echo "--- MASS-RESULT relay (musl nextest) ---"
+          echo "--- MASS-RESULT relay (musl nextest shard ${{ matrix.partition }}) ---"
           cat "${MASS}"
           if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
             echo "MASS-VERDICT: FAIL"
             exit 1
           fi
           echo "MASS-VERDICT: PASS"
-          echo "OK: the workspace suite passes under the shipped musl libc"
+          echo "OK: shard ${{ matrix.partition }} of the workspace suite passes under the shipped musl libc"
 
       - name: Watch summary (the longitudinal dataset row)
         if: always()
         run: |
           set -euo pipefail
           {
-            echo "## Supermassive watch - musl nextest"
+            echo "## Supermassive watch - musl nextest shard ${{ matrix.partition }}"
             echo
             echo "- trigger: ${{ github.event_name }}"
             echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
@@ -374,7 +487,8 @@ jobs:
   soak:
     name: supermassive test - render soak (memory watch)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    needs: [build_musl]
+    timeout-minutes: 6
     # night-improve-10 (owner decision): no event gate. The old
     # schedule-only if rendered this job as a "(push) Skipped" row
     # on every code commit; now every qualifying push produces its
@@ -385,53 +499,37 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Download the built battery binary
+        uses: actions/download-artifact@v8
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-          targets: x86_64-unknown-linux-musl
+          name: cosmostrix-pro-v3-musl
+          path: /tmp/mass-bin
 
-      # night-dragon-maintenance-6: the battery binary is the static
-      # musl release shape; the musl-gcc wrapper covers the target's
-      # linker needs on the shared runner.
-      - name: Install musl tools
-        run: |
-          set -euo pipefail
-          # NIGHT-dinner-1: apt rides its own retry knob - a flaky
-          # mirror fetch must not read as a code failure.
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y musl-tools
+      # upload-artifact does not preserve the exec bit; the consumers
+      # restore it after download.
+      - name: Restore the exec bit
+        run: chmod 755 /tmp/mass-bin/cosmostrix
 
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Build the pro-v3-musl binary (the release shape)
-        # Step-level RUSTFLAGS (workflow-level -D warnings is
-        # shadowed here on purpose): carries the alias's exact -C
-        # token, which RUSTFLAGS env would otherwise drop (env
-        # shadows build.rustflags).
-        env:
-          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
-        run: cargo pro-linux-amd64-v3-musl --locked
-
-      # A 300 s render with VmRSS sampled every 10 s. The driver's
-      # --budget watchdog (330 s) stays wider than the render deadline
-      # so the deadline exit always wins, and narrower than the job
-      # timeout so a wedged guest can never burn the job budget.
+      # A 240 s render with VmRSS sampled every 10 s. night-T-1
+      # trimmed the window 300 s -> 240 s so the whole leg - artifact
+      # download, render, ceiling check - fits the owner's
+      # five-minute target; the dataset stays longitudinal and the
+      # anti-runaway ceiling is unchanged. The driver's --budget
+      # watchdog (270 s) stays wider than the render deadline so the
+      # deadline exit always wins, and narrower than the job timeout
+      # so a wedged guest can never burn the job budget.
       - name: Render soak under a real pty
         run: |
           set -euo pipefail
           MASS="/tmp/mass-soak.log"
           rm -f "${MASS}"
           python3 scripts/supermassive/pty_smoke.py \
-            --binary target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix \
+            --binary /tmp/mass-bin/cosmostrix \
             --log /tmp/soak-render.log --mass "${MASS}" \
-            --label soak-300s --arg=--duration --arg=300 \
+            --label soak-240s --arg=--duration --arg=240 \
             --env=TERM=xterm-256color \
             --rss-log /tmp/soak-rss.log --rss-interval 10 \
-            --budget 330
+            --budget 270
 
       # The bound is an anti-runaway ceiling, not a performance claim:
       # the local calibration read a flat 9.5 MB RSS on a 25 s debug
@@ -443,11 +541,11 @@ jobs:
           MASS="/tmp/mass-soak.log"
           PEAK_KB="$(sed -n 's/.*rss_peak_kb=\([0-9]*\).*/\1/p' "${MASS}" | head -1)"
           if [ -z "${PEAK_KB}" ]; then
-            echo "MASS-RESULT: soak-300s FAIL reason=no rss peak row" >> "${MASS}"
+            echo "MASS-RESULT: soak-240s FAIL reason=no rss peak row" >> "${MASS}"
           elif [ "${PEAK_KB}" -gt 1500000 ]; then
-            echo "MASS-RESULT: soak-300s FAIL reason=rss peak ${PEAK_KB} kB over the 1.5 GB ceiling" >> "${MASS}"
+            echo "MASS-RESULT: soak-240s FAIL reason=rss peak ${PEAK_KB} kB over the 1.5 GB ceiling" >> "${MASS}"
           else
-            echo "MASS-RESULT: soak-300s rss ceiling PASS (peak ${PEAK_KB} kB)" >> "${MASS}"
+            echo "MASS-RESULT: soak-240s rss ceiling PASS (peak ${PEAK_KB} kB)" >> "${MASS}"
           fi
 
       - name: Verdict
@@ -462,7 +560,7 @@ jobs:
             exit 1
           fi
           echo "MASS-VERDICT: PASS"
-          echo "OK: the 300 s render stayed inside the memory ceiling"
+          echo "OK: the 240 s render stayed inside the memory ceiling"
 
       - name: Watch summary (the longitudinal dataset row)
         if: always()
@@ -499,39 +597,24 @@ jobs:
   torture:
     name: supermassive test - hostile server torture
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    needs: [build_musl]
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Download the built battery binary
+        uses: actions/download-artifact@v8
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-          targets: x86_64-unknown-linux-musl
+          name: cosmostrix-pro-v3-musl
+          path: /tmp/mass-bin
 
-      # night-dragon-maintenance-6: the battery binary is the static
-      # musl release shape; the musl-gcc wrapper covers the target's
-      # linker needs on the shared runner.
-      - name: Install musl tools
-        run: |
-          set -euo pipefail
-          # NIGHT-dinner-1: apt rides its own retry knob - a flaky
-          # mirror fetch must not read as a code failure.
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y musl-tools
-
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Build the pro-v3-musl binary (the release shape)
-        env:
-          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
-        run: cargo pro-linux-amd64-v3-musl --locked
+      # upload-artifact does not preserve the exec bit; the consumers
+      # restore it after download.
+      - name: Restore the exec bit
+        run: chmod 755 /tmp/mass-bin/cosmostrix
 
       - name: Run the hostile torture battery
         run: |
@@ -539,7 +622,7 @@ jobs:
           MASS="/tmp/mass-torture.log"
           rm -f "${MASS}"
           python3 scripts/supermassive/torture.py \
-            --binary target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix \
+            --binary /tmp/mass-bin/cosmostrix \
             --mass "${MASS}" \
             --workdir /tmp/cosmostrix-torture
 

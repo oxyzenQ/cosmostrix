@@ -82,6 +82,20 @@
 # recovery lane. No pull_request trigger on purpose: the fast lane
 # (ci.yml) owns PRs.
 #
+# night-T-1 (the owner's five-minute law, 2026-11-11): the lane
+# jobs no longer each pay a cold musl compile. Two build jobs -
+# build_floor_musl (the baseline-musl alias plus the entropy-seed
+# helper) and build_best_musl (the pro-v3-musl release shape) -
+# compile once and upload artifacts; the boot lanes download the
+# payloads and spend their whole budget on what the lane is for:
+# kernel fetch, rootfs assembly, and the boot itself. The
+# from-source law is untouched: both artifacts still come from the
+# named aliases with --locked and the exact step-level RUSTFLAGS
+# each lane's shape requires. The qemu outer budgets are trimmed
+# to the boot's real shape (600 s -> 300 s floor, 900 s -> 480 s
+# best) so a wedged guest can never outlive the job budget the
+# five-minute law sets.
+#
 # Resolver honesty: both artifacts (the floor kernel deb and the
 # busybox-static deb) are resolved from the LIVE old-releases pool
 # listing at run time and fail LOUDLY with the discovery evidence if
@@ -108,49 +122,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  kernel_floor:
-    # The low-specs leg on the REAL floor kernel: the MSRV-pinned
-    # toolchain builds the payload (the lane's variable is the
-    # KERNEL, not the toolchain), the dynamic low envelope sizes the
-    # VM, and the battery runs as root inside the 2.6.27 guest.
-    name: supermassive kernel floor (intrepid GA 2.6.27, KVM micro-VM)
+  # night-T-1 (the owner's five-minute law, 2026-11-11): the lane
+  # jobs no longer each pay a cold musl compile. Two build jobs -
+  # build_floor_musl (the baseline-musl alias plus the entropy-seed
+  # helper) and build_best_musl (the pro-v3-musl release shape) -
+  # compile once and upload artifacts; the boot lanes download the
+  # payloads and spend their whole budget on what the lane is for:
+  # kernel fetch, rootfs assembly, and the boot itself. The
+  # from-source law is untouched: both artifacts still come from the
+  # named aliases with --locked and the exact step-level RUSTFLAGS
+  # each lane's shape requires. The qemu outer budgets are trimmed
+  # to the boot's real shape (600 s -> 300 s floor, 900 s -> 480 s
+  # best) so a wedged guest can never outlive the job budget the
+  # five-minute law sets.
+  build_floor_musl:
+    name: supermassive kernel build - baseline-musl floor payload
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-
-      # The kernel can change; /dev/kvm is a GitHub runner guarantee
-      # (nested virt is enabled on every current Linux hosted image)
-      # - but the node ships 0660 root:kvm and the runner user is not
-      # in the kvm group, so the job opens it up itself. Failing
-      # LOUDLY here beats a TCG fallback: the floor lane's point is
-      # the real kernel at real speed, and the v3 payload would
-      # SIGILL under TCG anyway (-cpu host is load-bearing).
-      - name: Verify KVM
-        run: |
-          test -e /dev/kvm || {
-            echo "FAIL: /dev/kvm is absent - this runner image cannot boot the kernel-floor micro-VM"
-            echo "(nested virt is expected on every current GitHub Linux runner image)"
-            exit 1
-          }
-          test -w /dev/kvm || sudo chmod 666 /dev/kvm
-          test -w /dev/kvm || {
-            echo "FAIL: /dev/kvm is not usable by the runner user even after chmod"
-            ls -l /dev/kvm
-            exit 1
-          }
-          echo "OK: /dev/kvm present and usable"
-
-      # apt's own retry knob rides every apt transaction (a flaky
-      # archive mirror is the same GitHub-infra failure class as the
-      # curl 500s, and apt's default is zero retries).
-      - name: Install qemu + cpio
-        run: >-
-          sudo apt-get -o Acquire::Retries=5 update -qq &&
-          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
 
       # The musl-static release shape needs the musl rust-std target;
       # musl-tools rides for parity with supermassive.yml's musl_tests
@@ -213,6 +206,119 @@ jobs:
           --target x86_64-unknown-linux-musl
           -o "$GITHUB_WORKSPACE/target/entropy-seed"
           "$GITHUB_WORKSPACE/scripts/sandbox/entropy_seed.rs"
+
+
+      - name: Upload the floor bundle
+        # upload-artifact does not preserve the exec bit; the lane
+        # restores it after download.
+        uses: actions/upload-artifact@v7
+        with:
+          name: cosmostrix-floor-bundle
+          path: |
+            target/x86_64-unknown-linux-musl/pro-linux-amd64-baseline-musl/cosmostrix
+            target/entropy-seed
+          if-no-files-found: error
+
+  build_best_musl:
+    name: supermassive kernel build - pro-v3-musl best payload
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain + musl target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl link tools
+        run: |
+          set -euo pipefail
+          sudo apt-get -o Acquire::Retries=5 update -qq
+          sudo apt-get -o Acquire::Retries=5 install -y -qq musl-tools
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: supermassive-kernel-best
+          cache-on-failure: true
+
+      # The from-source law, the musl-static shape (identical step to
+      # the floor lane - the two lanes' only variable is the kernel).
+      - name: Build the pro-v3-musl binary (the release static shape)
+        env:
+          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
+        run: cargo pro-linux-amd64-v3-musl --locked
+
+
+      - name: Upload the best bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: cosmostrix-best-bundle
+          path: target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix
+          if-no-files-found: error
+
+  kernel_floor:
+    # The low-specs leg on the REAL floor kernel: the MSRV-pinned
+    # toolchain builds the payload (the lane's variable is the
+    # KERNEL, not the toolchain), the dynamic low envelope sizes the
+    # VM, and the battery runs as root inside the 2.6.27 guest.
+    name: supermassive kernel floor (intrepid GA 2.6.27, KVM micro-VM)
+    runs-on: ubuntu-24.04
+    needs: [build_floor_musl]
+    timeout-minutes: 7
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The kernel can change; /dev/kvm is a GitHub runner guarantee
+      # (nested virt is enabled on every current Linux hosted image)
+      # - but the node ships 0660 root:kvm and the runner user is not
+      # in the kvm group, so the job opens it up itself. Failing
+      # LOUDLY here beats a TCG fallback: the floor lane's point is
+      # the real kernel at real speed, and the v3 payload would
+      # SIGILL under TCG anyway (-cpu host is load-bearing).
+      - name: Verify KVM
+        run: |
+          test -e /dev/kvm || {
+            echo "FAIL: /dev/kvm is absent - this runner image cannot boot the kernel-floor micro-VM"
+            echo "(nested virt is expected on every current GitHub Linux runner image)"
+            exit 1
+          }
+          test -w /dev/kvm || sudo chmod 666 /dev/kvm
+          test -w /dev/kvm || {
+            echo "FAIL: /dev/kvm is not usable by the runner user even after chmod"
+            ls -l /dev/kvm
+            exit 1
+          }
+          echo "OK: /dev/kvm present and usable"
+
+      # apt's own retry knob rides every apt transaction (a flaky
+      # archive mirror is the same GitHub-infra failure class as the
+      # curl 500s, and apt's default is zero retries).
+      - name: Install qemu + cpio
+        run: >-
+          sudo apt-get -o Acquire::Retries=5 update -qq &&
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
+
+      - name: Download the lane payload (binary + entropy-seed helper)
+        uses: actions/download-artifact@v8
+        with:
+          name: cosmostrix-floor-bundle
+          path: /tmp/mass-floor
+
+      # upload-artifact does not preserve the exec bit; the rootfs
+      # assembly chmods after copy.
+      - name: Restore the exec bits
+        run: |
+          chmod 755 /tmp/mass-floor/cosmostrix
+          chmod 755 /tmp/mass-floor/entropy-seed
 
       # The floor kernel: the intrepid (8.10) GA release-day image
       # (2.6.27-*), resolved from the LIVE old-releases pool. The
@@ -319,10 +425,10 @@ jobs:
           mkdir -p rootfs/{bin,dev,etc,proc,sys,tmp,run,opt/cosmostrix/.sandbox}
           cp pkg-busybox/bin/busybox rootfs/bin/busybox
           ln -s busybox rootfs/bin/sh
-          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/pro-linux-amd64-baseline-musl/cosmostrix" \
+          cp "/tmp/mass-floor/cosmostrix" \
             rootfs/opt/cosmostrix/cosmostrix
           chmod 755 rootfs/opt/cosmostrix/cosmostrix rootfs/bin/busybox
-          cp "$GITHUB_WORKSPACE/target/entropy-seed" \
+          cp "/tmp/mass-floor/entropy-seed" \
             rootfs/opt/cosmostrix/.sandbox/entropy-seed
           chmod 755 rootfs/opt/cosmostrix/.sandbox/entropy-seed
           echo floor > rootfs/opt/cosmostrix/.sandbox/lane
@@ -359,7 +465,7 @@ jobs:
           MEM=$(( TOTAL_MB / 8 )); [ "$MEM" -lt 1024 ] && MEM=1024
           echo "envelope: $SMP vCPU / $MEM MB (low, of $CORES cores / $TOTAL_MB MB on the runner)"
           set +e
-          timeout 600 qemu-system-x86_64 \
+          timeout 300 qemu-system-x86_64 \
             -machine pc,accel=kvm -cpu host \
             -m "$MEM" -smp "$SMP" \
             -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
@@ -420,7 +526,8 @@ jobs:
     # most of its RAM.
     name: supermassive kernel best (latest mainline, KVM micro-VM, pty depth)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    needs: [build_best_musl]
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -449,30 +556,16 @@ jobs:
           sudo apt-get -o Acquire::Retries=5 update -qq &&
           sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
 
-      - name: Install Rust toolchain + musl target
-        uses: dtolnay/rust-toolchain@stable
+      - name: Download the lane payload (the v3 release shape)
+        uses: actions/download-artifact@v8
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-          targets: x86_64-unknown-linux-musl
+          name: cosmostrix-best-bundle
+          path: /tmp/mass-best
 
-      - name: Install musl link tools
-        run: |
-          set -euo pipefail
-          sudo apt-get -o Acquire::Retries=5 update -qq
-          sudo apt-get -o Acquire::Retries=5 install -y -qq musl-tools
-
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: supermassive-kernel-best
-          cache-on-failure: true
-
-      # The from-source law, the musl-static shape (identical step to
-      # the floor lane - the two lanes' only variable is the kernel).
-      - name: Build the pro-v3-musl binary (the release static shape)
-        env:
-          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
-        run: cargo pro-linux-amd64-v3-musl --locked
+      # upload-artifact does not preserve the exec bit; the rootfs
+      # assembly chmods after copy.
+      - name: Restore the exec bit
+        run: chmod 755 /tmp/mass-best/cosmostrix
 
       # The moving-latest kernel: the newest stable tag in the
       # Ubuntu mainline PPA (kernel.ubuntu.com/mainline), resolved
@@ -589,7 +682,7 @@ jobs:
           tar -xf rootfs.tar -C rootfs
           mkdir -p rootfs/opt/cosmostrix/.sandbox
           git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/cosmostrix
-          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix" \
+          cp "/tmp/mass-best/cosmostrix" \
             rootfs/opt/cosmostrix/cosmostrix
           chmod 755 rootfs/opt/cosmostrix/cosmostrix
           echo best > rootfs/opt/cosmostrix/.sandbox/lane
@@ -627,7 +720,7 @@ jobs:
           MEM=$(( TOTAL_MB * 3 / 4 )); [ "$MEM" -lt 2048 ] && MEM=2048
           echo "envelope: $SMP vCPU / $MEM MB (best, of $CORES cores / $TOTAL_MB MB on the runner)"
           set +e
-          timeout 900 qemu-system-x86_64 \
+          timeout 480 qemu-system-x86_64 \
             -machine q35,accel=kvm -cpu host \
             -m "$MEM" -smp "$SMP" \
             -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
