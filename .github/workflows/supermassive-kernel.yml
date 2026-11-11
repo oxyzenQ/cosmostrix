@@ -159,9 +159,13 @@ jobs:
       - name: Install musl link tools
         run: |
           set -euo pipefail
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y -qq musl-tools
 
       - name: Setup cache
@@ -250,9 +254,13 @@ jobs:
       - name: Install musl link tools
         run: |
           set -euo pipefail
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y -qq musl-tools
 
       - name: Setup cache
@@ -318,7 +326,9 @@ jobs:
       # curl 500s, and apt's default is zero retries).
       - name: Install qemu + cpio
         run: >-
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq &&
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y --no-install-recommends qemu-system-x86 cpio
 
@@ -572,7 +582,9 @@ jobs:
 
       - name: Install qemu + cpio
         run: >-
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq &&
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y --no-install-recommends qemu-system-x86 cpio
 
