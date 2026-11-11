@@ -207,6 +207,18 @@ jobs:
           -o "$GITHUB_WORKSPACE/target/entropy-seed"
           "$GITHUB_WORKSPACE/scripts/sandbox/entropy_seed.rs"
 
+      - name: Stage the floor bundle flat
+        # upload-artifact roots a multi-path upload at the paths'
+        # least common ancestor, which would bury the binary under
+        # x86_64-unknown-linux-musl/... - staging both payloads into
+        # one directory keeps the artifact flat, so the lane's
+        # download lands cosmostrix and entropy-seed side by side.
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/stage-floor
+          cp target/x86_64-unknown-linux-musl/pro-linux-amd64-baseline-musl/cosmostrix \
+            /tmp/stage-floor/cosmostrix
+          cp target/entropy-seed /tmp/stage-floor/entropy-seed
 
       - name: Upload the floor bundle
         # upload-artifact does not preserve the exec bit; the lane
@@ -214,9 +226,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: cosmostrix-floor-bundle
-          path: |
-            target/x86_64-unknown-linux-musl/pro-linux-amd64-baseline-musl/cosmostrix
-            target/entropy-seed
+          path: /tmp/stage-floor
           if-no-files-found: error
 
   build_best_musl:
