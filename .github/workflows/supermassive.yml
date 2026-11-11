@@ -237,11 +237,11 @@ jobs:
           set -euo pipefail
           # NIGHT-dinner-1: apt rides its own retry knob - a flaky
           # mirror fetch must not read as a code failure.
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g; s|ports\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g; s|ports\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y musl-tools
@@ -448,11 +448,11 @@ jobs:
       - name: Install musl cross tools
         run: |
           set -euo pipefail
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g; s|ports\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g; s|ports\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y -qq musl-tools
