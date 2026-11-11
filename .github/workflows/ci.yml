@@ -618,8 +618,8 @@ jobs:
           # the static musl law - the same shapes the release lane ships.
           # NIGHT-dinner-1: apt rides its own retry knob — a flaky
           # mirror fetch must not read as a code failure.
-          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
-          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y musl-tools
+          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update
+          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y musl-tools
           rustup target add x86_64-unknown-linux-musl
 
       - name: Build
