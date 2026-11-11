@@ -52,6 +52,37 @@ pro-native-musl = [
 # aliases cannot detect the host arch (the zelynic T1 note) - on an
 # aarch64 Linux host use the plain release build or mirror this block
 # with the aarch64-unknown-linux-musl target triple.
+#
+# night-arm64-1 (the owner's arm-server law, the zelynic mirror,
+# 2026-11-11): the arm twin is its own explicit alias —
+# `pro-native-arm64-musl` — exactly the zelynic shape. It mirrors the
+# pro-native-musl block onto the aarch64-unknown-linux-musl target
+# triple, with `target-cpu=native` (the audience runs everything from
+# Neoverse N1 to Graviton, the host picks its own baseline) and the
+# explicit `+crt-static` flag the musl static link needs on aarch64.
+# The `local-` marker contract holds (`cosmostrix -V` names
+# "local-pro-native-arm64-musl"), the artifact lands in
+# target/aarch64-unknown-linux-musl/pro-native-arm64-musl/cosmostrix so
+# an arm build never clobbers the x86 target directory, and the
+# [target.aarch64-unknown-linux-musl] block above already carries the
+# rust-lld linker the static link needs. The CI battery lane in
+# supermassive.yml exercises this exact alias on ubuntu-24.04-arm
+# (Ubuntu Server ARM64) — the modern-arm-server support the owner
+# asked for.
+pro-native-arm64-musl = [
+  "build",
+  "--profile",
+  "pro-native-arm64-musl",
+  "--config",
+  "env.COSMOSTRIX_BUILD=\"local-pro-native-arm64-musl\"",
+  "--config",
+  "env.COSMOSTRIX_PROFILE=\"pro-native-arm64-musl\"",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-C\",\"target-feature=+crt-static\"]",
+  "--target",
+  "aarch64-unknown-linux-musl",
+]
+
 # The gnu half of the pro-native pair: host-default target (the host
 # triple, glibc on ordinary desktop/server distros), native CPU tuning,
 # no cross-compilation. The Linux x86_64 RELEASE shapes stay the fully

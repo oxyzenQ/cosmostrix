@@ -223,6 +223,14 @@ incremental = false
 [profile.pro-native-musl]
 inherits = "pro"
 
+# night-arm64-1 (the owner's arm-server law, the zelynic mirror,
+# 2026-11-11): the aarch64 twin of pro-native-musl above — one profile
+# per cargo alias (the NIGHT-blade-1 name=profile 1:1 law), inherits
+# the `pro` shape, lands in its own target/aarch64-unknown-linux-musl/
+# pro-native-arm64-musl/ directory so it never clobbers the x86 shape.
+[profile.pro-native-arm64-musl]
+inherits = "pro"
+
 [profile.pro-native-gnu]
 inherits = "pro"
 

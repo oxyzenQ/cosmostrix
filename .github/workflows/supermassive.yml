@@ -206,16 +206,21 @@ jobs:
             rustflags: "-D warnings -C target-cpu=x86-64-v3"
             bin_tail: pro-linux-amd64-v3-musl/cosmostrix
             artifact: cosmostrix-pro-v3-musl
-          # The arm64 server shape (night-arm64-1): same release
-          # profile, no target-cpu pin (the arm-server audience runs
-          # everything from Neoverse N1 to Graviton), artifact name
-          # distinct so the x86_64 consumers stay byte-identical.
+          # The arm64 server shape (night-arm64-1): the new
+          # pro-native-arm64-musl cargo alias — the zelynic mirror, the
+          # owner's arm-server law. The alias carries target-cpu=native
+          # (the host picks its own baseline) and +crt-static (the musl
+          # static link) in .cargo/config.toml, so the lane no longer
+          # pins target-cpu or bin_tail by hand; the alias's own env
+          # stamps the local-pro-native-arm64-musl marker the same way
+          # every other alias does. Artifact name distinct so the x86_64
+          # consumers stay byte-identical.
           - arch: aarch64
             runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
-            build_cmd: cargo build --release --locked --target aarch64-unknown-linux-musl
+            build_cmd: cargo pro-native-arm64-musl --locked
             rustflags: "-D warnings"
-            bin_tail: release/cosmostrix
+            bin_tail: pro-native-arm64-musl/cosmostrix
             artifact: cosmostrix-pro-musl-aarch64
     steps:
       - name: Checkout
@@ -237,11 +242,11 @@ jobs:
           set -euo pipefail
           # NIGHT-dinner-1: apt rides its own retry knob - a flaky
           # mirror fetch must not read as a code failure.
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g; s|ports\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g; s|ports\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y musl-tools
@@ -448,11 +453,11 @@ jobs:
       - name: Install musl cross tools
         run: |
           set -euo pipefail
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g; s|ports\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g; s|ports\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y -qq musl-tools

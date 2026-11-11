@@ -399,7 +399,8 @@ fn detected_x86_baseline(features: &HashSet<String>) -> &'static str {
         // Below v3: no dedicated build profile (v1/v2 removed; only v3/v4
         // exist in .cargo/config.toml + Cargo.toml). Report as generic
         // baseline — users should use `pro-native-musl` or `pro-native-gnu`
-        // for these CPUs.
+        // (x86_64 hosts) or `pro-native-arm64-musl` (aarch64 hosts,
+        // night-arm64-1) for these CPUs.
         "x86-64-baseline"
     }
 }
