@@ -53,15 +53,34 @@ pub(crate) fn colorize_help(text: &str) -> String {
             .map(|l| (l, "\n"))
             .unwrap_or((chunk, ""));
 
+        // night-ux-2 (2026-11-11): the banner rail (the ━━━ title line)
+        // rides the heading tier too — the zelynic helper-output canon
+        // renders it bold brand purple, and the owner's re-run report
+        // caught it arriving white.
+        let is_banner = line.starts_with('\u{2501}');
+
         // night-T-1 (2026-11-11): the zelynic-shaped help head uses
         // Title case section labels ("Usage:", "Examples:") — they ride
         // the same heading tier as the all-caps sections.
-        let is_heading = line == "Usage:"
-            || line == "Examples:"
-            || (!line.starts_with(' ') && line.ends_with(':') && line == line.to_ascii_uppercase());
+        // night-ux-2: the heading test now catches the Title case shape
+        // itself (short, letters-and-spaces, colon-terminated, not
+        // indented) instead of only the all-caps shape plus two
+        // hand-listed labels — the owner's re-run report caught
+        // "Common options:" (and every other renamed section) still
+        // arriving white. The length guard keeps wrapped prose lines
+        // that merely end in a colon out of the tier.
+        let body = line.trim_end_matches(':');
+        let is_heading = !line.starts_with(' ')
+            && line.ends_with(':')
+            && !body.is_empty()
+            && body.len() <= 40
+            && body
+                .chars()
+                .all(|c| c.is_ascii_alphabetic() || c == ' ');
 
-        if is_heading {
-            // Bold brand purple for section headings (matches --help USAGE:).
+        if is_banner || is_heading {
+            // Bold brand purple for the banner rail and section
+            // headings (matches --help USAGE:).
             out.push_str(crate::output::brand_bold_open());
             out.push_str(line);
             out.push_str(crate::output::reset());
@@ -278,6 +297,52 @@ mod tests {
                 "{heading} must render as a heading"
             );
         }
+    }
+
+    /// night-ux-2 (2026-11-11): the banner rail renders bold brand
+    /// purple — the owner's re-run report caught it arriving white.
+    #[test]
+    fn banner_rail_renders_brand_bold() {
+        let banner = "━━━ cosmostrix — cinematic Matrix rain renderer ━━━\n";
+        let out = colorize_help(banner);
+        assert!(
+            out.starts_with(crate::output::brand_bold_open()),
+            "the banner rail must render as a heading"
+        );
+        assert!(out.ends_with(crate::output::reset()));
+    }
+
+    /// night-ux-2: every section label of the real manual rides the
+    /// heading tier — the shape test replaces the hand-listed
+    /// allowlist, so a renamed section can never fall out of sync
+    /// again (the exact white-heading failure the owner re-ran).
+    #[test]
+    fn every_manual_section_label_renders_brand_bold() {
+        for heading in [
+            "Usage:",
+            "Examples:",
+            "Common options:",
+            "Config:",
+            "Diagnostics:",
+            "Discovery:",
+            "Runtime controls:",
+            "Help:",
+            "Rendering philosophy:",
+        ] {
+            let out = colorize_help(&format!("{heading}\n"));
+            assert!(
+                out.starts_with(crate::output::brand_bold_open()),
+                "{heading} must render as a heading"
+            );
+        }
+    }
+
+    /// night-ux-2: the length guard — a long letters-only prose line
+    /// that merely ends in a colon stays plain, it is not a heading.
+    #[test]
+    fn long_prose_colon_line_stays_plain() {
+        let line = "accepted keys are sat saturation bright brightness head body tail:\n";
+        assert_eq!(colorize_help(line), line);
     }
 
     /// Flag definition lines render the whole spelling in the calm
