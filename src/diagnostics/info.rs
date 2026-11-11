@@ -553,19 +553,19 @@ mod tests {
         // curious developer gets the complete picture from one command.
         let report = docs_report();
         assert!(
-            report.contains("DIFF-BASED CELL RENDERER"),
+            report.contains("Diff-based cell renderer"),
             "docs_report must describe the diff-based cell renderer"
         );
         assert!(
-            report.contains("THREE-LAYER PARALLAX") || report.contains("PARALLAX"),
+            report.contains("Three-layer parallax") || report.contains("parallax"),
             "docs_report must describe the 3-layer parallax"
         );
         assert!(
-            report.contains("PHOSPHOR PERSISTENCE"),
+            report.contains("Phosphor persistence"),
             "docs_report must describe phosphor persistence"
         );
         assert!(
-            report.contains("DENSITY NOISE") && report.contains("WIND GUSTS"),
+            report.contains("Density noise") && report.contains("wind gusts"),
             "docs_report must describe density noise and wind gusts"
         );
         assert!(
@@ -581,7 +581,7 @@ mod tests {
     fn docs_report_mentions_all_three_dragon_engines() {
         let report = docs_report();
         assert!(
-            report.contains("CHROMA DRAGON COLORING ENGINE"),
+            report.contains("Chroma Dragon coloring engine"),
             "docs_report must describe the Chroma Dragon engine"
         );
         assert!(

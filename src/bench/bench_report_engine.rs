@@ -190,7 +190,7 @@ pub(crate) fn build_engine_sections(r: &mut Report, data: &BenchReportData) {
         }
     }
 
-    // ── Phase 6: VISUAL OBJECTIVE METRICS ────────────────────────────
+    // ── Phase 6: Visual objective metrics ────────────────────────────
     {
         let s = r.section("Visual objective");
         match &data.visual {

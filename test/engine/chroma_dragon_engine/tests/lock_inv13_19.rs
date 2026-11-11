@@ -243,7 +243,7 @@ fn lock_inv18_polar_is_sole_production_gradient_path() {
 #[test]
 fn lock_inv17_engine_lock_report() {
     eprintln!("\n╔════════════════════════════════════════════════════════════════════╗");
-    eprintln!("║     CHROMA DRAGON COLORING ENGINE — LOCK REPORT (Phase 9-D)        ║");
+    eprintln!("║     Chroma Dragon coloring engine — LOCK REPORT (Phase 9-D)        ║");
     eprintln!("╚════════════════════════════════════════════════════════════════════╝");
     eprintln!();
     eprintln!("  Engine version:  {CHROMA_DRAGON_ENGINE_VERSION}");

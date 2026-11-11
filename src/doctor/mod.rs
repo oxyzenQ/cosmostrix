@@ -282,7 +282,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field("headless", if headless { "yes" } else { "no" });
     }
 
-    // CONFIG FILE section (NIGHT-hunt-47-depthbore).
+    // Config file section (NIGHT-hunt-47-depthbore).
     //
     // The runtime loader treats a present-but-unreadable default config
     // as "no config" (S-master-3-v2: the size-capped read funnels every
@@ -396,7 +396,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field("default_to_ascii", if def_ascii { "yes" } else { "no" });
     }
 
-    // SAMPLE GLYPHS section (only if locale is UTF-8)
+    // Sample glyphs section (only if locale is UTF-8)
     if locale_utf8 {
         let cs = match charset_from_str(&normalize_charset_preset_name(&args.charset), def_ascii) {
             Ok(v) => v,
@@ -548,7 +548,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     r.print();
 }
 
-/// Build the CONFIG FILE section fields for the doctor report
+/// Build the Config file section fields for the doctor report
 /// (NIGHT-hunt-47-depthbore; see the section comment in
 /// `print_doctor_report` for the diagnostic asymmetry this closes).
 ///

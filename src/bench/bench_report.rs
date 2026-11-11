@@ -194,7 +194,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // file under its 800-LOC guard.
     crate::envstat::render_section(&mut r, &data.env);
 
-    // ── COSMIC DRAGON ENGINE METRICS ─────────────────────────────────────────
+    // ── Cosmic Dragon engine metrics ─────────────────────────────────────────
     // All engine-specific metrics grouped under this header.
     {
         let s = r.section("Cosmic Dragon engine metrics");
@@ -631,7 +631,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // account for — no hidden rounding, no invisible gap.
         let component_sum_ns = sim_ns + render_ns + io_ns;
         if component_sum_ns > 0.0 {
-            // NIGHT-dinner-3: precision unified with COMPONENT TIMING —
+            // NIGHT-dinner-3: precision unified with Component timing —
             // the same conceptual shares printed at two precisions
             // (44.99 vs 45.0) read as different measurements; both now
             // carry two decimals.

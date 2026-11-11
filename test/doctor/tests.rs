@@ -55,7 +55,7 @@ fn doctor_environment_hints_are_actionable() {
     assert!(hints.contains(&"locale not UTF-8"));
 }
 
-// NIGHT-hunt-47-depthbore: pin the CONFIG FILE status classification.
+// NIGHT-hunt-47-depthbore: pin the Config file status classification.
 // The doctor report must never again print "healthy" while the user's
 // default config is present but unreadable (invalid UTF-8 / past the
 // 1 MiB cap) — the runtime silently runs defaults in that case, and

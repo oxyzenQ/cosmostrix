@@ -928,7 +928,7 @@ impl HudState {
     ///
     /// Z-master-1X round 5 (owner mandate 2026-08-31): added dcel + tcel
     /// at rows 19-20 (cell efficiency metrics — owner insight from the
-    /// CELL EFFICIENCY benchmark section). cid moved from row 19 to 21,
+    /// Cell efficiency benchmark section). cid moved from row 19 to 21,
     /// up from 20 to 22, screensize from 21 to 23. The session footer
     /// still closes the dashboard — cid keeps a head-band position (row 21),
     /// the terminal size stays the visual anchor at the bottom (row 23).
