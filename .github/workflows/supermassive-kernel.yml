@@ -718,13 +718,26 @@ jobs:
           # the chain is capped by its own budget (the five-minute
           # law), and a host that stays dead still fails fast with
           # connect evidence instead of hanging.
+          # night-T-2 follow-up 21: the canonical edge is a 3-IP
+          # round-robin (round 10's finding, re-confirmed live: DNS
+          # answered while connects died). One resolver order can pin
+          # every retry to one sick IP; each round now hunts the edge
+          # IPs and dials every sibling explicitly until one answers,
+          # and the walk then pins itself to the proven-healthy IP.
           LISTING=""
+          EDGE_IP=""
+          RESOLVE_ARGS=""
           LIST_BUDGET=$(( SECONDS + 120 ))
           while [ "$SECONDS" -lt "$LIST_BUDGET" ]; do
-            if LISTING="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 60 "$BASE/")"; then
-              break
-            fi
-            echo "listing round failed (kernel.ubuntu.com edge brownout?) - fresh resolve, retry within the 120s budget"
+            for CANDIDATE_IP in $(getent ahostsv4 kernel.ubuntu.com | awk '{print $1}' | sort -u); do
+              if LISTING="$(curl -fsSL --resolve "kernel.ubuntu.com:443:$CANDIDATE_IP" --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 60 "$BASE/")"; then
+                EDGE_IP="$CANDIDATE_IP"
+                RESOLVE_ARGS="--resolve kernel.ubuntu.com:443:$EDGE_IP"
+                echo "listing answered via edge IP $EDGE_IP - the walk pins itself to it"
+                break 2
+              fi
+            done
+            echo "listing round failed (every edge IP dial-dead this round?) - fresh resolve, retry within the 120s budget"
             sleep 15
           done
           if [ -z "$LISTING" ]; then
@@ -759,7 +772,7 @@ jobs:
               break
             fi
             DIR="$BASE/$TAG"
-            DLIST="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 60 "$DIR/" || true)"
+            DLIST="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 60 $RESOLVE_ARGS "$DIR/" || true)"
             if [ -z "$FIRST_LISTING" ]; then
               FIRST_LISTING="$DLIST"
             fi
@@ -775,11 +788,11 @@ jobs:
               echo "skip: $TAG lists no linux-image *_generic amd64 deb - walking back"
               continue
             fi
-            if ! curl -fsI --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 20 "$DIR/$REL" >/dev/null; then
+            if ! curl -fsI --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 20 $RESOLVE_ARGS "$DIR/$REL" >/dev/null; then
               echo "skip: $TAG lists $REL but the file HEAD-probes not-ready (mid-upload) - walking back"
               continue
             fi
-            if curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 120 -o "$(basename "$REL")" "$DIR/$REL"; then
+            if curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 120 $RESOLVE_ARGS -o "$(basename "$REL")" "$DIR/$REL"; then
               FOUND="$REL"
               BESTTAG="$TAG"
               echo "resolved: $TAG (the newest mainline stable tag that serves its deb)"
