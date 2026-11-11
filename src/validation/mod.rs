@@ -10,13 +10,13 @@ use std::ffi::OsString;
 
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 
-// ── "tip: a similar argument exists" CLI flag suggestion ─────────────────
+// ── "tip: a similar argument exists" CLI option suggestion ────────────────
 //
 // v50.0.0-beta.7: the custom Levenshtein-based suggestion engine
 // (KNOWN_LONG_FLAGS + cli_edit_distance + suggest_cli_flag) has been
 // REMOVED. It was replaced by extract_clap_suggestion() in main.rs,
 // which reads clap's OWN "tip:" line and reformats it as
-// "tip: a similar argument exists: '--<flag>'" (via
+// "tip: a similar argument exists: '--<option>'" (via
 // format_argument_suggestion in cli/suggestion.rs). This eliminates:
 //
 //   1. The hand-maintained KNOWN_LONG_FLAGS list (drift-prone — the
@@ -28,16 +28,16 @@ use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 //      tip: --color-bg but Did-you-mean: --color).
 //
 // The REMOVED_FLAGS table below is KEPT — it provides migration hints
-// for flags removed across v14-v30 (e.g. --noglitch -> --glitch-level
+// for options removed across v14-v30 (e.g. --noglitch -> --glitch-level
 // none), which is a different concern from typo suggestions.
 
-/// Migration map for CLI flags removed across v14–v30.
+/// Migration map for CLI options removed across v14–v30.
 ///
-/// Each entry maps a removed long-flag name to a single-line migration message
+/// Each entry maps a removed long-option name to a single-line migration message
 /// that points the user to its replacement.
 ///
 /// The matcher in [`check_removed_flags`] uses exact token equality
-/// (`token == *flag`), so the order of entries in this table does not affect
+/// (`token == *option`), so the order of entries in this table does not affect
 /// matching — `--preset` and `--list-presets` are distinct tokens and never
 /// collide. Entries are kept in a roughly longest-first order for human
 /// readability when scanning the table.
@@ -186,29 +186,29 @@ pub(crate) const REMOVED_FLAGS: &[(&str, &str)] = &[
     ),
 ];
 
-/// Scan raw argv for any flag removed in v14.0.0 and return a migration error.
+/// Scan raw argv for any option removed in v14.0.0 and return a migration error.
 ///
-/// This runs before clap parsing so we can intercept the removed flag with a
+/// This runs before clap parsing so we can intercept the removed option with a
 /// clear, actionable message rather than letting clap report it as an
-/// "unexpected argument". The matcher accepts both `--flag value` and
-/// `--flag=value` forms because we only inspect the flag token itself.
+/// "unexpected argument". The matcher accepts both `--option value` and
+/// `--option=value` forms because we only inspect the option token itself.
 ///
-/// Returns `Ok(())` if no removed flag is found, or `Err(message)` with the
+/// Returns `Ok(())` if no removed option is found, or `Err(message)` with the
 /// migration hint for the first match. The check is case-sensitive on the
-/// long-flag prefix (clap long-flags are always lowercase).
+/// long-option prefix (clap long options are always lowercase).
 pub(crate) fn check_removed_flags(argv: &[OsString]) -> Result<(), String> {
     for arg in argv.iter().skip(1) {
         let Some(s) = arg.to_str() else {
             continue;
         };
-        // Normalize `--flag=value` to `--flag` for matching purposes.
+        // Normalize `--option=value` to `--option` for matching purposes.
         let token = s.split_once('=').map_or(s, |(flag, _)| flag);
-        // Skip non-flag tokens (positional values, etc.).
+        // Skip non-option tokens (positional values, etc.).
         if !token.starts_with("--") {
             continue;
         }
-        // Exact-match lookup: token is normalized to "--flag" form above
-        // (split on '='), and REMOVED_FLAGS contains only exact flag names.
+        // Exact-match lookup: token is normalized to "--option" form above
+        // (split on '='), and REMOVED_FLAGS contains only exact option names.
         // No prefix matching, so order does not affect correctness.
         for (flag, message) in REMOVED_FLAGS {
             if token == *flag {
@@ -311,7 +311,7 @@ pub(crate) fn parse_canonical_f64_range(
 }
 
 pub(crate) fn prevalidate_cli_args(argv: &[OsString]) -> Result<(), String> {
-    // Stage 4b: intercept flags removed in v14.0.0 with migration hints.
+    // Stage 4b: intercept options removed in v14.0.0 with migration hints.
     // This runs before any other validation so users see the migration
     // message instead of clap's generic "unexpected argument" error.
     check_removed_flags(argv)?;
@@ -413,7 +413,7 @@ enum CliKind {
         min: f64,
         max: f64,
     },
-    /// v80.0.0-alpha.2: human-duration seconds flag (bare `5`, `5s`,
+    /// v80.0.0-alpha.2: human-duration seconds option (bare `5`, `5s`,
     /// `1m`, `1h30m` — the shared cli_parse::parse_secs_f64 grammar).
     /// The prevalidator must accept the SAME surface as the clap
     /// value_parser or human forms would die here before clap runs.
@@ -453,7 +453,7 @@ fn cli_spec(flag: &str) -> Option<CliSpec> {
             // (cli::cli_parse::parse_secs_f64).
             //
             // S-master-HUNT-5 (2026-09-03): min lowered 0.1 → 0.0.
-            // The flag's documented contract is "<=0 disables" — but the
+            // The option's documented contract is "<=0 disables" — but the
             // prevalidator's old 0.1 floor rejected `--duration 0`
             // BEFORE main.rs's disable special-case could honor it (a
             // regression introduced when the HumanSecs spec landed in
@@ -466,7 +466,7 @@ fn cli_spec(flag: &str) -> Option<CliSpec> {
                 max: 86400.0,
             },
         },
-        // v17 mastery: --glitchpct, --shortpct, --rippct, --maxdpc CLI flags
+        // v17 mastery: --glitchpct, --shortpct, --rippct, --maxdpc CLI options
         // REMOVED. Use --glitch-level instead. Removed from prevalidator.
         "--monolith-size" => CliSpec {
             name: "--monolith-size",

@@ -102,12 +102,12 @@ fn hidden_block_warning_lines(prefix: &str, hidden: &[String], limit: usize) -> 
 pub(crate) fn print_list_charsets() {
     if color_enabled_stdout() {
         println_safe!(
-            "{}AVAILABLE CHARSET PRESETS:{}",
+            "{}Available charset presets:{}",
             crate::output::brand_bold_open(),
             crate::output::reset()
         );
     } else {
-        println_safe!("AVAILABLE CHARSET PRESETS:");
+        println_safe!("Available charset presets:");
     }
     println_safe!();
     println_safe!("  auto         Auto-select (ASCII_SAFE when non-UTF, otherwise matrix)");
@@ -139,6 +139,7 @@ pub(crate) fn print_list_charsets() {
     println_safe!(
         "  Or define a custom charset in config.toml via [charset-custom.<name>] (see --dump-config)."
     );
+    crate::report::print_usage_note(color_enabled_stdout());
 
     // v25: Show custom charsets from config (if any).
     let cfg = crate::configfile::load_config_file(None);
@@ -155,12 +156,12 @@ pub(crate) fn print_list_charsets() {
         println_safe!();
         if color_enabled_stdout() {
             println_safe!(
-                "{}CUSTOM CHARACTER SETS (from config):{}",
+                "{}Custom character sets (from config):{}",
                 crate::output::brand_bold_open(),
                 crate::output::reset()
             );
         } else {
-            println_safe!("CUSTOM CHARACTER SETS (from config):");
+            println_safe!("Custom character sets (from config):");
         }
         println_safe!();
         for (name, def) in &custom_charsets {
@@ -187,12 +188,12 @@ pub(crate) fn print_list_charsets() {
 pub(crate) fn print_list_colors() {
     if color_enabled_stdout() {
         println_safe!(
-            "{}AVAILABLE COLOR THEMES:{}",
+            "{}Available color themes:{}",
             crate::output::brand_bold_open(),
             crate::output::reset()
         );
     } else {
-        println_safe!("AVAILABLE COLOR THEMES:");
+        println_safe!("Available color themes:");
     }
     println_safe!();
     print!("{}", crate::theme::compact_list_text());
@@ -213,12 +214,12 @@ pub(crate) fn print_list_colors() {
         println_safe!();
         if color_enabled_stdout() {
             println_safe!(
-                "{}CUSTOM COLOR PALETTES (from config):{}",
+                "{}Custom color palettes (from config):{}",
                 crate::output::brand_bold_open(),
                 crate::output::reset()
             );
         } else {
-            println_safe!("CUSTOM COLOR PALETTES (from config):");
+            println_safe!("Custom color palettes (from config):");
         }
         println_safe!();
         for name in custom_palettes.keys() {
@@ -240,17 +241,18 @@ pub(crate) fn print_list_colors() {
         println_safe!("  Load with: cosmostrix -c/--color/--colors-custom <name>");
         println_safe!("  Use in ambient: ambient.HH-MM = <name>");
     }
+    crate::report::print_usage_note(color_enabled_stdout());
 }
 
 pub(crate) fn print_list_scenes() {
     if color_enabled_stdout() {
         println_safe!(
-            "{}AVAILABLE SCENES:{}",
+            "{}Available scenes:{}",
             crate::output::brand_bold_open(),
             crate::output::reset()
         );
     } else {
-        println_safe!("AVAILABLE SCENES:");
+        println_safe!("Available scenes:");
     }
     println_safe!();
     print!("{}", crate::scene::list_scenes_text());
@@ -273,12 +275,12 @@ pub(crate) fn print_list_scenes() {
         println_safe!();
         if color_enabled_stdout() {
             println_safe!(
-                "{}CUSTOM SCENES (from config):{}",
+                "{}Custom scenes (from config):{}",
                 crate::output::brand_bold_open(),
                 crate::output::reset()
             );
         } else {
-            println_safe!("CUSTOM SCENES (from config):");
+            println_safe!("Custom scenes (from config):");
         }
         println_safe!();
         print!(
@@ -296,6 +298,7 @@ pub(crate) fn print_list_scenes() {
         println_safe!("  Load with: cosmostrix --scene <name> or --scene-custom <name>");
         println_safe!("  Or set in config: scene = \"<name>\"");
     }
+    crate::report::print_usage_note(color_enabled_stdout());
 }
 
 /// Print details for a single scene by name. Looks up built-in scenes first,
@@ -308,6 +311,7 @@ pub(crate) fn print_show_scene(
     // 1. Built-in scene lookup.
     if let Some(info) = crate::scene::get_scene(name) {
         print!("{}", crate::scene::show_scene_text(info));
+        crate::report::print_usage_note(color_enabled_stdout());
         return Ok(());
     }
 
@@ -320,6 +324,7 @@ pub(crate) fn print_show_scene(
             "{}",
             crate::scene_custom::show_custom_scene_text(&normalized, custom)
         );
+        crate::report::print_usage_note(color_enabled_stdout());
         return Ok(());
     }
 

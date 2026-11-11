@@ -499,7 +499,7 @@ DIAGNOSTICS
       --bench-all              Run benchmark across multiple screen sizes (6x6 to 200x60)
       --bench-scene <name>     Benchmark I/O scene: lean (default) or production-draw
       --save-baseline <path>   Save benchmark JSON for later comparison
-      --compare-baseline <p>   Compare against saved baseline (flags >5% FPS regressions)
+      --compare-baseline <p>   Compare against saved baseline (marks >5% FPS regressions)
       --reset-terminal         Emergency terminal recovery (5-layer)
   -v, --verbose                Print diagnostic info to stderr; implies the exit
                                performance report (interactive)

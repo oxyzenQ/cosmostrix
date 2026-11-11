@@ -438,7 +438,7 @@ fn list_scenes_output_includes_all_scenes() {
 fn show_scene_text_includes_header_and_usage() {
     let info = get_scene("storm").expect("storm scene");
     let text = show_scene_text(info);
-    assert!(text.starts_with("SCENE: storm"), "header missing: {text}");
+    assert!(text.starts_with("Scene: storm"), "header missing: {text}");
     assert!(
         text.contains("Description:"),
         "description label missing: {text}"
@@ -471,7 +471,7 @@ fn show_scene_text_handles_partial_scene() {
     // show_scene_text correctly renders a fully-populated scene.
     let info = get_scene("matrix").expect("matrix scene");
     let text = show_scene_text(info);
-    assert!(text.contains("SCENE: matrix"), "header missing: {text}");
+    assert!(text.contains("Scene: matrix"), "header missing: {text}");
     assert!(
         text.contains("rain-style   = glyph"),
         "rain-style missing: {text}"

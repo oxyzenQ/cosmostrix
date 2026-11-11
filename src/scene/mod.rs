@@ -273,7 +273,7 @@ pub(crate) fn list_scenes_text() -> String {
 #[must_use]
 pub(crate) fn show_scene_text(info: &SceneInfo) -> String {
     let mut out = String::new();
-    out.push_str(&format!("SCENE: {}\n\n", info.name));
+    out.push_str(&format!("Scene: {}\n\n", info.name));
     out.push_str(&format!("  Description: {}\n\n", info.description));
     out.push_str("  Configuration:\n");
 

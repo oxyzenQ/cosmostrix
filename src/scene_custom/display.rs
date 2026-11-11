@@ -47,7 +47,7 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 
 /// Render a one-line-per-entry listing of custom scenes from config.
 ///
-/// Output is appended under the "CUSTOM SCENES (from config)" heading in
+/// Output is appended under the "Custom scenes (from config)" heading in
 /// `--list-scenes`. Mirrors the column layout of `scene::list_scenes_text`
 /// so the two groups visually align.
 ///
@@ -91,7 +91,7 @@ pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) ->
 #[must_use]
 pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String {
     let mut out = String::new();
-    out.push_str(&format!("CUSTOM SCENE: {name}\n\n"));
+    out.push_str(&format!("Custom scene: {name}\n\n"));
     out.push_str("  Configuration:\n");
 
     let mut has_field = false;

@@ -464,7 +464,7 @@ fn show_custom_scene_text_includes_fields_and_usage() {
     let scene = &scenes["hacker-mode"];
     let text = show_custom_scene_text("hacker-mode", scene);
     assert!(
-        text.contains("CUSTOM SCENE: hacker-mode"),
+        text.contains("Custom scene: hacker-mode"),
         "header missing: {text}"
     );
     // NIGHT-research-5: `rain` field renders first (above color).

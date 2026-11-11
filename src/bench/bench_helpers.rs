@@ -300,7 +300,7 @@ pub(crate) fn warn_bench_noop_flags(args: &Args, fps_user_set: bool) {
     // into `head`), the exact chain the v25 coredump fix documented.
     // Multi-line bodies keep their manual 7-space continuation indent.
     let mut msg = String::from(
-        "the following flags have no effect (or a different effect than the name \
+        "the following options have no effect (or a different effect than the name \
          implies) in benchmark mode:",
     );
     for w in &warns {

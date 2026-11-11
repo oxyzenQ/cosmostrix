@@ -80,7 +80,7 @@ mod example_layout_tests {
 
     /// The moved annotations must sit directly above their example
     /// line — content preserved, position changed. Spot-checks one
-    /// 6-space COMMON OPTIONS pair and one 8-space --dump-config pair.
+    /// 6-space Common options pair and one 8-space --dump-config pair.
     #[test]
     fn annotations_sit_directly_above_their_examples() {
         assert!(

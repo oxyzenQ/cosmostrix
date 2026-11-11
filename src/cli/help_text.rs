@@ -28,7 +28,7 @@ Examples:
   # diagnostics report
   cosmostrix --doctor
 
-COMMON OPTIONS:
+Common options:
   -c, --color <name>
       Color theme or custom palette name. See --list-colors.
       cosmostrix --color rainbow
@@ -454,7 +454,7 @@ COMMON OPTIONS:
       cosmostrix --scene-custom hacker-mode
       cosmostrix --scene-custom nightcore --fps 60
 
-CONFIG:
+Config:
   --config <path>
       Load config from an explicit path instead of the default
       ~/.config/cosmostrix/config.toml (Linux, macOS, FreeBSD, Android
@@ -547,7 +547,7 @@ CONFIG:
       ambient scheduler); a CLI-selected custom scene keeps the
       CLI-shadowed fields locked at runtime.
 
-DIAGNOSTICS:
+Diagnostics:
   --doctor       Build info, renderer details, environment diagnostics, and
       terminal compatibility check. (v17: --info merged into --doctor)
   --docs         Print engine documentation and architecture overview.
@@ -641,7 +641,7 @@ DIAGNOSTICS:
       startup, behavior during the run, telemetry at exit. Benchmark
       mode is excluded (the bench report is the comprehensive one).
 
-DISCOVERY:
+Discovery:
   --list-colors         Show color theme names.
                         There are 44 built-in themes.
   --list-charsets       Show available character sets.
@@ -701,7 +701,7 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       neither --bench-all nor --benchmark is set, --bench-frames wins
       (--bench-duration ignored, warned).
 
-RUNTIME CONTROLS:
+Runtime controls:
   q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
@@ -719,12 +719,12 @@ RUNTIME CONTROLS:
   modifier accepted — Ctrl/Alt/Super/Hyper/Meta/Fn combos are always
   ignored, and every non-cycle key responds only to the bare press.
 
-HELP:
+Help:
   -h, --help      Print this full reference manual.
   -V, --version    Print complete version and build information.
   --check-update   Check the latest upstream release.
 
-RENDERING PHILOSOPHY:
+Rendering philosophy:
   cosmostrix is CPU-only by design. The terminal is a text medium —
   ANSI escape sequences are the brush, glyphs are the pixels. No GPU
   context (OpenGL/Vulkan/Metal/DirectX/WebGPU) is ever created. GPU

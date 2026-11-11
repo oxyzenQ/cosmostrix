@@ -83,12 +83,12 @@ pub use cli_value_types::{ColorBg, GlitchLevel, U16Range};
     after_help = "cosmostrix uses a diff-based rendering engine — only changed cells are redrawn, not the full screen.\nSee `cosmostrix --docs` for the full technical breakdown."
 )]
 pub struct Args {
-    // === COMMON OPTIONS (visible in --help) ===
+    // === Common options (visible in --help) ===
     #[arg(
         short = 'c',
         long = "color",
         default_value = "green",
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 10,
         help = "Color theme or custom palette name (see --list-colors)"
     )]
@@ -97,7 +97,7 @@ pub struct Args {
     #[arg(
         long = "colors-custom",
         value_name = "NAME",
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 12,
         help = "Load a custom color palette from config (see --list-colors). Equivalent to -c <name> for custom palettes."
     )]
@@ -105,7 +105,7 @@ pub struct Args {
 
     #[arg(
         long = "color-tune",
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 11,
         help = "Tune theme colors (keys: sat=, bright=, head=, body=, tail=; range 0.0-3.0)"
     )]
@@ -120,7 +120,7 @@ pub struct Args {
         // --colors-custom/--scene-custom; clap alias keeps suggestions).
         alias = "charset-custom",
         default_value = "binary",
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 20,
         help = "Character set (see --list-charsets). Accepts built-in presets or custom names from [charset-custom.<name>]."
     )]
@@ -132,7 +132,7 @@ pub struct Args {
         short = 'f',
         long = "fps",
         default_value_t = 60.0,
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 30,
         help = "Target FPS (interactive mode frame limiter). The loop sleeps \
                 between frames to maintain this cap; press 'i' to see it as \
@@ -146,7 +146,7 @@ pub struct Args {
         short = 'S',
         long = "speed",
         default_value_t = 30.0,
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 40,
         help = "Rain speed"
     )]
@@ -156,7 +156,7 @@ pub struct Args {
         short = 'd',
         long = "density",
         default_value_t = 1.0,
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 50,
         help = "Rain density"
     )]
@@ -166,7 +166,7 @@ pub struct Args {
         long = "monolith-size",
         default_value = "normal",
         value_enum,
-        help_heading = "ADVANCED",
+        help_heading = "Advanced",
         display_order = 56,
         help = "Monolith segment cell scale"
     )]
@@ -177,7 +177,7 @@ pub struct Args {
         value_name = "BOOL",
         num_args = 1,
         value_parser = parse_true_false,
-        help_heading = "ADVANCED",
+        help_heading = "Advanced",
         display_order = 57,
         help = "Async variable column speeds (true|false, default: true). false = uniform column speeds"
     )]
@@ -186,7 +186,7 @@ pub struct Args {
     #[arg(
         short = 's',
         long = "screensaver",
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 60,
         help = "Screensaver mode: only 'q' exits; interactive keys still work (see docs/SCREENSAVER_MODE.md)"
     )]
@@ -194,7 +194,7 @@ pub struct Args {
 
     #[arg(
         long = "intro",
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 61,
         value_enum,
         num_args = 0..=1,
@@ -211,7 +211,7 @@ pub struct Args {
     #[arg(
         long = "intro-color",
         value_name = "NAME",
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 62,
         help = "Intro color override (builtin theme name or custom palette, see --list-colors)"
     )]
@@ -222,7 +222,7 @@ pub struct Args {
     // blocks text selection).
     #[arg(
         short = 'm',
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 70,
         help = "Overlay message (no border). Use -mb for border."
     )]
@@ -238,7 +238,7 @@ pub struct Args {
         long = "msg-fill-style",
         default_value = "engrave",
         value_enum,
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 71,
         help = "Message overlay reveal style (typewriter|fade|words|slide|instant|engrave|hologram|glitch|scorch|cascade|radar, default: engrave)"
     )]
@@ -248,7 +248,7 @@ pub struct Args {
         long = "glitch-level",
         default_value = "default",
         value_enum,
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 90,
         help = "Glitch intensity"
     )]
@@ -256,7 +256,7 @@ pub struct Args {
 
     #[arg(
         long = "scene",
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 96,
         help = "Apply a built-in scene (curated color + charset + speed + density, see --list-scenes)"
     )]
@@ -265,7 +265,7 @@ pub struct Args {
     #[arg(
         long = "scene-custom",
         value_name = "NAME",
-        help_heading = "COMMON OPTIONS",
+        help_heading = "Common options",
         display_order = 98,
         help = "Apply a user-defined custom scene from config (see --list-scenes)"
     )]
@@ -275,7 +275,7 @@ pub struct Args {
     #[arg(
         long = "config",
         value_name = "PATH",
-        help_heading = "CONFIG",
+        help_heading = "Config",
         display_order = 98,
         help = "Load config from an explicit file path"
     )]
@@ -283,7 +283,7 @@ pub struct Args {
 
     #[arg(
         long = "dump-config",
-        help_heading = "CONFIG",
+        help_heading = "Config",
         display_order = 99,
         num_args = 0..=1,
         default_missing_value = "",
@@ -295,7 +295,7 @@ pub struct Args {
     // overwriting an existing file); other write ops are unaffected.
     #[arg(
         long = "force",
-        help_heading = "CONFIG",
+        help_heading = "Config",
         display_order = 100,
         help = "Force overwrite when writing files. Currently affects \
                 --dump-config ONLY: allows overwriting an existing file \
@@ -305,7 +305,7 @@ pub struct Args {
 
     #[arg(
         long = "config-path",
-        help_heading = "CONFIG",
+        help_heading = "Config",
         display_order = 101,
         help = "Print the default config path and exit"
     )]
@@ -313,7 +313,7 @@ pub struct Args {
 
     #[arg(
         long = "testconf",
-        help_heading = "CONFIG",
+        help_heading = "Config",
         display_order = 102,
         help = "Validate config.toml and report errors"
     )]
@@ -322,7 +322,7 @@ pub struct Args {
     // === DIAGNOSTICS (visible in --help) ===
     #[arg(
         long = "doctor",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 100,
         help = "System compatibility report"
     )]
@@ -330,7 +330,7 @@ pub struct Args {
 
     #[arg(
         long = "docs",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 105,
         help = "Print engine documentation and architecture overview"
     )]
@@ -338,7 +338,7 @@ pub struct Args {
 
     #[arg(
         long = "benchmark",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 110,
         help = "Renderer benchmark (5s default; override with --bench-duration)"
     )]
@@ -346,7 +346,7 @@ pub struct Args {
 
     #[arg(
         long = "bench-duration",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 111,
         help = "Benchmark duration (default 5s; max 24h — hard OS-protection ceiling). Accepts: 5, 6s, 30m, 1h30m, 0.5d"
     )]
@@ -354,7 +354,7 @@ pub struct Args {
 
     #[arg(
         long = "screen-size",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 113,
         help = "Fixed screen size WxH (e.g. 120x40). Min 1x1, \
                 max 1024x500 interactive / 7680x4320 (8K UHD) bench"
@@ -363,7 +363,7 @@ pub struct Args {
 
     #[arg(
         long = "json",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 112,
         help = "Output benchmark as JSON (use with --benchmark)"
     )]
@@ -371,7 +371,7 @@ pub struct Args {
 
     #[arg(
         long = "save-baseline",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 114,
         help = "Save benchmark JSON to file (whitelist-enforced)"
     )]
@@ -379,7 +379,7 @@ pub struct Args {
 
     #[arg(
         long = "compare-baseline",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 115,
         help = "Compare benchmark against saved baseline JSON"
     )]
@@ -387,7 +387,7 @@ pub struct Args {
 
     #[arg(
         long = "bench-io",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 116,
         help = "Benchmark with wet terminal I/O (writes ANSI to /dev/null). \
                 Measures real write bandwidth + latency. Default: dry (no I/O)."
@@ -396,7 +396,7 @@ pub struct Args {
 
     #[arg(
         long = "bench-all",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 117,
         help = "Run benchmark across multiple screen sizes (6x6 to 200x60). \
                 Prints a SCALING SUMMARY table. Use with --bench-duration for \
@@ -408,7 +408,7 @@ pub struct Args {
         long = "bench-scene",
         value_name = "NAME",
         value_parser = ["lean", "production-draw"],
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 118,
         help = "Benchmark I/O scene: 'lean' (default, emit_cell_lean) or \
                 'production-draw' (mirrors Terminal::draw full-redraw path — \
@@ -430,7 +430,7 @@ pub struct Args {
     /// --benchmark forever.
     #[arg(
         long = "bench-cosmetics",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 119,
         requires = "benchmark",
         help = "Benchmark the bench-skipped cosmetics paths: message overlay \
@@ -445,7 +445,7 @@ pub struct Args {
     // deleted in v17, merged into --doctor). No consumer ever read this.
     #[arg(
         long = "reset-terminal",
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 130,
         help = "Destructive terminal recovery: clears screen, purges scrollback, resets modes"
     )]
@@ -454,7 +454,7 @@ pub struct Args {
     // === DISCOVERY (visible in --help) ===
     #[arg(
         long = "list-colors",
-        help_heading = "DISCOVERY",
+        help_heading = "Discovery",
         display_order = 200,
         help = "Show compact color theme names"
     )]
@@ -462,7 +462,7 @@ pub struct Args {
 
     #[arg(
         long = "list-charsets",
-        help_heading = "DISCOVERY",
+        help_heading = "Discovery",
         display_order = 210,
         help = "Show available charset presets"
     )]
@@ -470,7 +470,7 @@ pub struct Args {
 
     #[arg(
         long = "list-scenes",
-        help_heading = "DISCOVERY",
+        help_heading = "Discovery",
         display_order = 230,
         help = "Show available built-in and custom scenes"
     )]
@@ -479,7 +479,7 @@ pub struct Args {
     #[arg(
         long = "show-scene",
         value_name = "NAME",
-        help_heading = "DISCOVERY",
+        help_heading = "Discovery",
         display_order = 231,
         help = "Show full details for a built-in or custom scene"
     )]
@@ -499,7 +499,7 @@ pub struct Args {
     #[arg(
         long = "help",
         short = 'h',
-        help_heading = "HELP",
+        help_heading = "Help",
         display_order = 300,
         help = "Print the full reference manual"
     )]
@@ -508,7 +508,7 @@ pub struct Args {
     #[arg(
         long = "version",
         short = 'V',
-        help_heading = "HELP",
+        help_heading = "Help",
         display_order = 320,
         help = "Print complete version and build information"
     )]
@@ -516,7 +516,7 @@ pub struct Args {
 
     #[arg(
         long = "check-update",
-        help_heading = "HELP",
+        help_heading = "Help",
         display_order = 330,
         help = "Check the latest upstream release"
     )]
@@ -525,7 +525,7 @@ pub struct Args {
     #[arg(
         long = "verbose",
         short = 'v',
-        help_heading = "DIAGNOSTICS",
+        help_heading = "Diagnostics",
         display_order = 130,
         help = "Print diagnostic info + session telemetry to stderr (debugging)"
     )]

@@ -51,8 +51,8 @@ use clap::builder::styling::{Effects as ClapEffects, Style as ClapStyle};
 
 #[must_use]
 pub(crate) fn clap_styles() -> ClapStyles {
-    // Purple brand identity: section headings (USAGE, COMMON OPTIONS,
-    // ADVANCED, CONFIG, DIAGNOSTICS, HELP) rendered in bold truecolor
+    // Purple brand identity: section headings (Usage, Common options,
+    // Advanced, Config, Diagnostics, Help) rendered in bold truecolor
     // purple #A855F7 (168, 85, 247). This matches the BRAND_BOLD constant
     // in crate::output, so every purple element in --help / -V / verbose /
     // errors uses the exact same RGB value.

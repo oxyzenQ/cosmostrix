@@ -71,7 +71,7 @@
 
 ## 2. Owner's Confusion Points — Answered
 
-### Q1: "If I run `cosmostrix` (no flags) then set `msg-mode = false` in config mid-run, does it reload without the default 'cosmostrix v-x' message?"
+### Q1: "If I run `cosmostrix` (no options) then set `msg-mode = false` in config mid-run, does it reload without the default 'cosmostrix v-x' message?"
 
 **No.** `msg-mode` is not handled by `rebuild_cloud_config`. The
 renderer keeps showing the default "cosmostrix v50.0.0-beta.3" overlay
@@ -183,7 +183,7 @@ if !cli.power_dragon {
 ```
 
 **Pros**: Restores the "CLI wins over config" contract for all 3
-boolean dragon flags. Consistent behavior.
+boolean dragon options. Consistent behavior.
 **Cons**: Doesn't address the `message`/`msg-mode` live-reload gap.
 
 **Effort**: 1-2 hours (add 2 fields to CliExplicit + 2 guards + tests).
@@ -219,7 +219,7 @@ Do all three:
 **Pros**: Fully consistent. Every config key that CAN live-reload
 DOES live-reload. Every key that CAN'T (intro, intro-color) is
 documented as restart-only. CLI intent is preserved across reloads
-for all boolean flags.
+for all boolean options.
 **Cons**: Largest effort. Highest regression risk (live-reload is
 the most-touched code path).
 
@@ -262,7 +262,7 @@ config edit `power-dragon = true` on next reload.
 `CliExplicit` struct. `rebuild_cloud_config` now gates both reads with
 `if !cli.power_dragon { ... }` and `if !cli.async_mode { ... }` —
 mirroring the `crystal-dragon` pattern. CLI wins over config on
-live-reload for all 3 boolean dragon/async flags.
+live-reload for all 3 boolean dragon/async options.
 
 ### Issue #2: `message` / `message-border` / `msg-mode` live-reload — FIXED
 
@@ -324,7 +324,7 @@ CLI `--monolith-size` wins over config on live-reload.
 > the v50/v80.0.0-beta.1 guard design (pre-v80.0.0-beta.1). The guards as written could
 > never fire in production after v50.0.0-beta.6 zeroed `cli_explicit`
 > at every reload — see section 13 for the v80.0.0-beta.1 contract that replaced
-> both the guards-as-blockers and the zeroing: the flags are now the
+> both the guards-as-blockers and the zeroing: the options are now the
 > CLI-LOCKED fallback layer (key present wins; key absent falls back
 > to the locked startup value).
 
@@ -683,7 +683,7 @@ these five were never added:
 Consequential scene-custom field gates shipped in the same pass: the
 block's `bold` / `shading-mode` / `colors-custom` fields now also honor
 `cli_explicit.*` (mirrors FPS-F4, extending Z-master-1-v2 gap 1 to the
-newly tracked flags).
+newly tracked options).
 
 Verification: 9 regression tests in
 `test/config/live_config/tests_cli_priority.rs` (7 rebuild-level +
@@ -691,10 +691,10 @@ Verification: 9 regression tests in
 
 > v80.0.0-beta.1 note: the five guards added by this audit were DEAD in production
 > from the day they shipped — v50.0.0-beta.6 zeroed `cli_explicit` on
-> every rebuild BEFORE `rebuild_cloud_config` could read the flags, so
-> the tests (which call the function directly with live flags) passed
+> every rebuild BEFORE `rebuild_cloud_config` could read the options, so
+> the tests (which call the function directly with live options) passed
 > while production never took the guarded path. Section 13 documents the
-> v80.0.0-beta.1 fix: the zeroing is gone and the flags drive the locked-fallback
+> v80.0.0-beta.1 fix: the zeroing is gone and the options drive the locked-fallback
 > contract instead of blocking config keys.
 
 Stale matrix rows fixed in the same pass (section 1): the
@@ -731,7 +731,7 @@ falls back to the locked CLI value, without exit and rerun. Not just
    config edit, and it made all 21 per-key guards inside
    `rebuild_cloud_config` (added by Bug 3, Issue #4, alpha.7, and the
    Z-master-2-v2 audit) DEAD IN PRODUCTION: the unit tests call the
-   function directly with live flags, so the guard tests passed while the
+   function directly with live options, so the guard tests passed while the
    production path never took a guarded branch. Classic premature logic —
    two priority models half-shipped on top of each other.
 
@@ -783,7 +783,7 @@ Runtime:  config key > CLI lock > scene defaults > built-in defaults
 - `event_loop.rs`: `startup_cfg = cfg.clone()` — the immutable locked
   layer, passed to every rebuild.
 - `CliExplicit::any()` (`src/cli/app.rs`): the ambient startup deferral
-  previously listed only 15 of the 21 flags in an inline `||` chain —
+  previously listed only 15 of the 21 options in an inline `||` chain —
   `--bold`, `--shading-mode`, `--color-bg`, `--colors-custom`,
   `--scene-custom`, and `-mfs` did NOT defer ambient despite the
   documented "ANY CLI option" rule. `any()` covers all fields by

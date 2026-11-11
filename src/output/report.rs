@@ -43,7 +43,7 @@ const LABEL_WIDTH_FLOOR: usize = 11;
 /// example on one line, so any report names its own way back to the
 /// CLI (the zelynic helper-output canon: "each helper output adds
 /// usage").
-const USAGE_NOTE: &str = "Usage: cosmostrix [options] e.g cosmostrix -c rainbow -v";
+pub(crate) const USAGE_NOTE: &str = "Usage: cosmostrix [options] e.g cosmostrix -c rainbow -v";
 
 /// Build the `━━━ TITLE ━━━` banner line (plain text; the renderer
 /// wraps it in bold brand purple when the surface supports ANSI).
@@ -51,6 +51,23 @@ fn banner_line(title: &str) -> String {
     format!(
         "{BANNER_GLYPH}{BANNER_GLYPH}{BANNER_GLYPH} {title} {BANNER_GLYPH}{BANNER_GLYPH}{BANNER_GLYPH}"
     )
+}
+
+/// Emit the closing usage pointer for helper outputs that are not
+/// Report-rendered (the discovery list printers). Same canon as the
+/// report tail: one blank line, then the grammar-plus-example line,
+/// painted in the calm grey grammar tier when `ansi` is available.
+pub(crate) fn print_usage_note(ansi: bool) {
+    crate::output::println_safe!();
+    if ansi {
+        crate::output::println_safe!(
+            "{}{USAGE_NOTE}{}",
+            crate::output::grey_open(),
+            crate::output::reset()
+        );
+    } else {
+        crate::output::println_safe!("{USAGE_NOTE}");
+    }
 }
 
 /// Build one aligned field line: two-space indent, colon-attached key
