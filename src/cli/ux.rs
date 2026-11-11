@@ -161,6 +161,22 @@ pub(crate) fn die_config_apply_error(e: String) -> ! {
     }
 }
 
+/// The real full usage line as a `StyledStr`, in the help canon.
+///
+/// `Command::render_usage()` spells the options placeholder in clap's
+/// own all-caps house style ("Usage: cosmostrix [OPTIONS]"), while
+/// every cosmostrix surface — the curated `--help` manual, the
+/// ux-rendered usage line, the report usage pointer — spells it
+/// lowercase ("cosmostrix [options]"). The token is rewritten here so
+/// clap-rendered errors carry the same grammar; the styles already
+/// embedded in the rendered string pass through untouched (the token
+/// is plain text, never split by a style boundary).
+fn real_usage_styled(cmd: &mut Command) -> clap::builder::StyledStr {
+    let rendered = cmd.render_usage();
+    let normalized = rendered.ansi().to_string().replace("[OPTIONS]", "[options]");
+    clap::builder::StyledStr::from(normalized)
+}
+
 /// Print an error message in branded red. Strips a leading "error: " prefix
 /// if present (since `eprintln_error_labeled` adds its own "error:" label).
 fn print_branded_error(msg: &str) {
@@ -289,7 +305,7 @@ pub(crate) fn exit_clap_error(mut e: clap::Error, cmd: &mut Command) -> ! {
     // RichFormatter renders the Usage context verbatim; without this,
     // suggestion-carrying errors show the narrowed usage and
     // missing-value errors show none.
-    let real_usage = cmd.render_usage();
+    let real_usage = real_usage_styled(cmd);
     e.insert(ContextKind::Usage, ContextValue::StyledStr(real_usage));
 
     // Re-render with the command's styles applied, then print to the
@@ -410,9 +426,9 @@ mod tests {
             ),
             other => panic!("expected a rescued SuggestedArg, got {other:?}"),
         }
-        // Full render contract: one tip, the suggested flag, the real
+        // Full render contract: one tip, the suggested option, the real
         // (never narrowed) usage — same invariants as clap's own path.
-        let real_usage = cmd.render_usage();
+        let real_usage = real_usage_styled(&mut cmd);
         err.insert(ContextKind::Usage, ContextValue::StyledStr(real_usage));
         let err = err.format(&mut cmd);
         let rendered = err.render().to_string();
@@ -483,9 +499,11 @@ mod tests {
         );
     }
 
-    /// The real-usage contract: `Command::render_usage()` (what
-    /// `exit_clap_error` injects into every clap error) must be the
-    /// plain full-usage form, never a suggestion-narrowed form.
+    /// The real-usage contract: `Command::render_usage()` (the raw
+    /// material `real_usage_styled` hands to `exit_clap_error`) must be
+    /// the plain full-usage form, never a suggestion-narrowed form —
+    /// and the styled helper must rewrite clap's all-caps options
+    /// placeholder into the lowercase help canon.
     #[test]
     fn render_usage_is_full_usage_not_narrowed() {
         use clap::CommandFactory;
@@ -494,6 +512,15 @@ mod tests {
         assert!(
             usage.contains("Usage: cosmostrix [OPTIONS]"),
             "render_usage must produce the full usage line, got: {usage:?}"
+        );
+        let normalized = super::real_usage_styled(&mut cmd).to_string();
+        assert!(
+            normalized.contains("Usage: cosmostrix [options]"),
+            "the styled usage must carry the lowercase canon, got: {normalized:?}"
+        );
+        assert!(
+            !normalized.contains("[OPTIONS]"),
+            "no all-caps placeholder may survive the rewrite, got: {normalized:?}"
         );
     }
 
@@ -520,7 +547,7 @@ mod tests {
         // the real usage instead.
         let mut err = err;
         let mut cmd = crate::config::Args::command();
-        let real_usage = cmd.render_usage();
+        let real_usage = real_usage_styled(&mut cmd);
         err.insert(ContextKind::Usage, ContextValue::StyledStr(real_usage));
         let err = err.format(&mut cmd);
         let rendered = err.render().to_string();
