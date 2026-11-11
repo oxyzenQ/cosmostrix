@@ -305,7 +305,7 @@ ownership-gated (config/ambient-selected blocks override CLI locks;
 CLI-selected ones keep CLI-shadowed fields locked) — see
 `docs/LIVE_RELOAD_BEHAVIOR.md` §16.
 
-### Killer-feature warning routing (v80.0.0-beta.1 hardening)
+### Defining-feature warning routing (v80.0.0-beta.1 hardening)
 
 Warnings that can fire on BOTH sides of the interactive session boundary (charset
 wide-char skip notes, custom-vs-builtin name collisions, scene-custom invalid
@@ -314,7 +314,7 @@ the rain session starts, buffered `push_runtime_warning` while the alternate
 screen is active (AB-10 — a stderr line must never leak into the rain matrix).
 The session gate is `INTERACTIVE_SESSION_ACTIVE`, set once at the top of
 `run_interactive`. The runtime warning log also dedups identical messages —
-several killer-feature notes re-fire per scene change / config save, and the
+several defining-feature notes re-fire per scene change / config save, and the
 post-exit summary must stay readable.
 
 v80.0.0-alpha.1 (S-master-HUNT-3): the SELF-HEAL family (predictive

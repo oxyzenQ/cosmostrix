@@ -199,7 +199,7 @@ fn dna_repaints_without_residue() {
     let after = cloud.dna_helix_rain.drawn_cells_for_test().len();
     // The populations must be the same order (the fork may open or
     // close a dissolve window between snapshots — a bounded
-    // variation, never a collapse or an explosion).
+    // variation, never a collapse or a spike).
     assert!(
         after > baseline / 2 && after < baseline * 2 + 64,
         "drawn population unstable: {baseline} -> {after}"

@@ -284,7 +284,7 @@ pub(crate) fn load_custom_palette(
 /// layers to resolve custom color names (matching top-level config_apply
 /// behavior which resolves via `parse_color_scheme || colors-custom lookup`).
 ///
-/// v80.0.0-beta.1 killer-features hardening: cheap pre-check (mirrors
+/// v80.0.0-beta.1 defining-features hardening: cheap pre-check (mirrors
 /// charset_custom's `contains_key` probe) — if the config defines no
 /// `[colors-custom.*]` blocks at all, skip building the full BTreeMap.
 /// This probe runs on every scene change and live reload via the

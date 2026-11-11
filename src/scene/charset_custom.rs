@@ -204,7 +204,7 @@ pub(crate) fn parse_charset_value(value: &str) -> Result<Vec<char>, String> {
     }
 
     if !skipped_wide.is_empty() {
-        // v80.0.0-beta.1 killer-features hardening: routed through warn_runtime_or_now —
+        // v80.0.0-beta.1 defining-features hardening: routed through warn_runtime_or_now —
         // collect_charset_custom re-runs on every scene change and live
         // reload, so this warning fires mid-rain and must buffer (AB-10)
         // instead of eprintln-ing into the alt screen.

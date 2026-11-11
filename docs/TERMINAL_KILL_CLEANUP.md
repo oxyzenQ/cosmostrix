@@ -200,7 +200,7 @@ printf '\033c'
 # Restore sane TTY line discipline
 stty sane
 
-# Nuclear option (clears screen and scrollback)
+# Last resort (clears screen and scrollback)
 cosmostrix --reset-terminal
 ```
 

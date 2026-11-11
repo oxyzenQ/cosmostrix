@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-# Z-master-v2 LTS Audit — Killer Features / CLI / Config Harmony (2026-09-01)
+# Z-master-v2 LTS Audit — Defining Features / CLI / Config Harmony (2026-09-01)
 
 Owner suspicion across all three tasks: "some potential bug". Depth
 stresstest confirmed the suspicion — one systematic bug family
@@ -18,7 +18,7 @@ layers) — the "paint shop", not the drivetrain. The A/B benchmark
 (section 5) proves the parity: visual metrics identical, performance
 within the natural variance band.
 
-## 1. Z-master-1-v2 — killer features (colors-custom / charset-custom / scene-custom)
+## 1. Z-master-1-v2 — defining features (colors-custom / charset-custom / scene-custom)
 
 ### Method
 

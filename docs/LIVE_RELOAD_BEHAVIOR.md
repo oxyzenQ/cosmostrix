@@ -618,7 +618,7 @@ Limitation, not a gap).
 - Custom palette loader: `src/engine/chroma_dragon_engine/colors_custom.rs`
   (`load_custom_palette`, `is_colors_custom_name`)
 
-## 11. Z-master-1-v2 Audit — Killer-Features Priority Contract (2026-09-01)
+## 11. Z-master-1-v2 Audit — Defining-Features Priority Contract (2026-09-01)
 
 > **v80.0.0-beta.2 (S-master-LOGIC-3) SUPERSEDES gaps #1 and #2 below**:
 > the CLI gates added by this audit encoded the "CLI always wins at
@@ -631,7 +631,7 @@ Limitation, not a gap).
 > complete self-contained profiles). Gap #3 (conflict determinism) and
 > gap #4 (palette clear on scene switch) remain in force.
 
-Owner suspicion: "some potential bug" in the killer features
+Owner suspicion: "some potential bug" in the defining features
 (colors-custom / charset-custom / scene-custom) under live reload.
 Depth stresstest of the scene-custom re-apply path found FOUR gaps in the
 priority contract — the same bug family as FPS-F4, which had fixed the

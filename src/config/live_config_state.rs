@@ -65,7 +65,7 @@ const MAX_RUNTIME_WARNING_LOG: usize = 64;
 /// on the always-drained channel.
 pub(crate) static LIVE_RELOAD_RUNTIME_DIAGS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
-/// v80.0.0-beta.1 killer-features hardening: true while the interactive rain session
+/// v80.0.0-beta.1 defining-features hardening: true while the interactive rain session
 /// (alternate screen) is active. Set once at the top of `run_interactive`,
 /// never cleared — the process exits when the session ends. Warnings that
 /// can fire on BOTH sides of the session boundary (charset-custom parse
@@ -96,8 +96,8 @@ pub(crate) fn reset_interactive_session_active() {
 /// Append a non-fatal runtime warning to the session log. Bulletproof —
 /// never panics on poisoned mutex. Called from the live-reload path only.
 ///
-/// v80.0.0-beta.1 killer-features hardening: identical messages are deduplicated.
-/// Several killer-feature warnings re-fire on every scene change / config
+/// v80.0.0-beta.1 defining-features hardening: identical messages are deduplicated.
+/// Several defining-feature warnings re-fire on every scene change / config
 /// save (the `.stops` deprecation, the scene-custom re-apply note); without
 /// dedup a long editing session fills the 64-slot buffer with copies and
 /// the post-exit summary becomes unreadable spam. First occurrence wins.

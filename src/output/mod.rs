@@ -645,7 +645,7 @@ pub(crate) fn eprintln_suggestion_line(msg: &str) {
     eprintln_safe!("{}", suggestion(&escape_ctrl(msg)));
 }
 
-/// v80.0.0-beta.1 killer-features hardening: route a warning that can fire on BOTH
+/// v80.0.0-beta.1 defining-features hardening: route a warning that can fire on BOTH
 /// sides of the interactive session boundary (startup AND mid-rain via
 /// scene changes / live reload). Before the rain session starts, print
 /// immediately (same behavior as `eprintln_warn_labeled`); while the
@@ -668,7 +668,7 @@ pub(crate) fn warn_runtime_or_now(msg: &str) {
 /// preset/scene/color with the same name. Owner Option D mandate: custom
 /// wins, but the user must be informed so silent shadowing never happens.
 ///
-/// v80.0.0-beta.1 killer-features hardening: routed through `warn_runtime_or_now` —
+/// v80.0.0-beta.1 defining-features hardening: routed through `warn_runtime_or_now` —
 /// the charset-custom collision site fires per scene change / live reload
 /// (mid-rain), so the notice must buffer during the session instead of
 /// eprintln-ing into the alt screen. Startup callers (config_apply, main)

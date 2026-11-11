@@ -73,7 +73,7 @@ pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) ->
 
 /// Render a detailed description of a single custom scene.
 ///
-/// v80.0.0-beta.1 killer-features hardening: `monolith-size` and `color-bg` are
+/// v80.0.0-beta.1 defining-features hardening: `monolith-size` and `color-bg` are
 /// intentionally NOT displayed — they are forbidden in `[scene-custom.*]`
 /// blocks by the owner contract (`SCENE_CUSTOM_FIELDS` excludes them, so
 /// `collect_custom_scenes` never sets those fields). The former display

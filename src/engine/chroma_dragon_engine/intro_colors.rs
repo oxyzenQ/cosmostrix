@@ -45,7 +45,7 @@
 /// Cosmic Burst particle color palette (RGB).
 ///
 /// Sampled by per-particle random index during Phase 2 (burst) — the
-/// explosion alternates gold (energy), brand purple (identity), and
+/// burst alternates gold (energy), brand purple (identity), and
 /// cyan (plasma) for visual variety.
 ///
 /// The brand-purple slot (`[1]`) is replaced at runtime by `logo_color`

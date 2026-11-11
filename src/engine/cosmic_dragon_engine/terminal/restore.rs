@@ -9,7 +9,7 @@
 //! - `restore_terminal_best_effort()`: graceful terminal restore
 //!   (disable mouse capture, focus change, bracketed paste, reset
 //!   attributes + color). Called on normal exit + panic hook.
-//! - `reset_terminal_emergency()`: 5-layer nuclear reset for
+//! - `reset_terminal_emergency()`: 5-layer last-resort reset for
 //!   `--reset-terminal` (ANSI restore + ANSI reset + crossterm +
 //!   stty sane + reset + tput).
 //! - `blank_cell()`: empty Cell with optional bg.
@@ -180,7 +180,7 @@ pub(crate) const TERMINAL_RESTORE_SEQUENCE: &str = "\x1b[0m\
 /// - Clear scrollback (`\x1b[3J`)
 /// - Cursor home again (after clear)
 ///
-/// This is the "nuclear option" — it wipes the visible screen AND the
+/// This is the "last resort" — it wipes the visible screen AND the
 /// scrollback buffer. Use only when the terminal is in a broken state
 /// (e.g., after SIGKILL left cosmostrix's alternate screen + raw mode
 /// active and the user can't see their shell prompt).
@@ -198,7 +198,7 @@ pub(crate) const TERMINAL_RESET_SEQUENCE: &str = "\x1b[0m\
      \x1b[H\x1b[2J\x1b[3J\x1b[H\
      \x1b[0m";
 
-/// Emergency terminal reset — the "nuclear option" for broken terminals.
+/// Emergency terminal reset — the "last resort" for broken terminals.
 ///
 /// Called by `--reset-terminal`. This is the most aggressive recovery
 /// path, used when cosmostrix (or any terminal app) was killed with

@@ -1486,12 +1486,12 @@ pub(crate) const BLACK_HOLE_FORM_SEED_SECS: f32 = 1.4;
 
 /// Collapse phase duration: the seed brightens to Core and a
 /// four-cell cross flares around it — the last light of the
-/// collapsing star, the pre-explosion beat.
+/// collapsing star, the pre-burst beat.
 pub(crate) const BLACK_HOLE_FORM_COLLAPSE_SECS: f32 = 0.5;
 
 /// Horizon bloom duration: the annulus grows from the inside out
 /// (photon-ring cells first, outer rim last) on a cubic ease-out —
-/// the "small dot explodes into the hole" read, ~1.2 s so the
+/// the "small dot bursts into the hole" read, ~1.2 s so the
 /// expansion is unmistakable without strobing.
 pub(crate) const BLACK_HOLE_FORM_HORIZON_SECS: f32 = 1.2;
 
@@ -2776,7 +2776,7 @@ pub(crate) const NEUR_Y_JITTER: f32 = 1.5;
 pub(crate) const NEUR_THRESHOLD: f32 = 1.0;
 
 /// The potential's hard cap (bounded by construction, not by
-/// hope — a saturated cell clamps, it never explodes).
+/// hope — a saturated cell clamps, it never diverges).
 pub(crate) const NEUR_POT_CAP: f32 = 2.0;
 
 /// The membrane leak's time constant (sim-seconds — the

@@ -399,7 +399,7 @@ fn load_custom_palette_not_found_suggests_closest() {
 
 // ── pre-check probe tests ─────────────────────────────────────────
 
-// Former mod precheck_tests (v80.0.0-beta.1 killer-features hardening:
+// Former mod precheck_tests (v80.0.0-beta.1 defining-features hardening:
 // pre-check probe behavior) — now flat in this module.
 
 #[test]

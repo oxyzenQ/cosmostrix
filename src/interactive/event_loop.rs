@@ -45,7 +45,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // docs/USAGE_PIPE_REDIRECT.md for the full fatal-usage catalog.
     super::watchdog::warn_if_stdout_not_terminal();
 
-    // v80.0.0-beta.1 killer-features hardening: mark the interactive session (alt
+    // v80.0.0-beta.1 defining-features hardening: mark the interactive session (alt
     // screen) as active BEFORE any config-block helper can fire a warning —
     // intro sequence + scene changes + live reload all resolve custom
     // palettes/charsets/scenes mid-rain. Warnings routed through

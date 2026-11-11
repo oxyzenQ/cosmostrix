@@ -49,7 +49,7 @@ const PHASE2_BURST_END_MS: u64 = 2_500;
 const PHASE3_MORPH_END_MS: u64 = 4_000;
 const PHASE4_RAIN_END_MS: u64 = 5_000;
 
-/// Burst particle characters — varied glyphs so the explosion looks like
+/// Burst particle characters — varied glyphs so the burst looks like
 /// cosmic debris rather than a uniform dotted cloud.
 pub(crate) const BURST_CHARS: [char; 6] = ['c', '*', '.', '0', 'O', 'o'];
 
@@ -68,7 +68,7 @@ const MORPH_SPEED_MIN: f32 = 5.0;
 const MORPH_SPEED_MAX: f32 = 15.0;
 
 /// Spiral rate range (radians per second). Each particle's angle rotates
-/// by a small random amount per frame, giving the explosion a cosmic
+/// by a small random amount per frame, giving the burst a cosmic
 /// spiral feel rather than a straight radial spread.
 const SPIRAL_RATE_MIN: f32 = 0.5; // ~29 deg/sec
 const SPIRAL_RATE_MAX: f32 = 1.5; // ~86 deg/sec
@@ -148,7 +148,7 @@ pub(super) fn run_cosmic_intro(
             }
             2 => {
                 // Phase 2: Burst. Spawn all particles in the first 200 ms of
-                // the phase so the explosion feels instantaneous.
+                // the phase so the burst feels instantaneous.
                 // v80.0.0-beta.1 chroma dragon integration (owner mandate
                 // 2026-09-02): pass the intro palette's color stops so
                 // spawn_burst can sample each particle's color from the
@@ -288,7 +288,7 @@ pub(super) fn run_cosmic_intro(
     Ok(IntroOutcome::Completed)
 }
 
-/// Spawn a burst of particles at `(cx, cy)` — the cosmic explosion.
+/// Spawn a burst of particles at `(cx, cy)` — the cosmic burst.
 ///
 /// Each particle gets a random angle (0..2π), random speed within
 /// `[BURST_SPEED_MIN, BURST_SPEED_MAX)`, and a random spiral rate

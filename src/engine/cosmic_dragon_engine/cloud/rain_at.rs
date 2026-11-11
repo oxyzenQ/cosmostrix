@@ -43,7 +43,7 @@ impl super::Cloud {
         // every branch, but a stale-state bug across rapid triple-taps
         // could in principle leave both set — which would cause both
         // easing blocks below to compute simultaneously, producing
-        // nonsensical resume_blend values (decel fighting accel).
+        // nonsensical resume_blend values (decel contending with accel).
         // debug_assert! is zero-cost in release builds.
         debug_assert!(
             !(self.pause_start.is_some() && self.resume_start.is_some()),

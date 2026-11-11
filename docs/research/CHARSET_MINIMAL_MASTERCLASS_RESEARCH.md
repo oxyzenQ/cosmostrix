@@ -182,7 +182,7 @@ elegance (e.g. if reports arrive of `◎` misrendering on niche fonts).
 ## 6. Preview before deciding (no build needed)
 
 Each option can be previewed RIGHT NOW against the live rain using the
-charset-custom killer feature — a custom block with the same name
+charset-custom defining feature — a custom block with the same name
 shadows the builtin preset (custom wins, with the Option-D collision
 notice; see docs/RULES.md):
 

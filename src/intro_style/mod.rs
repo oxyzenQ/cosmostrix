@@ -11,7 +11,7 @@
 //! | Style    | Animation                                             | Length |
 //! |----------|-------------------------------------------------------|--------|
 //! | `logo`   | cosmostrix Logo: laser charge → ignition glow → dissolve → rain | ~4.5 s |
-//! | `cosmic` | Cosmic Burst: singularity → explosion → morph → rain  | ~5 s   |
+//! | `cosmic` | Cosmic Burst: singularity → burst → morph → rain  | ~5 s   |
 //! | `none`   | No intro; skip straight to the rain engine.           | 0 s    |
 //!
 //! ## One file per style (owner refactor mandate)
@@ -104,7 +104,7 @@ pub(crate) enum IntroOutcome {
 /// (the `intro` field), `cli/app.rs`, bench enrichment, and verbose
 /// startup output via `crate::intro_style::IntroType`.
 ///
-/// * `Cosmic` — Cosmic Burst: singularity → explosion → morph → rain.
+/// * `Cosmic` — Cosmic Burst: singularity → burst → morph → rain.
 /// * `Logo`   — cosmostrix Logo: laser charge → ignition → dissolve → rain.
 /// * `None`   — No intro; skip straight to the rain engine.
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

@@ -229,7 +229,7 @@ Common options:
                 over seamlessly.
         cosmic  Cosmic Burst intro (~5s). A singularity appears at
                 center screen, pulses with rising frequency, then
-                explodes into cosmic particles (gold, purple, cyan)
+                bursts into cosmic particles (gold, purple, cyan)
                 that spiral outward. The particles slow and morph
                 into Matrix rain.
         none    Skip the intro entirely.
@@ -607,7 +607,7 @@ Diagnostics:
       Marks >5% FPS regressions with a clear PASS/FAIL verdict.
       cosmostrix --benchmark --compare-baseline base.json
   --reset-terminal
-      Emergency terminal recovery — the nuclear option.
+      Emergency terminal recovery — the last resort.
       Use after SIGKILL (kill -9) or crash leaves the terminal broken.
       5-layer defense-in-depth recovery:
         1. ANSI restore: disable mouse, focus, paste, alt screen, sync output

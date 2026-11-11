@@ -79,7 +79,7 @@ philosophy. When `kill -9` (SIGKILL) hits cosmostrix, the process dies instantly
 - **Layer 4** (stty): Critical — raw mode is a kernel termios setting,
   not an ANSI mode. ANSI escapes CANNOT fix raw mode. `stty sane`
   restores the kernel's terminal line discipline.
-- **Layer 5** (reset/tput): Nuclear option — these external utilities
+- **Layer 5** (reset/tput): Last resort — these external utilities
   send the terminal's full init sequence from the terminfo database.
   May not exist on all systems (embedded, minimal containers), so
   failure is silently ignored.
@@ -134,7 +134,7 @@ The Cosmic Dragon survives every kill signal through a 3-layer process guard:
                     ┌─────────────▼────────────────┐
                     │  Terminal still broken?       │
                     │  -> cosmostrix --reset-terminal│
-                    │  -> 5-layer nuclear recovery   │
+                    │  -> 5-layer final recovery     │
                     └──────────────────────────────┘
 ```
 
@@ -171,7 +171,7 @@ macOS and Windows don't have this guard — they rely on Layer 3.
 - If both Layer 1 and Layer 2 fail (or on macOS/Windows), the user
   runs `cosmostrix --reset-terminal`
 - This runs the full 5-layer recovery sequence described above
-- It's the "nuclear option" — clears screen + scrollback, but
+- It's the "last resort" — clears screen + scrollback, but
   guarantees a clean terminal state
 
 ## Defense-in-Depth: Config Security
