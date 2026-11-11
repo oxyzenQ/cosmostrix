@@ -424,8 +424,17 @@ jobs:
         # above).
         partition: [1, 2, 3, 4]
     steps:
-      # No checkout: the archive is self-contained (test binaries plus
-      # their data), no source needed at execution time.
+      # The archive carries the test binaries and their data, but
+      # nextest still resolves the workspace root baked into the
+      # archive metadata (build-script reuse) - the shard failure on
+      # 2026-11-11 was "workspace root manifest ... does not exist" -
+      # and one test reads the source tree at runtime through
+      # CARGO_MANIFEST_DIR. A shallow checkout of the same commit at
+      # the same default path satisfies both without paying a compile.
+      - name: Check out the source under test
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Install Rust toolchain (cargo for the nextest invocation)
         uses: dtolnay/rust-toolchain@stable
         with:
