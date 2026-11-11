@@ -159,8 +159,8 @@ jobs:
       - name: Install musl link tools
         run: |
           set -euo pipefail
-          sudo apt-get -o Acquire::Retries=5 update -qq
-          sudo apt-get -o Acquire::Retries=5 install -y -qq musl-tools
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y -qq musl-tools
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2
@@ -248,8 +248,8 @@ jobs:
       - name: Install musl link tools
         run: |
           set -euo pipefail
-          sudo apt-get -o Acquire::Retries=5 update -qq
-          sudo apt-get -o Acquire::Retries=5 install -y -qq musl-tools
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y -qq musl-tools
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2
@@ -314,8 +314,8 @@ jobs:
       # curl 500s, and apt's default is zero retries).
       - name: Install qemu + cpio
         run: >-
-          sudo apt-get -o Acquire::Retries=5 update -qq &&
-          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq &&
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y --no-install-recommends qemu-system-x86 cpio
 
       - name: Download the lane payload (binary + entropy-seed helper)
         uses: actions/download-artifact@v8
@@ -567,8 +567,8 @@ jobs:
 
       - name: Install qemu + cpio
         run: >-
-          sudo apt-get -o Acquire::Retries=5 update -qq &&
-          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq &&
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y --no-install-recommends qemu-system-x86 cpio
 
       - name: Download the lane payload (the v3 release shape)
         uses: actions/download-artifact@v8

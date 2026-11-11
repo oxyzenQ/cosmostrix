@@ -237,8 +237,8 @@ jobs:
           set -euo pipefail
           # NIGHT-dinner-1: apt rides its own retry knob - a flaky
           # mirror fetch must not read as a code failure.
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y musl-tools
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y musl-tools
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2
@@ -442,8 +442,8 @@ jobs:
       - name: Install musl cross tools
         run: |
           set -euo pipefail
-          sudo apt-get -o Acquire::Retries=5 update -qq
-          sudo apt-get -o Acquire::Retries=5 install -y -qq musl-tools
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y -qq musl-tools
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2

@@ -92,8 +92,8 @@ jobs:
           # on a missing tool, so this census pays the seat's own bill
           # before the gate asks for it.
           if ! command -v jq >/dev/null 2>&1; then
-            sudo apt-get -o Acquire::Retries=5 update -qq
-            sudo apt-get -o Acquire::Retries=5 install -y -qq jq
+            sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
+            sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y -qq jq
           fi
           jq --version
 

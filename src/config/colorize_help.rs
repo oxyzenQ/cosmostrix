@@ -74,9 +74,7 @@ pub(crate) fn colorize_help(text: &str) -> String {
             && line.ends_with(':')
             && !body.is_empty()
             && body.len() <= 40
-            && body
-                .chars()
-                .all(|c| c.is_ascii_alphabetic() || c == ' ');
+            && body.chars().all(|c| c.is_ascii_alphabetic() || c == ' ');
 
         if is_banner || is_heading {
             // Bold brand purple for the banner rail and section

@@ -88,7 +88,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          sudo apt-get -o Acquire::Retries=5 update -qq && sudo apt-get -o Acquire::Retries=5 install -y -qq shellcheck
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq && sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y -qq shellcheck
           # Unpinned on purpose (owner policy 2026-08-30): CI-installed
           # deps resolve their latest upstream release at run time - zero
           # hardcoded dep versions in .github/*, minimal maintenance.

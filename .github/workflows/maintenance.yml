@@ -213,8 +213,8 @@ jobs:
           # night-dragon-maintenance-6: the validation build is the static
           # musl release shape (the gnu alias pair is retired); ubuntu
           # runners build the musl target cleanly with musl-tools.
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y musl-tools
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+          sudo timeout 90 apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y musl-tools
           cargo pro-linux-amd64-v3-musl --locked
 
       - name: Run tests
