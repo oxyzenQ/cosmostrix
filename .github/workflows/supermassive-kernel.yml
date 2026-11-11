@@ -357,15 +357,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/kfloor && cd /tmp/kfloor
-          # night-T-2 round 10: the ubuntu.com DNS flap bypassed entirely.
-          # The host is pinned to its stable Launchpad IPv4 (resolved from
-          # a healthy resolver, verified against the canonical.com CNAME) -
-          # a different network path from the flapping azure.archive mirror,
-          # never touched by the system resolver. Best-effort: a healthy
-          # resolver keeps working, a flapping one stops being the SPOF.
+          # night-T-2 round 13: old-releases.ubuntu.com rides the flapping
+          # ubuntu.com zone and its Launchpad edge IPs time out from the GH
+          # runner network (exit 28). The USTC mirror carries the same
+          # intrepid pool (verified 200 on /ubuntu/pool/main/l/linux/) on a
+          # different network path entirely. Keep the hosts pin as a fallback
+          # (best-effort, never harmful), point the fetch at the mirror.
           echo "162.213.35.96 old-releases.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
-          POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/l/linux"
-          LISTING="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --max-time 45 "$POOL/")"
+          POOL="https://mirrors.ustc.edu.cn/ubuntu/pool/main/l/linux"
+          LISTING="$(curl -fsSL --retry-all-errors --retry 3 --retry-delay 3 --connect-timeout 10 --max-time 60 "$POOL/")"
           IMG="$(printf '%s' "$LISTING" \
             | grep -oE 'linux-image-2\.6\.27-[0-9]+-generic_[^"]+_amd64\.deb' \
             | sort -u -V | head -1 || true)"
@@ -380,7 +380,7 @@ jobs:
           # --retry 5 / --max-time 300 pair let a slow archive-mirror
           # attempt chain into a 310 s step. Bounded now: one resume
           # (-C -) retry inside a 150 s cap per transfer.
-          curl -fsSL --retry-all-errors --retry 1 --retry-delay 3 --max-time 150 -C - -o "$IMG" "$POOL/$IMG"
+          curl -fsSL --retry-all-errors --retry 1 --retry-delay 3 --connect-timeout 10 --max-time 150 -C - -o "$IMG" "$POOL/$IMG"
           dpkg -x "$IMG" pkg
           VMLINUZ="$(find pkg/boot -name 'vmlinuz-2.6.27-*' | head -1)"
           if [ -z "$VMLINUZ" ]; then
@@ -416,16 +416,18 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/kfloor
-          POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/b/busybox"
+          # night-T-2 round 13: the busybox fetch rides the USTC mirror too
+          # (the intrepid era pool + dists index both live there, verified).
+          POOL="https://mirrors.ustc.edu.cn/ubuntu/pool/main/b/busybox"
           ERA_DEB="busybox-initramfs_1.10.2-1ubuntu6_amd64.deb"
-          DIST="https://old-releases.ubuntu.com/ubuntu/dists/intrepid/main/binary-amd64/Packages.gz"
-          if curl -fsI --retry-all-errors --retry 2 --retry-delay 3 --max-time 20 "$POOL/$ERA_DEB" >/dev/null; then
+          DIST="https://mirrors.ustc.edu.cn/ubuntu/dists/intrepid/main/binary-amd64/Packages.gz"
+          if curl -fsI --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 25 "$POOL/$ERA_DEB" >/dev/null; then
             BUSY="$ERA_DEB"
             echo "resolved: $BUSY (pinned intrepid GA busybox-initramfs, era-true)"
-            curl -fsSL --retry-all-errors --retry 1 --retry-delay 3 --max-time 60 -C - -o "$BUSY" "$POOL/$BUSY"
+            curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 90 -C - -o "$BUSY" "$POOL/$BUSY"
           else
             echo "pinned era deb HEAD-probe failed - resolving from the intrepid dists index"
-            PKGS="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --max-time 45 "$DIST" | gzip -d || true)"
+            PKGS="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 45 "$DIST" | gzip -d || true)"
             FNAME="$(printf '%s' "$PKGS" \
               | awk '/^Package: busybox-initramfs$/{f=1;next} f&&/^$/{exit} f&&/^Filename: /{print $2; exit}' || true)"
             if [ -z "$FNAME" ]; then
@@ -436,7 +438,7 @@ jobs:
             fi
             BUSY="$(basename "$FNAME")"
             echo "resolved: $BUSY (from the intrepid dists index, era-true)"
-            curl -fsSL --retry-all-errors --retry 1 --retry-delay 3 --max-time 60 -C - -o "$BUSY" "https://old-releases.ubuntu.com/ubuntu/$FNAME"
+            curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 90 -C - -o "$BUSY" "https://mirrors.ustc.edu.cn/ubuntu/$FNAME"
           fi
           dpkg -x "$BUSY" pkg-busybox
           SRCBB="$(find pkg-busybox -name busybox -type f | head -1)"
@@ -647,7 +649,7 @@ jobs:
           echo "185.125.189.74 kernel.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
           echo "185.125.189.75 kernel.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
           echo "185.125.189.76 kernel.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
-          LISTING="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --max-time 60 "$BASE/")"
+          LISTING="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 60 "$BASE/")"
           TAGS="$(printf '%s' "$LISTING" \
             | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?/' \
             | sort -u -Vr | head -8 | sed 's|/$||' || true)"
@@ -675,7 +677,7 @@ jobs:
               break
             fi
             DIR="$BASE/$TAG"
-            DLIST="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --max-time 60 "$DIR/" || true)"
+            DLIST="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 60 "$DIR/" || true)"
             if [ -z "$FIRST_LISTING" ]; then
               FIRST_LISTING="$DLIST"
             fi
@@ -691,11 +693,11 @@ jobs:
               echo "skip: $TAG lists no linux-image *_generic amd64 deb - walking back"
               continue
             fi
-            if ! curl -fsI --retry-all-errors --retry 2 --retry-delay 3 --max-time 20 "$DIR/$REL" >/dev/null; then
+            if ! curl -fsI --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 20 "$DIR/$REL" >/dev/null; then
               echo "skip: $TAG lists $REL but the file HEAD-probes not-ready (mid-upload) - walking back"
               continue
             fi
-            if curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --max-time 120 -o "$(basename "$REL")" "$DIR/$REL"; then
+            if curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 120 -o "$(basename "$REL")" "$DIR/$REL"; then
               FOUND="$REL"
               BESTTAG="$TAG"
               echo "resolved: $TAG (the newest mainline stable tag that serves its deb)"
