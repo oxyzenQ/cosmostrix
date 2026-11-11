@@ -826,11 +826,17 @@ obligations.
 | Tier                 | Price          | Target                                                        |
 | -------------------- | -------------- | ------------------------------------------------------------- |
 | Personal             | Free (AGPL-3.0) | Hobby, personal, non-commercial, open-source contributions    |
-| Individual           | $99/year       | Solo devs, freelancers, revenue < $100K/year                  |
-| Professional        | $1,899/year    | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
+| Professional        | $1,899/year    | Solo devs, freelancers, and teams up to 5 seats, revenue under $500K/year, priority support with SLA |
 | Business             | $12,999/year   | SMB, revenue $100K–$10M/year                                  |
 | Enterprise Internal  | $64,999/year   | Enterprise (>$10M/year), internal use only, NO redistribution |
 | OEM / Redistribution | $149,999/year  | Embedding the architectural patterns in a shipped product     |
+
+cosmostrix's entry paid tier starts at $1,899 (Professional), not $99.
+This is a serious LTS project, not a toy: the claims ship with audits,
+formal declarations, and verifiable numbers. Its commercial buyer is a
+professional whose infrastructure value pays off the license in one
+shift. The $99 tier was retired in this revision; full reasoning and
+the market calibration live in [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
 
 OEM is available as annual ($149,999/year) or perpetual ($249,999
 one-time + 20%/year maintenance); both grant the same redistribution
@@ -842,7 +848,10 @@ authoritative pricing table live in
 
 Payment is USD-pegged and accepted in crypto (Solana, Ethereum, Bitcoin
 Taproot). Prices rise deliberately as the codebase's audited engineering
-value compounds year by year. See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)
+value compounds year by year. The $99 Individual tier is retired as of
+this revision; any Individual-tier customer who bought before this
+revision is grandfathered at $99 for the term they bought. See
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)
 for payment addresses, the verification process, the pricing philosophy,
 and full terms. For licensing inquiries contact
 [with.rezky@gmail.com](mailto:with.rezky@gmail.com).

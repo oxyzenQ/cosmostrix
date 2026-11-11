@@ -46,8 +46,7 @@ All prices are annual, pegged to USD, and payable in cryptocurrency (see
 | Tier                 | Price          | Target                                                        |
 | -------------------- | -------------- | ------------------------------------------------------------- |
 | Personal             | Free (AGPL-3.0) | Hobby, personal, non-commercial, open-source contributions    |
-| Individual           | $99/year       | Solo devs, freelancers, revenue < $100K/year                  |
-| Professional        | $1,899/year    | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
+| Professional        | $1,899/year    | Solo devs, freelancers, and teams up to 5 seats, revenue under $500K/year, priority support with SLA |
 | Business             | $12,999/year   | SMB, revenue $100K–$10M/year                                  |
 | Enterprise Internal  | $64,999/year   | Enterprise (>$10M/year), internal use only, NO redistribution |
 | OEM / Redistribution | $149,999/year  | Embedding the architectural patterns in a shipped product     |
@@ -67,12 +66,20 @@ The perpetual option is not stackable with the multi-year discount
 (already priced as a multi-year commitment). Grandfathering applies to
 whichever path the buyer purchased (see [Grandfathering](#grandfathering)).
 
-**Professional vs Individual.** Individual ($99/year) is a
-single-seat license for solo developers and freelancers with revenue
-under $100K. Professional ($1,899/year) covers teams of up to 5
-seats at revenue under $500K, with priority support and a response
-SLA. The 7 architectural patterns licensed are identical across
-both — Professional adds seats and support, not patterns.
+**The Professional tier.** Professional ($1,899/year) is the entry
+paid tier: a single seat for solo developers and freelancers with
+revenue under $100K, and up to 5 seats for teams at revenue under
+$500K, with priority support and a response SLA. The 7 architectural
+patterns licensed are identical across every paid tier — Professional
+adds seats and support, not patterns.
+
+**Why $1,899 not $99.** This is a serious LTS project, not a toy:
+the claims ship with audits, formal declarations, and verifiable
+numbers, and every hardening pass compounds the value the license
+buys. The commercial buyer is a professional whose infrastructure
+value pays off the license in one shift. The $99 tier was retired in
+this revision — the ladder matches the serious-tool standard the
+owner's portfolio carries (zelynic, zejtron).
 
 Multi-year contracts are available at the owner's discretion: 20% off a
 2-year contract, 30% off a 3-year contract. No free tier above Personal is
@@ -83,7 +90,9 @@ granted without explicit owner approval.
 Buyers who paid before a price move are grandfathered at the price they
 bought, for the term they bought. Existing Business-tier customers at
 $5,199 and Company-tier customers at $100,199 keep their purchased price
-for their purchased term; new licenses follow the current table. A
+for their purchased term; new licenses follow the current table.
+Individual-tier customers who bought before the November 2026
+revision are grandfathered at $99 for the term they bought. A
 grandfathered buyer who renews after their term ends renews at the
 current table — the grandfathering protects the purchased term, not a
 perpetual rate.
@@ -107,10 +116,15 @@ Recorded raises:
   Company $100,199 split into Enterprise Internal ($64,999/year,
   internal-only) and OEM / Redistribution ($149,999/year,
   embedding rights).
+- November 2026 (night-price-2): the $99 Individual tier retires;
+  the entry paid tier is Professional ($1,899/year). Individual-tier
+  buyers keep their $99 price for the term they bought.
 
-The Personal and Individual tiers are deliberately untouched across
-every raise — the increases track the compounding engineering value
-and apply only to the tiers that profit commercially from it.
+The Personal tier is deliberately untouched across every raise — the
+increases track the compounding engineering value and apply only to
+the tiers that profit commercially from it. The $99 Individual tier
+was the other fixed point until the November 2026 revision retired
+it; the entry paid tier is Professional now.
 
 ### Why cosmostrix is priced above the infrastructure tools
 
@@ -161,10 +175,12 @@ Every paid tier grants the right to use cosmostrix in commercial work
 without AGPL-3.0-only copyleft obligations, plus priority support from the
 maintainer:
 
-- **Individual ($99/year)** — solo developers and freelancers with
-  annual revenue under $100K.
-- **Professional ($1,899/year)** — teams of up to 5 seats with
-  annual revenue under $500K, priority support with a response SLA.
+- **Professional ($1,899/year)** — the entry paid tier: solo
+  developers and freelancers with annual revenue under $100K, and
+  teams of up to 5 seats with annual revenue under $500K, priority
+  support with a response SLA. Former Individual-tier customers keep
+  their $99 price for the term they bought (see
+  [Grandfathering](#grandfathering)).
 - **Business ($12,999/year)** — small and medium businesses with
   annual revenue from $100K to $10M.
 - **Enterprise Internal ($64,999/year)** — enterprises above $10M

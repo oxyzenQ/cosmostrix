@@ -32,21 +32,24 @@ tiers and pricing.
 
 ### Q: Which tier do I need?
 
-A: Tiers follow team shape and annual revenue: under $100K/year means
-Individual (solo seat), up to 5 seats at revenue under $500K/year
-means Professional, $100K–$10M/year means Business, above $10M/year
-means Enterprise Internal (internal use only, no redistribution). Any
+A: Tiers follow team shape and annual revenue: the entry paid tier is
+Professional ($1,899/year) — solo devs and freelancers, and up to 5
+seats at revenue under $500K/year; $100K–$10M/year means Business,
+above $10M/year means Enterprise Internal (internal use only, no
+redistribution). Any
 redistribution of cosmostrix — embedding or reselling it inside a
 shipped product — requires the OEM / Redistribution tier regardless of
 revenue.
 
 ### Q: I'm a team of 3 developers on a $250K/year revenue. Which tier?
 
-A: Professional ($1,899/year) covers teams up to 5 seats at revenue
-under $500K, with priority support. Individual ($99) is solo-seat
-only; Business ($12,999) is for teams at revenue $100K–$10M — but
-$12,999 is disproportionately heavy for a team of 3. Professional
-exists precisely to fill that gap.
+A: Professional ($1,899/year) is the entry paid tier: it covers solo
+developers and teams up to 5 seats at revenue under $500K, with
+priority support. Business ($12,999) is for teams at revenue
+$100K–$10M — but $12,999 is disproportionately heavy for a team of
+3. Professional exists precisely to fill that gap. (The former $99
+Individual tier is retired; customers who bought it before this
+revision are grandfathered at $99 for the term they bought.)
 
 ## Pricing
 
@@ -60,9 +63,11 @@ the Pricing Philosophy section of
 [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md): Business stands at
 $12,999/year, and the former Company tier is split into Enterprise
 Internal ($64,999/year, internal use only) and OEM / Redistribution
-($149,999/year, embedding rights). The Personal tier stays free and
-the Individual tier stays $99/year — the increases only touch business
-and enterprise buyers who profit from the work.
+($149,999/year, embedding rights). The Personal tier stays free, and
+the $99 Individual tier was retired in the November 2026 revision —
+the entry paid tier is Professional ($1,899/year) now — so the
+increases only touch business and enterprise buyers who profit from
+the work.
 
 ## Unlicensed commercial use
 
