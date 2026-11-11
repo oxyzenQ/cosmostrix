@@ -30,7 +30,7 @@
 //! - bench_report.rs: FPS, throughput, cells_drawn, frames, bytes_written,
 //!   ansi_bytes_per_second, heap sizes.
 //! - bench_json.rs: same fields in JSON.
-//! - event_loop_finalize.rs: perf-stats ENCODING + TIER2_XTERMJS sections.
+//! - event_loop_finalize.rs: perf-stats Encoding + Tier2 xterm.js sections.
 //! - hud.rs: fps display when >10K.
 //! - diagnostics/info.rs: format_bytes delegates here.
 //!

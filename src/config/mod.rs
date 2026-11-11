@@ -399,7 +399,7 @@ pub struct Args {
         help_heading = "Diagnostics",
         display_order = 117,
         help = "Run benchmark across multiple screen sizes (6x6 to 200x60). \
-                Prints a SCALING SUMMARY table. Use with --bench-duration for \
+                Prints a Scaling summary table. Use with --bench-duration for \
                 per-size duration (default 2s each)."
     )]
     pub bench_all: bool,

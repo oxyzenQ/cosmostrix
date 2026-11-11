@@ -105,7 +105,7 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     };
     let fps = (reported_frames as f64) / elapsed_s;
 
-    println_safe!("BENCH:");
+    println_safe!("Bench:");
     println_safe!("  scene: {}", cfg.scene_name);
     // disclose that monolith is the default + how to override, so
     // CI logs and human users can interpret FPS numbers correctly.

@@ -62,7 +62,7 @@ mod example_layout_tests {
     }
 
     /// NIGHT-boost-3: the -v section must disclose the session
-    /// telemetry implication (one flag = config + behavior + telemetry)
+    /// telemetry implication (one option = config + behavior + telemetry)
     /// and the --perf-stats section must point out it is implied by
     /// --verbose — the two sections document the same contract from
     /// both ends.

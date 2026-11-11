@@ -236,7 +236,7 @@ fn print_perf_report(
     let mut r = Report::new("COSMOSTRIX PERFORMANCE REPORT");
 
     {
-        let s = r.section("TIMING");
+        let s = r.section("Timing");
         s.field("elapsed", &format!("{:.3}s", elapsed_s));
         s.field(
             "target_fps",
@@ -255,7 +255,7 @@ fn print_perf_report(
     }
 
     {
-        let s = r.section("FRAMES");
+        let s = r.section("Frames");
         s.field("total", &stats.perf_frames.to_string());
         s.field(
             "drawn",
@@ -276,7 +276,7 @@ fn print_perf_report(
     }
 
     {
-        let s = r.section("MOTION");
+        let s = r.section("Motion");
         let avg_dirty = if stats.perf_dirty_samples > 0 {
             stats.perf_dirty_sum as f64 / stats.perf_dirty_samples as f64
         } else {
@@ -331,7 +331,7 @@ fn print_perf_report(
     }
 
     {
-        let s = r.section("LATENCY");
+        let s = r.section("Latency");
         s.field("avg_frame_time", &format!("{:.3}ms", avg_work_ms));
         s.field(
             "max_frame_time",
@@ -368,7 +368,7 @@ fn print_perf_report(
 
     // P5: Endurance health score
     {
-        let s = r.section("ENDURANCE");
+        let s = r.section("Endurance");
         s.field(
             "health_score",
             &format!("{:.1}/100", stats.endurance_health_score),
@@ -389,7 +389,7 @@ fn print_perf_report(
     // integer is preserved in parentheses for power users who need exact
     // precision when diagnosing cache behavior.
     {
-        let s = r.section("ENCODING");
+        let s = r.section("Encoding");
         let total_sgr = sgr_hits + sgr_misses;
         let hit_rate = if total_sgr > 0 {
             (sgr_hits as f64 / total_sgr as f64) * 100.0
@@ -437,7 +437,7 @@ fn print_perf_report(
     // The byte counter uses the centralized binary formatter so a 2 MiB
     // backpressure budget reads as `2.00 MiB` rather than a 7-digit raw.
     {
-        let s = r.section("TIER2_XTERMJS");
+        let s = r.section("Tier2 xterm.js");
         s.field("backpressure_skips", &tier2_skips.to_string());
         s.field("ris_resets", &tier2_resets.to_string());
         s.field(

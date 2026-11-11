@@ -7,7 +7,7 @@
 //!
 //! When `--bench-all` is passed, cosmostrix runs the benchmark for a
 //! predetermined set of screen sizes (6×6 through 200×60) and prints
-//! a SCALING SUMMARY table at the end.
+//! a Scaling summary table at the end.
 
 use crate::bench_report::BenchReportData;
 use crate::output::{eprintln_safe, println_safe};
@@ -117,7 +117,7 @@ pub(crate) struct ScaleResult {
 /// Print the scaling summary table.
 fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
     println_safe!();
-    println_safe!("SCALING SUMMARY (scene: {scene})");
+    println_safe!("Scaling summary (scene: {scene})");
     println_safe!("──────────────────────────────────");
     println_safe!(
         "  {:<8} {:>6} {:>10} {:>10} {:>6} {:>8} {:>8} {:>8}",
@@ -169,6 +169,10 @@ fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
     println_safe!("    • IPC > 2.0 = excellent pipeline utilization");
     println_safe!("    • Gini near 0 = uniform density; near 1 = concentrated");
     println_safe!();
+    // The helper-output canon (night-T-1): the bench-all summary closes
+    // with the one-line way back to the CLI, in the calm grey tier on a
+    // TTY.
+    crate::report::print_usage_note(crate::config::color_enabled_stdout());
 }
 
 /// Format an f64 as a JSON-safe string. Returns "null" for NaN/inf so the
@@ -186,7 +190,7 @@ fn fmt_finite(v: f64) -> String {
 ///
 /// `scene` is the active scene name (e.g. "cinematic"); it is included as a
 /// top-level field so JSON consumers can tell which scene generated the
-/// metrics without parsing the human-readable SCALING SUMMARY header.
+/// metrics without parsing the human-readable Scaling summary header.
 pub(crate) fn build_scaling_json(results: &[ScaleResult], scene: &str) -> String {
     let mut out = String::with_capacity(2048);
     out.push('{');

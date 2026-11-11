@@ -103,6 +103,10 @@ fn dispatch_post_config(cmd: PostConfigCmd, args: &Args) -> std::io::Result<()> 
             // overview, then exit. Plain text only (no ANSI) so it pipes
             // cleanly into `less`, `grep`, or documentation generators.
             println_safe!("{}", info::docs_report());
+            // The helper-output canon (night-T-1): every helper output
+            // closes with the one-line way back to the CLI. --docs keeps
+            // the plain form — the no-ANSI contract holds end to end.
+            crate::report::print_usage_note(false);
             Ok(())
         }
         PostConfigCmd::CheckUpdate => {
@@ -115,6 +119,9 @@ fn dispatch_post_config(cmd: PostConfigCmd, args: &Args) -> std::io::Result<()> 
             if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
                 ux::die_config(format!("error: update check failed: {e}"));
             }
+            // The helper-output canon: the successful check closes with
+            // the usage pointer, in the calm grey tier on a TTY.
+            crate::report::print_usage_note(crate::config::color_enabled_stdout());
             Ok(())
         }
     }
@@ -220,6 +227,9 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
 
         Some(PreConfigCmd::ResetTerminal) => {
             reset_terminal_emergency();
+            // The helper-output canon (night-T-1): the recovery helper
+            // closes with the one-line way back to the CLI.
+            crate::report::print_usage_note(crate::config::color_enabled_stdout());
             Some(Ok(()))
         }
 

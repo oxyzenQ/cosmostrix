@@ -27,7 +27,7 @@ pub(crate) fn build_engine_sections(r: &mut Report, data: &BenchReportData) {
     // Keeping them would violate the honesty contract: the report must
     // reflect actual state, not feel-good constants.
     {
-        let s = r.section("ENGINE");
+        let s = r.section("Engine");
         s.field("planned_mode", "single-core");
         s.field("planned_worker_budget", "0");
         s.field(
@@ -41,7 +41,7 @@ pub(crate) fn build_engine_sections(r: &mut Report, data: &BenchReportData) {
     if data.color_mode == ColorMode::Color16
         && data.avg_dirty_cell_ratio_percent >= (100.0 / DIRTY_THRESHOLD_RATIO as f64)
     {
-        r.section("NOTES")
+        r.section("Notes")
             .advice(
                 "16-color mode with foreground palette retinting can dirty many colored cells.",
             )
@@ -53,7 +53,7 @@ pub(crate) fn build_engine_sections(r: &mut Report, data: &BenchReportData) {
     if data.avg_dirty_cell_ratio_percent < STABILITY_DIRTY_RATIO_MAX
         && data.jitter_std < STABILITY_JITTER_STD_MAX
     {
-        r.section("STABILITY NOTES")
+        r.section("Stability notes")
             .advice("Frame time stability is good (std < 0.5ms).")
             .advice("avg FPS alone is not enough; always check p99/p95 frame times.")
             .advice("dirty-cell ratio < 5% indicates efficient differential rendering.")
@@ -93,7 +93,7 @@ pub(crate) fn build_engine_sections(r: &mut Report, data: &BenchReportData) {
 
     // ── Phase 3: ENERGY (RAPL, Linux only) ───────────────────────────
     {
-        let s = r.section("ENERGY");
+        let s = r.section("Energy");
         match &data.energy {
             Some(e) if e.available => {
                 s.field("status", "available (RAPL)");
@@ -121,7 +121,7 @@ pub(crate) fn build_engine_sections(r: &mut Report, data: &BenchReportData) {
 
     // ── Phase 4: MICROARCHITECTURE (perf counters, Linux x86 only) ───
     {
-        let s = r.section("MICROARCHITECTURE");
+        let s = r.section("Microarchitecture");
         match &data.perf {
             Some(p) if p.available => {
                 s.field("status", "available (perf_event_open)");
@@ -151,7 +151,7 @@ pub(crate) fn build_engine_sections(r: &mut Report, data: &BenchReportData) {
 
     // ── Phase 5: ALLOCATOR ────────────────────────────────────────────
     {
-        let s = r.section("ALLOCATOR");
+        let s = r.section("Allocator");
         match &data.allocator {
             Some(a) => {
                 s.field("alloc_calls", &crate::humanize::humanize(a.alloc_calls));
@@ -192,7 +192,7 @@ pub(crate) fn build_engine_sections(r: &mut Report, data: &BenchReportData) {
 
     // ── Phase 6: VISUAL OBJECTIVE METRICS ────────────────────────────
     {
-        let s = r.section("VISUAL OBJECTIVE");
+        let s = r.section("Visual objective");
         match &data.visual {
             Some(v) => {
                 s.field(

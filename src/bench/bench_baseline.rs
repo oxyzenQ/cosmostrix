@@ -51,7 +51,7 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
     // Output color law (night-dragon-maintenance-4): the comparison title
     // rides the bold brand tier, the rule and the label lines ride the
     // calm grey tier — secondary context never renders plain white.
-    println_safe!("{}", brand_bold("BASELINE COMPARISON"));
+    println_safe!("{}", brand_bold("Baseline comparison"));
     println_safe!("{}───────────────────{}", grey_open(), reset());
     println_safe!("{}  baseline:{} {baseline_path}", grey_open(), reset());
 

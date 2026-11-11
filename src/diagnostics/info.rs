@@ -165,7 +165,7 @@ drift + time-of-day scenes). Full detail lives in
 `docs/THREE_DRAGON_ENGINES.md` and `docs/RENDER_ENGINE.md`.
 
 
-1. DIFF-BASED CELL RENDERER  (src/engine/cosmic_dragon_engine/terminal/, frame.rs)
+1. Diff-based cell renderer  (src/engine/cosmic_dragon_engine/terminal/, frame.rs)
 -------------------------------------------------------------
 
 Every other Matrix rain renderer writes the full screen every frame.
@@ -186,7 +186,7 @@ RLE-style run so the terminal receives the minimum bytes possible.
     ~13x fewer I/O bytes on typical content, >90x at 400x200.
 
 
-2. THREE-LAYER PARALLAX  (src/central_control_rains/parallax.rs)
+2. Three-layer parallax  (src/central_control_rains/parallax.rs)
 -----------------------------------------------------------------
 
 Rain is rendered as three independent layers (far / mid / near).
@@ -204,7 +204,7 @@ diff renderer sees a single unified frame — parallax is invisible
 to the I/O layer. Multipliers are applied at droplet birth.
 
 
-3. PHOSPHOR PERSISTENCE  (src/engine/cosmic_dragon_engine/cloud/phosphor.rs)
+3. Phosphor persistence  (src/engine/cosmic_dragon_engine/cloud/phosphor.rs)
 -------------------------------------------------
 
 CRT afterglow: every glyph leaves a fading residual trail. The
@@ -221,7 +221,7 @@ residual is mixed into the back-buffer's color value, so the diff
 renderer treats it as a normal color change — no special I/O path.
 
 
-4. DENSITY NOISE & WIND GUSTS  (src/engine/cosmic_dragon_engine/cloud/living_rain.rs)
+4. Density noise & wind gusts  (src/engine/cosmic_dragon_engine/cloud/living_rain.rs)
 --------------------------------------------------------------------------------
 
 Density is driven by a value-noise function sampled at column
@@ -233,7 +233,7 @@ constant-velocity rain without per-column physics and are disabled
 in benchmark mode for reproducibility.
 
 
-5. CHROMA DRAGON COLORING ENGINE  (src/engine/chroma_dragon_engine/)
+5. Chroma Dragon coloring engine  (src/engine/chroma_dragon_engine/)
 -----------------------------------------------
 
 The coloring counterpart to the Cosmic Dragon: it owns every
@@ -258,7 +258,7 @@ in `src/engine/chroma_dragon_engine/README.md` — not repeated here
 (NIGHT-docs-audit: single source of truth, no drifting copies).
 
 
-6. CRYSTAL DRAGON AMBIENT ENGINE  (src/engine/crystal_dragon_engine/)
+6. Crystal Dragon ambient engine  (src/engine/crystal_dragon_engine/)
 --------------------------------------------------
 
 The ambient intelligence engine, two subsystems in harmony:
@@ -585,7 +585,7 @@ mod tests {
             "docs_report must describe the Chroma Dragon engine"
         );
         assert!(
-            report.contains("CRYSTAL DRAGON AMBIENT ENGINE"),
+            report.contains("Crystal Dragon ambient engine"),
             "docs_report must describe the Crystal Dragon engine (added NIGHT-docs-audit 2026-09-12)"
         );
         assert!(

@@ -187,7 +187,7 @@ Common options:
 
       Tip: typing the old name --disable-effects gets a migration
       hint pointing to --no-effects (no silent failure; NIGHT-hunt-46 —
-      the names are too distant for a typo tip, so the REMOVED_FLAGS
+      the names are too distant for a typo tip, so the removed-options
       table carries the rename).
 
   --intro-color <name>
@@ -582,7 +582,7 @@ Diagnostics:
       cosmostrix --benchmark --bench-io --bench-duration 30
   --bench-all    Run benchmark across a fixed ladder of screen sizes
       (6x6 -> 20x20 -> 40x20 -> 80x24 -> 120x40 -> 200x60). Prints a
-      SCALING SUMMARY table at the end. Use with --bench-duration to set
+      Scaling summary table at the end. Use with --bench-duration to set
       per-size duration (default 2s each).
       cosmostrix --bench-all --bench-duration 5s
   --bench-scene <NAME>
@@ -604,7 +604,7 @@ Diagnostics:
       cosmostrix --benchmark --save-baseline base.json
   --compare-baseline <path>
       Compare the current benchmark run against a saved baseline JSON.
-      Flags >5% FPS regressions with a clear PASS/FAIL verdict.
+      Marks >5% FPS regressions with a clear PASS/FAIL verdict.
       cosmostrix --benchmark --compare-baseline base.json
   --reset-terminal
       Emergency terminal recovery — the nuclear option.
@@ -648,14 +648,14 @@ Discovery:
   --list-scenes         Show built-in and custom scenes (from config).
   --show-scene <NAME>   Show full details for a built-in or custom scene.
 
-ADVANCED (intentionally not in clap's auto-list, but documented here — honest disclosure):
+Advanced (intentionally not in clap's auto-list, but documented here — honest disclosure):
   These options are intentionally excluded from clap's auto-generated argument
   list to keep the first impression clean, but they ARE documented in this
   manual. They are NOT deprecated, NOT experimental, and NOT internal-only
   — every one of them is a stable, supported knob. Most have an equivalent
   config key (see config.toml via --dump-config).
 
-  APPEARANCE (advanced):
+  Appearance:
   -b, --bold <0|1|2>
       Bold style (0=off, 1=random [default], 2=all).
       Config: bold = 1
@@ -671,7 +671,7 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       16, 8/256 (8-bit), 24/32 (truecolor). Default: 24-bit if supported
       (COLORTERM), else 8-bit (TERM=...256color), else 16-color.
 
-  TIMING & GLITCH (advanced):
+  Timing & glitch:
   -g, --glitch-ms <LOW,HIGH>
       Glitch duration range in ms (min 1, max 5000). Default: 300,400.
       Config: (via --glitch-level preset)
@@ -690,7 +690,7 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       NIGHT-boost-3: implied by --verbose in interactive mode — pass it
       explicitly only for a non-verbose, telemetry-only run.
 
-  BENCH (advanced):
+  Bench:
   --bench-frames <N>
       Run headless benchmark for exactly N frames and exit. Alternative
       to --bench-duration when you want frame-count-based measurement

@@ -128,7 +128,7 @@ use crate::report::Report;
 /// to the EnvSnapshot definition) rather than in bench_report.rs to keep
 /// bench_report.rs under its 800-LOC guard.
 pub(crate) fn render_section(r: &mut Report, env: &EnvSnapshot) {
-    let s = r.section("BENCHMARK ENVIRONMENT");
+    let s = r.section("Benchmark environment");
     s.field(
         "kernel_version",
         env.kernel_version.as_deref().unwrap_or("unsupported"),

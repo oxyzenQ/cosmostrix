@@ -56,7 +56,7 @@ All core, config, and script files must carry an SPDX license identifier. See `s
   `COSMOSTRIX PERFORMANCE REPORT`) plus the em-dash hero line in
   diagnostics output. night-T-1 (2026-11-11): the diagnostics report
   title rides the zelynic report-title canon instead — program-led
-  lowercase, `cosmostrix diagnostics report · doctor` — and the CI
+  lowercase, `cosmostrix diagnostics report doctor` — and the CI
   lanes grep that literal.
 - Nothing is excluded from the scan: every tracked file and every
   tracked path is checked, hidden trees (`.github/`, `.cargo/`) and

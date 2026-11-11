@@ -140,12 +140,12 @@ fn is_config_file_failure(msg: &str) -> bool {
 ///    [`die_config`] shape: no help footer. The message already
 ///    points the user at `--testconf`, and a config problem is not
 ///    an invocation problem.
-/// 2. Value-validation failures that originate from CLI flags
+/// 2. Value-validation failures that originate from CLI options
 ///    (unknown `--scene` / `--scene-custom` / profile names, invalid
 ///    `--intro-color`) take the [`die_input`] shape: help footer
 ///    appended. Same user mistake, same shape as `-C asciix` (unknown
 ///    charset) and every other post-parse validator, so a typed typo
-///    renders identically no matter which flag tripped it.
+///    renders identically no matter which option tripped it.
 ///
 /// Owner report 2026-09-04 (the `--scene cosmosm` case): the whole
 /// Err stream used to flow through `die_config`, so the scene error
@@ -220,20 +220,20 @@ pub(crate) fn or_exit<T, E: AsRef<str>>(r: Result<T, E>) -> T {
 
 // ── Clap error bridge ──────────────────────────────────────────────────────
 
-/// Case-insensitive flag-suggestion fallback for clap UnknownArgument
+/// Case-insensitive option-suggestion fallback for clap UnknownArgument
 /// errors (owner report 2026-09-04, the `--LIS` case).
 ///
 /// clap's own did-you-mean engine compares case-SENSITIVELY (strsim
 /// Jaro, confidence > 0.7), so `--lis` suggests `--list-scenes` while
 /// `--LIS` — zero matching chars — renders tip-less. When an unknown
-/// LONG flag carries no SuggestedArg context, this injects the best
+/// long option carries no SuggestedArg context, this injects the best
 /// case-insensitive match (same Jaro metric + threshold, lowercased
 /// both sides) as clap's OWN `SuggestedArg` context, so the tip
 /// renders in clap's canonical position and `valid` (white) style —
 /// no custom printing, no second tip, no render surgery.
 ///
 /// Safety of the delta: for already-lowercase input the scores are
-/// identical to clap's (ASCII flags are lowercase), and the candidate
+/// identical to clap's (ASCII option names are lowercase), and the candidate
 /// set is a SUBSET of clap's keymap (non-hidden primary long names
 /// only — a hidden flag must never surface via a typo rescue). The
 /// fallback therefore fires only where clap was silent, and only for
@@ -241,7 +241,7 @@ pub(crate) fn or_exit<T, E: AsRef<str>>(r: Result<T, E>) -> T {
 ///
 /// No-op for: every non-UnknownArgument error kind, errors that
 /// already carry a suggestion (clap's tip is never duplicated), and
-/// dashes-only inputs (short flags like `-x` — Jaro of a single char
+/// dashes-only inputs (short options like `-x` — Jaro of a single char
 /// never clears 0.7, matching clap's own silence).
 pub(crate) fn enrich_unknown_arg_suggestion(e: &mut clap::Error, cmd: &Command) {
     if e.kind() != clap::error::ErrorKind::UnknownArgument {
@@ -250,7 +250,7 @@ pub(crate) fn enrich_unknown_arg_suggestion(e: &mut clap::Error, cmd: &Command) 
     if e.get(ContextKind::SuggestedArg).is_some() {
         return;
     }
-    // The typed flag lives in the InvalidArg context ("--LIS" / "-x");
+    // The typed option lives in the InvalidArg context ("--LIS" / "-x");
     // strip the dashes so bare flag names compare against bare names.
     let typed = match e.get(ContextKind::InvalidArg) {
         Some(ContextValue::String(s)) => s.trim_start_matches('-').to_string(),

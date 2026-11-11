@@ -69,12 +69,12 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     let mut r = Report::new("COSMOSTRIX BENCHMARK");
 
     if data.was_interrupted {
-        r.section("STATUS")
+        r.section("Status")
             .advice("interrupted — results are partial");
     }
 
     {
-        let s = r.section("SYSTEM");
+        let s = r.section("System");
         s.field("variant", cpu.variant);
         s.field("optimization", env!("COSMOSTRIX_OPTIMIZATION"));
         s.field("build", cpu.build_variant);
@@ -100,7 +100,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     }
 
     {
-        let s = r.section("RENDERER");
+        let s = r.section("Renderer");
         s.field("backend", ri.backend);
         s.field("pacing", ri.pacing);
         s.field("frame_strategy", ri.frame_strategy);
@@ -125,7 +125,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     }
 
     {
-        let s = r.section("CONFIG");
+        let s = r.section("Config");
         s.field("scene", &data.scene);
         s.field("color_scheme", &data.color_scheme_name);
         // color pipeline parity with --verbose. Without these,
@@ -197,7 +197,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // ── COSMIC DRAGON ENGINE METRICS ─────────────────────────────────────────
     // All engine-specific metrics grouped under this header.
     {
-        let s = r.section("COSMIC DRAGON ENGINE METRICS");
+        let s = r.section("Cosmic Dragon engine metrics");
         // Engine description (audit 2026-08-23): the old one-liner
         // "(diff-based + phosphor)" under-described the engine — the owner
         // remembered it listing the actual techniques. Every term below is
@@ -240,7 +240,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     }
 
     {
-        let s = r.section("PERFORMANCE");
+        let s = r.section("Performance");
         s.field("avg_fps", &format!("{:.2}", data.avg_fps));
         s.field("peak_fps", &format!("{:.2}", data.peak_fps));
         s.field(
@@ -304,7 +304,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     }
 
     {
-        let s = r.section("THROUGHPUT");
+        let s = r.section("Throughput");
         // v50 LTS audit (Issue 2): renamed for self-documenting semantics.
         // Old name `glyphs_per_second` implied actual throughput; the
         // value is the theoretical upper bound if every cell were
@@ -374,7 +374,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     }
 
     {
-        let s = r.section("TIMING");
+        let s = r.section("Timing");
         s.field("elapsed", &format!("{:.3}s", data.elapsed_s));
         s.field(
             "total_frames",
@@ -394,7 +394,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // Honest reporting: on unsupported platforms we emit "unsupported"
     // rather than zero. This avoids implying the metric was measured.
     {
-        let s = r.section("MEMORY");
+        let s = r.section("Memory");
         if data.rss_supported {
             let peak = data
                 .peak_rss_kb
@@ -466,7 +466,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // Deltas computed over the measurement window (cumulative counters
     // sampled at start + end, then subtracted).
     {
-        let s = r.section("RESOURCE");
+        let s = r.section("Resource");
         if let Some(delta) = &data.rusage_delta {
             s.field("minor_faults", &delta.minor_faults.to_string());
             s.field("major_faults", &delta.major_faults.to_string());
@@ -510,7 +510,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // mutations, io = dirty-tracking + bookkeeping (NO real terminal IO in
     // benchmark mode — labeled honestly).
     {
-        let s = r.section("COMPONENT TIMING");
+        let s = r.section("Component timing");
         s.field("avg_sim_ms", &format!("{:.4}", data.avg_sim_ms));
         s.field("avg_render_ms", &format!("{:.4}", data.avg_render_ms));
         s.field("avg_io_ms", &format!("{:.4}", data.avg_io_ms));
@@ -576,7 +576,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // constant as size grows, the algorithm is O(n). If it grows,
     // there's a super-linear component (O(n²) or worse).
     {
-        let s = r.section("CELL EFFICIENCY");
+        let s = r.section("Cell efficiency");
         s.field(
             "logical_cells_per_frame",
             &crate::humanize::humanize(data.logical_cells_per_frame),
@@ -673,7 +673,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // fragmentation, or cache pressure that a 5s run would miss.
     // None values indicate the benchmark was interrupted before halfway.
     {
-        let s = r.section("DRIFT");
+        let s = r.section("Drift");
         s.field("bench_duration_secs", &data.bench_duration_secs.to_string());
         match (
             data.first_half_fps,

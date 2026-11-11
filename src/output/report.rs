@@ -9,7 +9,7 @@
 //! - a `━━━ TITLE ━━━` banner in bold brand purple — the heavy-rule
 //!   canon; titles ride the zelynic report-title canon since night-T-1
 //!   (2026-11-11): program-led lowercase shapes like
-//!   "cosmostrix diagnostics report · doctor" (BRANDING.md carries the
+//!   "cosmostrix diagnostics report doctor" (BRANDING.md carries the
 //!   surviving all-caps family, and the CI lanes grep the new literal)
 //! - lean single-column fields: two-space indent, colon-attached key,
 //!   values aligned on one padded column per section — zelynic's
@@ -260,8 +260,8 @@ mod tests {
         // Three glyphs per side, spaces around the title — the exact
         // zelynic flagship shape.
         assert_eq!(
-            banner_line("cosmostrix diagnostics report · doctor"),
-            "\u{2501}\u{2501}\u{2501} cosmostrix diagnostics report · doctor \u{2501}\u{2501}\u{2501}"
+            banner_line("cosmostrix diagnostics report doctor"),
+            "\u{2501}\u{2501}\u{2501} cosmostrix diagnostics report doctor \u{2501}\u{2501}\u{2501}"
         );
     }
 
@@ -308,7 +308,7 @@ mod tests {
     fn render_is_tidy_end_to_end() {
         let mut report = Report::new("R");
         {
-            let s = report.section("BUILD");
+            let s = report.section("Build");
             s.field("build", "freebsd-amd64");
             s.field("lto", "fat");
             s.advice("check the linker flags");
@@ -319,7 +319,7 @@ mod tests {
             "\u{2501}\u{2501}\u{2501} R \u{2501}\u{2501}\u{2501}"
         );
         assert_eq!(lines[1], "");
-        assert_eq!(lines[2], "BUILD");
+        assert_eq!(lines[2], "Build");
         // Both values align on one column (14 chars in).
         assert_eq!(lines[3], "  build:      freebsd-amd64");
         assert_eq!(lines[4], "  lto:        fat");

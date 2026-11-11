@@ -151,7 +151,7 @@ pub(crate) fn format_backpressure_section(
         overshoot_ratio,
         avg_frame_period_ms,
     } = *stats;
-    let s = r.section("BACKPRESSURE");
+    let s = r.section("Backpressure");
     // Audit 2026-08-23: the section previously looked self-contradictory —
     // "classification: high" next to "budget_utilization_avg: 5.67%".
     // Both numbers are correct but measure different things: pressure

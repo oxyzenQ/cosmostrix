@@ -397,7 +397,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     }
     output::eprintln_verbose(
         "  climate_drift:",
-        " always-on (luminance/saturation/hue accumulate regardless of crystal_dragon flag)",
+        " always-on (luminance/saturation/hue accumulate regardless of the crystal_dragon option)",
     );
     // v80.0.0-alpha.1: report the EFFECTIVE polling interval with its
     // provenance — same honesty contract as the ambient_snapback_secs line

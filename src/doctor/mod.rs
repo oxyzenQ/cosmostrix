@@ -49,11 +49,11 @@ pub(crate) fn print_doctor_report(args: &Args) {
     let cpu = diagnostics::detect_cpu_info();
     let ri = renderer_info::renderer_info(effective);
 
-    let mut r = Report::new("cosmostrix diagnostics report · doctor");
+    let mut r = Report::new("cosmostrix diagnostics report doctor");
 
     // v17: BUILD section (merged from --info)
     {
-        let s = r.section("BUILD");
+        let s = r.section("Build");
         s.field("version", &format!("v{}", env!("CARGO_PKG_VERSION")));
         // NIGHT-dinner-3: keys aligned with the bench report and the
         // bench JSON (git_sha / rustc_version) — the same data carried
@@ -75,7 +75,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
 
     // v17: RENDERER section (merged from --info)
     {
-        let s = r.section("RENDERER");
+        let s = r.section("Renderer");
         s.field("backend", ri.backend);
         s.field("pacing", ri.pacing);
         s.field("unicode", ri.unicode);
@@ -120,7 +120,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
 
     // v17: CAPACITY section (merged from --info — uses actual terminal size)
     {
-        let s = r.section("CAPACITY");
+        let s = r.section("Capacity");
         let (tw, th) = crossterm::terminal::size()
             .unwrap_or((DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES));
         s.field("terminal_size", &format!("{tw}x{th}"));
@@ -134,7 +134,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     // so users can verify claims (HUD, parallax, phosphor, endurance) via
     // `cosmostrix --doctor`. Previously these were invisible at runtime.
     {
-        let s = r.section("FEATURES");
+        let s = r.section("Features");
         s.field(
             "hud_overlay",
             "yes (toggle with 'i' key; flush-left at column 0)",
@@ -225,7 +225,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     // BUILD.variant because BUILD.variant describes the host CPU while
     // build_variant describes the build profile chosen at compile time).
     {
-        let s = r.section("SYSTEM");
+        let s = r.section("System");
         s.field("stdin_tty", if stdin_tty { "yes" } else { "no" });
         s.field("stdout_tty", if stdout_tty { "yes" } else { "no" });
         s.field("build", cpu.build_variant);
@@ -239,7 +239,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     // from runtime at any given moment — the purpose is to verify that
     // the sensor subsystem works (CPU detection, fallback, etc.).
     {
-        let s = r.section("CRYSTAL DRAGON ENGINE");
+        let s = r.section("Crystal Dragon engine");
         let now = std::time::Instant::now();
         let control = crate::crystal_dragon_engine::CrystalDragonControl::default();
         let sensor = crate::crystal_dragon_engine::CrystalDragonSensor::new(now, control);
@@ -274,7 +274,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
 
     // ENVIRONMENT section
     {
-        let s = r.section("ENVIRONMENT");
+        let s = r.section("Environment");
         s.field("locale", if lang.is_empty() { "(unset)" } else { &lang });
         s.field("locale_utf8", if locale_utf8 { "yes" } else { "no" });
         s.field("tmux", if tmux { "yes" } else { "no" });
@@ -297,7 +297,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     // reserved for config parse errors (hunt-44); a read failure on
     // the default path is a reportable condition, not a startup error.
     {
-        let s = r.section("CONFIG FILE");
+        let s = r.section("Config file");
         for (name, value) in config_file_status(
             args.config.as_deref(),
             &configfile::default_config_file_path(),
@@ -317,7 +317,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     // effective color mode the renderer is operating in lives in
     // RENDERER.color_depth.
     {
-        let s = r.section("TERMINAL");
+        let s = r.section("Terminal");
         s.field("TERM", if term.is_empty() { "(unset)" } else { &term });
         s.field("family", terminal_family);
         s.field(
@@ -350,7 +350,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
 
     // COMPATIBILITY section
     {
-        let s = r.section("COMPATIBILITY");
+        let s = r.section("Compatibility");
         s.field("terminal_class", terminal_family);
         s.field("color_capability", color_capability(effective));
         s.field("background", background_guidance(args.color_bg));
@@ -380,7 +380,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
 
     // CHARSET section
     {
-        let s = r.section("CHARSET");
+        let s = r.section("Charset");
         s.field(
             "preset",
             if args.charset.is_empty() {
@@ -402,7 +402,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
             Ok(v) => v,
             Err(e) => {
                 // Add parse error as a note
-                let s = r.section("CHARSET");
+                let s = r.section("Charset");
                 s.field("parse_error", &e);
                 Charset::NONE
             }
@@ -410,7 +410,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
 
         let uses_katakana = cs.contains(Charset::KATAKANA);
 
-        let s = r.section("SAMPLE GLYPHS");
+        let s = r.section("Sample glyphs");
         s.field("ascii", "01 ABC abc !@#");
         if uses_katakana {
             s.field(
@@ -456,7 +456,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
 
     // ADVICE section
     {
-        let s = r.section("ADVICE");
+        let s = r.section("Advice");
 
         if !stdin_tty || !stdout_tty {
             s.advice("headless/non-TTY detected; use --benchmark, --doctor, --list-colors, --list-charsets, --list-scenes, --show-scene, --config-path, --dump-config, --docs, or --help");
