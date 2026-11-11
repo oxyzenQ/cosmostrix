@@ -647,7 +647,7 @@ jobs:
           echo "185.125.189.74 kernel.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
           echo "185.125.189.75 kernel.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
           echo "185.125.189.76 kernel.ubuntu.com" | sudo tee -a /etc/hosts >/dev/null || true
-          LISTING="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --max-time 30 "$BASE/")"
+          LISTING="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --max-time 60 "$BASE/")"
           TAGS="$(printf '%s' "$LISTING" \
             | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?/' \
             | sort -u -Vr | head -8 | sed 's|/$||' || true)"
@@ -675,7 +675,7 @@ jobs:
               break
             fi
             DIR="$BASE/$TAG"
-            DLIST="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --max-time 30 "$DIR/" || true)"
+            DLIST="$(curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --max-time 60 "$DIR/" || true)"
             if [ -z "$FIRST_LISTING" ]; then
               FIRST_LISTING="$DLIST"
             fi

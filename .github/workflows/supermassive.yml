@@ -206,6 +206,7 @@ jobs:
             rustflags: "-D warnings -C target-cpu=x86-64-v3"
             bin_tail: pro-linux-amd64-v3-musl/cosmostrix
             artifact: cosmostrix-pro-v3-musl
+            arm_ports_rescue: false
           # The arm64 server shape (night-arm64-1): the new
           # pro-native-arm64-musl cargo alias — the zelynic mirror, the
           # owner's arm-server law. The alias carries target-cpu=native
@@ -222,6 +223,7 @@ jobs:
             rustflags: "-D warnings"
             bin_tail: pro-native-arm64-musl/cosmostrix
             artifact: cosmostrix-pro-musl-aarch64
+            arm_ports_rescue: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
