@@ -120,12 +120,27 @@
 # unchanged and the calibration read a flat 9.5 MB RSS, two orders
 # of magnitude under it).
 #
+# night-T-1 completion (the thirty-minute retirement): the last job
+# above the law was musl_compile, whose 30-minute ceiling existed
+# only because the test profile inherits full debuginfo from dev.
+# The job now compiles with -C debuginfo=line-tables-only and
+# CARGO_INCREMENTAL=0 - CI-only levers, the local dev profile keeps
+# its full debuginfo - which cuts the bulk of the cold codegen and
+# link time and shrinks the nextest archive the four shards
+# download. Its ceiling drops 30 -> 12 (the same cold ceiling the
+# release compile carries), musl_shards drops 10 -> 5, and every
+# job in this file now targets five minutes with an honest tail.
+#
 # Budgets: build_musl 12 min (the one compile; its cold-cache
 # ceiling - warm-cache runs land well under the five-minute target),
 # pty_smoke 5 min, torture 5 min, soak 6 min (a 240 s render plus
 # the artifact download and the ceiling check; the target is five),
-# musl_compile 30 min (the one test compile, its cold-cache ceiling),
-# musl_shards 10 min each (the target is five). The pty driver
+# musl_compile 12 min (the one test compile; line-tables-only
+# retired the full-debuginfo bulk that used to push the cold ceiling
+# to 30 - the thirty-minute job the owner refused to wait on no
+# longer exists), musl_shards 5 min each (the target and the ceiling
+# now agree - the shards' execution windows measure in seconds and
+# even a cold archive download fits). The pty driver
 # carries its own internal watchdog (--budget) so a wedged child can
 # never outlive the job's outer timeout - the same wedge-guard
 # relationship the zelynic envelopes keep between VM budget and job
@@ -347,20 +362,22 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   # The workspace test battery, the night-T-1 shape: one compile (the
-  # unavoidable pole - a cold musl compile of the whole workspace; the
-  # ceiling stays where the old single leg had it), then four
-  # execution shards that download the nextest archive and each fit
-  # the owner's five-minute target. cargo nextest archive compiles
-  # the same test binaries the old in-job run compiled (the unit
-  # tree, the proptest battery, the safepath floors); the shards
+  # unavoidable pole - a cold musl compile of the whole workspace),
+  # then four execution shards that download the nextest archive and
+  # each fit the owner's five-minute target. cargo nextest archive
+  # compiles the same test binaries the old in-job run compiled (the
+  # unit tree, the proptest battery, the safepath floors); the shards
   # split EXECUTION only - the same partition contract ci.yml's
   # test_partitions matrix rides. --retries 1 keeps the 486
   # timing-sensitive tests honest on a loaded shared runner, exactly
-  # like the musl gate leg in the release lane.
+  # like the musl gate leg in the release lane. night-T-1 completion:
+  # the compile pole itself shrank - line-tables-only retired the
+  # full-debuginfo bulk, so the ceiling no longer needs the old
+  # thirty-minute headroom.
   musl_compile:
     name: supermassive build - musl nextest archive (the one compile)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -392,6 +409,17 @@ jobs:
           tool: cargo-nextest
 
       - name: Build the musl test archive
+        # night-T-1 completion: CI-only levers on top of the workflow
+        # -D warnings gate. line-tables-only keeps panic backtraces
+        # file-and-line precise while dropping the full-debuginfo
+        # bulk (codegen time, link time, archive weight) that made
+        # the cold compile a thirty-minute pole;
+        # CARGO_INCREMENTAL=0 retires incremental churn a one-shot
+        # CI compile never reads back. The local dev profile keeps
+        # its full debuginfo - these levers live only here.
+        env:
+          RUSTFLAGS: "-D warnings -C debuginfo=line-tables-only"
+          CARGO_INCREMENTAL: "0"
         run: |
           set -euo pipefail
           cargo nextest archive --workspace --locked \
@@ -414,14 +442,17 @@ jobs:
     name: supermassive test - musl nextest shard ${{ matrix.partition }}/4
     runs-on: ubuntu-24.04
     needs: [musl_compile]
-    timeout-minutes: 10
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
         # Tunable: four shards keep every shard's EXECUTION window
         # inside the owner's five-minute target (partitioning splits
         # execution, not compilation - the compile happened once
-        # above).
+        # above). night-T-1 completion: the ceiling now matches the
+        # target - checkout, the nextest install, and the archive
+        # download all fit inside it, so the five-minute law holds
+        # end to end.
         partition: [1, 2, 3, 4]
     steps:
       # The archive carries the test binaries and their data, but
