@@ -211,16 +211,10 @@ jobs:
           # Owner directive 2026-10-27 (night-dragon-maintenance-3): builds
           # ride the named alias path - never a bare cargo release build.
           # night-dragon-maintenance-6: the validation build is the static
-          # musl release shape (the gnu alias pair is retired); ubuntu
-          # runners build the musl target cleanly with musl-tools.
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
-            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
-            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
-            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
-            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y musl-tools
+          # musl release shape (the gnu alias pair is retired).
+          # night-T-2 follow-up 16 (the zejtron law): no apt - the alias
+          # links self-contained via rust-lld (no cc in the lockfile), so
+          # the lane carries no mirror outage surface.
           cargo pro-linux-amd64-v3-musl --locked
 
       - name: Run tests

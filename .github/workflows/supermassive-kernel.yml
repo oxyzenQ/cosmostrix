@@ -145,28 +145,16 @@ jobs:
         with:
           persist-credentials: false
 
-      # The musl-static release shape needs the musl rust-std target;
-      # musl-tools rides for parity with supermassive.yml's musl_tests
-      # job (the belt-and-braces precedent - a pure-Rust crate links
-      # self-contained, but the package costs seconds and retires the
-      # "works without it" caveat).
+      # The musl-static release shape needs the musl rust-std target.
+      # night-T-2 follow-up 16 (the zejtron law): the parity musl-tools
+      # install is retired - a pure-Rust crate (no cc in the lockfile)
+      # links the musl target self-contained via rust-lld, so the belt
+      # stops carrying a package the belt never uses.
       - name: Install Rust toolchain + musl target
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
           targets: x86_64-unknown-linux-musl
-
-      - name: Install musl link tools
-        run: |
-          set -euo pipefail
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
-            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
-            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
-            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
-            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y -qq musl-tools
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2
@@ -251,18 +239,9 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           targets: x86_64-unknown-linux-musl
 
-      - name: Install musl link tools
-        run: |
-          set -euo pipefail
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
-            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
-            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 update -qq
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
-            /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
-            /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-          sudo timeout 120 apt-get -o Acquire::Retries=8 -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y -qq musl-tools
-
+      # night-T-2 follow-up 16 (the zejtron law): the parity musl-tools
+      # install is retired - the musl target links self-contained via
+      # rust-lld (no cc in the lockfile).
       - name: Setup cache
         uses: Swatinem/rust-cache@v2
         with:
