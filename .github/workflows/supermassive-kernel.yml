@@ -759,15 +759,27 @@ jobs:
           cd /tmp/kbest
           docker pull -q ubuntu:24.04
           docker rm -f best-rootfs >/dev/null 2>&1 || true
-          docker run --name best-rootfs -d ubuntu:24.04 sleep infinity
+          # night-T-2 follow-up 15 (the zejtron law, layer 2): the docker
+          # daemon caught the poisoned Azure resolver at boot, and a
+          # container does NOT inherit a host resolv.conf healed after
+          # that boot. Hand the container its own clean resolver.
+          docker run --dns 1.1.1.1 --dns 8.8.8.8 --name best-rootfs -d ubuntu:24.04 sleep infinity
           docker exec best-rootfs bash -c '
             sed -i "s|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g" \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list \
               /etc/apt/sources.list.d/*.sources || true
-            apt-get -o Acquire::Retries=8 -o Acquire::http::Timeout=12 \
+            # night-T-2 follow-up 15: fast bail first (45s), one generous
+            # retry (70s) - a dead mirror reads as a retry, never as a
+            # 30-minute hang (zejtron law layer 3, install side).
+            timeout 45 apt-get -o Acquire::Retries=8 -o Acquire::http::Timeout=12 \
+              -o Acquire::https::Timeout=12 update -qq \
+            || timeout 70 apt-get -o Acquire::Retries=8 -o Acquire::http::Timeout=12 \
               -o Acquire::https::Timeout=12 update -qq
           '
-          docker exec best-rootfs apt-get -o Acquire::Retries=8 -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y -qq --no-install-recommends python3
+          docker exec best-rootfs bash -c '
+            timeout 45 apt-get -o Acquire::Retries=8 -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y -qq --no-install-recommends python3 \
+            || timeout 70 apt-get -o Acquire::Retries=8 -o Acquire::http::Timeout=12 -o Acquire::https::Timeout=12 install -y -qq --no-install-recommends python3
+          '
           docker export best-rootfs -o rootfs.tar
           mkdir -p rootfs
           tar -xf rootfs.tar -C rootfs
