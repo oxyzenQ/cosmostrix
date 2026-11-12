@@ -262,7 +262,7 @@ fi
 header "Yamllint"
 if command -v yamllint >/dev/null 2>&1; then
 	# CI parity (2026-08-30 lesson): .github/** must pass the repo
-	# .yamllint config — the same one workflow-ci.yml enforces
+	# .yamllint config — the same one CI enforces
 	# (line-length max 200 included). The old relaxed-only inline
 	# config hid a 216-char line in crates-io.yml for three pushes.
 	GITHUB_YAML=$(find .github -name '*.yml' -o -name '*.yaml' 2>/dev/null)
