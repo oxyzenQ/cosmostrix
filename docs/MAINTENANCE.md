@@ -46,6 +46,8 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 | Release | `release.yml` | tag push (v*) | Build 7 release archives across 7 OS/arch targets (linux amd64 v3/v4 musl, darwin aarch64, windows x64/arm64, freebsd amd64, android aarch64) + checksums + GPG sign; the PGO nitro release packages are retired (night-dragon-maintenance-T1) |
 | Maintenance | `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) + manual dispatch | Dependency update + validate + commit |
 
+**Bot lane staging rule (night-zen-1 hotfix)**: the commit job stages an explicit path list derived from the manifest walk, never a glob, and the download-artifact staging directory lives under `runner.temp`, outside the work tree (`.auto-update/` is gitignored as a second wall). Incident class write-up: [KNOWN_ISSUES.md](../KNOWN_ISSUES.md).
+
 ## 4. Security Advisory Response
 
 If `cargo deny check advisories` or GitHub Dependabot reports a vulnerability:

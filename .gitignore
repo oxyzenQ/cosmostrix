@@ -52,3 +52,7 @@ other ai/
 *.txt*
 *.ruff*
 .vs/
+
+# Bot dependency-update staging (night-zen-1 hotfix: download-artifact
+# staging must live under runner.temp, never in the work tree)
+.auto-update/

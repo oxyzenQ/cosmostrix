@@ -550,6 +550,71 @@ is affected — this is developer tooling hygiene only.
 
 ---
 
+## CI maintenance lane: in-tree artifact staging could sweep staging debris into the bot commit
+
+### Symptom
+
+A `maintenance.yml` run that updates dependencies could have committed
+a stray `.auto-update/` directory (the download-artifact staging tree,
+containing copies of every workspace lockfile) alongside the intended
+`Cargo.lock` updates — hundreds of duplicated lines of debris in a bot
+commit on `main`.
+
+### Cause
+
+Three independent defects stacked in the night-zen-1 commit:
+
+1. `download-artifact` staged the artifact in-tree at `.auto-update/`.
+2. The dependency-only diff gate used the path pattern `(^|/)Cargo\.lock$`,
+   which an in-tree `.auto-update/Cargo.lock` satisfies — the gate was
+   blind to the staging tree.
+3. The commit step staged with the `:(glob)**/Cargo.lock` pathspec,
+   which matches `.auto-update/**/Cargo.lock` too.
+
+The lane never produced the debris on `main`: the trigger is the weekly
+cron, and the defect was caught and fixed in review before the next
+scheduled run. The failure mode was verified by local simulation of the
+restore + gate + staging logic.
+
+### Prevention (implemented, night-zen-1 hotfix)
+
+All three layers are now structural, not cosmetic:
+
+1. **Out-of-tree staging**: `download-artifact` lands under
+   `${{ runner.temp }}/auto-update`, outside the work tree. No git
+   pathspec can ever see it.
+2. **Exact-path staging**: the commit step derives the expected
+   lockfile set from the same manifest walk the validate job uses
+   (`find ... -printf '%P\n'`) and stages exactly those paths — never a
+   glob.
+3. **Exact-set gate**: the diff gate compares changed files against the
+   expected set (exact paths, `grep -vxF`) instead of a path pattern.
+
+Additionally `.auto-update/` is listed in `.gitignore` as a second
+wall: any future regression that lands staging in-tree is untrackable.
+
+### Remediation (a contaminated checkout)
+
+The debris never reached `main`, so no recovery is needed. If a local
+checkout ever gains the directory, it is now ignored; to remove it:
+
+```sh
+git rm -rq --cached .auto-update 2>/dev/null || true
+rm -rf .auto-update
+```
+
+### Rule going forward
+
+Bot lanes stage an explicit path list, never a glob, and staging
+directories live under `runner.temp`, never in the work tree.
+
+### Status
+
+Prevention merged in the night-zen-1 hotfix. No runtime surface is
+affected — CI hygiene only.
+
+---
+
 ## Reporting new issues
 
 If you encounter an issue not listed here, please open a GitHub issue

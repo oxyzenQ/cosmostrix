@@ -271,7 +271,12 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: validated-cargo-lock
-          path: .auto-update
+          # night-zen-1 hotfix: staging lands under runner.temp, outside
+          # the work tree. An in-tree staging directory was once one glob
+          # away from being swept into the bot commit; out-of-tree makes
+          # that class impossible, and the .gitignore .auto-update/ entry
+          # is the second wall against any future in-tree regression.
+          path: ${{ runner.temp }}/auto-update
 
       # night-zen-1: restore every workspace lockfile the validate job
       # uploaded (the artifact keeps the repo-relative layout).
@@ -279,26 +284,44 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find .auto-update -name Cargo.lock -type f | while IFS= read -r artifact_lock; do
-            rel="${artifact_lock#.auto-update/}"
-            cp "$artifact_lock" "$rel"
-          done
+          # The expected lockfile set comes from the same manifest walk
+          # the validate job used. GNU -printf '%P\n' strips the leading
+          # './' so the paths match git diff --name-only output exactly.
+          find . -name Cargo.toml -not -path '*/target/*' -printf '%P\n' \
+            | sed 's|Cargo\.toml$|Cargo.lock|' | sort > /tmp/locks.txt
+          STAGE="${RUNNER_TEMP}/auto-update"
+          while IFS= read -r rel; do
+            if [[ -f "${STAGE}/${rel}" ]]; then
+              cp "${STAGE}/${rel}" "$rel"
+            else
+              echo "::warning::No validated lockfile for ${rel} in the artifact"
+            fi
+          done < /tmp/locks.txt
 
           if git diff --quiet; then
             echo "Validated lockfile is already current"
             exit 0
           fi
 
-          git diff --name-only | tee /tmp/changed-files.txt
-          if grep -vE '(^|/)Cargo\.lock$' /tmp/changed-files.txt; then
-            echo "::error::Commit job may only modify Cargo.lock files"
+          git diff --name-only | tee /tmp/changed.txt
+          # The gate accepts only lockfiles in the expected set (exact
+          # paths, not a path pattern). grep -v exits 1 when every line
+          # matches the expected set — that is the pass case, hence the
+          # || true guard.
+          violations=$(grep -vxF -f /tmp/locks.txt /tmp/changed.txt || true)
+          if [[ -n "$violations" ]]; then
+            echo "Unexpected files in the dependency-only diff:"
+            echo "$violations"
+            echo "::error::Only workspace Cargo.lock files may change"
             exit 1
           fi
 
           # Identity comes from the workflow env block (single source).
           git config user.name "${GIT_BOT_NAME}"
           git config user.email "${GIT_BOT_EMAIL}"
-          git add -- ':(glob)**/Cargo.lock'
+          # Stage exact paths from the manifest walk — never a glob, so
+          # no staging debris can ever join the bot commit.
+          xargs -d '\n' -r git add -- < /tmp/locks.txt
           git commit -m "chore(deps): maintenance deps weekly"
           git push origin HEAD:main
 
