@@ -15,9 +15,13 @@ use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 // v50.0.0-beta.7: the custom Levenshtein-based suggestion engine
 // (KNOWN_LONG_FLAGS + cli_edit_distance + suggest_cli_flag) has been
 // REMOVED. It was replaced by extract_clap_suggestion() in main.rs,
-// which reads clap's OWN "tip:" line and reformats it as
-// "tip: a similar argument exists: '--<option>'" (via
-// format_argument_suggestion in cli/suggestion.rs). This eliminates:
+// which read clap's OWN "tip:" line and reformatted it as
+// "tip: a similar argument exists: '--<option>'". Since
+// v100.0.0-nightly.1 that parser is gone too — clap's own render is
+// the single tip source (see the history note in cli/suggestion.rs),
+// with cli::ux::enrich_unknown_arg_suggestion rescuing the
+// case-variant typos clap's case-sensitive jaro cannot see. This
+// eliminates:
 //
 //   1. The hand-maintained KNOWN_LONG_FLAGS list (drift-prone — the
 //      --disable-effects -> --no-effects rename missed it, which was
@@ -601,6 +605,7 @@ pub(crate) fn validate_u16_range(name: &str, v: u16, min: u16, max: u16) -> Resu
 mod tests;
 
 // v50.0.0-beta.7: suggest_cli_flag, cli_edit_distance, and KNOWN_LONG_FLAGS
-// were REMOVED. The CLI suggestion path now uses extract_clap_suggestion()
-// in main.rs, which reads clap's own "tip:" line. See the header comment
-// at the top of this section for the full rationale.
+// were REMOVED. The CLI suggestion path was briefly the
+// extract_clap_suggestion() parser in main.rs; since
+// v100.0.0-nightly.1 clap's own render is the single tip source. See
+// the header comment at the top of this section for the full rationale.
