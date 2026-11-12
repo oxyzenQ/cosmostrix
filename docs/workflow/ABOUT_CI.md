@@ -69,6 +69,34 @@ exempt. Enforced by gate-keepers.sh check 16
 (`scripts/gates/check-ci-path-filters.py`), which stays in the gate
 battery as the guard for any future reintroduction.
 
+## CI duration ceiling (owner mandate night-zen-2, 2026-11-12)
+
+Every push/PR-triggered workflow run must finish in **10 minutes or
+less** of wall clock. The feedback loop is part of the product: a lane
+that answers in minutes gets watched on every push; a lane that
+answers in quarters gets ignored. The ceiling formalizes the shape the
+estate already has (median wall time over the recent run history:
+Gate-keepers ~1.3, Security Audit ~0.5, Fuzz ~1.5, Supermassive Kernel
+~3.2, Maintenance ~3.1, Miri ~4.1, CodeQL ~5.8, Supermassive ~5.9,
+CI ~8.3 minutes) — it demands no new work, it forbids drift.
+
+Consequences:
+
+- Every workflow job keeps an explicit `timeout-minutes` cap (5, or 10
+  where a job's measured runtime demands it). The cap is the
+  back-stop; the 10-minute ceiling is the design target. A lane
+  drifting over the ceiling is a signal to split or parallelize the
+  work, never to raise the cap.
+- The tag-triggered publish lanes are the measured exception:
+  `release.yml` (the 7-target build + sign, ~15.3 minutes) and
+  `crates-io.yml` (~12.8 minutes) fire on tags only, sit outside the
+  feedback loop, and keep their larger 40-minute job caps — a timeout
+  kill mid-publish corrupts a release or an irreversible crates.io
+  version, so the ceiling must never break them.
+- This is the workflow-level sibling of the five-minute law the
+  supermassive battery legs already follow (night-T-1): per-leg five
+  minutes, per-run ten.
+
 ## Dependency version policy (owner decision 2026-08-30)
 
 Zero hardcoded dependency versions in `.github/*`. The rule is
