@@ -4,7 +4,9 @@
 #
 # Direct-main dependency updates use a two-phase privilege model:
 # - validate: read-only token, dependency update, full checks, lockfile artifact
-# - commit: write token, no dependency code execution, Cargo.lock allowlist only
+# - commit: write token, no dependency code execution, workspace
+#   Cargo.lock allowlist only (night-zen-1: every workspace lockfile,
+#   not just the root's)
 #
 # ── How this workflow authenticates WITHOUT a personal access token ──
 #
@@ -170,9 +172,24 @@ jobs:
       - name: Baseline security audit
         run: cargo audit
 
+      # night-zen-1 (the zejtron law): the refresh walks every committed
+      # Cargo.toml and runs cargo update in each workspace, so fuzz/ and
+      # pgo-runner/ ride the same weekly lane as the root crate. The
+      # root-only cargo update left two of the three committed lockfiles
+      # permanently stale. New workspaces join the lane without touching
+      # this file; target trees are excluded so cache-restored build
+      # output can never join the walk.
       - name: Update dependencies
-        run: cargo update
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r manifest; do
+            echo "Refreshing $(dirname "$manifest")"
+            (cd "$(dirname "$manifest")" && cargo update)
+          done < <(find . -name Cargo.toml -not -path '*/target/*' | sort)
 
+      # night-zen-1: every workspace lockfile is in scope, so the gate
+      # accepts any repo-relative Cargo.lock path, not just the root's.
       - name: Enforce dependency-only diff
         id: changes
         shell: bash
@@ -185,8 +202,8 @@ jobs:
           fi
 
           git diff --name-only | tee /tmp/changed-files.txt
-          if grep -vE '^Cargo\.lock$' /tmp/changed-files.txt; then
-            echo "::error::Auto-update may only modify Cargo.lock"
+          if grep -vE '(^|/)Cargo\.lock$' /tmp/changed-files.txt; then
+            echo "::error::Auto-update may only modify Cargo.lock files"
             exit 1
           fi
 
@@ -225,12 +242,14 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
+      # night-zen-1: the artifact carries every workspace lockfile; the
+      # glob picks up future workspaces without touching this file.
       - name: Upload validated Cargo.lock
         if: steps.changes.outputs.changed == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: validated-cargo-lock
-          path: Cargo.lock
+          path: '**/Cargo.lock'
           if-no-files-found: error
 
   commit:
@@ -254,11 +273,16 @@ jobs:
           name: validated-cargo-lock
           path: .auto-update
 
+      # night-zen-1: restore every workspace lockfile the validate job
+      # uploaded (the artifact keeps the repo-relative layout).
       - name: Commit dependency update
         shell: bash
         run: |
           set -euo pipefail
-          cp .auto-update/Cargo.lock Cargo.lock
+          find .auto-update -name Cargo.lock -type f | while IFS= read -r artifact_lock; do
+            rel="${artifact_lock#.auto-update/}"
+            cp "$artifact_lock" "$rel"
+          done
 
           if git diff --quiet; then
             echo "Validated lockfile is already current"
@@ -266,15 +290,15 @@ jobs:
           fi
 
           git diff --name-only | tee /tmp/changed-files.txt
-          if grep -vE '^Cargo\.lock$' /tmp/changed-files.txt; then
-            echo "::error::Commit job may only modify Cargo.lock"
+          if grep -vE '(^|/)Cargo\.lock$' /tmp/changed-files.txt; then
+            echo "::error::Commit job may only modify Cargo.lock files"
             exit 1
           fi
 
           # Identity comes from the workflow env block (single source).
           git config user.name "${GIT_BOT_NAME}"
           git config user.email "${GIT_BOT_EMAIL}"
-          git add Cargo.lock
+          git add -- ':(glob)**/Cargo.lock'
           git commit -m "chore(deps): maintenance deps weekly"
           git push origin HEAD:main
 

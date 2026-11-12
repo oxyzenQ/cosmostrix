@@ -9,7 +9,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 |----------|---------|---------|
 | `ci.yml` | every push + every PR (unfiltered) | fmt, clippy, test, build, security audit, version sync |
 | `release.yml` | tag push `v*` (CI-gated: waits for the `ci.yml` run on the tagged SHA — NIGHT-improve-1) | 7-platform binaries + checksums + GPG sign + GitHub Release (PGO nitro release packages retired — night-dragon-maintenance-T1) |
-| `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) | `cargo update` + audit + commit if validation passes |
+| `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) | `cargo update` in every committed workspace (root, `fuzz/`, `pgo-runner/` — night-zen-1) + audit + commit if validation passes |
 | `gitbot-audit.yml` | daily cron + every push/PR (unfiltered) | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
 | `crates-io.yml` | tag push `v*` (stable + pre-release, same CI gate) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
