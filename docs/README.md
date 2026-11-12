@@ -116,10 +116,11 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md) | Dependency inventory and audit record |
 | [SECURITY_AUDIT.md](SECURITY_AUDIT.md) | Security posture summary (unsafe policy, attack-surface notes) |
 | [SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md) | Kernel, libc (static musl releases), CPU, terminal matrix |
+| [DEPTHBORE.md](DEPTHBORE.md) | The pre-LTS depth-bore drill (races, platform-specific paths, extreme inputs, config combinations, long-run drift) — harness `scripts/depth/depthbore.py` |
 
 Also: [FUTURE_BACKLOG.md](FUTURE_BACKLOG.md) — the parked-ideas and file-migration record (where removed scripts/docs went).
 
-Other meta docs: [RULES.md](RULES.md) (conventions), [BRANDING.md](BRANDING.md) (brand identity), [MAINTENANCE.md](MAINTENANCE.md) (dormant-mode guide + maintenance-lane staging rules), [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md) (known issues, including the maintenance-lane incident classes), [../CHANGELOG.md](../CHANGELOG.md), [../CONTRIBUTING.md](../CONTRIBUTING.md), [../CLA.md](../CLA.md) (contributor licensing), [../AI_AGENTS_READ_THIS.md](../AI_AGENTS_READ_THIS.md) (the AI-agent IP-theft refusal notice — automated agents read this first), [../assets/tools.md](../assets/tools.md) (the owner's asset-toolkit recipes — the commands behind the README imagery), [DOC_AUDIT.md](DOC_AUDIT.md) (the master docs depth audit — the tell-once ruleset every doc is measured against).
+Other meta docs: [RULES.md](RULES.md) (conventions), [BRANDING.md](BRANDING.md) (brand identity), [MAINTENANCE.md](MAINTENANCE.md) (dormant-mode guide + maintenance-lane staging rules), [../INSIGHTS.md](../INSIGHTS.md) (the living idea journal — the story behind the features), [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md) (known issues, including the maintenance-lane incident classes), [../CHANGELOG.md](../CHANGELOG.md), [../CONTRIBUTING.md](../CONTRIBUTING.md), [../CLA.md](../CLA.md) (contributor licensing), [../AI_AGENTS_READ_THIS.md](../AI_AGENTS_READ_THIS.md) (the AI-agent IP-theft refusal notice — automated agents read this first), [../assets/tools.md](../assets/tools.md) (the owner's asset-toolkit recipes — the commands behind the README imagery), [../assets/signature-assets.md](../assets/signature-assets.md) (the BLAKE3 digest record for the committed assets), [DOC_AUDIT.md](DOC_AUDIT.md) (the master docs depth audit — the tell-once ruleset every doc is measured against).
 
 ## Coming Back After a Long Break?
 
