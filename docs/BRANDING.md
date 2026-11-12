@@ -29,7 +29,7 @@ Since NIGHT-dinner-2 the rule is machine-enforced: `scripts/gates/check-name-cas
 
 ## 3. Logo
 
-The official logo is at [`assets/cosmostrix-logo.png`](assets/cosmostrix-logo.png). Usage rules:
+The official logo is at [`assets/cosmostrix-original-logo-2026.png`](assets/cosmostrix-original-logo-2026.png). Usage rules:
 
 - **Minimum size**: 64px width for print, 32px for digital.
 - **Clear space**: padding equal to at least 25% of logo height on all sides.
