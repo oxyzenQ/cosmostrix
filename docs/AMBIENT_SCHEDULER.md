@@ -174,7 +174,7 @@ Snapback only runs when the ambient schedule is non-empty — it early-returns
 on `schedule.entries.is_empty()` (see `src/interactive/input.rs:591-596`,
 `try_auto_snapback`; re-pointed by NIGHT-hunt-42 2026-09-14).
 
-**Live-reload interaction** (Z-master-1X round 4, commit `<TBD>`): when a
+**Live-reload interaction** (Z-master-1X round 4): when a
 live config reload fires while a drift is visible (`drift_active = true`),
 `inherit_ecosystem_state` must NOT carry `drift_active` / `drift_start` to
 the fresh Cloud. The reload's re-apply path sets
