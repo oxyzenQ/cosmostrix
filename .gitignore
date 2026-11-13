@@ -56,3 +56,15 @@ other ai/
 # Bot dependency-update staging (night-zen-1 hotfix: download-artifact
 # staging must live under runner.temp, never in the work tree)
 .auto-update/
+
+
+# night-cafe-1 (the zelynic raw-binary law): a raw compiled binary is a
+# local build/extract product, never tracked. The tracked lane for a
+# vendored verification package is the .gz package with its .b3sum
+# sidecar (docs/VERIFY_RELEASE.md section 5). The fuzz seed fixtures
+# under fuzz/seeds/ are 5-10 byte escape-sequence test data consumed by
+# the validator tests - tracked on purpose.
+/cosmostrix
+/scripts/labs-exp/cosmostrix-*
+!scripts/labs-exp/cosmostrix-*.gz
+!scripts/labs-exp/cosmostrix-*.b3sum

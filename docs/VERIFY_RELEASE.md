@@ -92,6 +92,45 @@ tagged `Cargo.lock` (the `crates-io.yml` workflow publishes with
 lags behind a GitHub Release — both channels publish on the same tag
 push (stable and pre-release alike).
 
+## 5. Raw binary hygiene in the repository (night-cafe-1)
+
+A raw compiled binary is a local build/extract product, never tracked
+in git — the same law the sibling estate runs (the zelynic
+`scripts/labs-exp/` vendored package). The tracked lane for a vendored
+verification package is the `.gz` package plus its `.b3sum` sidecar:
+
+```
+# package (from source, at the session's HEAD):
+cargo build --profile release
+gzip -9 -k -n target/release/cosmostrix
+mv target/release/cosmostrix.gz scripts/labs-exp/cosmostrix-fixed-cli-hardening-1.gz
+b3sum scripts/labs-exp/cosmostrix-fixed-cli-hardening-1.gz \
+    > scripts/labs-exp/cosmostrix-fixed-cli-hardening-1.b3sum
+
+# verify on arrival:
+b3sum -c scripts/labs-exp/cosmostrix-fixed-cli-hardening-1.b3sum
+```
+
+`-k` keeps the raw binary local (it is a build product, not an
+artifact), `-n` stamps the original name and mtime so the package
+bytes stay reproducible. The `.gitignore` wall carries the ignore
+classes: the in-tree binary name and the raw extraction products under
+`scripts/labs-exp/`, with the `.gz`/`.b3sum` pair re-included.
+
+Tracked on purpose, not covered by the wall:
+
+- `fuzz/seeds/escape_ctrl/*.bin` — 5-10 byte escape-sequence test
+  fixtures consumed by the validator tests; text-class data, not
+  build products.
+- `assets/*.png`, `assets/*.webp` — source brand assets the README
+  renders, not compiled output.
+
+Operational note: a script run under sudo can leave root-owned
+`__pycache__/` bytecode that later refuses `rm` as the normal user;
+the `__pycache__/` + `*.pyc` ignore wall already keeps such files out
+of git, and `sudo rm -rf scripts/lib/__pycache__` (or matching the
+directory's owner) clears the stuck ones locally.
+
 ## Verification tools required
 
 - `gpg` — GnuPG 2.x (preinstalled on virtually every Linux; on macOS: `brew install gnupg`)
