@@ -445,36 +445,58 @@ Truth: `test/` (mirroring `src/`), `scripts/supermassive/`,
 Verifier: the one-command harness table in the README's Test Results
 section; the gate entry point is `scripts/gate-keepers.sh`.
 
-### 31. The provenance depth matrix (embedded build signature)
+### 31. The provenance depth matrix (masked embedded build signature)
 
 Problem killed: binary theft and fake-claim forks — a rebrand that
 ships the renderer under someone else's name, or a "modified build"
-nobody can tell apart from the official one. Mechanism: the ownership
-claim "rezky_nightky (oxyzenQ) 2026" is layered at three depths in the
-same binary — a plaintext manifest (deliberately strings(1)-greppable,
-so every redistributed artifact carries the mark), identity shards
-(six fragments that only assemble at runtime, so no single string is
-the identity), and a compile-time FNV-1a 64-bit fingerprint over the
-manifest plus the shards that `-V/--version` recomputes at runtime and
-reports as `status=verified` or `status=tampered` on its
-`Depth-matrix:` line. Two traps were found by patching real binaries
-and are part of the lesson: an optimizer folds a constant-argument
-recompute back into the embedded digest unless the read passes through
-`std::hint::black_box`, and a constant referenced by two functions can
-be cloned into separate `.rodata` copies, letting a display patch and
-an integrity check disagree — so one function reads the constants once
-and feeds both the display and the fold. Honest limits: this is tamper
-evidence, not DRM; a determined attacker with a compiler can rebuild
-without the constants, and the legal claim still lives in NOTICE and
-TRADEMARK.md.
-Truth: `src/diagnostics/signature.rs` (the layers and the single-read
-binding), `src/diagnostics/info.rs` (`version_report` prints the
-provenance block), `scripts/package/install-on-my-machine.sh` (the
-release law's raw-byte signature check).
+nobody can tell apart from the official one. The first draft embedded a
+plaintext manifest, and the owner rejected it on a real threat: a thief
+can run `strings`/`rg` over the artifact, find the wording, and patch
+it out. Mechanism (advanced form): the ownership claim
+"rezky_nightky (oxyzenQ) 2026" exists in the binary ONLY as opaque
+64-bit integers — two independent XOR-masked word arrays (the Signature
+manifest, the Copyright authors string) masked by a splitmix64 stream
+keyed by per-layer seeds, with no printable four-byte run anywhere in
+the masked data, so artifact-side greps find nothing. `-V/--version`
+materializes the plaintext in one unmask pass per layer and verifies it
+against compile-time FNV-1a 64-bit digests computed directly from the
+masked words (the plaintext never exists as a literal in the module, so
+it cannot leak into `.rodata` through const evaluation), reporting
+`status=verified` or `status=tampered` on its `Depth-matrix:` line; the
+installer's release law runs the built binary and requires the
+materialized identity plus a verified status. Four traps are part of
+the lesson: an optimizer folds a constant-argument recompute back into
+the embedded digest unless the read passes through
+`std::hint::black_box`; a constant referenced by two functions can be
+cloned into separate `.rodata` copies, letting a display patch and an
+integrity check disagree — hence one unmask pass per call feeding both
+display and fold; the authors env expansion (`CARGO_PKG_AUTHORS`) is a
+plaintext identity carrier of its own, so the Copyright line
+materializes from the masked layer instead; and the mask algorithm must
+be mirrored byte-exactly between the generator and the const code,
+which is pinned by fingerprint cross-check tests. Honest limits: this
+is tamper evidence, not DRM — once `-V` prints, the plaintext lives in
+process memory and forensics can extract it; the defense targets the
+lazy grep-and-strip rebrand and survives source rebrands by people who
+do not recognize the constants, while a determined attacker who fully
+understands the module can regenerate everything (the legal layer in
+NOTICE and TRADEMARK.md is the backstop). The constants are generated
+by `scripts/release/generate-provenance-words.py`, the committed truth
+source that carries the identity in plaintext by design, the same way
+NOTICE does.
+Truth: `src/diagnostics/signature.rs` (the masked layers, the
+single-pass materialization, the dual fingerprints),
+`scripts/release/generate-provenance-words.py` (constant generation),
+`src/diagnostics/info.rs` (`version_report` renders the view),
+`scripts/package/install-on-my-machine.sh` (the release law's runtime
+signature gate).
 Verifier: `cosmostrix -V | grep Depth-matrix` must show
-`status=verified` on any genuine build; the unit suites pin the shard
-assembly, the const-vs-runtime fingerprint equality, and the tamper
-sensitivity (`cargo test diagnostics::signature diagnostics::info`).
+`status=verified` on any genuine build, and
+`strings ./cosmostrix | grep rezky_nightky` must find NOTHING (the
+mark is masked at rest); the unit suites pin the materialization
+oracles, the strings-invisibility floor, the const-vs-runtime
+fingerprint equality, and the tamper sensitivity
+(`cargo test diagnostics::signature diagnostics::info`).
 
 ## Retired by verdict
 
