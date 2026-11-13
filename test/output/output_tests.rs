@@ -24,6 +24,26 @@ fn rgb_constants_match_neon_family_palette() {
     assert_eq!(SUGGESTION_RGB, (220, 235, 255)); // #DCEBFF — NeonWhite head stop
 }
 
+#[test]
+fn ok_bold_open_is_capability_laddered() {
+    // night-cafe-1 (the zelynic 100-percent color-parity pass): the Ok
+    // slot is the zelynic status green - truecolor #50FA7B (80,250,123),
+    // the 256-color 84 rung, ANSI bold green (1;32) on classic 16-color
+    // terminals, plain text on mono. Every green the CLI paints (doctor
+    // verdicts, help example lines) rides this seat, so the hue can
+    // never drift between surfaces.
+    assert_eq!(
+        ok_bold_open_for(ColorCapability::TrueColor),
+        "\x1b[1;38;2;80;250;123m"
+    );
+    assert_eq!(
+        ok_bold_open_for(ColorCapability::Color256),
+        "\x1b[1;38;5;84m"
+    );
+    assert_eq!(ok_bold_open_for(ColorCapability::Color16), "\x1b[1;32m");
+    assert_eq!(ok_bold_open_for(ColorCapability::Mono), "");
+}
+
 // ── eprintln_safe! macro ──
 
 #[test]

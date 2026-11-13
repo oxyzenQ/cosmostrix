@@ -8,7 +8,8 @@
 //! three-tier semantic grammar: section headings in bold brand
 //! purple, flag spellings (definition rows and inline prose
 //! mentions) in the calm grey grammar tier, and runnable example
-//! command lines in bold Matrix green.
+//! command lines in bold ok green (the shared zelynic status-green
+//! seat, `crate::output::ok_bold_open`).
 //!
 //! NIGHT-boost-2 (2026-09-24): example command lines (indented
 //! `cosmostrix ...` invocations) render in bold Matrix green so
@@ -17,32 +18,21 @@
 //! annotation lines that sit ABOVE each example stay plain — position,
 //! not color, marks them as commentary.
 
-use crate::output::ColorCapability;
-use crate::output::color_capability;
-
-/// Bold Matrix green open sequence for --help example command lines,
-/// capability-aware (the same four-rung ladder as
-/// `crate::output::brand_bold_open`).
+/// Bold ok green open sequence for --help example command lines —
+/// the shared zelynic status-green seat (`crate::output::ok_bold_open`):
+/// truecolor #50FA7B (80,250,123), the 256-color 84 rung, ANSI green
+/// (32) on classic 16-color terminals, plain text on mono.
 ///
-/// Color provenance: the default Green theme's body stop
-/// (80, 255, 110) from `src/engine/chroma_dragon_engine/catalog/
-/// themes.rs`, quantized per capability — 256-color index 84
-/// (#5fff87, the theme's own ansi ramp body entry) and ANSI green 32
-/// (the theme's c16 body anchor). Green means "runnable command";
-/// every other help surface keeps its existing hue.
+/// night-cafe-1 (the zelynic 100-percent color-parity pass): the
+/// private ladder this surface used to carry — the Green theme's body
+/// stop (80,255,110), a hue the zelynic Ok slot never rode — is
+/// retired. One green, one seat: the help's runnable-command tier is
+/// now byte-identical to every other CLI surface that paints a
+/// runnable verdict, and the hue can never drift again. Green means
+/// "runnable command"; every other help surface keeps its existing
+/// hue.
 pub(crate) fn matrix_green_bold_open() -> &'static str {
-    matrix_green_bold_open_for(color_capability())
-}
-
-/// Capability-parameterized form — unit-testable without env sniffing.
-#[must_use]
-fn matrix_green_bold_open_for(cap: ColorCapability) -> &'static str {
-    match cap {
-        ColorCapability::TrueColor => "\x1b[1;38;2;80;255;110m",
-        ColorCapability::Color256 => "\x1b[1;38;5;84m",
-        ColorCapability::Color16 => "\x1b[1;32m",
-        ColorCapability::Mono => "",
-    }
+    crate::output::ok_bold_open()
 }
 
 pub(crate) fn colorize_help(text: &str) -> String {
@@ -97,8 +87,9 @@ pub(crate) fn colorize_help(text: &str) -> String {
         // NIGHT-boost-2: example command lines — any indented line whose
         // first non-space token is `cosmostrix` (the 2-space COMMON
         // OPTIONS examples, the 6-space inline examples, and the 8-space
-        // --dump-config block) — render the WHOLE line in bold Matrix
-        // green. One rule, one semantic: green = copy-pasteable command.
+        // --dump-config block) — render the WHOLE line in bold ok green
+        // (the shared zelynic status-green seat). One rule, one
+        // semantic: green = copy-pasteable command.
         // Prose that merely mentions cosmostrix mid-sentence ("Then:
         // cosmostrix ...") does not lead with the binary name and stays
         // plain, so the matcher cannot false-positive on narrative text.
@@ -231,26 +222,14 @@ fn grey_inline_mentions(line: &str) -> String {
 mod tests {
     use super::*;
 
-    /// The green ladder must match the provenance contract exactly:
-    /// truecolor body stop (80,255,110), the theme's own 256-color
-    /// ramp entry 84, the theme's c16 body anchor 32, and nothing on
-    /// mono. If the Green theme is ever retuned, this test plus the
-    /// doc comment pin where the new values must be mirrored.
+    /// night-cafe-1: the example tier rides the shared ok-bold seat —
+    /// byte-identical to `crate::output::ok_bold_open()` at the live
+    /// capability, so the help green can never drift from the verdict
+    /// green. The per-rung byte pin lives in the Ok slot's own seat
+    /// (test/output/output_tests.rs ok_bold_open_is_capability_laddered).
     #[test]
-    fn green_open_is_capability_laddered() {
-        assert_eq!(
-            matrix_green_bold_open_for(ColorCapability::TrueColor),
-            "\x1b[1;38;2;80;255;110m"
-        );
-        assert_eq!(
-            matrix_green_bold_open_for(ColorCapability::Color256),
-            "\x1b[1;38;5;84m"
-        );
-        assert_eq!(
-            matrix_green_bold_open_for(ColorCapability::Color16),
-            "\x1b[1;32m"
-        );
-        assert_eq!(matrix_green_bold_open_for(ColorCapability::Mono), "");
+    fn example_green_rides_the_shared_ok_bold_seat() {
+        assert_eq!(matrix_green_bold_open(), crate::output::ok_bold_open());
     }
 
     /// Example command lines are wrapped green-line-reset, verbatim
