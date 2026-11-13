@@ -474,7 +474,13 @@ command renders the owner's cross-tool four-depth report (zejtron
 parity: D0 runtime-identity, D1 embedded-marker, D2 anchor-integrity,
 D3 binary-self-hash) with a `SIGNATURE: AUTHENTIC (4/4 depths
 verified)` verdict and exit code 2 on tamper, so scripts can gate on
-it. D3 blake3-hashes the running executable image (~10 MB in tens of
+it. Advanced form 4 (2026-11-13) retires the `--sig` flag spelling —
+`sig` is a SUBCOMMAND dispatched pre-clap (zero arguments; extra
+arguments get a clap-shaped refusal, exit 0 authentic / 2 tamper) —
+and brands the surfaces: the `sig` banner rides the bold brand purple
+report-title tier and the `-V` Depth-matrix line rides the ok-green
+tier, both TTY-gated so piped output stays byte-for-byte plain (the
+machine-friendly canon). D3 blake3-hashes the running executable image (~10 MB in tens of
 milliseconds on the pure-Rust implementation; the crate's C/asm lanes
 are deliberately off so every cross-compile lane in the release matrix
 keeps building without a target C toolchain) — an honest FINGERPRINT:
@@ -520,8 +526,8 @@ self-hash),
 `scripts/release/generate-provenance-words.py` (constant and anchor
 generation),
 `src/diagnostics/info.rs` (`version_report` renders the view),
-`src/cli/argv_expand.rs` (the bare `sig` command word, first-token
-only),
+`src/cli/argv_expand.rs` (the `sig` subcommand dispatch, argv[1] only
+— extra arguments refused, `--sig` retired),
 `scripts/package/install-on-my-machine.sh` (the release law's runtime
 signature gate + the four-depth gate).
 Verifier: `cosmostrix -V | grep Depth-matrix` must show
