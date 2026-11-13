@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::output::spinner::Spinner;
-use crate::output::{brand_bold, grey_open, ok_bold, println_safe, reset, warn_bold};
+use crate::output::{brand_bold, ok_bold, println_safe, warn_bold};
 use std::process::Command;
 
 const GITHUB_API_URL: &str = "https://api.github.com/repos/oxyzenQ/cosmostrix/releases/latest";
@@ -189,12 +189,20 @@ fn curl_body(output: &std::process::Output) -> Result<String, String> {
 /// Compare `current_version` against the latest release tag in `body`
 /// and print the user-facing update report.
 ///
-/// Output color law (night-dragon-maintenance-4): the title rides the
-/// bold brand purple tier, the key labels and the source URL ride the
-/// calm grey tier (secondary context, zelynic grammar), and the Status
-/// verdict carries the state's own tier — bold ok green for a healthy
-/// current install, bold warning yellow when an update is available —
-/// so the one line a user scans for is never plain white.
+/// Output shape law (night-cafe-3, owner parity directive 2026-11-13):
+/// the report rides the zelynic update-check shape FIELD FOR FIELD —
+/// the sibling prints `━━━ zelynic Update Check ━━━` in bold brand
+/// purple, one blank line, then its `  {:<11} {}` field rows with
+/// UNCOLORED labels, ending on the Source line (no usage pointer).
+/// cosmostrix previously printed a bare `cosmostrix update check`
+/// title with grey labels and a trailing usage note — a different
+/// shape from the sibling on every line. The banner and the field
+/// rows come from the shared report canon (`banner_line` /
+/// `field_line`), so this surface cannot drift from the restyled
+/// diagnostics reports; the Status verdict keeps the semantic tier —
+/// bold ok green for a healthy current install, bold warning yellow
+/// when an update is available — the exact verdict grammar the
+/// sibling's update check uses.
 fn report_update_status(current_version: &str, body: &str) -> Result<(), String> {
     let latest_tag = extract_tag_name(body)
         .ok_or_else(|| "could not parse latest release tag from GitHub response".to_string())?;
@@ -204,21 +212,29 @@ fn report_update_status(current_version: &str, body: &str) -> Result<(), String>
         UpdateStatus::CurrentIsNewer => ok_bold("current is newer than latest release"),
     };
 
-    println_safe!("{}", brand_bold("cosmostrix update check"));
     println_safe!(
-        "{}Current:{} {}",
-        grey_open(),
-        reset(),
-        normalize_version(current_version)
+        "{}",
+        brand_bold(&crate::output::report::banner_line(
+            "cosmostrix Update Check"
+        ))
+    );
+    println_safe!();
+    println_safe!(
+        "{}",
+        crate::output::report::field_line("Current", &normalize_version(current_version), 11)
     );
     println_safe!(
-        "{}Latest:{}  {}",
-        grey_open(),
-        reset(),
-        normalize_version(&latest_tag)
+        "{}",
+        crate::output::report::field_line("Latest", &normalize_version(&latest_tag), 11)
     );
-    println_safe!("{}Status:{}  {status}", grey_open(), reset());
-    println_safe!("{}Source:{}  {RELEASES_URL}", grey_open(), reset());
+    println_safe!(
+        "{}",
+        crate::output::report::field_line("Status", &status, 11)
+    );
+    println_safe!(
+        "{}",
+        crate::output::report::field_line("Source", RELEASES_URL, 11)
+    );
 
     Ok(())
 }

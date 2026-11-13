@@ -126,9 +126,12 @@ fn dispatch_post_config(cmd: PostConfigCmd, args: &Args) -> std::io::Result<()> 
             if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
                 ux::die_config(format!("error: update check failed: {e}"));
             }
-            // The helper-output canon: the successful check closes with
-            // the usage pointer, in the calm grey tier on a TTY.
-            crate::report::print_usage_note(crate::config::color_enabled_stdout());
+            // night-cafe-3 (owner parity directive, 2026-11-13): the
+            // report ends on its Source line — no usage pointer. The
+            // sibling's update check closes silently, and the night-T-1
+            // "every helper output closes with the usage pointer" canon
+            // carries an explicit exemption for this surface (see
+            // output/report.rs module docs).
             Ok(())
         }
     }

@@ -18,7 +18,11 @@
 //!   mark painted in bold warning yellow when ANSI is available
 //! - a closing usage pointer (night-T-1): every helper output ends
 //!   with `Usage: cosmostrix [options] e.g ...` — the one-line way
-//!   back to the CLI, painted in the calm grey grammar tier
+//!   back to the CLI, painted in the calm grey grammar tier.
+//!   night-cafe-3 exemption (owner parity directive, 2026-11-13):
+//!   the `--check-update` report does NOT close with the pointer —
+//!   the sibling's update check ends on its Source line, and this
+//!   surface rides the zelynic shape field-for-field.
 //!
 //! The render is machine-friendly by construction: piped surfaces lose
 //! every escape (the capability ladder returns plain text), and the
@@ -47,7 +51,9 @@ pub(crate) const USAGE_NOTE: &str = "Usage: cosmostrix [options] e.g cosmostrix 
 
 /// Build the `━━━ TITLE ━━━` banner line (plain text; the renderer
 /// wraps it in bold brand purple when the surface supports ANSI).
-fn banner_line(title: &str) -> String {
+/// pub(crate) so the update check's report rides the same canon
+/// builder — one banner shape, zero drift between surfaces.
+pub(crate) fn banner_line(title: &str) -> String {
     format!(
         "{BANNER_GLYPH}{BANNER_GLYPH}{BANNER_GLYPH} {title} {BANNER_GLYPH}{BANNER_GLYPH}{BANNER_GLYPH}"
     )
@@ -71,8 +77,10 @@ pub(crate) fn print_usage_note(ansi: bool) {
 }
 
 /// Build one aligned field line: two-space indent, colon-attached key
-/// padded to `width`, then the value.
-fn field_line(key: &str, value: &str, width: usize) -> String {
+/// padded to `width`, then the value. pub(crate) so the update check's
+/// report rides the same canon builder (the zelynic `  {:<11} {}`
+/// field grammar) instead of hand-aligned literals.
+pub(crate) fn field_line(key: &str, value: &str, width: usize) -> String {
     format!("  {:<width$} {}", format!("{key}:"), value)
 }
 
