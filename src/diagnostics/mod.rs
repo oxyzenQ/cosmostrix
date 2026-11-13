@@ -144,4 +144,5 @@ fn macos_cpu_model() -> Option<String> {
 pub(crate) mod alloc_trace;
 pub(crate) mod humanize;
 pub(crate) mod info;
+pub(crate) mod sig_report;
 pub(crate) mod signature;

@@ -32,14 +32,15 @@
 //! POST-CONFIG (run after config-apply; report the merged view):
 //!  10. --doctor          diagnostics report
 //!  11. --version / -V    version + build info
+//!  11b. --sig / sig      four-depth signature report (exit 2 on tamper)
 //!  12. --docs            full engine documentation
 //!  13. --check-update    upstream release check
 //! ─────────────────────────────────────────────────────────────────────
 //! NIGHT-depthtest-5 & hunt-46 (2026-09-14) exception at Boundary 3: the
-//! config-independent commands (--version / --docs / --check-update)
-//! SURVIVE a config-apply failure — they render static build facts,
-//! engine documentation, and an upstream release check that no config
-//! value can alter, so dying behind an unrelated config error would
+//! config-independent commands (--version / --sig / --docs /
+//! --check-update) SURVIVE a config-apply failure — they render static
+//! build facts, the embedded signature verdict, engine documentation,
+//! and an upstream release check that no config value can alter, so dying behind an unrelated config error would
 //! hide the very string the user asked for (see
 //! handle_static_post_config_returns). --doctor keeps the strict
 //! death: a config failure IS its diagnostic surface (the error names
@@ -98,6 +99,14 @@ fn dispatch_post_config(cmd: PostConfigCmd, args: &Args) -> std::io::Result<()> 
             println_safe!("{}", info::version_report());
             Ok(())
         }
+        PostConfigCmd::Sig => {
+            // night-signature-advanced-3: the four-depth signature report.
+            // Prints the verdict and exits 2 on tamper (print_sig_report
+            // owns the exit — the report itself is the error surface),
+            // so scripts can gate on the exit code like zejtron's sig.
+            crate::diagnostics::sig_report::print_sig_report();
+            Ok(())
+        }
         PostConfigCmd::Docs => {
             // Print the full engine documentation and architecture
             // overview, then exit. Plain text only (no ANSI) so it pipes
@@ -152,6 +161,7 @@ pub(crate) enum PreConfigCmd {
 pub(crate) enum PostConfigCmd {
     Doctor,
     Version,
+    Sig,
     Docs,
     CheckUpdate,
 }
@@ -203,6 +213,9 @@ pub(crate) fn classify_post_config(args: &Args) -> Option<PostConfigCmd> {
     }
     if args.version {
         return Some(PostConfigCmd::Version);
+    }
+    if args.sig {
+        return Some(PostConfigCmd::Sig);
     }
     if args.docs {
         return Some(PostConfigCmd::Docs);
@@ -506,9 +519,12 @@ pub(crate) fn handle_post_config_returns(args: &Args) -> Option<std::io::Result<
 /// command was passed; the caller then dies on the config-apply error.
 pub(crate) fn handle_static_post_config_returns(args: &Args) -> Option<std::io::Result<()>> {
     match classify_post_config(args) {
-        Some(cmd @ (PostConfigCmd::Version | PostConfigCmd::Docs | PostConfigCmd::CheckUpdate)) => {
-            Some(dispatch_post_config(cmd, args))
-        }
+        Some(
+            cmd @ (PostConfigCmd::Version
+            | PostConfigCmd::Sig
+            | PostConfigCmd::Docs
+            | PostConfigCmd::CheckUpdate),
+        ) => Some(dispatch_post_config(cmd, args)),
         _ => None,
     }
 }

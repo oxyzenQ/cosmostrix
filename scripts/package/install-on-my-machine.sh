@@ -175,6 +175,15 @@ if ! "${BINARY}" -V | grep -aFq "status=verified"; then
         echo "  (status=tampered on the -V Depth-matrix line). Refusing to install." >&2
         exit 1
 fi
+# night-signature-advanced-3: the four-depth report is the stronger
+# gate - it verifies the blake3 anchor over the masked layers AND
+# self-hashes the exact image about to be installed. A binary that
+# cannot prove AUTHENTIC 4/4 never lands in /usr/bin.
+if ! "${BINARY}" sig | grep -aFq "SIGNATURE: AUTHENTIC (4/4 depths verified)"; then
+        echo "error: the built binary fails the four-depth signature report" >&2
+        echo "  (cosmostrix sig did not end AUTHENTIC). Refusing to install." >&2
+        exit 1
+fi
 echo ">> [3/4] Installing to /usr/bin/${cosmostrix} (sudo for this step only)"
 sudo install -Dm755 "${BINARY}" "/usr/bin/${cosmostrix}"
 echo "   installed: /usr/bin/${cosmostrix}"
@@ -182,6 +191,13 @@ echo "   installed: /usr/bin/${cosmostrix}"
 # 5. Verify from the installed path.
 echo ">> [4/4] Verify"
 /usr/bin/"${cosmostrix}" -V
+# The installed image itself must still prove AUTHENTIC - this catches
+# any copy/copy-on-write corruption between target/ and /usr/bin.
+if ! /usr/bin/"${cosmostrix}" sig | grep -aFq "SIGNATURE: AUTHENTIC (4/4 depths verified)"; then
+        echo "error: the installed binary fails the four-depth signature report." >&2
+        exit 1
+fi
+echo "   sig: SIGNATURE: AUTHENTIC (4/4 depths verified)"
 if ! command -v "${cosmostrix}" >/dev/null 2>&1; then
         echo "note: /usr/bin is not on this shell's PATH yet - open a new shell." >&2
 fi

@@ -336,6 +336,18 @@ pub struct Args {
     )]
     pub docs: bool,
 
+    // night-signature-advanced-3: the four-depth signature report
+    // (zejtron parity). Bare `sig` is expanded to --sig in
+    // argv_expand.rs (the repo's pre-clap shorthand lane); exits 2 on
+    // a tampered verdict so scripts can gate on the exit code.
+    #[arg(
+        long = "sig",
+        help_heading = "Diagnostics",
+        display_order = 106,
+        help = "Verify the embedded build signature (depth matrix; exit 2 on tamper)"
+    )]
+    pub sig: bool,
+
     #[arg(
         long = "benchmark",
         help_heading = "Diagnostics",
