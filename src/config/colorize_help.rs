@@ -5,16 +5,17 @@
 //! file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
 //! Owns `colorize_help()` — paints the --help output with the
-//! three-tier semantic grammar: section headings in bold brand
-//! purple, flag spellings (definition rows and inline prose
-//! mentions) in the calm grey grammar tier, and runnable example
-//! command lines in bold ok green (the shared zelynic status-green
-//! seat, `crate::output::ok_bold_open`).
+//! zelynic tier grammar: section headings in bold brand purple,
+//! the Usage: synopsis and flag spellings (definition rows and
+//! inline prose mentions) in the calm grey grammar tier, and
+//! runnable example command lines in bold ok green (the shared
+//! zelynic status-green seat, `crate::output::ok_bold_open`).
 //!
 //! NIGHT-boost-2 (2026-09-24): example command lines (indented
-//! `cosmostrix ...` invocations) render in bold Matrix green so
-//! runnable examples are visually distinct from option definitions
-//! (bold white) and section headings (bold brand purple). The `#`
+//! `cosmostrix ...` invocations) render in bold ok green (the shared
+//! zelynic status-green seat) so runnable examples are visually
+//! distinct from option definitions (bold white) and section
+//! headings (bold brand purple). The `#`
 //! annotation lines that sit ABOVE each example stay plain — position,
 //! not color, marks them as commentary.
 
@@ -37,6 +38,13 @@ pub(crate) fn matrix_green_bold_open() -> &'static str {
 
 pub(crate) fn colorize_help(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 64);
+    // night-cafe-1 (the zelynic synopsis law): the invocation line
+    // under the Usage: heading is grammar, not a runnable example -
+    // it rides the calm grey tier. The slot opens when the heading
+    // branch emits Usage: and is consumed by the first non-blank
+    // line that follows, so exactly one synopsis line is exempted
+    // from the green example matcher per Usage: block.
+    let mut pending_synopsis = false;
     for chunk in text.split_inclusive('\n') {
         let (line, nl) = chunk
             .strip_suffix('\n')
@@ -69,6 +77,9 @@ pub(crate) fn colorize_help(text: &str) -> String {
         if is_banner || is_heading {
             // Bold brand purple for the banner rail and section
             // headings (matches --help USAGE:).
+            // body is the heading with its trailing colon(s) stripped
+            // (trim_end_matches above), so the comparison carries none.
+            pending_synopsis = is_heading && body == "Usage";
             out.push_str(crate::output::brand_bold_open());
             out.push_str(line);
             out.push_str(crate::output::reset());
@@ -84,12 +95,37 @@ pub(crate) fn colorize_help(text: &str) -> String {
             continue;
         }
 
+        // night-cafe-1 (the zelynic synopsis law, NIGHT-hunt-35): the
+        // invocation line under the Usage: heading rides the calm grey
+        // grammar tier — the same tier zelynic paints its
+        // `zelynic <command> [target] [value] [options]` synopsis with.
+        // The indent stays outside the span (the flag-row law), and the
+        // slot is consumed exactly once per Usage: block, so a blank
+        // line after the heading never leaks grey into the next tier.
+        if pending_synopsis {
+            if !line.trim().is_empty() {
+                pending_synopsis = false;
+                if line.starts_with(' ') && line.trim_start().starts_with("cosmostrix") {
+                    let indent_len = line.len() - line.trim_start().len();
+                    out.push_str(&line[..indent_len]);
+                    out.push_str(crate::output::grey_open());
+                    out.push_str(line.trim_start());
+                    out.push_str(crate::output::reset());
+                    out.push_str(nl);
+                    continue;
+                }
+            }
+        }
+
         // NIGHT-boost-2: example command lines — any indented line whose
         // first non-space token is `cosmostrix` (the 2-space COMMON
         // OPTIONS examples, the 6-space inline examples, and the 8-space
         // --dump-config block) — render the WHOLE line in bold ok green
         // (the shared zelynic status-green seat). One rule, one
-        // semantic: green = copy-pasteable command.
+        // semantic: green = copy-pasteable command. The Usage: synopsis
+        // never reaches this branch (the grey slot above consumes it —
+        // the zelynic hierarchy: bold purple headings, grey synopsis
+        // and flag grammar, green runnable examples).
         // Prose that merely mentions cosmostrix mid-sentence ("Then:
         // cosmostrix ...") does not lead with the binary name and stays
         // plain, so the matcher cannot false-positive on narrative text.
@@ -234,7 +270,8 @@ mod tests {
 
     /// Example command lines are wrapped green-line-reset, verbatim
     /// body, at every indent level the help text uses (2, 6, 8 spaces)
-    /// — and the USAGE invocation line belongs to the same class.
+    /// — standalone lines stay green; only the line following the
+    /// Usage: heading is exempted (the synopsis slot).
     #[test]
     fn example_command_lines_render_green() {
         let green = matrix_green_bold_open();
@@ -251,6 +288,64 @@ mod tests {
                 "example line not green-wrapped verbatim: {line}"
             );
         }
+    }
+
+    /// night-cafe-1 (the zelynic synopsis law): the invocation line
+    /// under the Usage: heading rides the calm grey tier — indent
+    /// outside the span, spelling inside — while the line under the
+    /// Examples: heading stays green. The zelynic hierarchy in two
+    /// pins: grey grammar under Usage:, green runnable under Examples:.
+    #[test]
+    fn usage_synopsis_rides_grey_and_examples_stay_green() {
+        let g = crate::output::grey_open();
+        let r = crate::output::reset();
+        let purple = crate::output::brand_bold_open();
+        let out = colorize_help("Usage:\n  cosmostrix [options]\n");
+        assert_eq!(
+            out,
+            format!("{purple}Usage:{r}\n  {g}cosmostrix [options]{r}\n")
+        );
+        let green = matrix_green_bold_open();
+        let out = colorize_help("Examples:\n  cosmostrix -c rainbow -v\n");
+        assert_eq!(
+            out,
+            format!("{purple}Examples:{r}\n{green}  cosmostrix -c rainbow -v{r}\n")
+        );
+    }
+
+    /// The synopsis slot is consumed once: a Usage: block whose
+    /// synopsis is absent cannot leak grey onto the next tier (the
+    /// following heading or flag row renders per its own law).
+    #[test]
+    fn synopsis_slot_is_consumed_exactly_once() {
+        let g = crate::output::grey_open();
+        let r = crate::output::reset();
+        let purple = crate::output::brand_bold_open();
+        // Blank line between heading and synopsis: the slot survives
+        // the blank and still greys the synopsis.
+        let out = colorize_help("Usage:\n\n  cosmostrix [options]\n");
+        assert_eq!(
+            out,
+            format!("{purple}Usage:{r}\n\n  {g}cosmostrix [options]{r}\n"),
+            "synopsis after a blank line must still ride grey"
+        );
+        // A Usage: block with no synopsis: the next heading keeps its
+        // own tier, and the example line after it is never greyed by
+        // the stale slot (the slot only exempts the FIRST non-blank
+        // line, and a non-matching line consumes it without painting).
+        // Full-output equality, built from the live capability, so the
+        // pin holds on every rung (mono included - the contains() probe
+        // trap: plain text matches every tier-wrapped needle when the
+        // tiers are empty, so a negated contains() lies in mono runs).
+        let out = colorize_help("Usage:\nExamples:\n  cosmostrix -c rainbow -v\n");
+        let green = matrix_green_bold_open();
+        assert_eq!(
+            out,
+            format!(
+                "{purple}Usage:{r}\n{purple}Examples:{r}\n{green}  cosmostrix -c rainbow -v{r}\n"
+            ),
+            "the example line must ride green, never the stale synopsis slot"
+        );
     }
 
     /// Prose that mentions cosmostrix without leading with it must
