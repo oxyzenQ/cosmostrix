@@ -77,12 +77,17 @@ pub(crate) fn clap_styles() -> ClapStyles {
                 .effects(ClapEffects::BOLD)
                 .fg_color(Some(ClapColor::Rgb(ClapRgbColor(168, 85, 247)))),
         )
-        // night-improve-2: flag spellings (literals) ride the calm
-        // grey grammar tier — the zelynic flag-row law ("flags are
-        // grammar; grey says context, not content"), matching the
-        // colorize_help tier so both help surfaces agree. Calm, not
-        // bold: the tier reads as grammar, not emphasis.
-        .literal(ClapStyle::new().fg_color(Some(ClapColor::Rgb(ClapRgbColor(139, 139, 139)))))
+        // night-cafe-1 (the zelynic 100-percent color-parity pass): the
+        // literal slot rides the zelynic clap contract byte-for-byte -
+        // BOLD in the terminal default color, no fg paint. The grey
+        // flag-row law ("flags are grammar") lives in the manual
+        // renderer (config/colorize_help.rs), whose pattern-matched
+        // flag rows own that tier; clap's literal token is a different
+        // surface and the reference keeps it bold-default. The grey RGB
+        // this slot used to paint (139,139,139) over-applied the law to
+        // the clap layer, so clap-rendered usage tokens read grey where
+        // the sibling estate reads bold.
+        .literal(ClapStyle::new().effects(ClapEffects::BOLD))
         .placeholder(ClapStyle::new())
         // v100.0.0-nightly.1 style harmony (owner mandate 2026-09-04,
         // "totally refactor styles UX cli"): clap's default styles left
