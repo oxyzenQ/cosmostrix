@@ -683,13 +683,14 @@ PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before sub
 
 ## Security
 
-cosmostrix runs raw-mode on the user's TTY and owns terminal state while it renders — security is part of the product, not an afterthought. Report vulnerabilities privately via GitHub private vulnerability reporting or direct owner contact; the running-as-root analysis and the terminal-ownership threat model live in [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+cosmostrix runs raw-mode on the user's TTY and owns terminal state while it renders — security is part of the product, not an afterthought. Report vulnerabilities privately via [SECURITY.md](SECURITY.md) (GitHub private vulnerability reporting or direct owner contact); the running-as-root analysis and the terminal-ownership threat model live in [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
 ## Documentation
 
 - [**Docs Index**](docs/README.md) — **start here** — master index of every doc
 - [Changelog](CHANGELOG.md) — release history
 - [Known Issues](KNOWN_ISSUES.md) — platform-specific quirks and workarounds
+- [Security Policy](SECURITY.md) — how to report, what counts, audit trail
 - [Insights](INSIGHTS.md) — living idea journal (the story behind features)
 - [Innovation Ledger](docs/INNOVATIONS.md) — every innovation as problem, mechanism, truth file, and verifier
 - [Contributing Guide](CONTRIBUTING.md) — build, test, coding conventions, PR checklist
