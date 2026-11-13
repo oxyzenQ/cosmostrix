@@ -51,6 +51,17 @@ pub(crate) fn color_enabled_stdout() -> bool {
     if matches!(std::env::var("CLICOLOR").ok().as_deref(), Some("0")) {
         return false;
     }
+    // night-cafe-1: CLICOLOR_FORCE=1 forces colors even when piped -
+    // the same env contract the capability ladder honors
+    // (detect_color_capability names it "matches cargo behavior", the
+    // zelynic forced-lane law). The gate used to ignore the force, so
+    // a piped --help rendered plain while every other surface obeyed
+    // the contract - one env, two laws. The probe answers for stdout,
+    // so the force applies to stdout surfaces; stderr probes stay on
+    // the ladder's own gate.
+    if matches!(std::env::var("CLICOLOR_FORCE").ok().as_deref(), Some("1")) {
+        return true;
+    }
     std::io::stdout().is_terminal()
 }
 
