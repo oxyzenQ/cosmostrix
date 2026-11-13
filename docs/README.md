@@ -52,7 +52,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 |-----|--------|
 | [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible** — every rain visual knob (`src/central_control_rains/mod.rs`) |
 
-The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05). Historical spec at [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md); elimination record at [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md). Subsystems still sharing the "atmosphere" name (`src/engine/chroma_dragon_engine/post/climate/mod.rs`, `AtmosphericEvolution` in `src/engine/cosmic_dragon_engine/cloud/ecosystem.rs`) are separate and remain live.
+The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05). Historical spec at [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md); elimination record at [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md). Subsystems still sharing the "atmosphere" name (`src/engine/chroma_dragon_engine/post/climate/mod.rs`, the autonomous atmospheric evolution pass in `src/engine/cosmic_dragon_engine/cloud/ecosystem.rs`) are separate and remain live.
 
 ## Color & Theming (Chroma Dragon)
 

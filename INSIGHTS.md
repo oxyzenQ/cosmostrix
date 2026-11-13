@@ -73,7 +73,7 @@ edges, no lone bright heads).
 
 **Status**: Audit complete. Options A–E documented. The `BorderPulse`
 mechanism (Option C variant) was implemented in the border gradient
-system (beta.4). See `detect_border_touch` in `cloud/rain.rs`.
+system (beta.4). See `detect_border_touch` in `cloud/border_touch.rs`.
 
 ---
 

@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The twenty-six, in dependency order
+## The thirty, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -70,7 +70,9 @@ Truth: `src/engine/cosmic_dragon_engine/terminal/draw.rs`,
 `src/cosmic_dragon_incubator/egg/threshold_sweep.rs`.
 Verifier: lock invariants for the SGR color cache (Cosmic Dragon
 INV-14/15), plus the `escape_ctrl` fuzz target proving emission stays
-safe under adversarial input.
+safe under adversarial input; the supermassive PTY byte-log assertions
+(`scripts/supermassive/pty_assert.py`) observe the emitted control
+sequences on a real terminal, where the batching result is visible.
 
 ### 3. The three-layer parallax depth system
 
@@ -384,7 +386,51 @@ Verifier: the incubator lock suite
 (`test/cosmic_dragon_incubator/tests/lock.rs`, which also carries the
 engine version sentinel).
 
-### 26. The verification machinery
+### 26. The live HUD
+
+Problem killed: a renderer running for hours gives the user no feedback
+about what it is doing to the machine. Mechanism: a dashboard overlay,
+toggled with `i`, reports real-time FPS, p99 frame time, frame-time
+distribution, RSS, the Endurance Health Score, and build information,
+with the gradient header drawn through the Chroma pipeline.
+Truth: `src/interactive/hud/` (`mod.rs`, `hud_init.rs`, `metrics.rs`,
+`colors.rs`), wired through `src/interactive/event_loop_hud.rs`.
+Verifier: `test/interactive/` and [HUD.md](HUD.md) (the per-line
+reference, including the paused-mode contract).
+
+### 27. The cinematic intro
+
+Problem killed: a cold binary start drops the user into the rain with
+no framing. Mechanism: `--intro cosmic|logo|none` (default logo) plays
+a branded reveal in every mode, with graceful degradation — skipped on
+terminals smaller than 10x5, auto-skipped on low-detail renderers, and
+interruptible with `q`; the intro palette is independent of `-c/--color`
+unless `--intro-color` overrides it.
+Truth: `src/intro_style/` (one module per style).
+Verifier: `test/intro_style/`; the option contract is in the README
+CLI reference.
+
+### 28. The safepath gate
+
+Problem killed: flags that read files from disk are a file-path
+surface in a tool the user runs on their own TTY. Mechanism: every
+config path is validated through one gate (`is_safe_path`,
+`validate_config_path`) before the file system is touched.
+Truth: `src/safepath/`.
+Verifier: `test/safepath/`; the wiring note lives in `src/main.rs`.
+
+### 29. Doctor and diagnostics
+
+Problem killed: "does this machine run cosmostrix well?" answered by
+guesswork. Mechanism: `--doctor` prints a compatibility report
+(environment, locale, charset, terminal), and the diagnostics module
+reports CPU feature detection and the binary variant so a user can
+quote a real setup instead of describing one.
+Truth: `src/doctor/`, `src/diagnostics/`.
+Verifier: `test/doctor/`; the flag contracts are in the README CLI
+reference.
+
+### 30. The verification machinery
 
 Problem killed: claims that cannot be re-run are marketing. Mechanism:
 the engine lock suites assert public contracts on every commit, backed
