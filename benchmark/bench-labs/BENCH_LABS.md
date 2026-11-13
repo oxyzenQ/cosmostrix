@@ -11,10 +11,10 @@ current host.
 | Item | Value |
 | --- | --- |
 | CPU | Intel(R) Xeon(R) Processor (2 vCPUs) |
-| RAM | 4.1 GiB |
+| RAM | 3.9 GiB |
 | OS | Debian GNU/Linux 13 (trixie), glibc |
 | Rust | 1.98.1 |
-| Build | `pro` |
+| Build | `release` |
 | Terminal | `dumb` |
 
 ## Size Sweep (monolith)
@@ -24,16 +24,16 @@ All sizes use `--scene monolith`. Duration is adaptive:
 
 | Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
 | ------ | ------: | --------: | ---------: | ---------: | ---------------: | -----------: | ---------- |
-| 1x1 | 1 | 1,531,791 | 992,063 | 0.001 | 0.1 | 5 | excellent |
-| 20x6 | 120 | 633,109 | 999,001 | 0.002 | 3.0 | 5 | excellent |
-| 80x24 | 1,920 | 85,698 | 114,038 | 0.015 | 56.9 | 5 | excellent |
-| 120x40 | 4,800 | 49,711 | 64,666 | 0.026 | 107.1 | 5 | excellent |
-| 200x80 | 16,000 | 26,515 | 31,655 | 0.045 | 219.8 | 6 | excellent |
-| 480x160 | 76,800 | 9,773 | 11,063 | 0.125 | 588.5 | 10 | excellent |
-| 960x270 | 259,200 | 3,826 | 4,557 | 0.312 | 1,268.3 | 23 | excellent |
-| 1920x540 | 1,036,800 | 1,279 | 1,525 | 1.073 | 2,550.7 | 68 | excellent |
-| 3840x1080 | 4,147,200 | 584 | 664 | 2.090 | 5,130.9 | 253 | good |
-| 7680x4320 | 33,177,600 | 215 | 292 | 4.856 | 10,979.0 | 1,843 | high |
+| 1x1 | 1 | 1,494,073 | 968,054 | 0.001 | 0.1 | 5 | excellent |
+| 20x6 | 120 | 659,190 | 999,001 | 0.002 | 3.0 | 5 | excellent |
+| 80x24 | 1,920 | 90,058 | 118,666 | 0.015 | 56.8 | 6 | excellent |
+| 120x40 | 4,800 | 52,442 | 67,875 | 0.024 | 107.1 | 5 | excellent |
+| 200x80 | 16,000 | 27,440 | 32,624 | 0.044 | 218.8 | 6 | excellent |
+| 480x160 | 76,800 | 10,508 | 11,734 | 0.113 | 588.3 | 11 | excellent |
+| 960x270 | 259,200 | 4,594 | 5,122 | 0.263 | 1,251.3 | 22 | excellent |
+| 1920x540 | 1,036,800 | 1,727 | 1,894 | 0.677 | 2,590.9 | 68 | excellent |
+| 3840x1080 | 4,147,200 | 752 | 843 | 1.608 | 5,148.0 | 254 | good |
+| 7680x4320 | 33,177,600 | 301 | 350 | 3.473 | 10,933.4 | 1,853 | high |
 
 FPS scales sub-linearly with cell count thanks to differential rendering;
 dirty cells now scale with grid size (~2x per 4x cell increase) because the
