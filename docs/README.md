@@ -25,6 +25,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 |-----|--------|
 | [RENDER_ENGINE.md](RENDER_ENGINE.md) | Diff-based rendering engine spec (`src/engine/cosmic_dragon_engine/`) |
 | [COSMIC_DRAGON_ARCHITECTURE.md](COSMIC_DRAGON_ARCHITECTURE.md) | Full architecture deep-dive (`src/`) |
+| [INNOVATIONS.md](INNOVATIONS.md) | **The innovation ledger** — every innovation as problem, mechanism, truth file, and verifier, in dependency order |
 | [PHILOSOPHY.md](PHILOSOPHY.md) | Why cosmostrix exists, design principles |
 | [LIVE_RELOAD_BEHAVIOR.md](LIVE_RELOAD_BEHAVIOR.md) | Per-key live-reload matrix (which config keys reload vs. require restart) + masterclass solution options |
 | [CONFIG_LIVE_RELOAD_DISCLAIMER.md](CONFIG_LIVE_RELOAD_DISCLAIMER.md) | Honest-limitations philosophy for config live-reload (the 99%, not 100% contract) |

@@ -691,6 +691,7 @@ cosmostrix runs raw-mode on the user's TTY and owns terminal state while it rend
 - [Changelog](CHANGELOG.md) — release history
 - [Known Issues](KNOWN_ISSUES.md) — platform-specific quirks and workarounds
 - [Insights](INSIGHTS.md) — living idea journal (the story behind features)
+- [Innovation Ledger](docs/INNOVATIONS.md) — every innovation as problem, mechanism, truth file, and verifier
 - [Contributing Guide](CONTRIBUTING.md) — build, test, coding conventions, PR checklist
 - [Contributor License Agreement](CLA.md) — CLA terms, DCO sign-off acceptance, dual-license grant
 - [Commercial Licensing](COMMERCIAL_LICENSE.md) — dual-license tiers, crypto payment, verification
