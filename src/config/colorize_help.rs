@@ -102,18 +102,16 @@ pub(crate) fn colorize_help(text: &str) -> String {
         // The indent stays outside the span (the flag-row law), and the
         // slot is consumed exactly once per Usage: block, so a blank
         // line after the heading never leaks grey into the next tier.
-        if pending_synopsis {
-            if !line.trim().is_empty() {
-                pending_synopsis = false;
-                if line.starts_with(' ') && line.trim_start().starts_with("cosmostrix") {
-                    let indent_len = line.len() - line.trim_start().len();
-                    out.push_str(&line[..indent_len]);
-                    out.push_str(crate::output::grey_open());
-                    out.push_str(line.trim_start());
-                    out.push_str(crate::output::reset());
-                    out.push_str(nl);
-                    continue;
-                }
+        if pending_synopsis && !line.trim().is_empty() {
+            pending_synopsis = false;
+            if line.starts_with(' ') && line.trim_start().starts_with("cosmostrix") {
+                let indent_len = line.len() - line.trim_start().len();
+                out.push_str(&line[..indent_len]);
+                out.push_str(crate::output::grey_open());
+                out.push_str(line.trim_start());
+                out.push_str(crate::output::reset());
+                out.push_str(nl);
+                continue;
             }
         }
 
