@@ -312,17 +312,27 @@ pub(crate) fn error_bold_open() -> &'static str {
 }
 
 /// Bold ok green open sequence, capability-aware — the zelynic Ok
-/// slot (night-dragon-maintenance-1 output-canon pass): truecolor
-/// #50FA7B (80,250,123), the 256-color 84 rung, ANSI green (32) on
-/// classic 16-color terminals, plain text on mono. The doctor paints
-/// its healthy-verdict values (color_pipeline active) with this tier,
+/// slot's VERDICT rung (night-dragon-maintenance-1 output-canon
+/// pass): truecolor #50FA7B (80,250,123) with the bold attribute,
+/// the 256-color 84 rung, ANSI bold green (1;32) on classic 16-color
+/// terminals, plain text on mono. The doctor paints its
+/// healthy-verdict values (color_pipeline active) with this tier,
 /// the same YES/SUPPORTED grammar the sibling's doctor uses.
 ///
-/// night-cafe-1 (the zelynic 100-percent color-parity pass): this seat
-/// is now the SINGLE green every runnable-verdict surface paints -
-/// the help's example lines included (see `config/colorize_help.rs`),
-/// whose private ladder (the Green theme's body stop 80,255,110) is
-/// retired so the hue can never drift between surfaces.
+/// night-cafe-1 (the zelynic 100-percent color-parity pass): the
+/// hue can never drift between surfaces — every green rides one of
+/// the two Ok rungs below (this bold verdict rung, or the regular
+/// prose rung in [`ok_open`]).
+///
+/// night-cafe-2 (owner color-parity report, 2026-11-13): zelynic
+/// splits its green into TWO seats and cosmostrix had collapsed
+/// both onto this bold rung — which painted the -V Depth-matrix
+/// line and the --help example lines one shade hotter than the
+/// sibling. Verdict tokens (doctor YES/SUPPORTED, testconf PASS,
+/// the update check's `up to date`) stay bold; every prose surface
+/// (the Depth-matrix line, help example lines) is rewired to the
+/// regular rung in [`ok_open`], and progress spinners drop green
+/// entirely (the zelynic spinner law: grey, never a headline).
 #[must_use]
 pub(crate) fn ok_bold_open() -> &'static str {
     ok_bold_open_for(color_capability())
@@ -335,6 +345,34 @@ fn ok_bold_open_for(cap: ColorCapability) -> &'static str {
         ColorCapability::TrueColor => "\x1b[1;38;2;80;250;123m",
         ColorCapability::Color256 => "\x1b[1;38;5;84m",
         ColorCapability::Color16 => "\x1b[1;32m",
+        ColorCapability::Mono => "",
+    }
+}
+
+/// Regular ok green open sequence, capability-aware — the zelynic Ok
+/// slot's PROSE rung: the exact #50FA7B (80,250,123) hue as the bold
+/// verdict rung, WITHOUT the bold attribute. This is the seat zelynic
+/// paints its `-V` Depth-matrix line and its --help example command
+/// lines with (`crate::output::ok` / `ok_open()` in the sibling's
+/// output layer).
+///
+/// night-cafe-2 (owner color-parity report, 2026-11-13): introduced
+/// to complete the two-seat split above — the Depth-matrix line and
+/// the help examples previously rode [`ok_bold_open`], which renders
+/// visibly hotter than the sibling's identical hue. Prose green is
+/// calm; verdict green is bold; the hue is byte-identical on both.
+#[must_use]
+pub(crate) fn ok_open() -> &'static str {
+    ok_open_for(color_capability())
+}
+
+/// Capability-parameterized form - unit-testable without env sniffing
+/// (the `ok_bold_open_for` precedent above).
+fn ok_open_for(cap: ColorCapability) -> &'static str {
+    match cap {
+        ColorCapability::TrueColor => "\x1b[38;2;80;250;123m",
+        ColorCapability::Color256 => "\x1b[38;5;84m",
+        ColorCapability::Color16 => "\x1b[32m",
         ColorCapability::Mono => "",
     }
 }
@@ -440,6 +478,7 @@ pub(crate) fn warn(msg: &str) -> String {
 }
 
 /// Wrap `msg` in bold ok green. Returns plain text if color is disabled.
+/// The verdict seat — see [`ok_bold_open`].
 #[must_use]
 pub(crate) fn ok_bold(msg: &str) -> String {
     match color_capability() {

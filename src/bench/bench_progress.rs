@@ -225,14 +225,16 @@ impl BenchProgress {
             self.silent_active = true;
             self.last_update = Instant::now();
             let spinner = self.spin();
-            // Output color law (night-dragon-maintenance-4): the frame
-            // rides the bold ok green tier, the label rides the calm grey
-            // tier — the loading line is never plain white.
+            // Output color law (night-cafe-2, owner color-parity report
+            // 2026-11-13): the whole loading line — frame and label —
+            // rides the calm grey tier. The frame previously rode the
+            // bold ok-green rung, one shade hotter than the sibling:
+            // zelynic's spinner law paints progress grey end to end
+            // ("subordinate progress, never a headline").
             let _ = write!(
                 io::stderr(),
-                "{}{spinner}{} {}Running COSMOSTRIX BENCHMARK...{}",
-                crate::output::ok_bold_open(),
-                crate::output::reset(),
+                "{}{spinner} {}Running COSMOSTRIX BENCHMARK...{}",
+                crate::output::grey_open(),
                 crate::output::grey_open(),
                 crate::output::reset()
             );
@@ -398,9 +400,8 @@ impl BenchProgress {
         let spinner = self.spin();
         let _ = write!(
             io::stderr(),
-            "\r{}{spinner}{} {}Running COSMOSTRIX BENCHMARK... {elapsed:.1}s{}",
-            crate::output::ok_bold_open(),
-            crate::output::reset(),
+            "\r{}{spinner} {}Running COSMOSTRIX BENCHMARK... {elapsed:.1}s{}",
+            crate::output::grey_open(),
             crate::output::grey_open(),
             crate::output::reset()
         );

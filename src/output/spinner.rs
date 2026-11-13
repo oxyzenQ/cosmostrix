@@ -33,7 +33,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use super::{ColorCapability, color_capability, grey_open, ok_bold_open, reset};
+use super::{ColorCapability, color_capability, grey_open, reset};
 
 /// Braille spinner frames — subtle, modern, premium. Single source for
 /// every loading lane (benchmark + the blocking-fetch indicator).
@@ -44,14 +44,19 @@ const TICK: Duration = Duration::from_millis(250);
 
 /// Compose one spinner line, capability-parameterized (unit-testable
 /// without env sniffing — the same four-rung ladder as grey.rs).
-/// Frame green (alive), label + seconds grey (context).
+/// Frame + label + seconds all ride the calm grey tier.
+///
+/// night-cafe-2 (owner color-parity report, 2026-11-13): the frame
+/// previously rode the bold ok-green rung, one shade hotter than the
+/// sibling — zelynic's spinner law paints the whole line grey
+/// ("subordinate progress, never a headline", the sibling's
+/// spinner.rs contract). Parity restored: no green on progress.
 fn render_line_for(cap: ColorCapability, frame: char, label: &str, secs: f64) -> String {
     match cap {
         ColorCapability::Mono => format!("{frame} {label}... {secs:.1}s"),
         _ => format!(
-            "{}{frame}{} {}{label}... {secs:.1}s{}",
-            ok_bold_open(),
-            reset(),
+            "{}{frame} {}{label}... {secs:.1}s{}",
+            grey_open(),
             grey_open(),
             reset()
         ),
@@ -144,13 +149,13 @@ mod tests {
         assert!(!line.contains('\x1b'));
     }
 
-    /// The colored ladder carries both tiers: the green frame open and
-    /// the grey label open, with the elapsed seconds included.
+    /// The colored line rides the calm grey tier end to end — frame,
+    /// label, and elapsed seconds (the zelynic spinner law: grey,
+    /// never a headline; night-cafe-2 color parity).
     #[test]
     fn colored_line_carries_both_tiers() {
         let line = render_line_for(ColorCapability::TrueColor, '⠋', "Fetching", 2.3);
         assert!(line.contains("Fetching... 2.3s"));
-        assert!(line.contains(ok_bold_open()));
         assert!(line.contains(grey_open()));
     }
 }

@@ -26,12 +26,12 @@ fn rgb_constants_match_neon_family_palette() {
 
 #[test]
 fn ok_bold_open_is_capability_laddered() {
-    // night-cafe-1 (the zelynic 100-percent color-parity pass): the Ok
-    // slot is the zelynic status green - truecolor #50FA7B (80,250,123),
-    // the 256-color 84 rung, ANSI bold green (1;32) on classic 16-color
-    // terminals, plain text on mono. Every green the CLI paints (doctor
-    // verdicts, help example lines) rides this seat, so the hue can
-    // never drift between surfaces.
+    // night-cafe-2 (the zelynic 100-percent color-parity pass): the Ok
+    // slot's VERDICT rung is the zelynic status green with the bold
+    // attribute - truecolor #50FA7B (80,250,123), the 256-color 84
+    // rung, ANSI bold green (1;32) on classic 16-color terminals,
+    // plain text on mono. Verdict tokens the CLI paints (doctor
+    // verdicts, the update check's `up to date`) ride this seat.
     assert_eq!(
         ok_bold_open_for(ColorCapability::TrueColor),
         "\x1b[1;38;2;80;250;123m"
@@ -42,6 +42,22 @@ fn ok_bold_open_is_capability_laddered() {
     );
     assert_eq!(ok_bold_open_for(ColorCapability::Color16), "\x1b[1;32m");
     assert_eq!(ok_bold_open_for(ColorCapability::Mono), "");
+}
+
+#[test]
+fn ok_open_is_capability_laddered() {
+    // night-cafe-2 (owner color-parity report, 2026-11-13): the Ok
+    // slot's PROSE rung — the same #50FA7B (80,250,123) hue without
+    // the bold attribute, byte-for-byte the seat zelynic paints its
+    // -V Depth-matrix line and --help example lines with. Prose green
+    // is calm; verdict green is bold; the hue is identical on both.
+    assert_eq!(
+        ok_open_for(ColorCapability::TrueColor),
+        "\x1b[38;2;80;250;123m"
+    );
+    assert_eq!(ok_open_for(ColorCapability::Color256), "\x1b[38;5;84m");
+    assert_eq!(ok_open_for(ColorCapability::Color16), "\x1b[32m");
+    assert_eq!(ok_open_for(ColorCapability::Mono), "");
 }
 
 // ── eprintln_safe! macro ──

@@ -100,8 +100,14 @@ pub(crate) fn version_report() -> String {
     let is_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
 
     // night-signature-advanced-4 (owner directive): the Depth-matrix
-    // line rides the hacker-green tier — the zelynic ok-bold green
-    // (#50FA7B, the tier the doctor paints healthy verdicts with).
+    // line rides the zelynic prose-green seat — regular #50FA7B
+    // (80,250,123) WITHOUT the bold attribute, exactly the sibling's
+    // `crate::output::ok(&depth_line)` grammar for this line
+    // (night-cafe-2, owner color-parity report 2026-11-13: the line
+    // previously rode the bold verdict rung and rendered one shade
+    // hotter than zelynic's identical hue). Verdict tokens (doctor
+    // YES/SUPPORTED, the update check's `up to date`) keep the bold
+    // rung; the Depth-matrix line is prose, not a verdict.
     // Same TTY gate as the purple header below; the capability-aware
     // openers fold in the NO_COLOR/CLICOLOR contract, so piped -V
     // stays byte-for-byte plain (the machine-friendly canon — scripts
@@ -109,7 +115,7 @@ pub(crate) fn version_report() -> String {
     let depth_line = if is_tty {
         format!(
             "{}{}{}",
-            crate::output::ok_bold_open(),
+            crate::output::ok_open(),
             provenance.depth_line,
             crate::output::reset()
         )
