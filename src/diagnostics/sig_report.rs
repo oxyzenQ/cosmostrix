@@ -203,9 +203,31 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
 
 /// Print the report (the `sig` dispatch calls this, then exits 2 on
 /// tamper so scripts can gate on the exit code).
+///
+/// night-signature-advanced-4 (owner directive): the banner line rides
+/// the bold brand purple tier — the zelynic report-title canon
+/// (`report.rs` paints every `━━━ TITLE ━━━` banner this way). The
+/// gate is a real stdout TTY, exactly like `version_report`'s purple
+/// header; the capability-aware openers additionally fold in the
+/// NO_COLOR/CLICOLOR contract, so piped output keeps every byte plain.
 pub(crate) fn print_sig_report() {
     let (text, verdict) = sig_report();
-    println_safe!("{text}");
+    let is_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
+    match text.split_once('\n') {
+        Some((banner, rest)) => {
+            if is_tty {
+                println_safe!(
+                    "{}{banner}{}",
+                    crate::output::brand_bold_open(),
+                    crate::output::reset()
+                );
+            } else {
+                println_safe!("{banner}");
+            }
+            println_safe!("{rest}");
+        }
+        None => println_safe!("{text}"),
+    }
     if verdict == SigVerdict::Tampered {
         // Flush the report before the hard exit: the verdict IS the
         // error surface, and a swallowed buffer would hide it.

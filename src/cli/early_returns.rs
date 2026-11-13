@@ -12,6 +12,11 @@
 //! # The ladder
 //!
 //! ```text
+//! Boundary 0  the `sig` subcommand (argv_expand lane, dispatched BEFORE
+//!             clap — night-signature-advanced-4: subcommand only, the
+//!             --sig flag spelling is retired; exits 0 authentic /
+//!             2 tamper)
+//! ─────────────────────────────────────────────────────────────────────
 //! Boundary 1  clap parse errors (unknown flag, invalid value) ALWAYS win
 //!             — parsing must complete before any command flag is read.
 //! ─────────────────────────────────────────────────────────────────────
@@ -32,19 +37,20 @@
 //! POST-CONFIG (run after config-apply; report the merged view):
 //!  10. --doctor          diagnostics report
 //!  11. --version / -V    version + build info
-//!  11b. --sig / sig      four-depth signature report (exit 2 on tamper)
 //!  12. --docs            full engine documentation
 //!  13. --check-update    upstream release check
 //! ─────────────────────────────────────────────────────────────────────
 //! NIGHT-depthtest-5 & hunt-46 (2026-09-14) exception at Boundary 3: the
-//! config-independent commands (--version / --sig / --docs /
+//! config-independent commands (--version / --docs /
 //! --check-update) SURVIVE a config-apply failure — they render static
-//! build facts, the embedded signature verdict, engine documentation,
+//! build facts, engine documentation,
 //! and an upstream release check that no config value can alter, so dying behind an unrelated config error would
 //! hide the very string the user asked for (see
 //! handle_static_post_config_returns). --doctor keeps the strict
 //! death: a config failure IS its diagnostic surface (the error names
-//! --testconf, pinned by depthtest-5/night-hunt-44).
+//! --testconf, pinned by depthtest-5/night-hunt-44). The `sig`
+//! subcommand never reaches this boundary at all (Boundary 0 fires
+//! before clap, ahead of any config read).
 //! ─────────────────────────────────────────────────────────────────────
 //! Boundary 5  benchmark modes, then the interactive rain loop
 //! ```
@@ -97,14 +103,6 @@ fn dispatch_post_config(cmd: PostConfigCmd, args: &Args) -> std::io::Result<()> 
         }
         PostConfigCmd::Version => {
             println_safe!("{}", info::version_report());
-            Ok(())
-        }
-        PostConfigCmd::Sig => {
-            // night-signature-advanced-3: the four-depth signature report.
-            // Prints the verdict and exits 2 on tamper (print_sig_report
-            // owns the exit — the report itself is the error surface),
-            // so scripts can gate on the exit code like zejtron's sig.
-            crate::diagnostics::sig_report::print_sig_report();
             Ok(())
         }
         PostConfigCmd::Docs => {
@@ -161,7 +159,6 @@ pub(crate) enum PreConfigCmd {
 pub(crate) enum PostConfigCmd {
     Doctor,
     Version,
-    Sig,
     Docs,
     CheckUpdate,
 }
@@ -213,9 +210,6 @@ pub(crate) fn classify_post_config(args: &Args) -> Option<PostConfigCmd> {
     }
     if args.version {
         return Some(PostConfigCmd::Version);
-    }
-    if args.sig {
-        return Some(PostConfigCmd::Sig);
     }
     if args.docs {
         return Some(PostConfigCmd::Docs);
@@ -519,12 +513,9 @@ pub(crate) fn handle_post_config_returns(args: &Args) -> Option<std::io::Result<
 /// command was passed; the caller then dies on the config-apply error.
 pub(crate) fn handle_static_post_config_returns(args: &Args) -> Option<std::io::Result<()>> {
     match classify_post_config(args) {
-        Some(
-            cmd @ (PostConfigCmd::Version
-            | PostConfigCmd::Sig
-            | PostConfigCmd::Docs
-            | PostConfigCmd::CheckUpdate),
-        ) => Some(dispatch_post_config(cmd, args)),
+        Some(cmd @ (PostConfigCmd::Version | PostConfigCmd::Docs | PostConfigCmd::CheckUpdate)) => {
+            Some(dispatch_post_config(cmd, args))
+        }
         _ => None,
     }
 }

@@ -16,7 +16,11 @@
 //! | `-mfs` + value   | `--msg-fill-style <value>`         |
 //! | `-mfs=<style>`   | `--msg-fill-style <style>`         |
 //! | `-mfs<style>`    | `--msg-fill-style <style>` (attached form, value must be a valid style) |
-//! | `sig` (argv[1])  | `--sig` (night-signature-advanced-3, zejtron parity; FIRST token only) |
+//! | `sig` (argv[1])  | DISPATCH + exit: the four-depth signature report
+//!                    (night-signature-advanced-4 — `sig` is a SUBCOMMAND,
+//!                    owner directive "subcommand only, don't --sig"; the
+//!                    `--sig` flag spelling is retired and clap reports it
+//!                    like any unknown flag) |
 //!
 //! A `-mfs…` token whose trailing text is NOT a valid style value
 //! (e.g. the doubled-s typo `-mfss`) is rejected with a clap-format
@@ -58,21 +62,30 @@ pub(crate) fn expand_argv_shorthands(argv: &[std::ffi::OsString]) -> Vec<std::ff
     while i < argv.len() {
         let arg = &argv[i];
 
-        // night-signature-advanced-3: the bare `sig` command word (zejtron
-        // parity — the owner types `cosmostrix sig` exactly like
-        // `zejtron sig`). Rewritten ONLY at argv[1] (the first user
-        // token): this loop has no value-position knowledge, so a
-        // general rewrite could hijack a "sig" meant as `-m` message
-        // text (`cosmostrix -m sig`). At argv[1] no value can precede
-        // the token, so the rewrite is unambiguous; anywhere else the
-        // bare word stays untouched and clap reports it as it did
-        // before (--sig works in every position for scripts). Safe
-        // against shadowing because clap has NO positionals: a bare
-        // `sig` at argv[1] was always an error before this expansion.
+        // night-signature-advanced-4 (owner directive): `sig` is a
+        // SUBCOMMAND, dispatched here — before clap, which has no
+        // positionals, so a bare `sig` at argv[1] was always ours to
+        // handle. First token ONLY: a "sig" anywhere else is message
+        // text or a value, not a command (`cosmostrix -m sig` stays a
+        // message). The retired `--sig` flag spelling exists nowhere —
+        // clap reports it like any unknown flag, which is exactly the
+        // contract: subcommand only. Extra tokens after `sig` are
+        // refused with a clap-shaped error (the report takes no
+        // arguments; the same refusal lane as the -mfs typo guard).
+        // Exit codes: 0 authentic, 2 tamper (print_sig_report owns the
+        // tamper exit) — the install gate greps the AUTHENTIC verdict.
         if i == 1 && arg == "sig" {
-            expanded.push("--sig".into());
-            i += 1;
-            continue;
+            if let Some(extra) = argv.get(i + 1) {
+                die_sig_extra_arg(&extra.to_string_lossy());
+            }
+            crate::diagnostics::sig_report::print_sig_report();
+            // The authentic path reaches here (tamper exits 2 inside
+            // print_sig_report). Flush before exit: process::exit skips
+            // the stdout destructor, and a piped report must not be
+            // truncated by a still-buffered writer.
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
+            std::process::exit(0);
         }
 
         // v80.0.0-beta.1 msg-fill-style: -mfs shorthand. Checked BEFORE -mb (no
@@ -169,6 +182,17 @@ fn die_mfs_typo(token: &str) -> ! {
     ))
 }
 
+/// Refuse arguments after the `sig` subcommand with a clap-format
+/// error so the UX matches the unknown-argument path. `sig` is a
+/// zero-argument command (zejtron parity): `cosmostrix sig --help` and
+/// `cosmostrix sig -m hello` are both refusals, not silent partials.
+fn die_sig_extra_arg(token: &str) -> ! {
+    crate::ux::die_input_with_usage(format!(
+        "unexpected argument '{token}' found\n\n  tip: `sig` is a subcommand and takes no \
+         arguments — run `cosmostrix sig`"
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,38 +265,27 @@ mod tests {
     }
 
     #[test]
-    fn bare_sig_word_expands_to_long_flag() {
-        // night-signature-advanced-3: `cosmostrix sig` is the zejtron-parity
-        // spelling of --sig. First-token only.
-        let out = expand(&["cosmostrix", "sig"]);
-        assert_eq!(out, vec!["cosmostrix", "--sig"]);
-    }
-
-    #[test]
     fn sig_word_in_value_position_passes_through() {
         // A "sig" meant as message TEXT must survive untouched: only
-        // argv[1] expands, and there no value can precede the token.
+        // argv[1] dispatches, and there no value can precede the token.
+        // (argv[1] itself is NOT fed through expand() in tests — the
+        // subcommand dispatch EXITS the process, like the -mfs typo
+        // guard; the exit codes are pinned by the install gate.)
         let out = expand(&["cosmostrix", "-m", "sig"]);
         assert_eq!(out, vec!["cosmostrix", "-m", "sig"]);
         let out = expand(&["cosmostrix", "--message", "sig"]);
         assert_eq!(out, vec!["cosmostrix", "--message", "sig"]);
-        // Not the first token: untouched (clap reports it, as before).
+        // Not the first token: untouched (never a command word there).
         let out = expand(&["cosmostrix", "-v", "sig"]);
         assert_eq!(out, vec!["cosmostrix", "-v", "sig"]);
-        // The long form passes through as-is (clap owns it).
+        // The retired --sig spelling passes through the rewrite lane
+        // untouched (expand never rewrites flag-looking tokens); clap
+        // reports it as unknown — subcommand only, by directive.
         let out = expand(&["cosmostrix", "--sig"]);
         assert_eq!(out, vec!["cosmostrix", "--sig"]);
         // Other bare words are not ours to rewrite.
         let out = expand(&["cosmostrix", "sigx"]);
         assert_eq!(out, vec!["cosmostrix", "sigx"]);
-    }
-
-    #[test]
-    fn sig_first_with_flags_still_expands() {
-        // `cosmostrix sig -m hello`: the command word is argv[1] even
-        // when flags follow; -m stays a real message.
-        let out = expand(&["cosmostrix", "sig", "-m", "hello"]);
-        assert_eq!(out, vec!["cosmostrix", "--sig", "-m", "hello"]);
     }
 
     #[test]

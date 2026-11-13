@@ -99,6 +99,24 @@ pub(crate) fn version_report() -> String {
     // mono/piped.
     let is_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
 
+    // night-signature-advanced-4 (owner directive): the Depth-matrix
+    // line rides the hacker-green tier — the zelynic ok-bold green
+    // (#50FA7B, the tier the doctor paints healthy verdicts with).
+    // Same TTY gate as the purple header below; the capability-aware
+    // openers fold in the NO_COLOR/CLICOLOR contract, so piped -V
+    // stays byte-for-byte plain (the machine-friendly canon — scripts
+    // keep grepping the unescaped `Depth-matrix:` line).
+    let depth_line = if is_tty {
+        format!(
+            "{}{}{}",
+            crate::output::ok_bold_open(),
+            provenance.depth_line,
+            crate::output::reset()
+        )
+    } else {
+        provenance.depth_line.clone()
+    };
+
     let header = format!("cosmostrix: v{version}\n{description}");
     // Engine line declares the architecture so users immediately see this
     // is The Cosmic Dragon Diff-Based Rendering Engine, not a generic
@@ -115,7 +133,7 @@ pub(crate) fn version_report() -> String {
          License: {license}\n\
          Source: {repository}",
         manifest = provenance.manifest,
-        depth_line = provenance.depth_line,
+        depth_line = depth_line,
         authors = provenance.authors,
         license = env!("CARGO_PKG_LICENSE"),
         repository = env!("CARGO_PKG_REPOSITORY"),

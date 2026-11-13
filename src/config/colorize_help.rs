@@ -110,6 +110,21 @@ pub(crate) fn colorize_help(text: &str) -> String {
             continue;
         }
 
+        if let Some(rest) = line.strip_prefix("  sig ") {
+            // night-signature-advanced-4: the `sig` SUBCOMMAND's
+            // definition row rides the same calm grey grammar tier as
+            // the flag rows — a subcommand is grammar too (the same
+            // zelynic "context, not content" law; the grey span keeps
+            // definition rows visually distinct from their prose).
+            out.push_str("  ");
+            out.push_str(crate::output::grey_open());
+            out.push_str("sig");
+            out.push_str(rest);
+            out.push_str(crate::output::reset());
+            out.push_str(nl);
+            continue;
+        }
+
         if let Some(rest) = line.strip_prefix("  -") {
             // Calm grey for the flag spelling (night-improve-2
             // grey law: flags are grammar — "context, not
