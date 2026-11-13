@@ -445,7 +445,7 @@ Truth: `test/` (mirroring `src/`), `scripts/supermassive/`,
 Verifier: the one-command harness table in the README's Test Results
 section; the gate entry point is `scripts/gate-keepers.sh`.
 
-### 31. The provenance depth matrix (masked embedded build signature)
+### 31. The provenance depth matrix (masked embedded build signature + blake3 anchor)
 
 Problem killed: binary theft and fake-claim forks — a rebrand that
 ships the renderer under someone else's name, or a "modified build"
@@ -464,7 +464,28 @@ masked words (the plaintext never exists as a literal in the module, so
 it cannot leak into `.rodata` through const evaluation), reporting
 `status=verified` or `status=tampered` on its `Depth-matrix:` line; the
 installer's release law runs the built binary and requires the
-materialized identity plus a verified status. Four traps are part of
+materialized identity plus a verified status. Advanced form 3 adds the
+cryptographic seal and the interactive surface: a BLAKE3 anchor over
+the framed clear payload of both layers (domain tag + length-prefixed
+manifest + length-prefixed authors) is embedded as an opaque
+`[u8; 32]` and recomputed through the blake3 crate from the SAME
+materialized bytes the `-V` line displays, and the new `cosmostrix sig`
+command renders the owner's cross-tool four-depth report (zejtron
+parity: D0 runtime-identity, D1 embedded-marker, D2 anchor-integrity,
+D3 binary-self-hash) with a `SIGNATURE: AUTHENTIC (4/4 depths
+verified)` verdict and exit code 2 on tamper, so scripts can gate on
+it. D3 blake3-hashes the running executable image (~10 MB in tens of
+milliseconds on the pure-Rust implementation; the crate's C/asm lanes
+are deliberately off so every cross-compile lane in the release matrix
+keeps building without a target C toolchain) — an honest FINGERPRINT:
+a self-hash cannot embed its own digest, so `pass` means "the image was
+read in full and hashed", and the identity check is the comparison
+against a published release hash. The Python generator mirrors BLAKE3
+spec-exactly (pure Python, zero dependencies) and pins six vectors
+that were cross-validated byte-for-byte against the Rust crate — a
+mirror that caught a real `block_len` drift (hardcoded 64 instead of
+the actual block size, which only bites on partial final blocks and
+empty inputs) before it could ship a wrong anchor. Four traps are part of
 the lesson: an optimizer folds a constant-argument recompute back into
 the embedded digest unless the read passes through
 `std::hint::black_box`; a constant referenced by two functions can be
@@ -483,20 +504,37 @@ understands the module can regenerate everything (the legal layer in
 NOTICE and TRADEMARK.md is the backstop). The constants are generated
 by `scripts/release/generate-provenance-words.py`, the committed truth
 source that carries the identity in plaintext by design, the same way
-NOTICE does.
+NOTICE does. End-to-end probes on the real release binary pin the full
+matrix: pristine verifies AUTHENTIC 4/4 with zero identity fragments
+at rest (`oxyzenQ` survives only inside repo/branding contexts - the
+public URL, the repo slug, scene lore - never beside the year), a
+patched masked word flips `-V` to `status=tampered` AND `sig` to exit
+2 TAMPERED, and a patched anchor byte (LLVM constant-pool merging
+splits the array into separate halves; the probe locates the head)
+fails the same way. The generic `Official Build by ` marker stays
+plaintext by design: it is identity-free and fingerprint-bound.
 Truth: `src/diagnostics/signature.rs` (the masked layers, the
-single-pass materialization, the dual fingerprints),
-`scripts/release/generate-provenance-words.py` (constant generation),
+single-pass materialization, the dual fingerprints, the anchor),
+`src/diagnostics/sig_report.rs` (the four-depth report and the binary
+self-hash),
+`scripts/release/generate-provenance-words.py` (constant and anchor
+generation),
 `src/diagnostics/info.rs` (`version_report` renders the view),
+`src/cli/argv_expand.rs` (the bare `sig` command word, first-token
+only),
 `scripts/package/install-on-my-machine.sh` (the release law's runtime
-signature gate).
+signature gate + the four-depth gate).
 Verifier: `cosmostrix -V | grep Depth-matrix` must show
-`status=verified` on any genuine build, and
-`strings ./cosmostrix | grep rezky_nightky` must find NOTHING (the
+`status=verified` and a `b3:` anchor on any genuine build;
+`cosmostrix sig` must end `SIGNATURE: AUTHENTIC (4/4 depths verified)`
+and exit 0 (exit 2 plus `SIGNATURE: TAMPERED` on any patched depth);
+and `strings ./cosmostrix | grep rezky_nightky` must find NOTHING (the
 mark is masked at rest); the unit suites pin the materialization
 oracles, the strings-invisibility floor, the const-vs-runtime
-fingerprint equality, and the tamper sensitivity
-(`cargo test diagnostics::signature diagnostics::info`).
+fingerprint equality, the anchor equality against the generator's
+hex oracle, the framing layout, and the tamper sensitivity
+(`cargo test diagnostics::signature diagnostics::info
+diagnostics::sig_report`).
 
 ## Retired by verdict
 

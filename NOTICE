@@ -17,9 +17,11 @@ Forking policy (summary — see TRADEMARK.md §4 for full text):
   owner discussion first. Must use a different name + different branding.
 
 Binary authenticity: every genuine build embeds the provenance depth
-matrix and prints `status=verified` on its `Depth-matrix:` line —
-verify with `cosmostrix -V`. A `tampered` status means the binary was
-modified after compilation. Mechanism and honest limits are documented
-once in docs/INNOVATIONS.md (entry 31).
+matrix and prints `status=verified` plus a `b3:` blake3 anchor on its
+`Depth-matrix:` line — verify with `cosmostrix -V`, or run the
+stronger `cosmostrix sig` (four-depth report ending
+`SIGNATURE: AUTHENTIC (4/4 depths verified)`; exit code 2 means the
+binary was modified after compilation). Mechanism and honest limits
+are documented once in docs/INNOVATIONS.md (entry 31).
 
 Repository: https://github.com/oxyzenQ/cosmostrix
