@@ -309,7 +309,7 @@ Every archive ships three checksums (classical SHA-512 plus BLAKE3-256 and quant
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v100.0.15"
+TAG="v100.0.16"
 PLATFORM="linux-amd64-v3-musl"
 
 # The retry contract (NIGHT-dinner-1): a transient GitHub-side 5xx must
