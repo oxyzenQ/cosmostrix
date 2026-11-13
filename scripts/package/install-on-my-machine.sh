@@ -39,7 +39,7 @@ cosmostrix="cosmostrix"
 REPO_URL="https://github.com/oxyzenQ/cosmostrix"
 
 usage() {
-        cat <<EOF
+	cat <<EOF
 Usage: $0
 
   Fast setup for this machine: detect the CPU's x86-64 level
@@ -56,33 +56,33 @@ EOF
 }
 
 while [[ $# -gt 0 ]]; do
-        case "$1" in
-        -h | --help)
-                usage
-                exit 0
-                ;;
-        *)
-                echo "error: unknown argument: $1 - this script takes no options" >&2
-                usage
-                exit 2
-                ;;
-        esac
+	case "$1" in
+	-h | --help)
+		usage
+		exit 0
+		;;
+	*)
+		echo "error: unknown argument: $1 - this script takes no options" >&2
+		usage
+		exit 2
+		;;
+	esac
 done
 
 # 1. Platform gates: Linux, x86-64, repo root.
 if [[ "$(uname -s)" != "Linux" ]]; then
-        echo "error: $(uname -s) is not Linux - the Linux release shapes are the amd64 musl pair." >&2
-        echo "  macOS/FreeBSD/Windows/Termux: prebuilt archives ship on the releases page:" >&2
-        echo "  ${REPO_URL}/releases" >&2
-        exit 1
+	echo "error: $(uname -s) is not Linux - the Linux release shapes are the amd64 musl pair." >&2
+	echo "  macOS/FreeBSD/Windows/Termux: prebuilt archives ship on the releases page:" >&2
+	echo "  ${REPO_URL}/releases" >&2
+	exit 1
 fi
 if [[ "$(uname -m)" != "x86_64" ]]; then
-        echo "error: $(uname -m) is not amd64 - the Linux release shapes are x86-64-v3/v4 only." >&2
-        exit 1
+	echo "error: $(uname -m) is not amd64 - the Linux release shapes are x86-64-v3/v4 only." >&2
+	exit 1
 fi
 if [[ ! -f Cargo.toml || ! -f .cargo/config.toml ]]; then
-        echo "error: run this script from the cosmostrix repo root." >&2
-        exit 1
+	echo "error: run this script from the cosmostrix repo root." >&2
+	exit 1
 fi
 
 # Refuse to run as root - the build step must run as the current user
@@ -90,40 +90,40 @@ fi
 # future cargo clean/build for the normal user). sudo is escalated
 # internally for the /usr/bin install step only.
 if [[ $EUID -eq 0 ]]; then
-        echo "error: do not run this script with sudo." >&2
-        echo "  the build step would run as root, corrupting target/ ownership." >&2
-        echo "  Run: $0   (sudo is used internally only for /usr/bin)" >&2
-        exit 1
+	echo "error: do not run this script with sudo." >&2
+	echo "  the build step would run as root, corrupting target/ ownership." >&2
+	echo "  Run: $0   (sudo is used internally only for /usr/bin)" >&2
+	exit 1
 fi
 
 # 2. CPU detect: the x86-64 microarch level from /proc/cpuinfo flags.
 flags="$(grep -m1 '^flags' /proc/cpuinfo)"
 detect_level() {
-        # v4 baseline: AVX-512 Foundation + BW + CD + DQ + VL.
-        if [[ "$flags" =~ avx512f ]] && [[ "$flags" =~ avx512bw ]] &&
-                [[ "$flags" =~ avx512cd ]] && [[ "$flags" =~ avx512dq ]] &&
-                [[ "$flags" =~ avx512vl ]]; then
-                echo "v4"
-                return 0
-        fi
-        # v3 baseline: AVX2 + BMI2 + FMA (the load-bearing trio), plus
-        # the rest of the level's required surface where present.
-        if [[ "$flags" =~ avx2 ]] && [[ "$flags" =~ bmi2 ]] &&
-                [[ "$flags" =~ fma ]] && [[ "$flags" =~ sse4_2 ]] &&
-                [[ "$flags" =~ ssse3 ]] && [[ "$flags" =~ avx ]] &&
-                [[ "$flags" =~ bmi1 ]] && [[ "$flags" =~ movbe ]]; then
-                echo "v3"
-                return 0
-        fi
-        return 1
+	# v4 baseline: AVX-512 Foundation + BW + CD + DQ + VL.
+	if [[ "$flags" =~ avx512f ]] && [[ "$flags" =~ avx512bw ]] &&
+		[[ "$flags" =~ avx512cd ]] && [[ "$flags" =~ avx512dq ]] &&
+		[[ "$flags" =~ avx512vl ]]; then
+		echo "v4"
+		return 0
+	fi
+	# v3 baseline: AVX2 + BMI2 + FMA (the load-bearing trio), plus
+	# the rest of the level's required surface where present.
+	if [[ "$flags" =~ avx2 ]] && [[ "$flags" =~ bmi2 ]] &&
+		[[ "$flags" =~ fma ]] && [[ "$flags" =~ sse4_2 ]] &&
+		[[ "$flags" =~ ssse3 ]] && [[ "$flags" =~ avx ]] &&
+		[[ "$flags" =~ bmi1 ]] && [[ "$flags" =~ movbe ]]; then
+		echo "v3"
+		return 0
+	fi
+	return 1
 }
 LEVEL="$(detect_level)" || {
-        echo "error: this core is below the x86-64-v3 baseline." >&2
-        echo "  the Linux release shapes are v3/v4 only - the baseline musl" >&2
-        echo "  alias exists for the kernel-floor lane, not as a release tier." >&2
-        echo "  On a v1/v2 machine build the baseline explicitly instead:" >&2
-        echo "  cargo pro-linux-amd64-baseline-musl   (see .cargo/config.toml)" >&2
-        exit 1
+	echo "error: this core is below the x86-64-v3 baseline." >&2
+	echo "  the Linux release shapes are v3/v4 only - the baseline musl" >&2
+	echo "  alias exists for the kernel-floor lane, not as a release tier." >&2
+	echo "  On a v1/v2 machine build the baseline explicitly instead:" >&2
+	echo "  cargo pro-linux-amd64-baseline-musl   (see .cargo/config.toml)" >&2
+	exit 1
 }
 echo ">> [1/4] CPU level detected: x86-64-${LEVEL}"
 
@@ -133,8 +133,8 @@ ALIAS="pro-linux-amd64-${LEVEL}-musl"
 # installed (idempotent; the alias links through rust-lld, so the
 # target is the only prerequisite - see .cargo/config.toml).
 if ! rustup target list --installed 2>/dev/null | grep -q '^x86_64-unknown-linux-musl$'; then
-        echo ">> Adding the musl rust-std target (rustup target add)"
-        rustup target add x86_64-unknown-linux-musl
+	echo ">> Adding the musl rust-std target (rustup target add)"
+	rustup target add x86_64-unknown-linux-musl
 fi
 
 # 3. Build: the release-tier alias (the matrix's own shape).
@@ -142,14 +142,14 @@ echo ">> [2/4] Building the release tier: cargo ${ALIAS}"
 cargo "${ALIAS}"
 BINARY="target/x86_64-unknown-linux-musl/${ALIAS}/${cosmostrix}"
 if [[ ! -f "${BINARY}" ]]; then
-        # The musl alias builds into target/x86_64-unknown-linux-musl/<alias>/;
-        # fall back to a find so a profile rename upstream cannot strand
-        # the installer.
-        BINARY="$(find target -maxdepth 3 -type f -name "${cosmostrix}" -perm -u+x | head -1 || true)"
+	# The musl alias builds into target/x86_64-unknown-linux-musl/<alias>/;
+	# fall back to a find so a profile rename upstream cannot strand
+	# the installer.
+	BINARY="$(find target -maxdepth 3 -type f -name "${cosmostrix}" -perm -u+x | head -1 || true)"
 fi
 if [[ -z "${BINARY}" || ! -f "${BINARY}" ]]; then
-        echo "error: build produced no ${cosmostrix} binary under target/." >&2
-        exit 1
+	echo "error: build produced no ${cosmostrix} binary under target/." >&2
+	exit 1
 fi
 echo "   built: ${BINARY}"
 
@@ -165,24 +165,24 @@ echo "   built: ${BINARY}"
 # verified-status requirement doubles as an integrity gate: a binary
 # whose signature layers disagree refuses to install.
 if ! "${BINARY}" -V | grep -aFq "Official Build by rezky_nightky (oxyzenQ) 2026"; then
-        echo "error: the built binary does not materialize the official-build" >&2
-        echo "  signature on its -V output - the build environment or the" >&2
-        echo "  source tree is not what the release law expects. Refusing to install." >&2
-        exit 1
+	echo "error: the built binary does not materialize the official-build" >&2
+	echo "  signature on its -V output - the build environment or the" >&2
+	echo "  source tree is not what the release law expects. Refusing to install." >&2
+	exit 1
 fi
 if ! "${BINARY}" -V | grep -aFq "status=verified"; then
-        echo "error: the built binary reports a tampered depth matrix" >&2
-        echo "  (status=tampered on the -V Depth-matrix line). Refusing to install." >&2
-        exit 1
+	echo "error: the built binary reports a tampered depth matrix" >&2
+	echo "  (status=tampered on the -V Depth-matrix line). Refusing to install." >&2
+	exit 1
 fi
 # night-signature-advanced-3: the four-depth report is the stronger
 # gate - it verifies the blake3 anchor over the masked layers AND
 # self-hashes the exact image about to be installed. A binary that
 # cannot prove AUTHENTIC 4/4 never lands in /usr/bin.
 if ! "${BINARY}" sig | grep -aFq "SIGNATURE: AUTHENTIC (4/4 depths verified)"; then
-        echo "error: the built binary fails the four-depth signature report" >&2
-        echo "  (cosmostrix sig did not end AUTHENTIC). Refusing to install." >&2
-        exit 1
+	echo "error: the built binary fails the four-depth signature report" >&2
+	echo "  (cosmostrix sig did not end AUTHENTIC). Refusing to install." >&2
+	exit 1
 fi
 echo ">> [3/4] Installing to /usr/bin/${cosmostrix} (sudo for this step only)"
 sudo install -Dm755 "${BINARY}" "/usr/bin/${cosmostrix}"
@@ -194,12 +194,12 @@ echo ">> [4/4] Verify"
 # The installed image itself must still prove AUTHENTIC - this catches
 # any copy/copy-on-write corruption between target/ and /usr/bin.
 if ! /usr/bin/"${cosmostrix}" sig | grep -aFq "SIGNATURE: AUTHENTIC (4/4 depths verified)"; then
-        echo "error: the installed binary fails the four-depth signature report." >&2
-        exit 1
+	echo "error: the installed binary fails the four-depth signature report." >&2
+	exit 1
 fi
 echo "   sig: SIGNATURE: AUTHENTIC (4/4 depths verified)"
 if ! command -v "${cosmostrix}" >/dev/null 2>&1; then
-        echo "note: /usr/bin is not on this shell's PATH yet - open a new shell." >&2
+	echo "note: /usr/bin is not on this shell's PATH yet - open a new shell." >&2
 fi
 echo
 echo "Config: none written - the binary generates config.new.toml on"
