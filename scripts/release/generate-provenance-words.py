@@ -125,8 +125,14 @@ BLAKE3_MASK32 = (1 << 32) - 1
 
 # The BLAKE3 initial state is the SHA-256 IV.
 BLAKE3_IV = [
-    0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
-    0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+    0x6A09E667,
+    0xBB67AE85,
+    0x3C6EF372,
+    0xA54FF53A,
+    0x510E527F,
+    0x9B05688C,
+    0x1F83D9AB,
+    0x5BE0CD19,
 ]
 
 BLAKE3_MSG_PERMUTATION = [2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8]
@@ -167,10 +173,22 @@ def _compress(
     cv: list, block_words: list, counter: int, block_len: int, flags: int
 ) -> list:
     state = [
-        cv[0], cv[1], cv[2], cv[3], cv[4], cv[5], cv[6], cv[7],
-        BLAKE3_IV[0], BLAKE3_IV[1], BLAKE3_IV[2], BLAKE3_IV[3],
-        counter & BLAKE3_MASK32, (counter >> 32) & BLAKE3_MASK32,
-        block_len, flags,
+        cv[0],
+        cv[1],
+        cv[2],
+        cv[3],
+        cv[4],
+        cv[5],
+        cv[6],
+        cv[7],
+        BLAKE3_IV[0],
+        BLAKE3_IV[1],
+        BLAKE3_IV[2],
+        BLAKE3_IV[3],
+        counter & BLAKE3_MASK32,
+        (counter >> 32) & BLAKE3_MASK32,
+        block_len,
+        flags,
     ]
     block = list(block_words)
     for i in range(7):
@@ -245,7 +263,7 @@ def blake3(data: bytes) -> bytes:
         return BLAKE3_BLOCK_LEN * blocks_compressed + len(block_buf)
 
     def compress_chunk_block(root: bool) -> list:
-        flags = (BLAKE3_CHUNK_START if blocks_compressed == 0 else 0)
+        flags = BLAKE3_CHUNK_START if blocks_compressed == 0 else 0
         flags |= BLAKE3_CHUNK_END
         if root:
             flags |= BLAKE3_ROOT
@@ -351,11 +369,26 @@ def selftest_blake3() -> None:
     vectors = [
         (b"", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"),
         (b"abc", "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85"),
-        (bytes((i % 251) for i in range(3)), "e1be4d7a8ab5560aa4199eea339849ba8e293d55ca0a81006726d184519e647f"),
-        (pattern[:64], "4eed7141ea4a5cd4b788606bd23f46e212af9cacebacdc7d1f4c6dc7f2511b98"),
-        (pattern[:1024], "42214739f095a406f3fc83deb889744ac00df831c10daa55189b5d121c855af7"),
-        (pattern[:1025], "d00278ae47eb27b34faecf67b4fe263f82d5412916c1ffd97c8cb7fb814b8444"),
-        (pattern[:3000], "5fade288bf27444bee55ba2babb98c3c922c1e84c2e445e7d1f6da24756f5060"),
+        (
+            bytes((i % 251) for i in range(3)),
+            "e1be4d7a8ab5560aa4199eea339849ba8e293d55ca0a81006726d184519e647f",
+        ),
+        (
+            pattern[:64],
+            "4eed7141ea4a5cd4b788606bd23f46e212af9cacebacdc7d1f4c6dc7f2511b98",
+        ),
+        (
+            pattern[:1024],
+            "42214739f095a406f3fc83deb889744ac00df831c10daa55189b5d121c855af7",
+        ),
+        (
+            pattern[:1025],
+            "d00278ae47eb27b34faecf67b4fe263f82d5412916c1ffd97c8cb7fb814b8444",
+        ),
+        (
+            pattern[:3000],
+            "5fade288bf27444bee55ba2babb98c3c922c1e84c2e445e7d1f6da24756f5060",
+        ),
     ]
     for data, expected in vectors:
         got = blake3(data).hex()
@@ -404,8 +437,13 @@ def main() -> None:
 
     # Self-check: the block must round-trip, and it must stay invisible
     # to strings(1)-style scans (no printable run of length >= 4).
-    assert unmask_words(masked_manifest, SEED_MANIFEST, len(manifest_bytes)) == manifest_bytes
-    assert unmask_words(masked_authors, SEED_AUTHORS, len(authors_bytes)) == authors_bytes
+    assert (
+        unmask_words(masked_manifest, SEED_MANIFEST, len(manifest_bytes))
+        == manifest_bytes
+    )
+    assert (
+        unmask_words(masked_authors, SEED_AUTHORS, len(authors_bytes)) == authors_bytes
+    )
     assert longest_ascii_run(masked_manifest) < 4, "manifest words leak ASCII"
     assert longest_ascii_run(masked_authors) < 4, "authors words leak ASCII"
 
