@@ -101,17 +101,14 @@ pub(crate) fn version_report() -> String {
 
     // night-signature-advanced-4 (owner directive): the Depth-matrix
     // line rides the zelynic prose-green seat — regular #50FA7B
-    // (80,250,123) WITHOUT the bold attribute, exactly the sibling's
-    // `crate::output::ok(&depth_line)` grammar for this line
-    // (night-cafe-2, owner color-parity report 2026-11-13: the line
-    // previously rode the bold verdict rung and rendered one shade
-    // hotter than zelynic's identical hue). Verdict tokens (doctor
-    // YES/SUPPORTED, the update check's `up to date`) keep the bold
-    // rung; the Depth-matrix line is prose, not a verdict.
+    // (80,250,123) WITHOUT bold, the sibling's `output::ok()` grammar
+    // for this line (night-cafe-2, owner parity report 2026-11-13:
+    // bold rendered one shade hotter than the sibling's identical
+    // hue; verdicts keep the bold rung, this line is prose).
     // Same TTY gate as the purple header below; the capability-aware
     // openers fold in the NO_COLOR/CLICOLOR contract, so piped -V
-    // stays byte-for-byte plain (the machine-friendly canon — scripts
-    // keep grepping the unescaped `Depth-matrix:` line).
+    // stays byte-for-byte plain (scripts keep grepping the unescaped
+    // `Depth-matrix:` line).
     let depth_line = if is_tty {
         format!(
             "{}{}{}",
