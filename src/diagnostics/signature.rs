@@ -7,7 +7,7 @@
 //! defense — trivial to strip or overwrite with a rebrand while keeping
 //! the rest of the build. This module layers the same ownership claim at
 //! three depths so the claim survives independent tampering of any one
-//! layer, and so the `-V/--version` surface can *prove* internally that
+//! layer, and so the `-V/--version` surface can prove internally that
 //! the layers are intact:
 //!
 //!   D0  `COSMIC_DRAGON_SIGNATURE` — plaintext manifest, deliberately
@@ -51,7 +51,7 @@
 //!
 //! # Threat model (honest limits)
 //!
-//! This is provenance marking and tamper *evidence*, not DRM. A
+//! This is provenance marking and tamper evidence, not DRM. A
 //! determined attacker with a compiler can rebuild from modified source
 //! without these constants, or locate and rewrite both the shards and
 //! the embedded digest. The layered design raises the cost of a lazy

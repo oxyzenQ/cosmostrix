@@ -16,4 +16,10 @@ Forking policy (summary — see TRADEMARK.md §4 for full text):
 - Non-contribution forks (rebrand, relaunch, derivative product): require
   owner discussion first. Must use a different name + different branding.
 
+Binary authenticity: every genuine build embeds the provenance depth
+matrix and prints `status=verified` on its `Depth-matrix:` line —
+verify with `cosmostrix -V`. A `tampered` status means the binary was
+modified after compilation. Mechanism and honest limits are documented
+once in docs/INNOVATIONS.md (entry 31).
+
 Repository: https://github.com/oxyzenQ/cosmostrix

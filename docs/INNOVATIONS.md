@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The thirty, in dependency order
+## The thirty-one, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -444,6 +444,37 @@ Truth: `test/` (mirroring `src/`), `scripts/supermassive/`,
 `scripts/depth/`, `scripts/gates/`, `.github/workflows/`.
 Verifier: the one-command harness table in the README's Test Results
 section; the gate entry point is `scripts/gate-keepers.sh`.
+
+### 31. The provenance depth matrix (embedded build signature)
+
+Problem killed: binary theft and fake-claim forks — a rebrand that
+ships the renderer under someone else's name, or a "modified build"
+nobody can tell apart from the official one. Mechanism: the ownership
+claim "rezky_nightky (oxyzenQ) 2026" is layered at three depths in the
+same binary — a plaintext manifest (deliberately strings(1)-greppable,
+so every redistributed artifact carries the mark), identity shards
+(six fragments that only assemble at runtime, so no single string is
+the identity), and a compile-time FNV-1a 64-bit fingerprint over the
+manifest plus the shards that `-V/--version` recomputes at runtime and
+reports as `status=verified` or `status=tampered` on its
+`Depth-matrix:` line. Two traps were found by patching real binaries
+and are part of the lesson: an optimizer folds a constant-argument
+recompute back into the embedded digest unless the read passes through
+`std::hint::black_box`, and a constant referenced by two functions can
+be cloned into separate `.rodata` copies, letting a display patch and
+an integrity check disagree — so one function reads the constants once
+and feeds both the display and the fold. Honest limits: this is tamper
+evidence, not DRM; a determined attacker with a compiler can rebuild
+without the constants, and the legal claim still lives in NOTICE and
+TRADEMARK.md.
+Truth: `src/diagnostics/signature.rs` (the layers and the single-read
+binding), `src/diagnostics/info.rs` (`version_report` prints the
+provenance block), `scripts/package/install-on-my-machine.sh` (the
+release law's raw-byte signature check).
+Verifier: `cosmostrix -V | grep Depth-matrix` must show
+`status=verified` on any genuine build; the unit suites pin the shard
+assembly, the const-vs-runtime fingerprint equality, and the tamper
+sensitivity (`cargo test diagnostics::signature diagnostics::info`).
 
 ## Retired by verdict
 
