@@ -152,8 +152,8 @@ Dragon diff-based render, Chroma Dragon OKLab Phase 9-D color
 pipeline, Crystal Dragon ambient scheduler), 110K lines of Rust, 14
 rain styles — six of them original motion-math systems
 (Navier-Stokes FLIP/PIC, Physarum stigmergy, Lorenz RK4, boids
-spatial hash, FABRIK chain dynamics, Keplerian orbits) — and 27,685
-lines of markdown documentation across 173 documents. The aesthetic
+spatial hash, FABRIK chain dynamics, Keplerian orbits) — and 71,062
+lines of markdown documentation across 258 documents. The aesthetic
 is *what you see*. It is not *all there is*. Every engine is locked
 by invariant tests on every commit.
 
@@ -555,7 +555,7 @@ While paused, only `p` (resume) and `q` (quit) respond — every other key is ig
 - `matrix` — classic Matrix glyph rain (the glyph style — the droplet family's sole member; the head self-bloom composes in-hue under the NIGHT-research-26 cap: the boost's scale renormalizes against the head's own max channel, so the channel ratios hold and a tinted head never washes toward white — the retired hard clamp flattened the sub-dominant channels onto their saturated sibling — while grey sources stay bit-identical to the legacy equation)
 - `monolith` — structured cosmostrix Monolith Rain with sparse structured segments (the NIGHT-research-17 soft-light ceiling: the standing Hero head reads the palette's warm Hot stop — no white blend, no standing strain — and a fresh cascade's arrival flash is the one Core moment, a ~1.5 s first-light reveal while the stream enters, then it settles warm for the whole fall)
 
-**Style flagships** (rain styles 3 through 9, task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1/2):
+**Style flagships** (the signature motion styles, task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1/2/4):
 
 - `vortex` — polar-orbit galaxy drain: glyphs spiral inward on a flat rotation curve (angular speed ∝ 1/radius — constant cells/sec along every orbit, the galaxy rotation-curve read; NIGHT-research-16 label fix and lockstep round: every mote at the same radius orbits in formation, so the arms read dense and concentrated instead of smeared, heads composing to the soft warm ceiling) toward a glowing core, sheared into living spiral arms by differential rotation. Motion math is 100% distinct from both the cascade and the pillars — no other terminal rain has it. `cosmostrix --scene vortex`
 - `flux` — liquid matrix: the code rain falls through a living incompressible fluid. A real PIC/FLIP particle-grid hybrid solver (the film-VFX fluid method, shrunk to terminal scale) runs in the render path — every glyph is a fluid particle splatting momentum onto a velocity grid, a Jacobi pressure projection enforces incompressibility, and the FLIP/PIC readback carries the flow back to the glyphs. Falling jets shear into emergent eddies; brightness maps particle speed (Doppler-style flow visualization), and the speed ladder's ceiling is the warm Hot stop by construction — the fastest jet burns bright-hot, never the Core white blend (the NIGHT-research-25 pin: the cap is contract-pinned at any speed, any direction, any magnitude, and the comet trail only ever descends below its head); the minimal charset renders it all as falling nabla ∇ — the gradient operator the projection literally computes. No terminal rain renderer (or any matrix rain, verified against the full ecosystem — the web-audited rarity verification is recorded in [docs/archive/CHANGELOG-V100-ERA.md](docs/archive/CHANGELOG-V100-ERA.md)) has a real Navier-Stokes projection in its critical path. `cosmostrix --scene flux`

@@ -35,7 +35,7 @@ The audit confirmed the engine is already at peak. Specifically:
 
 - **CPU mode (primary)**: samples process CPU% via
   `crate::cpustat::current_cpu_ns()`, smooths with EMA (alpha=0.25),
-  maps linearly to 1-99 point. One syscall per 60s — negligible cost.
+  maps through a sqrt curve to the 1-99 point. One syscall per 60s — negligible cost.
 - **CLOCK fallback**: derives point from UTC hour+minute. No syscall
   beyond `SystemTime::now()` (already cached elsewhere). Monotonic
   ramp: 00:00->point 1, 23:59->point 99.

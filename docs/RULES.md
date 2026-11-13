@@ -173,7 +173,7 @@ Fully eliminated at commit `07b44b5` (Dragon Hunt v2 Phase 6 Tier E item 31). Al
 
 ### Live Config Reload + Config Validation
 
-Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild on change (not delta apply). `--testconf` validates all keys + values strictly. Startup rejects invalid config (exit 2). Live reload rejects invalid config (exit 2, error printed to stderr AFTER terminal restore). Malformed lines (no `=` or empty key/value) -> error. Unknown keys -> error. Invalid values -> error. Duplicate keys or duplicate `[section]` headers -> error (NIGHT-depthtest-2: real TOML rejects both; the forgiving parser records them in `ParsedConfig.duplicate_keys` / `duplicate_sections` and all three surfaces — startup, `--testconf`, watcher — reject in lockstep, while the values map keeps the historical merge/last-wins semantics for the `COSMOSTRIX_SKIP_STARTUP_VALIDATION` bypass). An explicit `--config <path>` that cannot be read (missing, unreadable, oversized) -> hard error with the read reason (NIGHT-depthtest-2: previously a silent empty parse ran pure defaults; the default-path load still falls back to `/etc` + built-in defaults — a missing default config is a normal first run). No silent fallback. No warnings. Errors only. Modules: `live_config.rs`, `testconf.rs` (shared validation), `config_apply_diagnostics.rs` (startup parse-error message construction).
+Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild on change (not delta apply). `--testconf` validates all keys + values strictly. Startup rejects invalid config (exit 2). Live reload rejects invalid config (exit 2, error printed to stderr AFTER terminal restore). Malformed lines (no `=` or empty key/value) -> error. Unknown keys -> error. Invalid values -> error. Duplicate keys or duplicate `[section]` headers -> error (NIGHT-depthtest-2: real TOML rejects both; the forgiving parser records them in `ParsedConfig.duplicate_keys` / `duplicate_sections` and all three surfaces — startup, `--testconf`, watcher — reject in lockstep, while the values map keeps the historical merge/last-wins semantics for the `COSMOSTRIX_SKIP_STARTUP_VALIDATION` bypass). An explicit `--config <path>` that cannot be read (missing, unreadable, oversized) -> hard error with the read reason (NIGHT-depthtest-2: previously a silent empty parse ran pure defaults; the default-path load still falls back to `/etc` + built-in defaults — a missing default config is a normal first run). No silent fallback. No warnings. Errors only. Modules: `src/config/live_config/`, `src/testconf/` (shared validation), `src/config/config_apply_diagnostics.rs` (startup parse-error message construction).
 
 ### CLI Option Policy
 
@@ -239,10 +239,10 @@ mandate 2026-09-13, tightened by NIGHT-hunt-40, owner mandate
 2026-09-13): **min 1, max 24 entries**. A custom block with
 zero field entries is the header-only case — a hard error (the
 NIGHT-hunt-37 completeness contract); 24 blocks per namespace is the
-ceiling (generous — built-in themes are ~44, built-in scenes ~10,
+ceiling (generous — built-in themes are ~44, built-in scenes are 26,
 built-in charsets ~25); ambient schedules hold 1..=24 entries (0 = the
 scheduler is simply off). Max **64 char names** (built-in names are
-≤16 chars; longer = likely typo). Since NIGHT-hunt-37 (2026-09-13)
+≤22 chars; longer = likely typo). Since NIGHT-hunt-37 (2026-09-13)
 every cap in this table is a HARD validation error on every surface —
 no silent drops remain (see the per-cap semantics below).
 
@@ -360,7 +360,7 @@ Custom blocks have a **strict field allowlist** — unknown fields are rejected 
 | Block | Allowed fields | Source |
 |-------|---------------|--------|
 | `[colors-custom.<name>]` | `bg`, `rain`, `stops` (deprecated alias) | `is_valid_colors_custom_field()` |
-| `[charset-custom.<name>]` | `set` only | `is_valid_charset_custom_field()` |
+| `[charset-custom.<name>]` | `set` only | `is_charset_custom_key()` |
 | `[scene-custom.<name>]` | `rain`, `color`, `colors-custom`, `charset`, `charset-custom`, `fps`, `speed`, `density`, `glitch-level` (all seven dimensions required — v80.0.0-beta.2: `base-scene`/`bold`/`shading-mode`/`async-mode` removed; NIGHT-research-5: `rain` added) | `SCENE_CUSTOM_FIELDS` |
 
 Any other field inside these blocks surfaces as an `unknown_key` -> `--testconf` reports the error, live-reload rejects the config. The auto-promote path (which previously moved top-level keys like `color`/`intro`/`speed` from inside a custom block to root scope) is **disabled** when `current_section` starts with `charset-custom.`, `colors-custom.`, or `scene-custom.`.

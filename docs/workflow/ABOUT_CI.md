@@ -25,6 +25,18 @@ build gate every downstream job depends on) is displayed as
 "build.sh -q" after the local command it mirrors,
 `./scripts/build.sh check-all -q` (NIGHT-boost-5, 2026-09-24).
 
+## The ten-minute CI law (owner rule, night-audit-2)
+
+Every `ci.yml` job carries an explicit `timeout-minutes` and must
+finish within 10 minutes — most legs run 5, the heaviest get 10, and
+the supermassive lanes target the five-minute law of night-T-1
+(every battery leg <= 5 minutes). A job that legitimately needs more
+than 10 minutes is a build-health problem to fix, not a cap to raise:
+split the job, cache the toolchain, or move the work to a release
+lane. The publish pipelines (`release.yml`, `crates-io.yml`) are the
+deliberate exception — they build every release platform in one job
+and carry their own larger caps.
+
 ## Unfiltered triggers (what fires a CI run)
 
 Owner decision (night-dragon-maintenance-2, 2026-10-27): every
@@ -102,7 +114,7 @@ Consequences:
 Zero hardcoded dependency versions in `.github/*`. The rule is
 "dynamic latest, minimal maintenance, boring but strong":
 
-- **GitHub Actions** float on their major tag (`actions/checkout@v6`,
+- **GitHub Actions** float on their major tag (`actions/checkout@v7`,
   `Swatinem/rust-cache@v2`). Minor and patch releases arrive
   automatically; a new major requires a one-character review. The
   policy has an automated seat since night-improve-8 (zelynic

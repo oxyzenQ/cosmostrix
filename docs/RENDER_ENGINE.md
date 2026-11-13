@@ -130,7 +130,7 @@ Frame (src/engine/cosmic_dragon_engine/frame.rs)
 ├── semantic_gen: u32             // bumped on charset/theme/shading change
 ├── dirty_gen: u32                // dirty generation counter (O(1) clear)
 ├── dirty_cell_gen: Vec<u32>      // 4 B/cell — dirty generation stamp
-├── dirty: SmallVec<[usize; 64]> // queue of dirty cell indices (inline 64)
+├── dirty: SmallVec<[usize; 256]> // queue of dirty cell indices (inline 256)
 └── dirty_all: bool               // fast-path flag for full redraw
 
 Terminal (src/engine/cosmic_dragon_engine/terminal/)
@@ -261,8 +261,9 @@ on-the-fly via `push_u8` — no heap allocation).
 
 For the built-in palettes, the cache hit rate varies significantly
 by scene and visual effects enabled. Measured on AMD Ryzen 7 5800HS
-with `--perf-stats` (historical — see `docs/BENCHMARKING.md` §5 for
-the current v50 4-scene reference matrix):
+with `--perf-stats` (historical — the benchmark mode catalog and the
+reference results across versions live in `docs/BENCHMARKING.md` and
+`benchmark/HIST_BENCH.md`):
 
 | Configuration | Hit Rate | Notes |
 |---------------|---------:|-------|

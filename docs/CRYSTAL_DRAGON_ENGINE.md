@@ -395,8 +395,8 @@ correctness, not for cinematic blending.
 ### 8.5 Live reload
 
 When the user saves `config.toml`, the live-reload watcher re-parses
-the file. If any `ambient.*` keys are present, `reload_schedule()` is
-called with the new `AmbientSchedule`. This function:
+the file. If any `ambient.*` keys are present, `reload()` on the
+scheduler thread is called with the new `AmbientSchedule`. This function:
 
 1. Swaps the schedule atomically (Mutex).
 2. Notifies the condvar — the thread wakes immediately.
@@ -551,25 +551,17 @@ cargo test crystal_dragon
 src/engine/crystal_dragon_engine/
 ├── mod.rs                          # Top-level doc + re-exports
 ├── ambient_diag.rs                 # Diagnostics counters
-├── ambient/
-│   ├── mod.rs                      # Schedule types + config parsing
-│   └── tests.rs                    # ambient tests
-├── ambient_scheduler/
-│   ├── mod.rs                      # Dynamic idle/wake thread
-│   └── tests.rs                    # Scheduler tests
-├── crystal_dragon_control/
-│   ├── mod.rs                      # Config struct + constants
-│   └── tests.rs                    # Control tests
-├── palette_groups/
-│   ├── mod.rs                      # The builtin themes -> 3 groups
-│   └── tests.rs                    # Group tests
-├── point_system/
-│   ├── mod.rs                      # calc-v2 (default) + calc-v1 selection, DriftHistory
-│   └── tests.rs                    # Point system tests
-└── sensor/
-    ├── mod.rs                      # CPU + CLOCK sensor
-    └── tests.rs                    # Sensor tests
+├── ambient/                        # Schedule types + config parsing (mod.rs)
+├── ambient_scheduler/              # Dynamic idle/wake thread (mod.rs)
+├── crystal_dragon_control/         # Config struct + constants (mod.rs)
+├── palette_groups/                 # The builtin themes -> 3 groups (mod.rs)
+├── point_system/                   # calc-v2 (default) + calc-v1 selection, DriftHistory (mod.rs)
+└── sensor/                         # CPU + CLOCK sensor (mod.rs)
 
+The tests for every subsystem above live in the test/ mirror
+(`test/engine/crystal_dragon_engine/<sub>/tests.rs`), wired into the
+binary target through `#[path]` test modules — not colocated with the
+source.
 ```
 
 ## 14. See Also

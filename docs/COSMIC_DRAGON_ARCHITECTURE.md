@@ -33,10 +33,12 @@ layers and explains how the "deep" structure provides dependable core reliabilit
 │  -> Opt-in via config (default: off)                             │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 2: Cloud Renderer (src/engine/cosmic_dragon_engine/cloud/)                           │
-│  Droplet lifecycle, phosphor, 7 rain styles (glyph cascade,      │
+│  Droplet lifecycle, phosphor, 14 rain styles (glyph cascade,     │
 │  monolith pillars, vortex polar orbits, flux PIC/FLIP liquid,    │
-│  lorenz strange attractor, cosmic_dragon serpentine chain,       │
-│  physarum slime-mold networks), scene runtime                    │
+│  lorenz strange attractor, dragon serpentine chain, physarum     │
+│  stigmergy, black_hole Keplerian, aeolian weave, solar_flare     │
+│  corona, dna_helix ladder, murmuration flock, quasar, neural),   │
+│  scene runtime                                                   │
 │  -> Zero-allocation hot path (dirty_map Vec<u8>, phosphor reuse) │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 1: Terminal I/O (cosmic_dragon_engine/terminal/, frame.rs, color_cache)   │
@@ -188,10 +190,14 @@ All file-reading/writing CLI options enforce the same strict whitelist:
 
 ### Whitelist (strict, no exceptions)
 
-- `~/.config/cosmostrix/` (Linux/macOS, user config)
+- `~/.config/cosmostrix/` (Linux, FreeBSD, macOS, Android/Termux — user config, XDG)
 - `/etc/cosmostrix/` (Linux/macOS, system-wide)
+- `~/Library/Application Support/cosmostrix/` (macOS native user config)
+- `/usr/local/etc/cosmostrix/` (FreeBSD system-wide — ports/packages path)
 - `%APPDATA%\cosmostrix\` (Windows, user config)
 - `%ProgramData%\cosmostrix\` (Windows, system-wide)
+- `$PREFIX/etc/cosmostrix/` (Android/Termux system-wide)
+- `/sdcard/cosmostrix/` (Android external storage)
 
 ### Rejected (everything else)
 

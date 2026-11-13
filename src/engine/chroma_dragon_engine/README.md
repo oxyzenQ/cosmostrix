@@ -80,10 +80,10 @@ The audit confirmed the engine is already at peak. Specifically:
 
 ### 5. Post-FX pipeline (`post/`)
 
-- **`climate.rs`** — `ClimateCtx` (luminance/saturation/
+- **`climate/mod.rs`** — `ClimateCtx` (luminance/saturation/
   instability shader). Sampled at 1 Hz, not per-frame. No hot-path
   overhead.
-- **`anomaly.rs`** — palette-aware anomaly halos. Phase 6
+- **`anomaly/mod.rs`** — palette-aware anomaly halos. Phase 6
   locked. Uses `AnomalyHaloMode` enum dispatch (no dyn).
 - **`ghost.rs`** — phosphor ghost kanji. Halfwidth Katakana
   (U+FF66-U+FF9D) to satisfy 1-char-1-cell invariant (Bug #11 fix).
@@ -139,11 +139,11 @@ confirmed no regression:
 | `chroma_dragon_engine/shaders/`         | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `TRAIL_EXP_LUT`, transition wave |
 | `chroma_dragon_engine/gradient/`        | OKLab polar interpolation (sole production path since v30)            |
 | `chroma_dragon_engine/legacy.rs`        | Explicit sRGB-linear fallback math (used when `ColorPipeline::LegacyRgb`) |
-| `chroma_dragon_engine/post/`             | `climate.rs` (ClimateCtx), `anomaly.rs` (halos), `ghost.rs` (phosphor kanji) |
+| `chroma_dragon_engine/post/`             | `climate/mod.rs` (ClimateCtx), `anomaly/mod.rs` (halos), `ghost.rs` (phosphor kanji) |
 | `chroma_dragon_engine/tuning.rs`         | Phase 4+ tuning constants (innovation C/D/E, L smoothing)             |
 | `chroma_dragon_engine/color_cache.rs`    | Pre-formatted SGR byte cache (eliminates `format!()` in hot path)     |
 | `chroma_dragon_engine/color_tune.rs`     | `--color-tune` CLI parsing + `ColorTune` struct                       |
-| `chroma_dragon_engine/colors_custom.rs`  | Custom palette loading from `[palette.<name>]` config sections        |
+| `chroma_dragon_engine/colors_custom.rs`  | Custom palette loading from `[colors-custom.<name>]` config sections        |
 | `chroma_dragon_engine/tests/`           | Lock suite, activation, bold audit, blend, floor, gradient, post tests |
 
 ## Phase History

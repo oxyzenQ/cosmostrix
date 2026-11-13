@@ -54,8 +54,8 @@ src/central_control_power_dragon/
 ├── reclaim_state.rs    — P2 adaptive_resync_interval + P4 ReclaimState
 │                          + reclaim_frame_cells (unified entry)
 ├── endurance_health.rs — P5 EnduranceHealth score
-├── self_healer.rs      — PerformanceSelfHealer + SelfHealAction enum
-└── power_manager.rs    — PowerManager coordinator (Phase 3)
+├── self_healer/       — PerformanceSelfHealer + SelfHealAction enum
+└── power_manager/     — PowerManager coordinator (Phase 3)
 ```
 
 `mod.rs` declares each submodule `mod X;` and re-exports their public
@@ -85,15 +85,15 @@ subsystem in this module.
 | 1  | crystal-dragon            | `crystal_dragon_engine/` (external)   | ambient palette drift             |
 | 2  | dynamic-default-fps       | `termdetect/`, `main.rs` (external) | base_target_fps                   |
 | 3  | xterm.js cap + Tier 2     | `termdetect/`, `tier2.rs` (external)| base_target_fps + ANSI bytes      |
-| 4  | adaptive throttling       | `power_manager.rs`                    | frame_period (idle × 0.5)         |
+| 4  | adaptive throttling       | `power_manager/`                      | frame_period (idle × 0.5)         |
 | 5  | phase predictor (P1)      | `phase_predictor.rs`                  | is_idle (OR'd with reactive)      |
 | 6  | adaptive resync (P2)      | `reclaim_state.rs`                    | resync interval (20s/60s/120s)    |
 | 7  | reclaim state (P4)        | `reclaim_state.rs`                    | madvise(MADV_DONTNEED)            |
 | 8  | endurance health (P5)     | `endurance_health.rs`                 | score (RSS+jitter+ctxt)           |
-| 9  | performance self-healer   | `self_healer.rs` + event_loop.rs      | scene + force_draw + madvise      |
-| 10 | ambient scheduler         | `crystal_dragon_engine/ambient.rs` (external) | scene + palette                   |
-| 11 | climate post-FX           | `chroma_dragon_engine/post/climate.rs` (external)   | per-cell RGB + spawn_scale        |
-| 12 | perf_pressure pipeline    | `power_manager.rs` + cloud/rain.rs    | spawn + sim + glitch + vignette   |
+| 9  | performance self-healer   | `self_healer/` + event_loop.rs        | scene + force_draw + madvise      |
+| 10 | ambient scheduler         | `crystal_dragon_engine/ambient/` (external) | scene + palette                   |
+| 11 | climate post-FX           | `chroma_dragon_engine/post/climate/` (external)   | per-cell RGB + spawn_scale        |
+| 12 | perf_pressure pipeline    | `power_manager/` + cloud/rain_at.rs   | spawn + sim + glitch + vignette   |
 
 Features 1, 2, 3, 10, and 11 are intentionally **outside** the dragon
 power module — they are visual or terminal-detection concerns, not
@@ -207,7 +207,7 @@ practice; documented for completeness.
 
 **Status:** unchanged. Climate post-FX and atmospheric post-FX both
 modify per-cell RGB. They compose multiplicatively, and the
-interaction is documented in `chroma_dragon_engine/post/climate.rs`. Visual
+interaction is documented in `chroma_dragon_engine/post/climate/mod.rs`. Visual
 concern, not power; stays outside `PowerManager`.
 
 ---
@@ -448,7 +448,7 @@ gate; `--perf-stats` now only controls whether the score is
 score, classification bands, sampling works without perf-stats,
 context-switch rate influence.
 
-### 6.4 `self_healer.rs` — Performance Self-Healer (P1 + P2)
+### 6.4 `self_healer/` — Performance Self-Healer (P1 + P2)
 
 **What it does.** Encapsulates two orthogonal auto-mitigation
 policies as a single state machine so the event loop only needs to
@@ -518,7 +518,7 @@ fires below threshold, P2 cooldown respected, P2 fires from both
 Healthy and Downgraded states, action enum equality, and several
 edge cases around partial windows and clock jumps.
 
-### 6.5 `power_manager.rs` — `PowerManager` coordinator
+### 6.5 `power_manager/` — `PowerManager` coordinator
 
 The Phase 3 coordinator. See §5 for the full API reference. The
 implementation is straightforward — every method is a thin wrapper
@@ -544,7 +544,7 @@ be added without touching `PowerManager` internals. Until the
 sampler is wired, `set_thermal_pressure` is exercised only by tests;
 the production call site will live in the event loop.
 
-**Tests.** in `power_manager.rs` cover: construction
+**Tests.** in `power_manager/` cover: construction
 (starts active, zero pressure, fps clamped to ≥1.0), pressure
 accumulation on overshoot, pressure decay on normal frame, thermal
 input added to base, thermal + base clamps to 1.0, thermal input
@@ -707,7 +707,7 @@ range. The clamping is defensive: a misbehaving sampler cannot push
   `interactive/adaptive.rs` became a thin re-export shim.
   Layout mirrors `central_control_rains.rs` extended to a directory
   module.
-- **Phase 3 (PowerManager coordinator)**: added `power_manager.rs`
+- **Phase 3 (PowerManager coordinator)**: added `power_manager/`
   submodule. `PowerManager` is the unified coordinator owning
   `perf_pressure` accumulation, `is_idle` detection, and effective
   FPS resolution. Exposes `effective_pressure()` /
@@ -787,8 +787,8 @@ The dragon power module's per-file test files cover:
 - `phase_predictor.rs` — phase prediction edge cases
 - `reclaim_state.rs` — reclaim intervals
 - `endurance_health.rs` — score bands and sampling
-- `self_healer.rs` — downgrade/hysteresis/mitigation
-- `power_manager.rs` — coordinator construction and pressure flow
+- `self_healer/` — downgrade/hysteresis/mitigation
+- `power_manager/` — coordinator construction and pressure flow
 - `thermal_sampler.rs` — thermal input plumbing
 - `audit_tests.rs` — end-to-end contract integration tests
 - `mod.rs` — thresholds + constant sanity
