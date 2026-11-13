@@ -153,22 +153,26 @@ if [[ -z "${BINARY}" || ! -f "${BINARY}" ]]; then
 fi
 echo "   built: ${BINARY}"
 
-# 4. Verify: the official-build signature string every locally built
-# binary carries (README: the embedded 'Cosmic Dragon — Official
-# Build by rezky_nightky (oxyzenQ) 2026' marker) - a direct raw-byte search
-# of the artifact, not a strings(1) pipe. Why: strings lives in
-# binutils, which is NOT a prerequisite of this script (the musl
-# aliases link self-contained via the toolchain's own musl runtime and
-# lld, so a box can build the release tier without ever installing
-# binutils) - and the old check swallowed a missing strings
-# (2>/dev/null) into a false 'refusing to install'. grep is already a
-# hard dependency (the CPU detect reads /proc/cpuinfo through it), so
-# this check adds zero new tools and cannot false-positive on a
-# missing one.
-if ! grep -aFq "Official Build by rezky_nightky (oxyzenQ) 2026" "${BINARY}"; then
-        echo "error: the built binary does not carry the official-build" >&2
-        echo "  signature string - the build environment or the source tree" >&2
-        echo "  is not what the release law expects. Refusing to install." >&2
+# 4. Verify: the official-build signature every locally built binary
+# carries. Since night-signature-advanced-2 the identity is embedded in
+# MASKED form (opaque 64-bit words - no plaintext of it exists in the
+# artifact, by design, so a thief cannot strings(1)-grep it out), so a
+# raw-byte search of the file can no longer see it. The check therefore
+# runs the freshly built binary and greps its MATERIALIZED -V output,
+# where the provenance layers assemble to plaintext and the Depth-matrix
+# line reports integrity. grep stays the only tool (a hard dependency
+# already: the CPU detect reads /proc/cpuinfo through it), and the
+# verified-status requirement doubles as an integrity gate: a binary
+# whose signature layers disagree refuses to install.
+if ! "${BINARY}" -V | grep -aFq "Official Build by rezky_nightky (oxyzenQ) 2026"; then
+        echo "error: the built binary does not materialize the official-build" >&2
+        echo "  signature on its -V output - the build environment or the" >&2
+        echo "  source tree is not what the release law expects. Refusing to install." >&2
+        exit 1
+fi
+if ! "${BINARY}" -V | grep -aFq "status=verified"; then
+        echo "error: the built binary reports a tampered depth matrix" >&2
+        echo "  (status=tampered on the -V Depth-matrix line). Refusing to install." >&2
         exit 1
 fi
 echo ">> [3/4] Installing to /usr/bin/${cosmostrix} (sudo for this step only)"

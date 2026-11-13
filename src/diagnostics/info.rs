@@ -15,15 +15,16 @@ use crate::constants::{CHAR_POOL_SIZE, DROPLET_COUNT_FACTOR, GLITCH_POOL_SIZE};
 
 // --- Branding signature ---
 
-// night-signature-1: the build signature and its depth matrix (plaintext
-// manifest, identity shards, compile-time fingerprint) live in the
-// dedicated `signature` module — the single owner of every provenance
-// layer. version_report does NOT read the manifest constant directly:
-// provenance_report() renders the Signature + Depth-matrix lines from ONE
-// opaque read shared by display and runtime fold, so a patched binary
-// cannot show a forged identity next to a green integrity status. See
-// `signature.rs` for the layer contract, threat model, and honest limits.
-use super::signature::provenance_report;
+// night-signature-advanced-2: the build signature lives in the dedicated
+// `signature` module — the single owner of every provenance layer. The
+// identity is embedded MASKED (opaque 64-bit words; no plaintext of the
+// identity exists in the artifact) and `provenance_view()` materializes
+// it in one pass per layer, feeding the Signature line, the Depth-matrix
+// line, and the Copyright authors from the SAME read that the integrity
+// fold verifies. version_report renders the fields verbatim and must not
+// unmask anything itself — see `signature.rs` for the layer contract,
+// the single-pass invariant, the threat model, and the honest limits.
+use super::signature::provenance_view;
 
 // --- Build info helpers ---
 
@@ -78,13 +79,15 @@ pub(crate) fn version_report() -> String {
     };
     let build_time = option_env!("COSMOSTRIX_BUILD_TIME").unwrap_or("unknown");
     let description = env!("CARGO_PKG_DESCRIPTION");
-    // Provenance block (night-signature-1): the Signature + Depth-matrix
-    // lines, rendered by the signature module from a single opaque read
-    // shared by the display and the integrity fold. Consuming the block
-    // here keeps the shard constants and the embedded fingerprint
-    // reachable by the linker — the layers cannot be dead-stripped from
-    // the release artifact while `-V` prints them.
-    let provenance = provenance_report();
+    // Provenance block (night-signature-advanced-2): the Signature +
+    // Depth-matrix lines and the Copyright authors, all materialized by
+    // the signature module from one masked read per layer. The authors
+    // string deliberately does NOT come from CARGO_PKG_AUTHORS — that env
+    // expansion would embed the identity as plaintext into the artifact
+    // and hand the thief a grep target. Consuming the view here keeps
+    // the masked word arrays reachable by the linker — the layers cannot
+    // be dead-stripped from the release artifact while `-V` prints them.
+    let provenance = provenance_view();
 
     // The two header lines (cosmostrix: v{version} + one-line description)
     // are rendered in brand purple. The remaining build/copyright/license
@@ -106,11 +109,14 @@ pub(crate) fn version_report() -> String {
         "{engine_line}\n\
          {build_line}\n\
          Build-time: {build_time}\n\
-         {provenance}\n\
+         Signature: {manifest}\n\
+         {depth_line}\n\
          Copyright: (c) 2026 {authors}\n\
          License: {license}\n\
          Source: {repository}",
-        authors = env!("CARGO_PKG_AUTHORS"),
+        manifest = provenance.manifest,
+        depth_line = provenance.depth_line,
+        authors = provenance.authors,
         license = env!("CARGO_PKG_LICENSE"),
         repository = env!("CARGO_PKG_REPOSITORY"),
     );
@@ -423,21 +429,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn signature_is_non_empty_and_stable() {
-        use super::super::signature::COSMIC_DRAGON_SIGNATURE;
-        assert!(!COSMIC_DRAGON_SIGNATURE.is_empty());
-        assert!(COSMIC_DRAGON_SIGNATURE.contains("Cosmic Dragon"));
-        assert!(COSMIC_DRAGON_SIGNATURE.contains("rezky_nightky"));
-        assert!(COSMIC_DRAGON_SIGNATURE.contains("oxyzenQ"));
-        assert!(COSMIC_DRAGON_SIGNATURE.contains("2026"));
+    fn signature_materializes_into_the_report() {
+        // night-signature-advanced-2: the identity is embedded masked and
+        // must materialize on the -V surface. These plaintext literals
+        // are the test-side oracles (cfg(test) never ships in the
+        // release artifact) pinning the materialized output.
+        let report = version_report();
+        assert!(
+            report.contains(
+                "Signature: Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ) 2026"
+            ),
+            "Signature line must materialize the full year-stamped identity. Report:\n{report}"
+        );
+        assert!(
+            report.contains(
+                "Copyright: (c) 2026 rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"
+            ),
+            "Copyright line must materialize the masked authors. Report:\n{report}"
+        );
     }
 
     #[test]
     fn version_report_contains_depth_matrix_surface() {
-        // night-signature-1: the -V report must surface the depth-matrix
-        // line (fingerprint + integrity status) directly below the
-        // Signature line, so the provenance layers are visible on every
-        // version query without a separate flag.
+        // night-signature-advanced-2: the -V report must surface the
+        // depth-matrix line (fingerprint + integrity status) directly
+        // below the Signature line, so the provenance layers are visible
+        // on every version query without a separate flag.
         let report = version_report();
         assert!(
             report.contains("Depth-matrix: "),

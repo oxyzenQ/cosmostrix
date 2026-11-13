@@ -26,7 +26,7 @@ header also carries the platform note: UNIX-only — Linux, macOS, BSD).
 | `sandbox/` | Local experiment payloads: the KVM micro-kernel init and the entropy-seed and payload probes | `microvm-init.sh`, `best-payload.sh`, `floor-payload.sh`, `entropy_seed.rs` |
 | `package/` | User-facing install and uninstall helpers | `install-on-my-machine.sh`, `uninstall.sh` |
 | `bench/` | Benchmark tooling: the benchmark runner and the terminal-size scaling sweep | `bench-runner.py`, `run_scaling_benchmarks.py` |
-| `release/` | Release flow: release-notes generation and release-build verification | `generate-release-notes.sh`, `verify-release-build.sh` |
+| `release/` | Release flow: release-notes generation, release-build verification, and the provenance word generator (the truth source for the masked signature constants) | `generate-release-notes.sh`, `verify-release-build.sh`, `generate-provenance-words.py` |
 
 ## Entry points
 
