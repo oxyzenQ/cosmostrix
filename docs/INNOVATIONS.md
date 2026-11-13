@@ -517,7 +517,7 @@ public URL, the repo slug, scene lore - never beside the year), a
 patched masked word flips `-V` to `status=tampered` AND `sig` to exit
 2 TAMPERED, and a patched anchor byte (LLVM constant-pool merging
 splits the array into separate halves; the probe locates the head)
-fails the same way. The generic `Official Build by ` marker stays
+fails the same way. The generic `Official Build by` marker stays
 plaintext by design: it is identity-free and fingerprint-bound.
 Truth: `src/diagnostics/signature.rs` (the masked layers, the
 single-pass materialization, the dual fingerprints, the anchor),
