@@ -550,12 +550,14 @@ Config:
 Diagnostics:
   --doctor       Build info, renderer details, environment diagnostics, and
       terminal compatibility check. (v17: --info merged into --doctor)
-  --sig          Verify the embedded build signature: the four-depth
+  sig            Verify the embedded build signature: the four-depth
       report (runtime identity, embedded marker, blake3 anchor integrity,
       binary self-hash) ending `SIGNATURE: AUTHENTIC (4/4 depths verified)`.
-      Exit code 2 on tamper, so scripts can gate on it. `cosmostrix sig`
-      (the bare command word) is the same thing; see docs/INNOVATIONS.md
-      entry 31 for the mechanism and its honest limits.
+      Exit code 2 on tamper, so scripts can gate on it. `sig` is a
+      subcommand: run it alone, it takes no arguments (`cosmostrix sig`;
+      the retired --sig flag spelling is no longer a valid flag). See
+      docs/INNOVATIONS.md entry 31 for the mechanism and its honest
+      limits.
       cosmostrix sig
   --docs         Print engine documentation and architecture overview.
       Plain-text dump of The Cosmic Dragon Diff-Based Rendering Engine: the
