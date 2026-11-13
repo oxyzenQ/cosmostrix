@@ -15,21 +15,15 @@ use crate::constants::{CHAR_POOL_SIZE, DROPLET_COUNT_FACTOR, GLITCH_POOL_SIZE};
 
 // --- Branding signature ---
 
-/// Embedded build signature.
-///
-/// Marked `pub(crate)` so external tooling (e.g. FFI probes, binary diff
-/// scripts, supply-chain scanners) can grep for it both in source and
-/// in the produced artifact. Referenced by `version_report()` so the
-/// linker keeps it in the final binary even under aggressive dead-code
-/// elimination.
-///
-/// Verification:
-///
-/// ```text
-/// strings ./cosmostrix | grep "Cosmic Dragon"
-/// ```
-pub(crate) const COSMIC_DRAGON_SIGNATURE: &str =
-    "Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)";
+// night-signature-1: the build signature and its depth matrix (plaintext
+// manifest, identity shards, compile-time fingerprint) live in the
+// dedicated `signature` module — the single owner of every provenance
+// layer. version_report does NOT read the manifest constant directly:
+// provenance_report() renders the Signature + Depth-matrix lines from ONE
+// opaque read shared by display and runtime fold, so a patched binary
+// cannot show a forged identity next to a green integrity status. See
+// `signature.rs` for the layer contract, threat model, and honest limits.
+use super::signature::provenance_report;
 
 // --- Build info helpers ---
 
@@ -84,10 +78,13 @@ pub(crate) fn version_report() -> String {
     };
     let build_time = option_env!("COSMOSTRIX_BUILD_TIME").unwrap_or("unknown");
     let description = env!("CARGO_PKG_DESCRIPTION");
-    // Pull the official-build signature into the version report so the
-    // linker cannot dead-strip `COSMIC_DRAGON_SIGNATURE` from the final
-    // binary. The string is also discoverable via `strings(1)`.
-    let signature = COSMIC_DRAGON_SIGNATURE;
+    // Provenance block (night-signature-1): the Signature + Depth-matrix
+    // lines, rendered by the signature module from a single opaque read
+    // shared by the display and the integrity fold. Consuming the block
+    // here keeps the shard constants and the embedded fingerprint
+    // reachable by the linker — the layers cannot be dead-stripped from
+    // the release artifact while `-V` prints them.
+    let provenance = provenance_report();
 
     // The two header lines (cosmostrix: v{version} + one-line description)
     // are rendered in brand purple. The remaining build/copyright/license
@@ -109,7 +106,7 @@ pub(crate) fn version_report() -> String {
         "{engine_line}\n\
          {build_line}\n\
          Build-time: {build_time}\n\
-         Signature: {signature}\n\
+         {provenance}\n\
          Copyright: (c) 2026 {authors}\n\
          License: {license}\n\
          Source: {repository}",
@@ -427,10 +424,42 @@ mod tests {
 
     #[test]
     fn signature_is_non_empty_and_stable() {
+        use super::super::signature::COSMIC_DRAGON_SIGNATURE;
         assert!(!COSMIC_DRAGON_SIGNATURE.is_empty());
         assert!(COSMIC_DRAGON_SIGNATURE.contains("Cosmic Dragon"));
         assert!(COSMIC_DRAGON_SIGNATURE.contains("rezky_nightky"));
         assert!(COSMIC_DRAGON_SIGNATURE.contains("oxyzenQ"));
+        assert!(COSMIC_DRAGON_SIGNATURE.contains("2026"));
+    }
+
+    #[test]
+    fn version_report_contains_depth_matrix_surface() {
+        // night-signature-1: the -V report must surface the depth-matrix
+        // line (fingerprint + integrity status) directly below the
+        // Signature line, so the provenance layers are visible on every
+        // version query without a separate flag.
+        let report = version_report();
+        assert!(
+            report.contains("Depth-matrix: "),
+            "report must contain the Depth-matrix line. Full report:\n{report}"
+        );
+        assert!(
+            report.contains("fp="),
+            "depth line must carry the fingerprint"
+        );
+        assert!(
+            report.contains("status=verified"),
+            "pristine test build must report status=verified. Full report:\n{report}"
+        );
+        // Ordering contract: Signature line precedes the Depth-matrix line.
+        let sig_pos = report.find("Signature:").expect("Signature line present");
+        let depth_pos = report
+            .find("Depth-matrix:")
+            .expect("Depth-matrix line present");
+        assert!(
+            sig_pos < depth_pos,
+            "Depth-matrix line must follow the Signature line"
+        );
     }
 
     #[test]
