@@ -151,6 +151,21 @@ const MASKED_MANIFEST_WORDS: [u64; 8] = [
 /// The const eval unmasks the words and folds the clear bytes directly —
 /// the plaintext manifest never exists as a literal in this module, so
 /// it cannot leak into `.rodata` through this computation.
+///
+/// Scope note (night-pro-1 fingerprint audit): the digest runs over the
+/// CLEAR manifest bytes only, so `fp=` pins the identity CLAIM, not the
+/// artifact. The exact byte stream hashed is the full Signature-line
+/// manifest, "Cosmic Dragon — Official Build by rezky_nightky
+/// (oxyzenQ) 2026" (64 UTF-8 bytes), digest fe0d7239f86e7c1b. No other
+/// estate tool shares it: zylaxion and zelynic ship the byte-identical
+/// "Pure eBPF builtin — ..." manifest (68 bytes, shared `fp=`
+/// a60dfb6a39745f34) and zejtron's manifest is the identity clause
+/// only (46 bytes, `fp=` 9174e0ce08feccba) — differently framed claims
+/// hash differently by design. The authors layer is byte-identical
+/// estate-wide (57 bytes), so the `sig` report's authors fingerprint
+/// (c97b13f816035d55) is one shared value. Artifact identity stays
+/// the D3 anchor's job (and the `sig` report's binary self-hash pins
+/// the bytes on disk).
 const MANIFEST_FINGERPRINT: u64 =
     layer_fingerprint(&MASKED_MANIFEST_WORDS, MANIFEST_SEED, MANIFEST_BYTE_LEN);
 
