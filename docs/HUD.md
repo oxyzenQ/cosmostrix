@@ -537,11 +537,11 @@ the new border — the metrics padding loop only blanks cols
 `text_len..max(cur,prev)`, which excludes col `prev` itself (the old
 border column). Without this clearing, the border leaves a visible
 "stain" or "ghost" at its old position when it moves left (owner
-reported as "glitch effect" / "bekas/noda setelah bergerak"). With the
+reported as "glitch effect" / "stain left behind after movement"). With the
 fix, the border moves cleanly with zero residue.
 
-**Edge fade (owner mandate 2026-09-02, "visual 9/10 — ujung border
-harus semi black/fade biar elegant"):** the border edges fade toward
+**Edge fade (owner mandate 2026-09-02, "visual 9/10 — border ends
+must fade to semi black for an elegant look"):** the border edges fade toward
 the screen edge (top-left corner of screen) so the border "emerges
 from shadow" instead of popping in abruptly. This mirrors the message
 border's triangle-wave fade (`cloud/message_draw.rs` BD-02:

@@ -291,8 +291,8 @@ impl super::HudState {
     /// short for row 25 silently omit the bottom edge (Frame::set
     /// bounds-skips) — same graceful degradation as before.
     ///
-    /// Edge fade (owner mandate 2026-09-02, "visual 9/10 — ujung border
-    /// harus semi black/fade biar elegant"): the border edges fade
+    /// Edge fade (owner mandate 2026-09-02, "visual 9/10 — border ends
+    /// must fade to semi black for an elegant look"): the border edges fade
     /// toward the screen edge (top-left corner of screen) so the
     /// border "emerges from shadow" instead of popping in abruptly.
     /// This mirrors the message border's triangle-wave fade

@@ -7,8 +7,8 @@
 //!
 //! Symptom: pressing 'r' on a glyph-style run did not clear the rain —
 //! the screen appeared frozen for a moment, then rain resumed falling
-//! ON TOP of the old residue, which stayed forever ("ada bekas rain
-//! sebelumnya yang stuck"). Every other style cleared and restarted
+//! ON TOP of the old residue, which stayed forever ("leftover rain
+//! from the previous run stayed stuck"). Every other style cleared and restarted
 //! from the top as documented.
 //!
 //! Root cause: the 'r' handler calls `cloud.reset()` +

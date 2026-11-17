@@ -223,7 +223,7 @@ impl super::Cloud {
         // so the pre-restart glyphs stayed on screen while the droplet
         // pool and phosphor arrays were wiped: no droplet owned those
         // cells and the phosphor decay system no longer tracked them,
-        // leaving the owner-reported permanent "bekas rain" residue
+        // leaving the owner-reported permanent "leftover rain" residue
         // (restart appeared stuck, then rain resumed over the old
         // frame). Arming semantic_invalidate routes the first
         // post-restart frame through invalidate_semantic (full logical

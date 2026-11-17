@@ -418,7 +418,7 @@ fn scene_switch_clears_phosphor_bitvecs() {
 
     // The fix: BitVecs must be cleared alongside the Vec-backed state.
     // Before ME-01, this assertion failed — the BitVecs retained their
-    // pre-switch `true` bits, causing the visible "noda"/stain symptom.
+    // pre-switch `true` bits, causing the visible stain symptom.
     assert!(
         !cloud.phosphor_fresh.any(),
         "phosphor_fresh must be cleared on scene switch (ME-01 root cause of mouse-effect state leak)"

@@ -506,8 +506,8 @@ mod cases_v35 {
     /// permanently blocking all subsequent drifts.
     ///
     /// Reproduces the owner-reported round-2 symptom:
-    ///   "setelah 60 detik dari awal ganti sampai 5 menit kedepan colornya
-    ///    tetap sama" (1 color change then nothing for 5+ minutes)
+    ///   "60 seconds after the first change, the color stays the same for
+    ///    up to 5 minutes" (1 color change then nothing for 5+ minutes)
     #[test]
     fn z_master_1x_round2_drift_self_resets_when_ambient_off() {
         use crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS;

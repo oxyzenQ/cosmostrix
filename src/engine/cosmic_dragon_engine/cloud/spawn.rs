@@ -394,8 +394,8 @@ impl Cloud {
         // phosphor_in_active — freshly-drawn cells in the new scene then fail
         // the `if !self.phosphor_in_active[pidx]` check in phosphor_decay_pass
         // and never get pushed onto phosphor_active, so Pass 3 never decays
-        // them. The cells stay at their last-drawn color → visible "noda"
-        // stain + slow click effect. Cloud::reset() (Space key) already clears
+        // them. The cells stay at their last-drawn color → a visible "stain"
+        // plus slow click effect. Cloud::reset() (Space key) already clears
         // these — this matches that behavior for scene switches.
         self.phosphor_fresh.fill(false);
         self.phosphor_in_active.fill(false);
