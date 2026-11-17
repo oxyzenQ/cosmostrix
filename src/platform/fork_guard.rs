@@ -290,6 +290,8 @@ pub fn spawn_kill9_terminal_guard() {
             // renderer's raw-mode terminal out from under it. A ppid move
             // away from the captured value is the actual parent-death
             // event, whatever the new parent is.
+            // SAFETY: getppid() takes no arguments and only reads the
+            // parent pid from the OS; it has no preconditions to violate.
             let orig_ppid = unsafe { libc::getppid() };
             loop {
                 std::thread::sleep(std::time::Duration::from_millis(500));
@@ -297,6 +299,10 @@ pub fn spawn_kill9_terminal_guard() {
                 // A ppid moved away from orig_ppid = the parent is gone.
                 if unsafe { libc::getppid() } != orig_ppid {
                     // Parent died — restore terminal and exit this thread.
+                    // SAFETY: tcsetattr on stdin restores the orig termios
+                    // captured before the fork watchdog armed; the fd is a
+                    // TTY the process owns, and TCSANOW makes the change
+                    // immediate without draining state.
                     let _ = unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig) };
                     restore_terminal_best_effort();
                     return;
