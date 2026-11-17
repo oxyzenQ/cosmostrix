@@ -36,6 +36,11 @@ env:
   # Single source of truth for Rust toolchain version.
   # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
   RUST_VERSION: "1.98.1"
+  # Strict build lane (the ci.yml law): every cargo invocation in this
+  # workflow denies warnings, and scripts/ci/ci-strict-build.sh adds
+  # the post-hoc warning scan on top (catches the alias-driven builds
+  # whose --config build.rustflags shadow the env RUSTFLAGS).
+  RUSTFLAGS: "-D warnings"
   # GPG signing key fingerprint (master key). Full 40-char fingerprint.
   GPG_KEY_FINGERPRINT: "F5324E0967F104D58CE025F347A50AEF4B65AAC2"
   # Warn this many days before the signing subkey expires.
@@ -178,15 +183,12 @@ jobs:
       # root-only cargo update left two of the three committed lockfiles
       # permanently stale. New workspaces join the lane without touching
       # this file; target trees are excluded so cache-restored build
-      # output can never join the walk.
+      # output can never join the walk. The walk itself lives in
+      # scripts/ci/update-all-workspaces.sh - the single canonical
+      # definition shared with the commit phase below.
       - name: Update dependencies
         shell: bash
-        run: |
-          set -euo pipefail
-          while IFS= read -r manifest; do
-            echo "Refreshing $(dirname "$manifest")"
-            (cd "$(dirname "$manifest")" && cargo update)
-          done < <(find . -name Cargo.toml -not -path '*/target/*' | sort)
+        run: bash scripts/ci/update-all-workspaces.sh
 
       # night-zen-1: every workspace lockfile is in scope, so the gate
       # accepts any repo-relative Cargo.lock path, not just the root's.
@@ -224,7 +226,7 @@ jobs:
       - name: Build project
         if: steps.changes.outputs.changed == 'true'
         run: |
-          cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
+          bash scripts/ci/ci-strict-build.sh -- build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
           # Owner directive 2026-10-27 (night-dragon-maintenance-3): builds
           # ride the named alias path - never a bare cargo release build.
           # night-dragon-maintenance-6: the validation build is the static
@@ -232,11 +234,11 @@ jobs:
           # night-T-2 follow-up 16 (the zejtron law): no apt - the alias
           # links self-contained via rust-lld (no cc in the lockfile), so
           # the lane carries no mirror outage surface.
-          cargo pro-linux-amd64-v3-musl --locked
+          bash scripts/ci/ci-strict-build.sh -- pro-linux-amd64-v3-musl --locked
 
       - name: Run tests
         if: steps.changes.outputs.changed == 'true'
-        run: cargo test --all --locked
+        run: bash scripts/ci/ci-strict-build.sh -- test --all --locked
 
       - name: Clippy
         if: steps.changes.outputs.changed == 'true'
@@ -284,10 +286,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The expected lockfile set comes from the same manifest walk
-          # the validate job used. GNU -printf '%P\n' strips the leading
-          # './' so the paths match git diff --name-only output exactly.
-          find . -name Cargo.toml -not -path '*/target/*' -printf '%P\n' \
+          # The expected lockfile set comes from the same canonical walk
+          # the validate job used (--list mode of the same script, so the
+          # two phases can never drift). The path form is repo-relative,
+          # matching `git diff --name-only` output exactly.
+          bash scripts/ci/update-all-workspaces.sh --list \
             | sed 's|Cargo\.toml$|Cargo.lock|' | sort > /tmp/locks.txt
           STAGE="${RUNNER_TEMP}/auto-update"
           while IFS= read -r rel; do

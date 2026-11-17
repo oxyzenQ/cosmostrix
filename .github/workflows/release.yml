@@ -292,15 +292,25 @@ jobs:
 
       - name: Tests
         if: matrix.checks
+        env:
+          # Strict lane (the ci.yml law): dev-profile check builds deny
+          # warnings. The release artifact builds keep their exact
+          # RUSTFLAGS contract (verified byte-for-byte below); their
+          # warning gate is the dedicated clippy lane in this workflow.
+          RUSTFLAGS: "-D warnings"
         run: cargo test --all --locked
 
       - name: Build (debug)
         if: matrix.checks && runner.os != 'Windows'
-        run: cargo build --profile dev --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: bash scripts/ci/ci-strict-build.sh -- build --profile dev --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Build (debug)
         if: matrix.checks && runner.os == 'Windows'
         shell: pwsh
+        env:
+          RUSTFLAGS: "-D warnings"
         run: cargo build --profile dev --locked --target ${{ matrix.target }} --jobs "$env:CARGO_BUILD_JOBS"
 
       - name: Build (release)

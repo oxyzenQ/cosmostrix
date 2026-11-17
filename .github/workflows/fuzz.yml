@@ -84,6 +84,9 @@ jobs:
       # rust-toolchain.toml (the stable pin the main crate's lanes
       # ride) cannot leak into the fuzz build.
       RUSTUP_TOOLCHAIN: nightly
+      # Strict lane (the ci.yml law): the harness build denies
+      # warnings like every other build lane in the estate.
+      RUSTFLAGS: "-D warnings"
 
     steps:
       - uses: actions/checkout@v7

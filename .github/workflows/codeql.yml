@@ -173,7 +173,9 @@ jobs:
         # precise), and incremental churn is a one-shot compile's
         # waste. The local dev profile is untouched.
         env:
-          RUSTFLAGS: "-C debuginfo=line-tables-only"
+          # Strict lane (the ci.yml law): the CodeQL build denies
+          # warnings like every other build lane in the estate.
+          RUSTFLAGS: "-C debuginfo=line-tables-only -D warnings"
           CARGO_INCREMENTAL: "0"
         uses: github/codeql-action/autobuild@v4
 
