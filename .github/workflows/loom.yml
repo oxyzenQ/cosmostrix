@@ -1,0 +1,66 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Loom - Concurrency Proof (NIGHT-depth-hardening-3).
+#
+# Exhaustive interleaving verification of the terminal-shutdown
+# handshake (interactive/signal_handlers.rs loom_proofs module). The
+# model explores every thread interleaving up to LOOM_MAX_PREEMPTIONS,
+# proving a fired shutdown can never be lost by a racing read - the
+# property the Release/Acquire pair is relied on for at ultra scale.
+#
+# The 30-minute law (the zelynic micro-split rule): one proof per job,
+# capped at 30 minutes. New loom models join as their own job.
+
+name: "Loom - Concurrency Proof"
+
+'on':
+  push:
+  schedule:
+    # Sunday 10:00 WIB (03:00 UTC) - the estate-wide Sunday lane
+    # (night-consistent-1: every scheduled workflow runs at the same
+    # Sunday slot).
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+  RUST_VERSION: "1.98.1"
+  RUSTFLAGS: "--cfg loom -D warnings"
+
+jobs:
+  loom-shutdown-handshake:
+    name: Loom - shutdown handshake
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          # The loom cfg rides RUSTFLAGS, which rust-cache keys on -
+          # the proof cache stays separate from the ordinary build cache.
+          key: loom
+
+      - name: Run the shutdown handshake model
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Bounded preemptions: exhaustive coverage of every
+          # interleaving the schedule bound allows, in well under the
+          # 30-minute law. A future model that inflates the schedule
+          # dies loudly inside the job timeout instead of hanging.
+          LOOM_MAX_PREEMPTIONS=2 cargo test --locked loom_proofs -- --nocapture

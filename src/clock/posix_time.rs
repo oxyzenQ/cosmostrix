@@ -73,6 +73,9 @@ pub(crate) fn local_tm() -> Option<LocalTm> {
         fn tzset();
     }
     static TZ_INIT: OnceLock<()> = OnceLock::new();
+    // SAFETY: tzset() takes no arguments, reads only the process TZ
+    // environment, and is thread-safe/idempotent per POSIX; there are
+    // no preconditions that Rust could violate.
     TZ_INIT.get_or_init(|| unsafe { tzset() });
 
     // SAFETY: libc::time(NULL) — writes nothing when pointer is NULL,

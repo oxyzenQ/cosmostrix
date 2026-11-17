@@ -738,3 +738,27 @@ mod tests_partial_eq;
 #[cfg(test)]
 #[path = "../../../../test/engine/chroma_dragon_engine/palette/tests_c16_anchor.rs"]
 mod tests_c16_anchor;
+
+#[cfg(kani)]
+mod kani_proofs {
+    //! NIGHT-depth-hardening-3: bounded model checking of the quantum
+    //! ripple's background blend. Proves the fixed-point lerp contract
+    //! for EVERY channel pair and every factor in [0, 1]: the result
+    //! never leaves the source/target hull and the endpoints are exact.
+    use super::*;
+
+    #[kani::proof]
+    fn blend_toward_bg_rgb_stays_in_channel_hull() {
+        let r: u8 = kani::any();
+        let tr: u8 = kani::any();
+        let factor: f32 = kani::any();
+        kani::assume(factor.is_finite() && factor >= 0.0 && factor <= 1.0);
+        let (out, _, _) = blend_toward_bg_rgb(r, r, r, tr, tr, tr, factor);
+        let lo = r.min(tr);
+        let hi = r.max(tr);
+        assert!(
+            (lo..=hi).contains(&out),
+            "blended channel {out} escaped the [{lo}, {hi}] hull"
+        );
+    }
+}

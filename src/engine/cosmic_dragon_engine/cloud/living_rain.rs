@@ -466,3 +466,26 @@ mod tests {
         );
     }
 }
+
+#[cfg(kani)]
+mod kani_proofs {
+    //! NIGHT-depth-hardening-3: bounded model checking of the density
+    //! noise band. This is a proof over EVERY column value and a wide
+    //! elapsed range, not a sample like the unit tests.
+    use super::*;
+
+    #[kani::proof]
+    fn density_modifier_stays_in_band_for_any_input() {
+        let col: u16 = kani::any();
+        let elapsed: f64 = kani::any();
+        // Bound the wall-clock reading to the plausible session span so
+        // the float model stays decidable; the band holds per window
+        // regardless of absolute magnitude.
+        kani::assume(elapsed.is_finite() && elapsed >= 0.0 && elapsed < 1.0e6);
+        let modifier = column_density_modifier(col, elapsed);
+        assert!(
+            (DENSITY_NOISE_MIN..=DENSITY_NOISE_MAX).contains(&modifier),
+            "density modifier escaped the documented band"
+        );
+    }
+}

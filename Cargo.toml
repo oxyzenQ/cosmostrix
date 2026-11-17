@@ -345,6 +345,12 @@ strip = false
 #     is still deliberately avoided: `deny` breaks intentional
 #     platform stubs, `allow` would undo the dead-code triage.
 
+[lints.rust]
+# NIGHT-depth-hardening-3: the proof cfgs are real toolchain switches
+# (cargo kani sets --cfg kani; the loom lane sets --cfg loom), so they
+# are declared here to keep `unexpected_cfgs` quiet under -D warnings.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)', 'cfg(kani)'] }
+
 [lints.clippy]
 # Project-wide clippy lint configuration. The default clippy policy (all
 # lints warn) is enforced via `cargo clippy -- -D warnings` in
@@ -371,8 +377,20 @@ excessive_precision = "allow"
 # not just the build.sh gate.
 manual_slice_fill = "deny"
 
+# undocumented_unsafe_blocks: every `unsafe` block must carry a
+# `// SAFETY:` comment explaining why the operation is sound
+# (NIGHT-depth-hardening-3). A nursery lint promoted to deny: any
+# future unannotated block fails every clippy run, IDE session, and
+# the build.sh gate, so the soundness surface can never silently
+# grow again.
+undocumented_unsafe_blocks = "deny"
+
 [dev-dependencies]
 proptest = { version = "1.8.0", default-features = false, features = ["std"] }
+# NIGHT-depth-hardening-3: concurrency model checker. Compiled only
+# under `RUSTFLAGS=--cfg loom` (the cfg(loom) module in
+# interactive/signal_handlers.rs), never linked into release builds.
+loom = "0.7"
 
 
 # Platform-specific optimizations

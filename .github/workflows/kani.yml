@@ -1,0 +1,81 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Kani - Bounded Model Checking (NIGHT-depth-hardening-3).
+#
+# The proven datapath: every proof harness lives under `#[cfg(kani)]`
+# `kani_proofs` modules in the engine sources, and `cargo kani` verifies
+# each one over EVERY symbolic input instead of sampling. The 30-minute
+# law (the zelynic micro-split rule): one harness per micro job, each
+# job capped at 30 minutes - a future harness that inflates the run is
+# isolated to its own job instead of hanging a monolithic lane, and the
+# failing harness is named by the job title on the Actions tab.
+#
+# Harness roster (one job per harness; add a job when adding a harness):
+#   - kani-cloud-density: living_rain density modifier band
+#   - kani-cloud-reseed-ladder: the deterministic reseed ladder
+#   - kani-chroma-blend: the quantum ripple background blend hull
+
+name: "Kani - Bounded Model Checking"
+
+'on':
+  push:
+  schedule:
+    # Sunday 10:00 WIB (03:00 UTC) - the estate-wide Sunday lane
+    # (night-consistent-1: every scheduled workflow runs at the same
+    # Sunday slot).
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  kani-cloud-density:
+    name: Kani - cloud density band
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Verify density modifier band
+        uses: model-checking/kani-github-action@v1
+        with:
+          runtime: 30
+          args: --output-format terse --harness density_modifier_stays_in_band_for_any_input
+
+  kani-cloud-reseed-ladder:
+    name: Kani - reseed ladder totality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Verify reseed ladder
+        uses: model-checking/kani-github-action@v1
+        with:
+          runtime: 30
+          args: --output-format terse --harness reseed_ladder_is_total_and_fresh_per_rung
+
+  kani-chroma-blend:
+    name: Kani - chroma blend hull
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Verify background blend hull
+        uses: model-checking/kani-github-action@v1
+        with:
+          runtime: 30
+          args: --output-format terse --harness blend_toward_bg_rgb_stays_in_channel_hull

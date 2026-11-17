@@ -224,6 +224,9 @@ fn termios_still_broken(orig: &libc::termios) -> bool {
             return true;
         }
     }
+    // SAFETY: the tcgetattr above returned 0, which by contract fully
+    // initializes the MaybeUninit<termios> buffer, so assume_init never
+    // exposes uninitialized memory.
     let cur = unsafe { cur.assume_init() };
     orig.c_iflag != cur.c_iflag
         || orig.c_oflag != cur.c_oflag

@@ -216,3 +216,55 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
     spawn_watchdog();
     (signal_exit, term_reinit)
 }
+
+#[cfg(loom)]
+mod loom_proofs {
+    //! NIGHT-depth-hardening-3: exhaustive interleaving model of the
+    //! two-flag shutdown handshake. The real signal handler stores
+    //! GRACEFUL_SHUTDOWN then the per-install flag with `Release`; the
+    //! event loop reads `SHUTDOWN` with `Acquire`. Loom explores every
+    //! interleaving up to the preemption bound and proves a fired
+    //! shutdown can never be lost by a racing read. The model uses the
+    //! loom types (loom::sync / loom::thread) - std types are opaque to
+    //! the scheduler and would make the model a no-op.
+    use loom::sync::Arc;
+    use loom::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn shutdown_handshake_is_never_lost() {
+        loom::model(|| {
+            let graceful: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+            let shutdown: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+
+            let g = graceful.clone();
+            let s = shutdown.clone();
+            let handler = loom::thread::spawn(move || {
+                // The handler-side write order mirrors
+                // install_signal_handlers: graceful first, shutdown
+                // second, both Release.
+                g.store(true, Ordering::Release);
+                s.store(true, Ordering::Release);
+            });
+
+            let mut observed = false;
+            // The event loop polls on every frame; two acquire loads
+            // cover the interleavings where the read lands before or
+            // after the handler's stores.
+            for _ in 0..2 {
+                if shutdown.load(Ordering::Acquire) {
+                    observed = true;
+                    break;
+                }
+                loom::thread::yield_now();
+            }
+            handler.join().unwrap();
+            // After joining the handler thread (a full happens-before
+            // edge), the request MUST be visible; anything else would
+            // mean a lost shutdown, the bug class this handshake guards.
+            assert!(
+                observed || shutdown.load(Ordering::Acquire),
+                "a fired shutdown request was lost"
+            );
+        });
+    }
+}

@@ -511,7 +511,7 @@ impl Cloud {
     /// `counter` (1-based) steps through the golden-ratio constant so
     /// each interval reseeds onto a fresh independent stream while the
     /// full sequence stays reproducible from the single initial seed.
-    pub(crate) fn reseed_ladder_seed(&self, counter: u64) -> u64 {
+    pub(crate) fn reseed_ladder_seed(counter: u64) -> u64 {
         RNG_INITIAL_SEED ^ counter.wrapping_mul(RESEED_LADDER_STEP)
     }
 
@@ -533,7 +533,7 @@ impl Cloud {
             // still lands on a fresh independent stream, and the whole
             // session replays bit-for-bit for a given config.
             self.reseed_counter = self.reseed_counter.wrapping_add(1);
-            self.mt = StdRng::seed_from_u64(self.reseed_ladder_seed(self.reseed_counter));
+            self.mt = StdRng::seed_from_u64(Self::reseed_ladder_seed(self.reseed_counter));
             self.last_reseed_time = now;
         }
     }
@@ -695,5 +695,27 @@ impl Cloud {
             spawned += 1;
         }
         self.quantum_active_count = self.quantum_active_count.saturating_add(spawned);
+    }
+}
+
+#[cfg(kani)]
+mod kani_proofs {
+    //! NIGHT-depth-hardening-3: bounded model checking of the reseed
+    //! ladder. The proof covers EVERY u64 counter value: the derivation
+    //! cannot panic, and every nonzero rung lands off the launch seed
+    //! (a rung that collapsed back onto it would restart the picture
+    //! every RNG_RESEED_INTERVAL_SECS instead of showing a fresh
+    //! arrangement).
+    use super::*;
+
+    #[kani::proof]
+    fn reseed_ladder_is_total_and_fresh_per_rung() {
+        let counter: u64 = kani::any();
+        kani::assume(counter != 0);
+        // The ladder uses only wrapping arithmetic, so this call is
+        // panic-free for every input; the meaningful property is the
+        // freshness invariant below.
+        let seed = Cloud::reseed_ladder_seed(counter);
+        assert!(seed != RNG_INITIAL_SEED);
     }
 }

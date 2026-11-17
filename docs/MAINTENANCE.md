@@ -44,6 +44,8 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 | AUR | `aur.yml` | `repository_dispatch` (aur-sync) posted by `release.yml` after a release publishes | Update AUR package |
 | crates.io | `crates-io.yml` | tag push (v*, stable + pre-release) | `cargo publish --locked` to crates.io (idempotent, tag/version guard) |
 | Release | `release.yml` | tag push (v*) | Build 7 release archives across 7 OS/arch targets (linux amd64 v3/v4 musl, darwin aarch64, windows x64/arm64, freebsd amd64, android aarch64) + checksums + GPG sign; the PGO nitro release packages are retired (night-dragon-maintenance-T1) |
+| Kani | `kani.yml` | push + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual | Bounded model checking: one micro job per proof harness, 30-minute cap each (NIGHT-depth-hardening-3) |
+| Loom | `loom.yml` | push + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual | Exhaustive interleaving proof of the shutdown handshake (NIGHT-depth-hardening-3) |
 | Maintenance | `maintenance.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | Dependency update + validate + commit |
 
 **Bot lane staging rule (night-zen-1 hotfix)**: the commit job stages an explicit path list derived from the manifest walk, never a glob, and the download-artifact staging directory lives under `runner.temp`, outside the work tree (`.auto-update/` is gitignored as a second wall). Incident class write-up: [KNOWN_ISSUES.md](../KNOWN_ISSUES.md).

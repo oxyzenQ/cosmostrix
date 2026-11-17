@@ -93,6 +93,11 @@ static INNER: System = System;
 /// unchanged, so the safety obligations documented on `GlobalAlloc`'s
 /// methods (valid layout, valid ptr from a previous alloc, etc.) are
 /// preserved by construction.
+// SAFETY: TraceAlloc forwards every GlobalAlloc method argument to
+// INNER (the System allocator) unchanged and only adds allocation-free
+// thread-local counter updates, so the GlobalAlloc contract obligations
+// (valid layout, ptr from a previous alloc, ...) are upheld by
+// construction; the TLS updates cannot allocate or re-enter.
 unsafe impl GlobalAlloc for TraceAlloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         COUNTERS.with(|c| {
