@@ -9,12 +9,12 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 |----------|---------|---------|
 | `ci.yml` | every push + every PR (unfiltered) | fmt, clippy, test, build, security audit, version sync |
 | `release.yml` | tag push `v*` (CI-gated: waits for the `ci.yml` run on the tagged SHA — NIGHT-improve-1) | 7-platform binaries + checksums + GPG sign + GitHub Release (PGO nitro release packages retired — night-dragon-maintenance-T1) |
-| `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) + manual dispatch | `cargo update` in every committed workspace (root, `fuzz/`, `pgo-runner/` — night-zen-1) + audit + commit if validation passes |
-| `gitbot-audit.yml` | daily cron + every push/PR (unfiltered) | `cargo audit` + `cargo deny` (observation-only) |
+| `maintenance.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | `cargo update` in every committed workspace (root, `fuzz/`, `pgo-runner/` — night-zen-1) + audit + commit if validation passes |
+| `gitbot-audit.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB, night-consistent-1) + every push/PR (unfiltered) | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
 | `crates-io.yml` | tag push `v*` (stable + pre-release, same CI gate) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
-| `miri.yml` | weekly cron (Sun 00:00 UTC / 07:00 WIB) + every push (unfiltered) | Undefined behavior detection |
-| `fuzz.yml` | every push (unfiltered) + weekly deep session (Mon 00:30 UTC / 07:30 WIB) + manual dispatch | `cargo fuzz` regression net on the terminal-safety sink (`escape_ctrl`, the CWE-150 gate): 60s per push, 900s weekly, accumulating corpus cache + committed seed anchors (night-dragon-maintenance-5) |
+| `miri.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + every push (unfiltered) | Undefined behavior detection |
+| `fuzz.yml` | every push (unfiltered) + weekly deep session (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | `cargo fuzz` regression net on the terminal-safety sink (`escape_ctrl`, the CWE-150 gate): 60s per push, 900s weekly, accumulating corpus cache + committed seed anchors (night-dragon-maintenance-5) |
 | `codeql.yml` | every push + every PR (unfiltered) + weekly cron | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | every push + every PR (unfiltered) | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer, actions-pin health |
 | `supermassive.yml` | every push (unfiltered) + manual dispatch | Runtime E2E on the five-minute law (night-T-1): one artifact build, then pty smoke (six real-pty legs), 4-shard musl workspace nextest, render soak, hostile torture — every battery leg targets ≤5 minutes |
@@ -60,8 +60,8 @@ release publish can never ride a blind trigger:
   successful GitHub Release) + manual dispatch only.
 
 The scheduled and manual lanes keep their schedules
-(`maintenance.yml` weekly, `gitbot-audit.yml` daily, `miri.yml` Sunday,
-`codeql.yml` Monday) as back-stops for network-dependent checks.
+(all five scheduled lanes share the estate-wide Sunday 10:00 WIB slot,
+night-consistent-1) as back-stops for network-dependent checks.
 
 Incident (2026-09-13, commit 5553174): a push touching only
 `test/engine/cosmic_dragon_engine/cloud/tests/tests_black_hole/infall.rs`

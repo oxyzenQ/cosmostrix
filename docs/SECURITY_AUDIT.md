@@ -18,7 +18,7 @@
 
 ## Verdict
 
-**cosmostrix is a safe "digital art" program, not malware.** Every sensitive capability (network, subprocess, terminal mutation) is either opt-in (`--check-update`, `--reset-terminal`) or strictly bounded (path whitelist, FFI-only `unsafe` with soundness audits, signal handlers that only set atomic flags). The codebase demonstrates a mature security posture: documented `unsafe` policy, exhaustive path-traversal tests, license-policy enforcement, daily `cargo audit`, two-phase privilege separation for dep updates, and a self-audit document covering every `unsafe` site.
+**cosmostrix is a safe "digital art" program, not malware.** Every sensitive capability (network, subprocess, terminal mutation) is either opt-in (`--check-update`, `--reset-terminal`) or strictly bounded (path whitelist, FFI-only `unsafe` with soundness audits, signal handlers that only set atomic flags). The codebase demonstrates a mature security posture: documented `unsafe` policy, exhaustive path-traversal tests, license-policy enforcement, weekly `cargo audit` (the estate-wide Sunday lane), two-phase privilege separation for dep updates, and a self-audit document covering every `unsafe` site.
 
 ## 1. `unsafe` Usage — 15 Sites, All Sound
 
@@ -60,7 +60,7 @@ Documented **"no new unsafe in renderer/core paths"** policy (`docs/archive/SIMD
 
 **(NIGHT-cybersecurity-1, 2026-09-19)**: the `--list-*`/`--show-scene` report family now carries the same sink discipline as the diagnostics. Proven with a hostile-config PoC on the pre-fix binary: `--show-scene` echoed a raw `ESC [2J` (od-verified `033` byte) from an unvalidated `scene-custom.<name>.rain` VALUE — config VALUES are not charset-gated at collection (source validation happens later, at cloud-config build time), and the report printers interpolated them raw. The custom charset/palette name loops and the hidden-block warning lines held the same class (their collectors gate length and key shape, not name charset). Fixed by routing the report builders through `escape_ctrl`: `show_custom_scene_text` / `list_custom_scenes_text` (whole-string sink in `scene_custom/display.rs`), the custom charset + palette name loops and `hidden_block_warning_lines` (`config/list_printers.rs`). Post-fix the same PoC renders as the visible `glyph\u001b[2Jx` literal. Scene NAMES were already source-gated (`is_valid_profile_name` rejects them at collection), and the config parser rejects control bytes in KEYS (name-vector probes did not pass end-to-end) — the name-side guards are therefore defense-in-depth, pinned by unit tests at the sink.
 
-**(Fuzz lane, night-dragon-maintenance-5)**: the sink's two contract properties — no control character survives (newline exempt as structural) and honest data passes byte-identical — are now continuously proven against hostile input, not only pinned by unit tests: `fuzz/` carries a cargo-fuzz harness that path-includes the exact `src/output/escape_ctrl.rs` bytes the binary ships (no copied grammar, no harness drift), `.github/workflows/fuzz.yml` runs it 60s per push and 900s in the Monday deep session, the accumulated corpus rides the workflow cache, and the committed seed anchors (`fuzz/seeds/escape_ctrl/`) start every session on the proved injection classes (OSC 52 clipboard write, CSI clear-screen, the C0/DEL/C1 remainder). A crash fails CI with the input saved as an artifact. Scope honesty: the config text parser and the overlay sanitizer are the other hostile-input surfaces; they stay on unit tests until they are crate-import-free enough to satisfy the path-include law (named in the lane's verdict record, not silently dropped).
+**(Fuzz lane, night-dragon-maintenance-5)**: the sink's two contract properties — no control character survives (newline exempt as structural) and honest data passes byte-identical — are now continuously proven against hostile input, not only pinned by unit tests: `fuzz/` carries a cargo-fuzz harness that path-includes the exact `src/output/escape_ctrl.rs` bytes the binary ships (no copied grammar, no harness drift), `.github/workflows/fuzz.yml` runs it 60s per push and 900s in the Sunday deep session (night-consistent-1), the accumulated corpus rides the workflow cache, and the committed seed anchors (`fuzz/seeds/escape_ctrl/`) start every session on the proved injection classes (OSC 52 clipboard write, CSI clear-screen, the C0/DEL/C1 remainder). A crash fails CI with the input saved as an artifact. Scope honesty: the config text parser and the overlay sanitizer are the other hostile-input surfaces; they stay on unit tests until they are crate-import-free enough to satisfy the path-include law (named in the lane's verdict record, not silently dropped).
 
 ## 6. Signal Handlers + Dependency Audit
 
@@ -128,7 +128,7 @@ behavior only.
 
 ## 10. Recommended Ongoing Security Practices
 
-1. Run `cargo audit` weekly (already automated in `gitbot-audit.yml` daily run).
+1. Run `cargo audit` weekly (automated in `gitbot-audit.yml`'s Sunday 10:00 WIB run).
 2. Run `cargo deny check all` before each release (already in `maintenance.yml`).
 3. Pin transitive deps when upstream `notify` v7 lands (currently 3 duplicate-version warnings, all Windows-only, documented in `deny.toml:47-64`).
 4. Consider replacing `curl` subprocess in `--update` with `ureq` (compiled-out by default) so users don't need to trust whatever `curl` binary is on `PATH`. Defense-in-depth, not a vulnerability.
@@ -233,7 +233,7 @@ refusal could break.
 - `docs/ENDURANCE.md` — long-running stability methodology
 - `docs/TERMINAL_COMPATIBILITY.md` — terminal compatibility matrix
 - `deny.toml` — license + advisory policy
-- `.github/workflows/gitbot-audit.yml` — daily `cargo audit` + `cargo deny`
+- `.github/workflows/gitbot-audit.yml` — weekly (Sunday 10:00 WIB) `cargo audit` + `cargo deny`
 - `.github/workflows/maintenance.yml` — two-phase dep auto-update
 
 <!-- COSMOSTRIX-DISCLAIMER -->

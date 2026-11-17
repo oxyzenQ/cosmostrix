@@ -34,8 +34,8 @@ framework, per-dependency analysis, and the action plan.
 The `maintenance.yml` weekly cron runs `cargo update` +
 `cargo audit` + `cargo deny check all` — semver-compatible updates are
 applied automatically with CI verification. Major version bumps require
-manual audit (never auto-applied). CVE monitoring runs daily via
-`gitbot-audit.yml`.
+manual audit (never auto-applied). CVE monitoring runs weekly
+(Sunday 10:00 WIB, night-consistent-1) via `gitbot-audit.yml`.
 
 ### Policy Rules
 
@@ -66,7 +66,7 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 
 ## 3. GitHub Actions Hardening
 
-**Action References Float on Major Tags (owner decision 2026-08-30)**: every third-party action in CI and release workflows is referenced by its major version tag (`actions/checkout@v6`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`), and CI-installed deps (shfmt, codespell, ruff, cargo-audit, cargo-deny, Android NDK, ...) resolve their latest upstream release at run time. This "dynamic latest, minimal maintenance, boring but strong" policy deliberately replaced the earlier SHA-pinning migration plan: exact-pinning every action and tool multiplies maintenance work (dozens of pins to review and bump forever) while the remaining attack surface — a maintainer moving a major tag — is a low-likelihood event already mitigated by the controls below. Compensating controls: all workflows run with minimal permissions (`contents: read` everywhere except release/maintenance writers), `release.yml`/`crates-io.yml` only trigger on owner-pushed `v*` tags, CodeQL scans every push, and `cargo audit` + `cargo deny` run daily. If a higher-assurance posture is ever needed, re-introduce SHA pins via Dependabot automation (which removes the manual bump burden) rather than hand-maintained hashes. See `docs/workflow/ABOUT_CI.md` (Dependency version policy).
+**Action References Float on Major Tags (owner decision 2026-08-30)**: every third-party action in CI and release workflows is referenced by its major version tag (`actions/checkout@v6`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`), and CI-installed deps (shfmt, codespell, ruff, cargo-audit, cargo-deny, Android NDK, ...) resolve their latest upstream release at run time. This "dynamic latest, minimal maintenance, boring but strong" policy deliberately replaced the earlier SHA-pinning migration plan: exact-pinning every action and tool multiplies maintenance work (dozens of pins to review and bump forever) while the remaining attack surface — a maintainer moving a major tag — is a low-likelihood event already mitigated by the controls below. Compensating controls: all workflows run with minimal permissions (`contents: read` everywhere except release/maintenance writers), `release.yml`/`crates-io.yml` only trigger on owner-pushed `v*` tags, CodeQL scans every push, and `cargo audit` + `cargo deny` run weekly (the estate-wide Sunday lane, night-consistent-1). If a higher-assurance posture is ever needed, re-introduce SHA pins via Dependabot automation (which removes the manual bump burden) rather than hand-maintained hashes. See `docs/workflow/ABOUT_CI.md` (Dependency version policy).
 
 **Minimal Permissions**: `ci.yml` `contents: read` (builds and audits only); `gitbot-audit.yml` `contents: read`, `actions: read` (observation-only); `aur.yml` `contents: read` (no write to this repo; SSH key handles AUR push); `release.yml` `contents: write`, `actions: write` (creates GitHub Releases; write is necessary); `maintenance.yml` `contents: write` (commits validated lockfile updates directly to `main`). No workflow requests `attestations: write`. If binary attestation via GitHub's Sigstore integration is adopted in the future, that permission will be scoped exclusively to `release.yml` and pinned to a single job.
 
@@ -74,7 +74,7 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 
 ## 4. Toolchain Requirements
 
-**`cargo audit`** (Rust Security Advisory working group): scans the project's dependency tree against the RustSec Advisory Database for known CVEs, advisory withdrawals, unmaintained crates. Installed via `taiki-e/install-action` in CI; runs as the first gate in the `security` job. Daily `gitbot-audit.yml` workflow runs `cargo audit` at 00:00 UTC (07:00 WIB) as observation-only; if vulnerabilities detected, weekly `maintenance.yml` resolves them during next scheduled run (Monday 00:00 UTC / 07:00 WIB) by `cargo update`, re-auditing, pushing updated lockfile.
+**`cargo audit`** (Rust Security Advisory working group): scans the project's dependency tree against the RustSec Advisory Database for known CVEs, advisory withdrawals, unmaintained crates. Installed via `taiki-e/install-action` in CI; runs as the first gate in the `security` job. Daily `gitbot-audit.yml` workflow runs `cargo audit` at 00:00 UTC (07:00 WIB) as observation-only; if vulnerabilities detected, weekly `maintenance.yml` resolves them during next scheduled run (Sunday 03:00 UTC / 10:00 WIB, night-consistent-1) by `cargo update`, re-auditing, pushing updated lockfile.
 
 **`cargo deny`** enforces organizational policies across four dimensions, configured in `deny.toml`: advisories (cross-references RustSec, zero ignored); licenses (permits only the license set in §1, confidence threshold 0.8); bans (warns on duplicate crate versions, wildcard deps allowed for legitimate use); sources (restricts all crate origins to official crates.io registry, Git sources and unknown registries produce warnings). Both tools run in CI (`ci.yml` deny job, `release.yml` audit+deny) and in `maintenance.yml`.
 
@@ -84,7 +84,7 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 
 **Routine Dependency Updates** (weekly `maintenance.yml`): (1) `cargo update` runs in every committed workspace — the walk auto-detects each `Cargo.toml` (root, `fuzz/`, `pgo-runner/`; night-zen-1) and bumps all deps in every workspace `Cargo.lock` to latest compatible versions; (2) no-op detection — if no `Cargo.lock` changed, exit early; (3) `cargo audit` verifies no known vulnerabilities; (4) `cargo deny check all` confirms continued policy compliance; (5) `cargo fmt --all -- --check`; (6) `cargo build` (dev, release, pro profiles — the plain `pro` profile since the 2026-08-23 owner directive, not a pinned microarch level); (7) `cargo test --all --locked`; (8) `cargo clippy --locked --all-targets --all-features -- -D warnings`; (9) commit and push to `main` if all checks pass.
 
-**Security Advisory Response** (when `cargo audit` or daily `gitbot-audit.yml` detects a vulnerability):
+**Security Advisory Response** (when `cargo audit` or the weekly `gitbot-audit.yml` run detects a vulnerability):
 
 | Severity | Response Time | Action |
 |---|---|---|

@@ -37,8 +37,9 @@ name: "Cosmic Dragon Guard - Miri"
 'on':
   push:
   schedule:
-    # Sunday 00:00 UTC (07:00 WIB) — picks up the week's commits in one shot.
-    - cron: '0 0 * * 0'
+    # Sunday 10:00 WIB (03:00 UTC) — picks up the week's commits in one shot
+    # (night-consistent-1: the estate-wide Sunday lane).
+    - cron: '0 3 * * 0'
   # Manual trigger from the Actions tab.
   workflow_dispatch:
 

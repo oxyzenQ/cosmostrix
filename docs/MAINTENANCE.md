@@ -30,7 +30,7 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 
 **Upgrading Rust**: one command — `./scripts/dev/bump-rust-to.sh X.Y.Z` (owner-facing entry point; `scripts/dev/rust-version-to.sh` is the implementation). It updates the `rust-toolchain.toml` channel plus its version comments, the `Cargo.toml` and `pgo-runner/Cargo.toml` `rust-version` MSRV pair, and every `.github/workflows/*.yml` `RUST_VERSION` pin, then verifies sync via `scripts/gates/check-rust-version-sync.sh`. It also audits narrative docs (`docs/`, `README.md`, `CONTRIBUTING.md`) and warns about stale version references instead of auto-editing them — release dates and rationale need editorial review, so update those by hand. Afterwards: `rustup install X.Y.Z`, `./scripts/build.sh check-all`, `cargo test --all --locked`, then commit.
 
-**Dependencies**: `Cargo.lock` committed (reproducible builds), 11 unique runtime direct deps (8 cross-platform + `signal-hook`/`libc` on unix, `ctrlc` on windows; plus `proptest` as the single dev-dependency) / 105 crates in the lock, `deny.toml` + CI `cargo deny check all` daily. To update: `cargo update` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build.sh check-all`. Commit `Cargo.lock` only if all checks pass.
+**Dependencies**: `Cargo.lock` committed (reproducible builds), 11 unique runtime direct deps (8 cross-platform + `signal-hook`/`libc` on unix, `ctrlc` on windows; plus `proptest` as the single dev-dependency) / 105 crates in the lock, `deny.toml` + CI `cargo deny check all` weekly (the estate-wide Sunday lane). To update: `cargo update` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build.sh check-all`. Commit `Cargo.lock` only if all checks pass.
 
 ## 3. CI/CD Pipeline
 
@@ -38,13 +38,13 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 |----------|------|---------|---------|
 | CI | `ci.yml` | push + PR (`src/**` + `test/**` + Cargo/toolchain/build/scripts config) | Build + test + clippy + fmt + deny + MSRV |
 | Cosmic Dragon Guard - Gate-keepers | `cosmic-dragon-guard.yml` | push + PR | Gate-keepers: bash -n + shellcheck + shfmt (all installed in CI, none skipped), yamllint, actionlint, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
-| Miri | `miri.yml` | push (main, Rust paths) + weekly cron (Sun 00:00 UTC / 07:00 WIB) + manual | Undefined behavior detection (6 audited modules) |
-| Security Audit | `gitbot-audit.yml` | daily cron (00:00 UTC / 07:00 WIB) + push/PR (Rust paths) | Security advisory + dependency policy |
-| CodeQL | `codeql.yml` | push + PR (Rust + scripts paths) + weekly cron (Mon 00:00 UTC / 07:00 WIB) | GitHub CodeQL semantic analysis |
+| Miri | `miri.yml` | push (main, Rust paths) + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual | Undefined behavior detection (6 audited modules) |
+| Security Audit | `gitbot-audit.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB, night-consistent-1) + push/PR (Rust paths) | Security advisory + dependency policy |
+| CodeQL | `codeql.yml` | push + PR (Rust + scripts paths) + weekly cron (Sun 03:00 UTC / 10:00 WIB) | GitHub CodeQL semantic analysis |
 | AUR | `aur.yml` | `repository_dispatch` (aur-sync) posted by `release.yml` after a release publishes | Update AUR package |
 | crates.io | `crates-io.yml` | tag push (v*, stable + pre-release) | `cargo publish --locked` to crates.io (idempotent, tag/version guard) |
 | Release | `release.yml` | tag push (v*) | Build 7 release archives across 7 OS/arch targets (linux amd64 v3/v4 musl, darwin aarch64, windows x64/arm64, freebsd amd64, android aarch64) + checksums + GPG sign; the PGO nitro release packages are retired (night-dragon-maintenance-T1) |
-| Maintenance | `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) + manual dispatch | Dependency update + validate + commit |
+| Maintenance | `maintenance.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | Dependency update + validate + commit |
 
 **Bot lane staging rule (night-zen-1 hotfix)**: the commit job stages an explicit path list derived from the manifest walk, never a glob, and the download-artifact staging directory lives under `runner.temp`, outside the work tree (`.auto-update/` is gitignored as a second wall). Incident class write-up: [KNOWN_ISSUES.md](../KNOWN_ISSUES.md).
 
@@ -91,7 +91,7 @@ cosmostrix is designed for long-term stability. The owner may go dormant for 5-1
 ### What "dormant" means
 
 - No commits, no releases, no dependency updates during the dormant period.
-- CI continues running automatically: daily security audits, weekly Miri, weekly CodeQL, weekly dependency maintenance.
+- CI continues running automatically: security audits, Miri, CodeQL, and dependency maintenance share the estate-wide Sunday 10:00 WIB lane (night-consistent-1).
 - The AUR package remains available at the last published version.
 - Issues and PRs may accumulate; the maintenance workflow handles stale management.
 - The `Cargo.lock` is committed and immutable during dormancy — it is the single source of truth for dependency versions.

@@ -37,7 +37,8 @@
 # lane's definition, the same law as the targets and the manifests.
 #
 # The weekly deep session: the same target runs for 15 minutes every
-# Monday 07:30 WIB (00:30 UTC) - the owner-lazy insurance the
+# Sunday 10:00 WIB (03:00 UTC), the estate-wide Sunday lane - the
+# owner-lazy insurance the
 # continuous 60s net cannot buy (the owner tests locally rarely; the
 # lane exists so the corpus grows without him). The corpus cache
 # restores the accumulated corpus under the same restore-keys, so
@@ -51,8 +52,8 @@ name: "Cosmic Dragon Guard - Fuzz"
 'on':
   push:
   schedule:
-    # The weekly deep session: Monday 00:30 UTC = 07:30 WIB.
-    - cron: '30 0 * * 1'
+    # The weekly deep session: Sunday 10:00 WIB (03:00 UTC) (night-consistent-1).
+    - cron: '0 3 * * 0'
   # Manual trigger from the Actions tab.
   workflow_dispatch:
 

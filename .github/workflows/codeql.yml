@@ -1,6 +1,8 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: AGPL-3.0-only
-# Schedule: Weekly on Monday 00:00 UTC (07:00 WIB)
+# Schedule: Weekly on Sunday 10:00 WIB (03:00 UTC) - the estate-wide Sunday lane
+# (night-consistent-1: every scheduled workflow runs at the same
+# Sunday 10:00 WIB slot)
 
 # CodeQL security analysis for cosmostrix.
 #
@@ -33,7 +35,7 @@ name: "Cosmic Dragon Guard - CodeQL"
   push:
   pull_request:
   schedule:
-    - cron: '0 0 * * 1'  # Monday 00:00 UTC (07:00 WIB)
+    - cron: '0 3 * * 0'  # Sunday 10:00 WIB (03:00 UTC)
   workflow_dispatch:
 
 permissions:

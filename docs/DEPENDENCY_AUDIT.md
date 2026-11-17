@@ -50,7 +50,7 @@ deps are yanked.
 
 The real signals to act on:
 - **CVE in current version** → update immediately (monitored by
-  `gitbot-audit.yml` daily `cargo audit`)
+  `gitbot-audit.yml` weekly Sunday `cargo audit`)
 - **Current version unmaintained** (no commits for 2+ years AND a newer
   major exists) → plan a migration
 - **New version has a feature you need** → update for that feature
@@ -227,8 +227,8 @@ Each major update PR MUST:
 The existing `maintenance.yml` weekly cron already runs
 `cargo update` + `cargo audit` + `cargo deny check all`. This handles:
 - Semver-compatible updates (applied automatically, CI verifies).
-- CVE monitoring (cargo audit, daily via `gitbot-audit.yml`).
-- License compliance (cargo deny, daily).
+- CVE monitoring (cargo audit, weekly Sunday via `gitbot-audit.yml`).
+- License compliance (cargo deny, weekly Sunday).
 
 No changes needed to the maintenance workflow — it's already correct.
 
@@ -267,7 +267,7 @@ The "latest = best" assumption is wrong for LTS/dormant-mode projects:
 - `docs/SUPPLY_CHAIN.md` — dependency policy, license allow-list, lockfile discipline
 - `docs/MAINTENANCE.md` — dormant-mode maintenance guide (Section 4: dependency updates)
 - `.github/workflows/maintenance.yml` — weekly `cargo update` cron
-- `.github/workflows/gitbot-audit.yml` — daily `cargo audit` + `cargo deny`
+- `.github/workflows/gitbot-audit.yml` — weekly (Sunday 10:00 WIB) `cargo audit` + `cargo deny`
 - `deny.toml` — license/source/duplicate policy
 
 <!-- COSMOSTRIX-DISCLAIMER -->
