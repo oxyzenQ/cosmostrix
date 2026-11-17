@@ -47,6 +47,20 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### build: the release-ledger shape gate joins the push battery (gate-keepers check 22)
+
+- `scripts/gates/check-release-ledger.sh` asserts the writer's own
+  shape laws against the real `CHANGELOG.md`, read-only: heading
+  count (one `## Released`, one `## Unreleased`), Released above
+  Unreleased, the blank spacer, purity inside the section, no
+  version line stranded outside it (the incident class), no
+  duplicate release lines. The probes are sourced from
+  `scripts/lib/changelog-ledger.sh` - one implementation, no copied
+  grammar.
+- Registered as gate-keepers check 22 and as a step in the ci.yml
+  Version sync guard job, so hand-edit drift between bumps fails
+  the push instead of waiting for the next release to publish it.
+
 ### fix: the release ledger verifies its own writes - the bump's version line can no longer land anywhere but inside ## Released
 
 - `scripts/dev/version-to.sh` ports the zelynic NIGHT-bump-1 laws -

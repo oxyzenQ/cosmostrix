@@ -115,6 +115,16 @@ export PYTHONDONTWRITEBYTECODE=1
 #       toy-project dismissal; the measured properties underneath
 #       earn the respect instead. "masterclass" and "curiosity"
 #       stay, by name.
+#  22.  Release-ledger shape (night-bump-1 port, zelynic lineage -
+#       scripts/gates/check-release-ledger.sh): the CHANGELOG.md
+#       release ledger is a machine-checked shape, not prose the
+#       owner's eyes re-audit. One '## Released' heading above one
+#       '## Unreleased', the blank spacer under the heading, only
+#       bare vX.Y.Z version lines inside, no version line stranded
+#       outside the section (the fatal class the v80.0.x bump rode
+#       into zelynic's ledger), no duplicate release lines. The
+#       bump's writer verifies its own writes in place; this gate
+#       catches hand-edit drift between bumps.
 # Exit codes:
 #   0 = all checks passed
 #   1 = one or more checks failed
@@ -746,6 +756,28 @@ elif [ ! -f scripts/gates/check-hype-words.py ]; then
 	skip "check-hype-words.py not found — skipping (tree fault: the gate script itself is missing)"
 else
 	skip "python3 not installed — skipping (hype-vocabulary unchecked)"
+fi
+
+# ── 22. Release-Ledger Shape (night-bump-1 port) ────────────────────────
+# The CHANGELOG.md release ledger had no automated shape guard: the
+# bump's writer verifies its writes in place (the zelynic
+# NIGHT-bump-1 port in scripts/lib/changelog-ledger.sh), but a
+# hand-edit between bumps could strand a version line below the
+# unreleased section - the fatal class the owner hit on the v80.0.x
+# line - and nothing would notice until the next release published
+# a broken ledger. The gate asserts the writer's own shape laws
+# against the real file on every push (the probes are sourced from
+# the lib - one implementation, no copied grammar).
+header "Release-Ledger Shape (check-release-ledger.sh)"
+if [ -f scripts/gates/check-release-ledger.sh ]; then
+	if bash scripts/gates/check-release-ledger.sh 2>&1; then
+		info "release ledger: the CHANGELOG.md ledger holds its shape (one Released above one Unreleased, pure version lines, no strands)"
+		PASS=$((PASS + 1))
+	else
+		fail "release ledger: CHANGELOG.md broke its shape contract (see the failing law above)"
+	fi
+else
+	skip "check-release-ledger.sh not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

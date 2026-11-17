@@ -92,6 +92,9 @@ jobs:
       - name: Also run the version anti-pattern guard
         run: bash scripts/gates/check-version-anti-patterns.sh
 
+      - name: Verify the CHANGELOG release ledger shape
+        run: bash scripts/gates/check-release-ledger.sh
+
       - name: Verify Rust version sync (toolchain ↔ MSRV ↔ CI env)
         run: bash scripts/gates/check-rust-version-sync.sh
 
