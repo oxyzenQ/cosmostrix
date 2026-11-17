@@ -421,10 +421,10 @@ The script updates:
 - `README.md` (the `TAG="vX.Y.Z"` install snippet)
 - `pgo-runner/Cargo.toml` (ride-along: the standalone crate's version follows the root's instead of shipping a drifting label)
 - `pgo-runner/Cargo.lock` (the name-anchored `pgo-runner` entry, manifest value only)
-- `CHANGELOG.md` (the release ledger: a bare `vX.Y.Z` line under `## Released`, newest first - the section is created above `## Unreleased` on the first bump, pre-release and stable alike)
+- `CHANGELOG.md` (the release ledger: a bare `vX.Y.Z` line under `## Released`, newest first - the section is created above `## Unreleased` on the first bump, pre-release and stable alike; every write verifies in place - a line that does not land inside the section restores the file and fails the bump)
 - `docs/workflow/ABOUT_CI.md` (the `TAG="vX.Y.Z"` install snippet, if present)
 
-Historical CHANGELOG narrative is never rewritten (night-improve-9): the ledger lane only appends the bare release line under `## Released`, and it probes honestly - a missing file, a missing `## Unreleased` anchor, or an unexpected `## Released` shape warns and writes nothing. Per-era archive files stay a manual cut, and workflow files are audited for hardcoded versions (workflows should derive versions from `GITHUB_REF_NAME`).
+Historical CHANGELOG narrative is never rewritten (night-improve-9): the ledger lane only appends the bare release line under `## Released`. It runs as a verified pre-flight (the zelynic NIGHT-bump-1 port, `scripts/lib/changelog-ledger.sh`): a missing file or a missing `## Unreleased` anchor warns and writes nothing; a release line stranded outside `## Released` heals in place; a foreign ledger shape (duplicated headings, foreign content inside the section, a lost spacer) refuses the bump loudly; a stale-tree downgrade refuses unless `--force` records the reset. Per-era archive files stay a manual cut, and workflow files are audited for hardcoded versions (workflows should derive versions from `GITHUB_REF_NAME`).
 
 `version-to.sh` accepts both stable (`X.Y.Z`) and pre-release
 (`X.Y.Z-<suffix>` — the hyphen after the patch makes it a pre-release,
@@ -433,6 +433,10 @@ manually by the owner
 (`git tag vX.Y.Z`), and `git push origin main vX.Y.Z` (commit and tag
 together) is safe — the tag pipelines wait for the branch CI on the
 tagged SHA via the NIGHT-improve-1 gate.
+
+The `--force` flag records a deliberate release-line reset: the new
+version takes the ledger's top position while sorting below the
+current top (a bump below the ledger's top refuses without it).
 
 Verify the current version without changes:
 

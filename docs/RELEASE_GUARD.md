@@ -22,7 +22,11 @@ Verify the version is correct across all metadata files:
 ```
 
 This validates `Cargo.toml`, `Cargo.lock`, `PKGBUILD`, and `.SRCINFO`
-all agree on the target version.
+all agree on the target version. The CHANGELOG release ledger is
+verified positionally too: the release line must sit inside
+`## Released` - a line stranded below `## Unreleased` fails the
+check (the shape gate `scripts/gates/check-release-ledger.sh` owns
+the full ledger shape contract).
 
 ### Gate 2 — Full validation
 

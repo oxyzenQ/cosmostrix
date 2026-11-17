@@ -47,6 +47,29 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: the release ledger verifies its own writes - the bump's version line can no longer land anywhere but inside ## Released
+
+- `scripts/dev/version-to.sh` ports the zelynic NIGHT-bump-1 laws -
+  the fatal class the owner hit on the v80.0.x line: the bump's
+  version line rode below the unreleased section because nothing
+  ever verified where a write landed. The ledger work moved out of
+  the bump's tail into a verified pre-flight
+  (`scripts/lib/changelog-ledger.sh`) that runs before any file is
+  mutated: the shape law (one `## Released` heading above one
+  `## Unreleased`, the blank spacer, bare version lines only - a
+  Released block below Unreleased relocates, foreign content
+  refuses), the semver law (a bump below the ledger's top refuses
+  as the stale-tree downgrade; `--force` records a deliberate
+  release-line reset), and the verification law (after any splice
+  the file is re-parsed and the line must sit inside `## Released`
+  exactly once with Released above Unreleased - any other outcome
+  restores the backup and fails the run). A release line stranded
+  outside `## Released` heals in place: the strays are deleted and
+  the verified splice records the line where it belongs.
+- `--check` verification rides the same law: the version line is
+  probed positionally inside `## Released`, not grepped anywhere in
+  the file - a stranded line fails the check instead of passing it.
+
 ### message: default overlay text now reads "Experience with cosmostrix"
 
 - `default_message_text()` (src/types/constants.rs) reworded from

@@ -14,6 +14,7 @@
 #
 # USAGE:
 #   ./scripts/dev/version-to.sh <VERSION>              Bump to VERSION (stable or pre-release)
+#   ./scripts/dev/version-to.sh <VERSION> --force      Bump, recording a deliberate release-line reset
 #   ./scripts/dev/version-to.sh --check <VERSION>     Verify version is VERSION (no changes)
 #   ./scripts/dev/version-to.sh --help                Show this help
 #
@@ -33,9 +34,15 @@
 # pgo-runner/Cargo.toml and its lock to the root version. Every bump
 # also records the release line in the root CHANGELOG.md ledger: a
 # bare vX.Y.Z line under a '## Released' heading above
-# '## Unreleased', newest first, pre-release and stable alike. Both
-# lanes probe honestly: a missing file or an unexpected ledger shape
-# warns and writes nothing.
+# '## Unreleased', newest first, pre-release and stable alike. The
+# ledger lane runs as a verified pre-flight before any file is
+# mutated (the zelynic NIGHT-bump-1 port - the shape, semver and
+# verification laws live in scripts/lib/changelog-ledger.sh): a
+# release line stranded outside '## Released' heals back inside, a
+# stale-tree downgrade refuses unless --force records a deliberate
+# reset, and a write that does not verify in place restores the file
+# and fails the bump. Both lanes probe honestly: a missing file warns
+# and writes nothing.
 #
 
 set -euo pipefail
@@ -90,6 +97,16 @@ log_warn() { printf '%b[WARN]%b %s\n' "${YELLOW}" "${NC}" "$*"; }
 log_err() { printf '%b[ERROR]%b %s\n' "${RED}" "${NC}" "$*" >&2; }
 
 #
+# The CHANGELOG.md release-ledger machinery: the verified writer
+# pre-flight plus the positional probes shared with --check
+# verification and the shape gate. Sourced after the logging
+# helpers the writer entry relies on.
+#
+# shellcheck disable=SC1091 # lib/ modules are analyzed standalone by
+# their own shellcheck run
+source "${REPO_ROOT}/scripts/lib/changelog-ledger.sh"
+
+#
 # Usage
 #
 show_help() {
@@ -98,6 +115,7 @@ cosmostrix Version Bump Helper
 
 USAGE:
     ./scripts/dev/version-to.sh <VERSION>              Bump to VERSION (stable or pre-release)
+    ./scripts/dev/version-to.sh <VERSION> --force      Bump, recording a deliberate release-line reset
     ./scripts/dev/version-to.sh --check <VERSION>      Verify version is VERSION
     ./scripts/dev/version-to.sh --help                 Show this help
 
@@ -475,85 +493,6 @@ update_docs() {
 }
 
 #
-# Record the release line in CHANGELOG.md (night-improve-9)
-#
-# A bump is a release event - the ledger records it the same way the
-# Cargo files do: a bare vX.Y.Z line under a '## Released' heading,
-# newest first, created above '## Unreleased' when absent,
-# pre-release and stable alike. The probes are honest (the zelynic
-# NIGHT-hunt-32 rule): a missing file, a missing '## Unreleased'
-# anchor, or a '## Released' section without this tool's own shape
-# (heading, blank spacer, version lines) warns and writes nothing -
-# a ledger this script did not create is not one it rewrites. The
-# splice overwrites through cat (not mv) so CHANGELOG.md keeps its
-# inode and its 644 permission bits.
-#
-changelog_release() {
-	local ver="v$1"
-
-	if [[ ! -f "${CHANGELOG}" ]]; then
-		log_warn "CHANGELOG.md not found - release line not recorded"
-		return 0
-	fi
-
-	# A version line never repeats: the re-entry at a version the
-	# ledger already carries writes nothing.
-	if grep -qxF "${ver}" "${CHANGELOG}"; then
-		log_warn "CHANGELOG.md already records ${ver} - nothing to write"
-		return 0
-	fi
-
-	local tmp
-	tmp="$(mktemp)"
-
-	if grep -q '^## Released$' "${CHANGELOG}"; then
-		# The section exists. This tool's own shape puts one blank
-		# spacer between the heading and the version lines - the new
-		# version splices in under it, above the current top line.
-		if [[ -z "$(sed -n '/^## Released$/{n;p;}' "${CHANGELOG}")" ]]; then
-			awk -v ver="${ver}" '
-                                /^## Released$/ && !done {
-                                        print
-                                        getline spacer
-                                        print spacer
-                                        print ver
-                                        done = 1
-                                        next
-                                }
-                                { print }
-                        ' "${CHANGELOG}" >"${tmp}"
-			cat "${tmp}" >"${CHANGELOG}"
-			rm -f "${tmp}"
-			log_ok "CHANGELOG.md recorded ${ver} (## Released, newest first)"
-		else
-			rm -f "${tmp}"
-			log_warn "CHANGELOG.md has an unexpected ## Released shape (no blank spacer under the heading) - nothing to write"
-		fi
-	else
-		# No section yet - create it above '## Unreleased' (the
-		# unreleased work keeps its own section below the ledger).
-		if grep -q '^## Unreleased$' "${CHANGELOG}"; then
-			awk -v ver="${ver}" '
-                                /^## Unreleased$/ && !done {
-                                        print "## Released"
-                                        print ""
-                                        print ver
-                                        print ""
-                                        done = 1
-                                }
-                                { print }
-                        ' "${CHANGELOG}" >"${tmp}"
-			cat "${tmp}" >"${CHANGELOG}"
-			rm -f "${tmp}"
-			log_ok "CHANGELOG.md recorded ${ver} (## Released section created above ## Unreleased)"
-		else
-			rm -f "${tmp}"
-			log_warn "CHANGELOG.md has no ## Unreleased anchor - release line not recorded"
-		fi
-	fi
-}
-
-#
 # Audit workflow files for hardcoded versions
 #
 audit_workflows() {
@@ -729,28 +668,33 @@ verify_version() {
 		fi
 	fi
 
-	# 9. CHANGELOG.md release ledger (night-improve-9): once the
-	# '## Released' section exists in THIS tool's own shape (blank
-	# spacer under the heading) the current version line is part of
-	# the active version surfaces. Before that the ledger simply has
-	# not started, and a foreign-shaped section is not one this tool
-	# verifies either - the writer and the verifier probe the same
-	# shape, so a ledger this script did not create fails nothing.
+	# 9. CHANGELOG.md release ledger (night-improve-9, the zelynic
+	# NIGHT-bump-1 verification law): the current version line must sit
+	# INSIDE the '## Released' section - presence anywhere else in the
+	# file (notably stranded below '## Unreleased') is the fatal class
+	# this check exists to catch, so a whole-file grep would pass a
+	# broken ledger. The shape probes mirror the writer: exactly one of
+	# each heading, Released above Unreleased, the blank spacer under
+	# the heading. A foreign-shaped ledger is reported, not failed - a
+	# ledger this script did not create is not one it verifies either
+	# (the shape gate owns that refusal).
 	if [[ -f "${CHANGELOG}" ]]; then
-		if grep -q '^## Released$' "${CHANGELOG}"; then
-			if [[ -z "$(sed -n '/^## Released$/{n;p;}' "${CHANGELOG}")" ]]; then
-				if grep -qxF "v${expected_ver}" "${CHANGELOG}"; then
-					log_ok "CHANGELOG.md: release line v${expected_ver} recorded"
-				else
-					log_err "CHANGELOG.md: ## Released section exists but carries no v${expected_ver} line"
-					log_err "  Run './scripts/dev/version-to.sh v${expected_ver}' to record it"
-					((errors++))
-				fi
+		local ledger_rc ledger_uc ledger_inside
+		ledger_rc="$(grep -c '^## Released$' "${CHANGELOG}" || true)"
+		ledger_uc="$(grep -c '^## Unreleased$' "${CHANGELOG}" || true)"
+		if [ "${ledger_rc}" -eq 0 ]; then
+			log_info "CHANGELOG.md release ledger not started yet (## Released is created on the next version bump)"
+		elif [ "${ledger_rc}" -eq 1 ] && [ "${ledger_uc}" -eq 1 ] && ledger_order_ok "${CHANGELOG}" && ledger_spacer_blank "${CHANGELOG}"; then
+			ledger_inside="$(ledger_released_count "${CHANGELOG}" "v${expected_ver}")"
+			if [ "${ledger_inside}" -eq 1 ]; then
+				log_ok "CHANGELOG.md: release line v${expected_ver} recorded inside ## Released"
 			else
-				log_info "CHANGELOG.md ## Released shape is not this tool's (no blank spacer under the heading) - ledger verification skipped"
+				log_err "CHANGELOG.md: ## Released carries no v${expected_ver} line inside the section"
+				log_err "  Run './scripts/dev/version-to.sh v${expected_ver}' to record it"
+				errors=$((errors + 1))
 			fi
 		else
-			log_info "CHANGELOG.md release ledger not started yet (## Released is created on the next version bump)"
+			log_info "CHANGELOG.md ## Released shape is not this tool's (heading count, order, or spacer off) - ledger verification skipped (the shape gate owns the refusal)"
 		fi
 	fi
 
@@ -828,6 +772,7 @@ validate_prerelease_version() {
 main() {
 	local CHECK_MODE=0
 	local ALLOW_DIRTY=0
+	local LEDGER_FORCE=0
 	local TARGET_VERSION=""
 
 	# Parse arguments
@@ -843,6 +788,10 @@ main() {
 			;;
 		--allow-dirty)
 			ALLOW_DIRTY=1
+			shift
+			;;
+		--force)
+			LEDGER_FORCE=1
 			shift
 			;;
 		-*)
@@ -929,6 +878,16 @@ main() {
 	# Track changed files
 	local changed_files=()
 
+	# 0. The CHANGELOG ledger pre-flight (night-improve-9, the zelynic
+	# NIGHT-bump-1 port): the shape is checked and the release line
+	# spliced before any other file is mutated - a downgrade refusal
+	# fires before Cargo.toml moves, and the splice verifies itself in
+	# place (see scripts/lib/changelog-ledger.sh for the three laws).
+	changelog_ledger_preflight "${NEW_VER}" "${LEDGER_FORCE}"
+	if [[ -f "${CHANGELOG}" ]] && ! git -C "${REPO_ROOT}" diff --quiet -- "${CHANGELOG}"; then
+		changed_files+=("CHANGELOG.md")
+	fi
+
 	# 1. Update Cargo.toml
 	update_cargo_toml "${OLD_VER}" "${NEW_VER}"
 	changed_files+=("Cargo.toml")
@@ -964,12 +923,6 @@ main() {
 	fi
 	if [[ -f "${PGO_CARGO_LOCK}" ]] && ! git -C "${REPO_ROOT}" diff --quiet -- "${PGO_CARGO_LOCK}"; then
 		changed_files+=("pgo-runner/Cargo.lock")
-	fi
-
-	# 4c. Record the release line in the CHANGELOG ledger (night-improve-9)
-	changelog_release "${NEW_VER}"
-	if [[ -f "${CHANGELOG}" ]] && ! git -C "${REPO_ROOT}" diff --quiet -- "${CHANGELOG}"; then
-		changed_files+=("CHANGELOG.md")
 	fi
 
 	# 5. Audit workflows
