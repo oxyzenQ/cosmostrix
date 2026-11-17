@@ -234,6 +234,23 @@ changelog_ledger_preflight() {
 		fi
 	fi
 
+	# Law 2: the semver gate - a bump below the ledger's top is the
+	# stale-tree downgrade, whether or not the target line is already
+	# recorded: a recorded line does not bless a downgrade, the tree
+	# would desync below the ledger's top. --force records a
+	# deliberate release-line reset. The gate fires before any
+	# mutation, so a refusal leaves the tree as found.
+	local top=""
+	top="$(ledger_versions "${changelog}" | head -1)"
+	if [ -n "${top}" ] && ver_lt "${ver}" "${top}"; then
+		if [ "${force}" != "1" ]; then
+			log_err "${ver} is not a step up from the ledger's top (${top}) - a stale-tree downgrade, refused"
+			log_err "A deliberate release-line reset is recorded with: ./scripts/dev/version-to.sh $1 --force"
+			exit 1
+		fi
+		log_warn "Release-line reset recorded (--force): ${ver} takes the ledger's top position while sorting below ${top}"
+	fi
+
 	# The version line never repeats - and a line stranded OUTSIDE
 	# Released (the incident class) heals in place: the strays are
 	# deleted now, the verified splice below writes the line where it
@@ -258,24 +275,6 @@ changelog_ledger_preflight() {
 		cat "${tmp}" >"${changelog}"
 		rm -f "${tmp}"
 		log_warn "CHANGELOG.md recorded ${ver} outside ## Released (${total} stray line(s), ${inside} inside) - strays deleted; the verified splice below records it properly"
-	fi
-
-	# Law 2: the semver gate - a bump below the ledger's top is the
-	# stale-tree downgrade; --force records a deliberate release-line
-	# reset.
-	if [ -n "$(ledger_versions "${changelog}")" ]; then
-		local top
-		top="$(ledger_versions "${changelog}" | head -1)"
-		if ver_lt "${ver}" "${top}"; then
-			if [ "${force}" != "1" ]; then
-				cat "${backup}" >"${changelog}"
-				rm -f "${backup}"
-				log_err "${ver} is not a step up from the ledger's top (${top}) - a stale-tree downgrade, refused"
-				log_err "A deliberate release-line reset is recorded with: ./scripts/dev/version-to.sh $1 --force"
-				exit 1
-			fi
-			log_warn "Release-line reset recorded (--force): ${ver} takes the ledger's top position while sorting below ${top}"
-		fi
 	fi
 
 	# Law 3 (the splice): write, then VERIFY - the version line must
