@@ -367,8 +367,14 @@ pub(crate) fn compact_list_text() -> String {
     let mut out = String::new();
     for row in themes().chunks(3) {
         out.push_str("  ");
-        for theme in row {
-            out.push_str(&format!("{:<15}", theme.name));
+        for (i, theme) in row.iter().enumerate() {
+            if i + 1 == row.len() {
+                // Last cell in the row: no trailing pad, so no row of
+                // the grid ever ends with whitespace.
+                out.push_str(theme.name);
+            } else {
+                out.push_str(&format!("{:<15}", theme.name));
+            }
         }
         out.push('\n');
     }

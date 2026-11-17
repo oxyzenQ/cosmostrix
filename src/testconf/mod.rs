@@ -94,7 +94,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
                 "testconf: hint: run `cosmostrix --config-path` to see the expected location",
             );
             crate::output::eprintln_suggestion_line(
-                "testconf: hint: cosmostrix --dump-config <config-path>  (writes directly, whitelist-enforced)",
+                "testconf: hint: cosmostrix --dump-config <config-path> (writes directly, whitelist-enforced)",
             );
             std::process::exit(2);
         }

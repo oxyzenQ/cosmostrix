@@ -212,6 +212,10 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
 /// NO_COLOR/CLICOLOR contract, so piped output keeps every byte plain.
 pub(crate) fn print_sig_report() {
     let (text, verdict) = sig_report();
+    // The report builder terminates its last line with a newline, and
+    // println adds the final newline itself; printing the body
+    // untrimmed would emit a blank line at the very end of the report.
+    let text = text.trim_end_matches('\n');
     let is_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
     match text.split_once('\n') {
         Some((banner, rest)) => {

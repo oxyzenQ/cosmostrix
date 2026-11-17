@@ -188,7 +188,6 @@ decision), and the Crystal Dragon (ambient intelligence — palette
 drift + time-of-day scenes). Full detail lives in
 `docs/THREE_DRAGON_ENGINES.md` and `docs/RENDER_ENGINE.md`.
 
-
 1. Diff-based cell renderer  (src/engine/cosmic_dragon_engine/terminal/, frame.rs)
 -------------------------------------------------------------
 
@@ -209,7 +208,6 @@ RLE-style run so the terminal receives the minimum bytes possible.
   - RLE batching: runs share one SGR sequence and one cursor move;
     ~13x fewer I/O bytes on typical content, >90x at 400x200.
 
-
 2. Three-layer parallax  (src/central_control_rains/parallax.rs)
 -----------------------------------------------------------------
 
@@ -227,7 +225,6 @@ Layers are composited in Z-order into the same back-buffer, so the
 diff renderer sees a single unified frame — parallax is invisible
 to the I/O layer. Multipliers are applied at droplet birth.
 
-
 3. Phosphor persistence  (src/engine/cosmic_dragon_engine/cloud/phosphor.rs)
 -------------------------------------------------
 
@@ -244,7 +241,6 @@ Result: a few hundred ms of visible afterglow per glyph. The
 residual is mixed into the back-buffer's color value, so the diff
 renderer treats it as a normal color change — no special I/O path.
 
-
 4. Density noise & wind gusts  (src/engine/cosmic_dragon_engine/cloud/living_rain.rs)
 --------------------------------------------------------------------------------
 
@@ -255,7 +251,6 @@ events that briefly accelerate all columns in a direction, then
 decay (`GustState`). Gusts break the visual monotony of
 constant-velocity rain without per-column physics and are disabled
 in benchmark mode for reproducibility.
-
 
 5. Chroma Dragon coloring engine  (src/engine/chroma_dragon_engine/)
 -----------------------------------------------
@@ -281,7 +276,6 @@ accuracy, ...). The phase history and the full invariant list live
 in `src/engine/chroma_dragon_engine/README.md` — not repeated here
 (NIGHT-docs-audit: single source of truth, no drifting copies).
 
-
 6. Crystal Dragon ambient engine  (src/engine/crystal_dragon_engine/)
 --------------------------------------------------
 
@@ -299,7 +293,6 @@ The ambient intelligence engine, two subsystems in harmony:
 The engines never share mutable state — they communicate through
 the immutable `Cloud` snapshot each frame.
 
-
 PERFORMANCE PROFILE
 -------------------
 
@@ -308,8 +301,8 @@ Representative reference hardware (AMD Ryzen 7 5800HS, 8C/16T,
 workloads — re-verify with `cosmostrix --benchmark`:
 
   Screen size   avg_fps   ns/cell   I/O share   allocs/frame   peak_rss
-  120x40        38,000+    ~12      <2%         0              4.7 MiB
-  400x200       8,000+     ~14      <3%         0              9.2 MiB
+  120x40        38,000+   ~12       <2%         0              4.7 MiB
+  400x200       8,000+    ~14       <3%         0              9.2 MiB
 
   - Zero per-frame heap allocation (pools pre-allocated).
   - Single CPU core (no threads, no GPU, no SIMD required).
@@ -318,7 +311,6 @@ workloads — re-verify with `cosmostrix --benchmark`:
 
 See `docs/PERFORMANCE_ACROSS_SCALES.md` for the full scaling audit
 from 6x6 to 400x200, including why `ns/cell` stays O(1) per cell.
-
 
 DESIGN CONSTRAINTS
 ------------------

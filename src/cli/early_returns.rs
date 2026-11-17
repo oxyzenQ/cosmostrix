@@ -109,7 +109,10 @@ fn dispatch_post_config(cmd: PostConfigCmd, args: &Args) -> std::io::Result<()> 
             // Print the full engine documentation and architecture
             // overview, then exit. Plain text only (no ANSI) so it pipes
             // cleanly into `less`, `grep`, or documentation generators.
-            println_safe!("{}", info::docs_report());
+            // docs_report terminates its last line with a newline;
+            // println would add a second one and print_usage_note adds
+            // its own blank, so the tail would carry a blank-line pair.
+            println_safe!("{}", info::docs_report().trim_end_matches('\n'));
             // The helper-output canon (night-T-1): every helper output
             // closes with the one-line way back to the CLI. --docs keeps
             // the plain form — the no-ANSI contract holds end to end.

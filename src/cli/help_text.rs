@@ -241,7 +241,7 @@ Common options:
       can be set permanently in config.toml
       via the 'intro' key (e.g. intro = \"cosmic\"). CLI option wins
       over config.
-      
+
       cosmostrix --intro logo
       cosmostrix --intro cosmic --scene matrix
       cosmostrix --intro none
@@ -396,7 +396,7 @@ Common options:
       Use --list-scenes to see all entries with descriptions.
 
       cosmic-dragon is the temporal-prediction milestone scene — a
-      deep-space binary rain commemorating the  breakthrough
+      deep-space binary rain commemorating the breakthrough
       where horizon=12 + skip-draw + persistent cells slashed dirty_ratio
       from 18.33% to 0.39% and boosted avg_fps from 7,843 to 29,773
       (+280%). It is the visible reward for the achievement, not part
@@ -715,7 +715,7 @@ Runtime controls:
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed
-  r            Restart from zero (like a fresh launch)
+  r             Restart from zero (like a fresh launch)
   i             Toggle live HUD (fps / tgt / max / p99 / cpu / rss / ehs / prs /
                 sped / dsty / scn / chr / clr / up / screensize / cid)
                 See docs/HUD.md for what each line means, why `fps:` ≠ `--fps`,
