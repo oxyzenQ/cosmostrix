@@ -179,6 +179,36 @@ one-commit tree refresh (`./scripts/gate-keepers.sh
 --fix-all`, fix new lint findings), which is cheaper than carrying version pins for every tool
 and bumping them forever.
 
+## Runner image policy (owner directive night-runner-pin, 2026-11-17)
+
+Every `runs-on` label in the estate is pinned to an explicit image.
+The `-latest` aliases migrate silently (`ubuntu-latest` began its
+Ubuntu 26 rollout on 2026-10-19; `macos-latest` already resolved to
+macOS 26), and a silent OS swap invalidates the whole point of the
+pinned-toolchain, static-musl, reproducibility contract. An OS bump
+must always be a reviewed commit, never a runner-side surprise.
+
+Current pins (all proven green in the estate's own runs):
+
+| Label | Image | Used by |
+| --- | --- | --- |
+| `ubuntu-24.04` | Ubuntu 24.04 x64 | every Linux lane (38 jobs) |
+| `ubuntu-24.04-arm` | Ubuntu 24.04 ARM64 | supermassive ARM battery |
+| `macos-26` | macOS 26 (Arm64) | ci.yml + release.yml darwin legs |
+| `windows-2025` | Windows Server 2025 | ci.yml + release.yml MSVC legs |
+| `windows-11-arm` | Windows 11 ARM64 | release.yml arm64 artifact |
+
+Notes for the next bump:
+- `ubuntu-latest` still resolves to Ubuntu 24.04 today; when its
+  Ubuntu 26 rollout completes, nothing in this estate changes because
+  no job rides the alias.
+- GitHub retires old images by announcement, then brownouts, then
+  removal (macOS 14 retired 2026-11-02 as the reference example).
+  A pinned label degrades loudly with notice, never silently.
+- The bump procedure is one reviewed commit per image line here, in
+  the workflow files, and in this table, then one green CI run
+  before the old image ages out.
+
 ## Strict CI policy (owner mandate 2026-09-02)
 
 Warnings are NOT ignored. Any rustc/cargo warning during a CI build

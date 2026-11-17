@@ -128,14 +128,22 @@ jobs:
             rustflags: "-C target-cpu=x86-64-v4"
             build: pro-linux-amd64-v4-musl
             checks: false
-          - os: macos-latest
+          # NIGHT-runner-pin: the -latest alias migrates silently (the ubuntu-latest ->
+          # Ubuntu 26 rollout, the macos-latest -> macOS 26 swap); the estate pins every
+          # runner image so an OS bump is always a reviewed commit. macos-26 is the
+          # image macos-latest already resolves to.
+          - os: macos-26
             target: aarch64-apple-darwin
             platform: darwin-aarch64-native
             profile: pro-macos-aarch64
             rustflags: "-C target-cpu=native"
             build: pro-macos-aarch64
             checks: false
-          - os: windows-latest
+          # NIGHT-runner-pin: the -latest alias migrates silently (the ubuntu-latest ->
+          # Ubuntu 26 rollout, the macos-latest -> macOS 26 swap); the estate pins every
+          # runner image so an OS bump is always a reviewed commit. windows-2025 is the
+          # image windows-latest currently resolves to.
+          - os: windows-2025
             target: x86_64-pc-windows-msvc
             platform: windows-x86_64
             profile: pro-win-amd64

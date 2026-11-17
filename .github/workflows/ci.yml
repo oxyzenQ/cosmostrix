@@ -245,7 +245,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          # NIGHT-runner-pin: the -latest alias migrates silently (the ubuntu-latest ->
+          # Ubuntu 26 rollout, the macos-latest -> macOS 26 swap); the estate pins every
+          # runner image so an OS bump is always a reviewed commit. macos-26 is the
+          # image macos-latest already resolves to and what this lane has been running
+          # green on.
+          - os: macos-26
             target: aarch64-apple-darwin
             profile: pro-macos-aarch64
             build: darwin-aarch64-native
@@ -414,7 +419,11 @@ jobs:
 
   windows_aarch64_build:
     name: Cosmic Dragon Guard - Build (windows aarch64)
-    runs-on: windows-latest
+    # NIGHT-runner-pin: the -latest alias migrates silently (the ubuntu-latest ->
+    # Ubuntu 26 rollout, the macos-latest -> macOS 26 swap); the estate pins every
+    # runner image so an OS bump is always a reviewed commit. windows-2025 is the
+    # image windows-latest currently resolves to.
+    runs-on: windows-2025
     needs: windows_build
     timeout-minutes: 5
     steps:
@@ -708,7 +717,11 @@ jobs:
   windows_build:
     needs: [version-sync]
     name: Cosmic Dragon Guard - Build (windows)
-    runs-on: windows-latest
+    # NIGHT-runner-pin: the -latest alias migrates silently (the ubuntu-latest ->
+    # Ubuntu 26 rollout, the macos-latest -> macOS 26 swap); the estate pins every
+    # runner image so an OS bump is always a reviewed commit. windows-2025 is the
+    # image windows-latest currently resolves to.
+    runs-on: windows-2025
     timeout-minutes: 5
     steps:
       - name: Checkout
