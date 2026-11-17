@@ -11,6 +11,8 @@
 
 use std::time::{Duration, Instant};
 
+use rand::SeedableRng;
+
 use super::super::ghost_events::{CinematicEvent, EventCtx, GhostEventScheduler};
 use super::super::living_rain::GustState;
 
@@ -91,7 +93,8 @@ fn ghost_events_shift_in_time_excludes_pause_from_age() {
 
     // Pause for 60s WITHOUT shifting: a mid-life ghost expires instantly
     // (the pre-fix pop-out).
-    let ghost = GhostEvent::new(10, 5, now);
+    let mut ghost_rng = rand::rngs::StdRng::seed_from_u64(0xC0DE_C0FFEE);
+    let ghost = GhostEvent::new(10, 5, now, &mut ghost_rng);
     let ctx_unshifted = make_ctx(now + Duration::from_secs(60));
     assert!(
         ghost.is_finished(&ctx_unshifted),
@@ -99,7 +102,8 @@ fn ghost_events_shift_in_time_excludes_pause_from_age() {
     );
 
     // With the shift, a fresh ghost at the same instant is still mid-life.
-    let mut shifted = GhostEvent::new(10, 5, now);
+    let mut shifted_rng = rand::rngs::StdRng::seed_from_u64(0xC0DE_C0FFEE);
+    let mut shifted = GhostEvent::new(10, 5, now, &mut shifted_rng);
     shifted.shift_in_time(Duration::from_secs(60));
     let ctx_shifted = make_ctx(now + Duration::from_secs(60));
     assert!(

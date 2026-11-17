@@ -537,6 +537,11 @@ pub(crate) const PHOSPHOR_EDGE_ROW_TAPER: u8 = 8;
 /// XOR mask applied to the event RNG seed (deterministic per-session).
 pub(crate) const EVENT_RNG_XOR: u64 = 0xCAFE_BABE_1337_0420;
 
+/// Night-gust one-shot stream xor (NIGHT-depth-hardening-2): seeds the
+/// single draw that sets the first gust idle window, so launch-time
+/// gust timing replays deterministically like every other subsystem.
+pub(crate) const GUST_RNG_XOR: u64 = 0xD1CE_5EED_1337_0421;
+
 /// Perf-pressure gate below which atmospheric events are skipped.
 pub(crate) const EVENT_PERF_GATE: f32 = 0.5;
 
@@ -572,11 +577,17 @@ pub(crate) const GLITCH_POOL_SIZE: usize = 1024;
 /// Maximum character pool index (CHAR_POOL_SIZE - 1, used for fast mod).
 pub(crate) const MAX_CHAR_POOL_IDX: u16 = 2047;
 
-/// Interval at which the RNG is reseeded from system entropy (sec).
+/// Interval at which the main rain RNG steps its deterministic
+/// reseed ladder (sec; see `reseed_ladder_seed`).
 pub(crate) const RNG_RESEED_INTERVAL_SECS: u64 = 600;
 
 /// Initial RNG seed (deterministic per-session, reseeded every interval above).
 pub(crate) const RNG_INITIAL_SEED: u64 = 0x0123_4567;
+
+/// Golden-ratio step of the deterministic reseed ladder
+/// (NIGHT-depth-hardening-2): each reseed counter value maps to a
+/// fresh independent stream, reproducible from the initial seed.
+pub(crate) const RESEED_LADDER_STEP: u64 = 0x9E37_79B9_7F4A_7C15;
 
 /// Duration that a droplet's head lingers at peak brightness after
 /// advancing (ms).

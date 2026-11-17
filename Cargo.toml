@@ -96,9 +96,10 @@ crossterm = { version = "0.29", default-features = false, features = ["bracketed
 #     usize/i64/f32/f64, new + new_inclusive, both sample call
 #     directions, multiple seeds): bit-for-bit identical vs 0.9.5.
 #     Same seeds -> same sequences -> same picture.
-#   - ThreadRng (rand::rng(), 2 ambient-jitter sites) is OS-seeded and
-#     non-deterministic on every version; sequence identity there is
-#     not a visual-identity concern.
+#   - NIGHT-depth-hardening-2: the two former ThreadRng sites (ghost
+#     glyph/duration, first gust idle window) now ride seeded streams,
+#     so the frame carries zero OS entropy and "same seeds -> same
+#     picture" holds for every pixel across the whole session.
 # The bare "0.10" pin means >=0.10, <0.11 — a future 0.11 line (0.x
 # minors are majors under this project's policy) cannot enter the
 # lockfile silently.

@@ -283,7 +283,8 @@ impl GhostEventScheduler {
             1
         };
         let now = Instant::now();
-        let event: Box<dyn CinematicEvent> = Box::new(GhostEvent::new(col, line, now));
+        let event: Box<dyn CinematicEvent> =
+            Box::new(GhostEvent::new(col, line, now, &mut self.rng));
         self.events.push(event);
     }
 }

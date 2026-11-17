@@ -298,6 +298,10 @@ impl super::Cloud {
         // zero — the re-seed must precede the reset's sample so the
         // restart draws the same values a startup drew.
         self.mt = StdRng::seed_from_u64(RNG_INITIAL_SEED);
+        // NIGHT-depth-hardening-2: a restart replays the startup
+        // sequence, so the reseed ladder counter restarts from zero
+        // alongside the stream itself.
+        self.reseed_counter = 0;
 
         // The full reset: geometry, pools, maps, LUTs, message,
         // semantic invalidation, force redraw, subsystem clocks.

@@ -36,7 +36,7 @@
 use std::time::{Duration, Instant};
 
 use rand::distr::{Distribution, Uniform};
-use rand::{Rng, RngExt};
+use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
 // NOTE (NIGHT-dinner-8, rand 0.10): the extension-trait import moved —
 // rand_core 0.10 renamed RngCore -> Rng, so rand's old `Rng` extension
 // trait (sample / random_range / random) is now `RngExt`. `Rng` here is
@@ -84,7 +84,14 @@ impl GustState {
     /// window samples from `[GUST_IDLE_MIN_SECS, GUST_IDLE_MAX_SECS]` so
     /// the first gust doesn't always arrive at the same time after launch.
     pub(crate) fn new(now: Instant) -> Self {
-        let idle_dur = sample_idle_duration(&mut rand::rng());
+        // NIGHT-depth-hardening-2: the first IDLE window used to draw
+        // from ThreadRng (OS entropy), the one unseeded draw in the
+        // gust machine - every later transition samples through the
+        // seeded stream passed to tick(). A dedicated one-shot stream
+        // keeps launch-time gust timing replayable across runs and
+        // restarts without consuming a draw from the main rain stream.
+        let mut rng = StdRng::seed_from_u64(RNG_INITIAL_SEED ^ GUST_RNG_XOR);
+        let idle_dur = sample_idle_duration(&mut rng);
         Self {
             phase: GustPhase::Idle,
             phase_start: now,
@@ -178,6 +185,13 @@ impl GustState {
     /// storytelling).
     pub(crate) fn shift_in_time(&mut self, delta: Duration) {
         self.phase_start += delta;
+    }
+
+    /// Test-only accessor for the determinism regression suite
+    /// (NIGHT-depth-hardening-2).
+    #[cfg(test)]
+    pub(crate) fn first_idle_duration(&self) -> Duration {
+        self.phase_duration
     }
 
     // ── Linear interpolation within the current phase ──

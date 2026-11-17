@@ -781,4 +781,5 @@ fn abort_deceleration_starts_smooth_fast_resume_ramp() {
         "the ramp must interpolate from the preserved blend"
     );
 }
+mod tests_determinism_lts;
 mod tests_pause_smooth_hunt8;

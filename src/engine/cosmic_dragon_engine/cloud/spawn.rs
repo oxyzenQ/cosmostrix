@@ -507,6 +507,14 @@ impl Cloud {
         }
     }
 
+    /// NIGHT-depth-hardening-2: deterministic reseed ladder. Counter
+    /// `counter` (1-based) steps through the golden-ratio constant so
+    /// each interval reseeds onto a fresh independent stream while the
+    /// full sequence stays reproducible from the single initial seed.
+    pub(crate) fn reseed_ladder_seed(&self, counter: u64) -> u64 {
+        RNG_INITIAL_SEED ^ counter.wrapping_mul(RESEED_LADDER_STEP)
+    }
+
     pub(crate) fn maybe_reseed_rng(&mut self, now: Instant) {
         if now.saturating_duration_since(self.last_reseed_time)
             >= Duration::from_secs(RNG_RESEED_INTERVAL_SECS)
@@ -516,9 +524,16 @@ impl Cloud {
             // to Duration::ZERO instead of returning a stale value via
             // elapsed() (which underflows on monotonic clocks). Mirrors
             // the rain.rs:84 timing-capture pattern.
-            let elapsed = Instant::now().saturating_duration_since(now);
-            let seed = elapsed.as_nanos() as u64 ^ elapsed.as_secs();
-            self.mt = StdRng::seed_from_u64(seed);
+            // NIGHT-depth-hardening-2: the ladder seed used to be drawn
+            // from wall-clock nanos, which broke the deterministic-seed
+            // contract every RNG_RESEED_INTERVAL_SECS (long sessions
+            // diverged per run and bench A/B baselines could not be
+            // compared across the boundary). The ladder is a counter
+            // stepped through the golden-ratio constant: every interval
+            // still lands on a fresh independent stream, and the whole
+            // session replays bit-for-bit for a given config.
+            self.reseed_counter = self.reseed_counter.wrapping_add(1);
+            self.mt = StdRng::seed_from_u64(self.reseed_ladder_seed(self.reseed_counter));
             self.last_reseed_time = now;
         }
     }

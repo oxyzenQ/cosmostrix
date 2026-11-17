@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 use crossterm::style::Color;
 use rand::RngExt;
+use rand::rngs::StdRng;
 // NOTE (NIGHT-dinner-8, rand 0.10): the extension-trait import moved —
 // rand_core 0.10 renamed RngCore -> Rng, so rand's old `Rng` extension
 // trait (sample / random_range / random) is now `RngExt`. `rand::Rng`
@@ -44,8 +45,13 @@ pub(crate) struct GhostEvent {
 }
 
 impl GhostEvent {
-    pub(crate) fn new(col: u16, line: u16, now: Instant) -> Self {
-        let mut rng = rand::rng();
+    /// NIGHT-depth-hardening-2: the glyph and duration draw from the
+    /// scheduler's dedicated seeded stream instead of ThreadRng. The
+    /// scheduler already sampled spawn chance and position from that
+    /// stream; pulling the content from OS entropy mid-way broke the
+    /// "deterministic event generation" contract its own field doc
+    /// declares, and made long-session ghost replays impossible.
+    pub(crate) fn new(col: u16, line: u16, now: Instant, rng: &mut StdRng) -> Self {
         let idx = rng.random_range(0..GHOST_CHARS.len());
         let duration_var = 2000 + rng.random_range(0..2000);
         let ch = GHOST_CHARS[idx];
@@ -72,6 +78,19 @@ impl GhostEvent {
             spawn_time: now,
             duration: Duration::from_millis(duration_var as u64),
         }
+    }
+
+    /// Test-only accessors for the determinism regression suite
+    /// (NIGHT-depth-hardening-2); same convention as the scheduler's
+    /// `ghost_count()`.
+    #[cfg(test)]
+    pub(crate) fn test_glyph(&self) -> char {
+        self.ch
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_duration(&self) -> Duration {
+        self.duration
     }
 }
 

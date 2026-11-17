@@ -435,6 +435,9 @@ pub struct Cloud {
     pub(crate) quantum_active_count: usize,
 
     pub(crate) last_reseed_time: Instant,
+    /// NIGHT-depth-hardening-2: count of ladder reseeds taken; part of
+    /// the deterministic replay contract (reset on restart).
+    pub(crate) reseed_counter: u64,
 
     pub(crate) phosphor: Vec<u8>,
     pub(crate) phosphor_base_fg: Vec<Option<Color>>,
@@ -719,6 +722,7 @@ impl Cloud {
             engrave: crate::msg_fill_style::engrave::EngraveState::new(now),
             scorch: crate::msg_fill_style::scorch::ScorchState::new(now),
             last_reseed_time: now,
+            reseed_counter: 0,
             phosphor: Vec::new(),
             phosphor_base_fg: Vec::new(),
             phosphor_base_ch: Vec::new(),
