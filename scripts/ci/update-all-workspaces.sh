@@ -61,7 +61,10 @@ fi
 if ${LIST_ONLY}; then
 	# Strip the leading ./ so the paths match `git diff --name-only`
 	# output exactly (the commit phase diffs against that form).
-	sed 's|^\./||' <<< "${MANIFESTS}"
+	# cut -c3- strips the two-character ./ prefix find prints, with
+	# no sed pattern to lint (SC2001 prefers parameter expansion, but
+	# the value is a multi-line list, so cut is the honest tool).
+	cut -c3- <<<"${MANIFESTS}"
 	exit 0
 fi
 
@@ -72,4 +75,4 @@ while IFS= read -r manifest; do
 		cd "${dir}"
 		cargo update
 	)
-done <<< "${MANIFESTS}"
+done <<<"${MANIFESTS}"
