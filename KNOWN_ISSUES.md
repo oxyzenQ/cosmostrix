@@ -31,6 +31,18 @@ release shape (80x24 pinned, `--color-mode 16`, HUD toggled mid-run via
 the supermassive battery's `--inject i@5.5`, post-intro) captured zero
 indexed sequences across 786 KB of wire bytes: `38;5` = 0, `48;5` = 0.
 
+Deepening note (night-frontier-Z3a, found by the deepened bg-form
+probe): the first probe pass on the dumb lane caught exactly one
+`48;5` SGR per session — the first-frame blanket canvas paint queued
+`SetBackgroundColor(frame.blank.bg)` through raw crossterm, the one
+color emission that never rode the quantizer (the fg side was
+quantized, so the earlier fg-only probe could not see it). Fixed at
+the emission boundary: the blanket bg now rides the same
+`SgrQuantizer` the cells ride (Mono resolves to Reset - never paint
+on dumb terminals; Classic16 resolves to a named classic color;
+truecolor sessions keep the raw color). The forbid probe now pins
+both forms on every downgrade lane.
+
 ### Enforced contract
 
 The probe is now a standing CI invariant: the supermassive pty battery's

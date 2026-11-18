@@ -72,17 +72,36 @@ impl Terminal {
             // (do_full_redraw will be true when needs_clear is true, so
             // every cell gets written regardless.)
             if let Some(bg) = frame.blank.bg {
-                // The blanket bg rides the BufWriter ahead of this
-                // frame's combined flush; account for its bytes here so
-                // `total_ansi_bytes` stays byte-exact against the
-                // kernel's write() lengths (the syscall-floor ledger's
-                // byte-identity row, night-frontier-Z2). to_string() is
-                // crossterm's own Display encoding — the exact bytes
-                // queue() writes — and fires once per needs_clear (the
-                // first frame plus real resizes), never per frame.
-                let bg_command = SetBackgroundColor(bg);
-                self.stdout.queue(bg_command)?;
-                self.total_ansi_bytes += bg_command.to_string().len() as u64;
+                // task-17 contract extended to the canvas paint
+                // (night-frontier-Z3a deepening): the blanket bg must
+                // ride the same emission-boundary quantizer the cells
+                // ride. The deepened bg-form probe caught one indexed
+                // 48;5 SGR per session leaking through this path on
+                // dumb/16 lanes while the fg side was quantized - the
+                // blanket was the last raw crossterm color emission.
+                // None quantizer = truecolor session: the raw color is
+                // already the session's wire space. Mono mode resolves
+                // the bg to Reset (default background - never paint on
+                // dumb terminals), Classic16 resolves it to a named
+                // classic color.
+                let bg = match self.sgr_quantizer.as_mut() {
+                    Some(q) => q.quantize_bg(Some(bg)),
+                    None => Some(bg),
+                };
+                if let Some(bg) = bg {
+                    // The blanket bg rides the BufWriter ahead of this
+                    // frame's combined flush; account for its bytes here
+                    // so `total_ansi_bytes` stays byte-exact against the
+                    // kernel's write() lengths (the syscall-floor
+                    // ledger's byte-identity row, night-frontier-Z2).
+                    // to_string() is crossterm's own Display encoding -
+                    // the exact bytes queue() writes - and fires once
+                    // per needs_clear (the first frame plus real
+                    // resizes), never per frame.
+                    let bg_command = SetBackgroundColor(bg);
+                    self.stdout.queue(bg_command)?;
+                    self.total_ansi_bytes += bg_command.to_string().len() as u64;
+                }
             }
         }
 
