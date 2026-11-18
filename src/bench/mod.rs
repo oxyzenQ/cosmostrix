@@ -53,6 +53,7 @@ pub mod bench_scale;
 #[path = "../../test/bench/bench_tests.rs"]
 pub mod bench_tests;
 pub mod bench_visual;
+pub mod engine_oracle;
 pub mod frame_digest;
 mod peak_fps;
 mod premium;

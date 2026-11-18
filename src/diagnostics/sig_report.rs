@@ -1,11 +1,11 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The `sig` command surface — the four-depth signature report
+//! The `sig` command surface — the five-depth signature report
 //! (night-signature-advanced-3).
 //!
 //! The owner runs sibling tools across the fleet (zejtron prints the
-//! same four-depth shape), so `cosmostrix sig` renders the same
+//! same depth shape), so `cosmostrix sig` renders the same
 //! verdict ladder over cosmostrix's own provenance layers:
 //!
 //!   D0  runtime-identity — the masked manifest materializes, carries
@@ -15,10 +15,14 @@
 //!   D2  anchor-integrity — the embedded blake3 anchor recomputes from
 //!       the materialized payload (the cryptographic seal).
 //!   D3  binary-self-hash — blake3 over the running executable image.
+//!   D4  engine-oracle — the binary renders a pinned synthetic sequence
+//!       in-memory and matches the compile-time vector (night-frontier-Z1,
+//!       Proof Moat 1c: the capability proof).
 //!
-//! Numbering note: these D0-D3 are the four VERIFICATION depths
-//! (zejtron-parity labels, the owner's cross-tool contract). The `-V`
-//! Depth-matrix line's d0:-d3: tokens are the four STORAGE layers
+//! Numbering note: these D0-D4 are the five VERIFICATION depths (the
+//! zejtron-parity ladder extended by the capability depth in
+//! night-frontier-Z1). The `-V` Depth-matrix line's d0:-d3: tokens are
+//! the four STORAGE layers
 //! (masked manifest, masked authors, FNV fingerprints, blake3 anchor)
 //! — a different axis, established in night-signature-advanced-2 and
 //! unchanged. The two numbering systems are documented here so a
@@ -45,6 +49,11 @@ use std::io::Read;
 use crate::output::println_safe;
 
 use super::signature::provenance_view;
+
+/// Local alias for the engine-oracle runner (Proof Moat 1c): the
+/// bench-owned oracle is the one renderer of the pinned sequence, and
+/// the depth matrix consumes its verdict.
+use crate::bench::engine_oracle::run_engine_oracle;
 
 /// Verdict of the depth ladder.
 #[derive(Debug, PartialEq, Eq)]
@@ -95,7 +104,7 @@ fn binary_self_hash() -> Result<String, String> {
     Ok(hex)
 }
 
-/// Run the four-depth ladder and render the full report block.
+/// Run the five-depth ladder and render the full report block.
 ///
 /// The text is stable by contract (tests pin its shape, like the `-V`
 /// report): boxed header, four depth rows, an identity field block,
@@ -128,6 +137,13 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     // D3: the running image's own blake3 fingerprint.
     let self_hash = binary_self_hash();
 
+    // D4 (night-frontier-Z1, Proof Moat 1c): the embedded engine
+    // oracle. Milliseconds, single-threaded, no terminal I/O: the
+    // pinned 16-frame synthetic sequence renders in-memory and folds
+    // against the compile-time vector. `Err` carries the recomputed
+    // vs pinned divergence for the depth row.
+    let engine = run_engine_oracle();
+
     let rows = [
         DepthRow {
             name: "runtime-identity",
@@ -150,6 +166,17 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
             detail: match &self_hash {
                 Ok(hex) => format!("b3:{hex}"),
                 Err(e) => format!("unavailable: {e}"),
+            },
+        },
+        DepthRow {
+            name: "engine-oracle",
+            passed: engine.is_ok(),
+            detail: match &engine {
+                Ok(digest) => format!(
+                    "b3:{} recomputes in-memory (16-frame pinned replay)",
+                    crate::bench::frame_digest::hex32(digest)
+                ),
+                Err(divergence) => format!("pinned lane vector mismatch: {divergence}"),
             },
         },
     ];
@@ -246,11 +273,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pristine_build_reports_authentic_four_of_four() {
+    fn pristine_build_reports_authentic_five_of_five() {
         let (text, verdict) = sig_report();
         assert_eq!(verdict, SigVerdict::Authentic);
         assert!(
-            text.contains("SIGNATURE: AUTHENTIC (4/4 depths verified)"),
+            text.contains("SIGNATURE: AUTHENTIC (5/5 depths verified)"),
             "{text}"
         );
         for row in [
@@ -258,6 +285,7 @@ mod tests {
             "D1 embedded-marker",
             "D2 anchor-integrity",
             "D3 binary-self-hash",
+            "D4 engine-oracle",
         ] {
             assert!(text.contains(row), "missing depth row {row}:\n{text}");
         }

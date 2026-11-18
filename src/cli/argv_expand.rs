@@ -16,7 +16,7 @@
 //! | `-mfs` + value   | `--msg-fill-style <value>`         |
 //! | `-mfs=<style>`   | `--msg-fill-style <style>`         |
 //! | `-mfs<style>`    | `--msg-fill-style <style>` (attached form, value must be a valid style) |
-//! | `sig` (argv[1])  | DISPATCH + exit: the four-depth signature report
+//! | `sig` (argv[1])  | DISPATCH + exit: the five-depth signature report
 //!                    (night-signature-advanced-4 — `sig` is a SUBCOMMAND,
 //!                    owner directive "subcommand only, don't --sig"; the
 //!                    `--sig` flag spelling is retired and clap reports it

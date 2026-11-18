@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The thirty-four, in dependency order
+## The thirty-five, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -470,9 +470,9 @@ the framed clear payload of both layers (domain tag + length-prefixed
 manifest + length-prefixed authors) is embedded as an opaque
 `[u8; 32]` and recomputed through the blake3 crate from the SAME
 materialized bytes the `-V` line displays, and the new `cosmostrix sig`
-command renders the owner's cross-tool four-depth report (zejtron
+command renders the owner's cross-tool depth report (zejtron
 parity: D0 runtime-identity, D1 embedded-marker, D2 anchor-integrity,
-D3 binary-self-hash) with a `SIGNATURE: AUTHENTIC (4/4 depths
+D3 binary-self-hash, D4 engine-oracle) with a `SIGNATURE: AUTHENTIC (5/5 depths
 verified)` verdict and exit code 2 on tamper, so scripts can gate on
 it. Advanced form 4 (2026-11-13) retires the `--sig` flag spelling —
 `sig` is a SUBCOMMAND dispatched pre-clap (zero arguments; extra
@@ -511,7 +511,7 @@ NOTICE and TRADEMARK.md is the backstop). The constants are generated
 by `scripts/release/generate-provenance-words.py`, the committed truth
 source that carries the identity in plaintext by design, the same way
 NOTICE does. End-to-end probes on the real release binary pin the full
-matrix: pristine verifies AUTHENTIC 4/4 with zero identity fragments
+matrix: pristine verifies AUTHENTIC 5/5 with zero identity fragments
 at rest (`oxyzenQ` survives only inside repo/branding contexts - the
 public URL, the repo slug, scene lore - never beside the year), a
 patched masked word flips `-V` to `status=tampered` AND `sig` to exit
@@ -521,7 +521,7 @@ fails the same way. The generic `Official Build by` marker stays
 plaintext by design: it is identity-free and fingerprint-bound.
 Truth: `src/diagnostics/signature.rs` (the masked layers, the
 single-pass materialization, the dual fingerprints, the anchor),
-`src/diagnostics/sig_report.rs` (the four-depth report and the binary
+`src/diagnostics/sig_report.rs` (the five-depth report and the binary
 self-hash),
 `scripts/release/generate-provenance-words.py` (constant and anchor
 generation),
@@ -529,10 +529,10 @@ generation),
 `src/cli/argv_expand.rs` (the `sig` subcommand dispatch, argv[1] only
 — extra arguments refused, `--sig` retired),
 `scripts/package/install-on-my-machine.sh` (the release law's runtime
-signature gate + the four-depth gate).
+signature gate + the five-depth gate).
 Verifier: `cosmostrix -V | grep Depth-matrix` must show
 `status=verified` and a `b3:` anchor on any genuine build;
-`cosmostrix sig` must end `SIGNATURE: AUTHENTIC (4/4 depths verified)`
+`cosmostrix sig` must end `SIGNATURE: AUTHENTIC (5/5 depths verified)`
 and exit 0 (exit 2 plus `SIGNATURE: TAMPERED` on any patched depth);
 and `strings ./cosmostrix | grep rezky_nightky` must find NOTHING (the
 mark is masked at rest); the unit suites pin the materialization
@@ -638,6 +638,54 @@ Verifier: the CI `reproducible_verify` job must print
 `rustc --edition 2024 --test build.rs` runner); and the doc section
 [VERIFY_RELEASE.md](VERIFY_RELEASE.md) 4a tells the rebuild-yourself
 recipe once.
+
+### 34. The embedded engine oracle (the capability depth, D4)
+
+Problem killed: the lock suites lived in CI, but the binary a buyer
+runs carried no engine proof — the depth matrix (entry 31) certified
+WHO built the artifact and that it is intact, yet nothing in the
+artifact demonstrated WHAT the engine actually draws. A tampered
+binary with pristine identity layers (or a fork claiming parity) had
+no in-binary surface to contradict it. Mechanism
+(night-frontier-Z1, Proof Moat 1c): a pinned synthetic sequence — a
+60x20 monolith, TrueColor/Green, binary charset, 16 frames at the
+anchored 60 fps virtual clock, every wall-clock anchor rewritten by
+the entry-32 law and Crystal Dragon ambient polling forced off —
+renders in-memory and folds (the entry-32 serializer) into one
+blake3 digest, compared against a compile-time pinned
+`[u8; 32]` vector. The depth ladder rises from an identity proof to
+a capability proof: `cosmostrix sig` reports the fifth row
+`D4 engine-oracle` (pass names the recomputed digest; a mismatch
+names the divergence and flips the verdict to TAMPERED, exit 2), and
+`--doctor` carries the same verdict as an `Engine oracle` section so
+a user can quote a verified render contract next to the build
+identity. Cost discipline, kept honest: milliseconds,
+single-threaded, no terminal I/O, no threads; the only heap footprint
+is the pinned synthetic arena plus one reused scratch buffer. The
+vector is empirically cross-verified: the debug-glibc build and the
+`pro-linux-amd64-v3-musl` release lane recompute the SAME digest
+(IEEE float semantics hold across profile, libc, and target-cpu), so
+one vector serves the test build and the shipped shape. Honest
+limits: the vector is version-bound — it pins the pinned-toolchain
+render of the pinned configuration, and it is regenerated deliberately
+when the engine legitimately changes (the module test fails until it
+does, so a stale vector can never pass CI silently); a binary built
+outside the pinned lane that renders differently reports
+engine-oracle FAIL — that is the moat working (the row certifies the
+release-lane render contract), not a false alarm; and the oracle
+covers one pinned configuration, not every scene and style — the
+breadth contract stays with the lock suites and the replay oracle.
+Truth: `src/bench/engine_oracle.rs` (the pinned sequence, the vector,
+the regeneration law), `src/bench/frame_digest.rs` (the shared
+serializer and fold), `src/diagnostics/sig_report.rs` (the D4 row,
+the 5/5 verdict), `src/doctor/mod.rs` (the Engine oracle section).
+Verifier: `cosmostrix sig` must end
+`SIGNATURE: AUTHENTIC (5/5 depths verified)` with the D4 row naming
+`b3:d00a460a... recomputes in-memory`; `--doctor` must show
+`engine_oracle: pass`; the engine-oracle unit tests pin the vector
+(`cargo test engine_oracle` — pin currency, cross-run
+determinism, the manual fold, and the non-degenerate vector); the
+installer release law gates on the 5/5 line.
 
 ## Retired by verdict
 

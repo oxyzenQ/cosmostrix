@@ -73,6 +73,37 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field("strip", env!("COSMOSTRIX_STRIP"));
     }
 
+    // night-frontier-Z1 (Proof Moat 1c): the embedded engine oracle —
+    // the same capability proof the `sig` D4 row carries, surfaced in
+    // the diagnostics report so a user can quote a verified render
+    // contract alongside the build identity. Milliseconds,
+    // single-threaded, no terminal I/O: the pinned 16-frame synthetic
+    // sequence renders in-memory and folds against the compile-time
+    // vector. A FAIL here says the running binary does not render the
+    // pinned release-lane sequence (a modified engine, or a build
+    // outside the pinned lane) — quote the digest divergence, not a
+    // guess.
+    {
+        let s = r.section("Engine oracle");
+        match crate::bench::engine_oracle::run_engine_oracle() {
+            Ok(digest) => {
+                s.field("engine_oracle", &crate::output::ok_bold("pass"));
+                s.field(
+                    "digest",
+                    &format!("b3:{}", crate::bench::frame_digest::hex32(&digest)),
+                );
+            }
+            Err(divergence) => {
+                s.field("engine_oracle", &crate::output::warn_bold("FAIL"));
+                s.field("detail", &divergence);
+            }
+        }
+        s.field(
+            "vector",
+            "16-frame pinned synthetic replay (60x20, anchored virtual clock)",
+        );
+    }
+
     // v17: RENDERER section (merged from --info)
     {
         let s = r.section("Renderer");
