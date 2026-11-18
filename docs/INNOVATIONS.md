@@ -734,7 +734,7 @@ the kernel floor, so io_uring for a single write is pure overhead.
 The ledger is closed against the WHOLE output surface, not only
 write(): the trace covers write, writev, pwrite64, pwritev,
 pwritev2, and ioctl, and the mandatory-output ledger asserts zero
-writev/pwrite* on any pty fd (write() is the only output syscall -
+`writev`/`pwrite*` on any pty fd (write() is the only output syscall -
 a scatter-gather or positioned write would bypass the floor) and
 zero MUTATING tty ioctls between the first and the last frame write
 (TCSETS*/TIOCSWINSZ/TIOCSCTTY and kin, plus any undecoded request -
