@@ -11,35 +11,36 @@ see the **Limitations** section of [README.md](README.md).
 
 ---
 
-## Color16/256 sessions: HUD overlay and intro still use crossterm's own color emission (residual, cosmetic)
+## Color16/256 sessions: HUD overlay and intro indexed-color emission — RESOLVED (night-frontier-Z3 3a)
 
-### Symptom
+### Symptom (historical)
 
-On a `--color-mode 16` session, the rain itself now emits classic
-`3x`/`9x` codes (task-17), but the HUD overlay and the intro surface
-draw through crossterm's queue API and emit whatever crossterm picks
-for their colors — a stray `38;5;N` per session was observed in the
-task-17 PTY probe (1 vs 24,408 classic sequences from the rain path).
+On a `--color-mode 16` session, the rain emitted classic `3x`/`9x`
+codes (task-17), but the task-17-era probe observed a stray `38;5;N`
+per session (1 indexed vs 24,408 classic sequences), attributed to the
+HUD/intro surfaces drawing through crossterm's queue API.
 
-### Affected platforms
+### Resolution (verified empirically, night-frontier-Z3)
 
-Any non-truecolor session (`--color-mode 16`, `--color-mode 256`, or a
-terminal that resolves those modes) that shows the HUD (`i` key) or a
-non-`none` intro.
+The residual no longer reproduces. The HUD writes its cells into the
+frame buffer (`HudState::write_to_frame`) and the intro renders through
+the same diff pipeline, so every HUD/intro color rides the exact
+emission-boundary quantizer the rain uses — there is no separate
+crossterm emission path left to leak indexed codes. A PTY probe on the
+release shape (80x24 pinned, `--color-mode 16`, HUD toggled mid-run via
+the supermassive battery's `--inject i@5.5`, post-intro) captured zero
+indexed sequences across 786 KB of wire bytes: `38;5` = 0, `48;5` = 0.
 
-### Workaround
+### Enforced contract
 
-None needed for the rain — the rain render path is wire-correct.
-Terminals that drop indexed/truecolor escapes simply fall back to the
-current/default color for the HUD text; it stays readable.
-
-### Status
-
-Residual, out of task-17 (Step 1) scope. The HUD/intro surfaces would
-need their own emission-boundary pass through `palette::quantize` if
-16-color purity there is ever required.
+The probe is now a standing CI invariant: the supermassive pty battery's
+color-16 HUD leg (`scripts/supermassive/pty_smoke.py --inject`, leg 7)
+toggles the HUD mid-run on a pinned 80x24 screen and asserts
+`--forbid sgr-256 --forbid sgr-truecolor` over the whole capture — the
+residual can never silently return.
 
 ---
+
 
 ## Windows / Android (Termux): `i` key (HUD toggle) may cause sudden exit
 

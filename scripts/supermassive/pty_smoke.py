@@ -30,11 +30,14 @@ Exit codes: 0 = child exited as expected within budget; 2 = usage error;
 from __future__ import annotations
 
 import argparse
+import fcntl
 import os
 import pty
 import select
 import signal
+import struct
 import sys
+import termios
 import time
 
 QUIT_KEY = b"q"
@@ -85,6 +88,15 @@ def parse_args() -> argparse.Namespace:
         help="write the 'q' quit key into the pty after this many seconds",
     )
     parser.add_argument(
+        "--inject",
+        action="append",
+        default=[],
+        dest="inject",
+        metavar="KEY@SECONDS",
+        help="write KEY (its literal bytes) into the pty at SECONDS; "
+        "repeatable (e.g. --inject i@2 toggles the HUD mid-run)",
+    )
+    parser.add_argument(
         "--sigterm",
         type=float,
         default=None,
@@ -110,6 +122,15 @@ def parse_args() -> argparse.Namespace:
         default=None,
         metavar="PATH",
         help="sample the child's VmRSS into this file (soak legs)",
+    )
+    parser.add_argument(
+        "--winsize",
+        default=None,
+        metavar="COLSxROWS",
+        help="pin the pty window size (e.g. 80x24) right after fork; "
+        "legs whose assertions depend on a real screen size must set "
+        "this - an unset winsize leaves the pty at the host default "
+        "(0x0 in CI), which the renderer clamps to a minimal screen",
     )
     parser.add_argument(
         "--rss-interval",
@@ -155,7 +176,11 @@ def read_rss_kb(pid: int) -> int | None:
     return None
 
 
-def run_child(args: argparse.Namespace) -> int:
+def run_child(
+    args: argparse.Namespace,
+    inject_specs: list[tuple[float, bytes]],
+    winsize: tuple[int, int] | None,
+) -> int:
     pid, master = pty.fork()
     if pid == 0:
         try:
@@ -164,11 +189,26 @@ def run_child(args: argparse.Namespace) -> int:
         except BaseException:  # noqa: BLE001 - exec failure must not escape as a pty ghost
             os._exit(127)
 
+    if winsize is not None:
+        # The torture battery's TIOCSWINSZ pattern: a leg that asserts
+        # content on a real screen must pin one, because a CI pty with
+        # no controlling terminal defaults to 0x0 and the renderer's
+        # clamp would make content assertions trivially true.
+        try:
+            winsize_struct = struct.pack("HHHH", winsize[1], winsize[0], 0, 0)
+            fcntl.ioctl(master, termios.TIOCSWINSZ, winsize_struct)
+        except OSError:
+            pass  # a closed master must not fail the leg
     captured = bytearray()
     rss_samples: list[tuple[float, int]] = []
     started = time.monotonic()
     quit_at = started + args.quit_key if args.quit_key is not None else None
     term_at = started + args.sigterm if args.sigterm is not None else None
+    # --inject timeline: (deadline, key bytes), sorted so the loop fires
+    # them in the caller's given order as their moments arrive. Each
+    # fired entry is dropped; the wake computation below mirrors
+    # quit_at/term_at so a pending injection always wakes the loop.
+    inject_pending = [[started + delay, key] for delay, key in sorted(inject_specs)]
     rss_at = started + args.rss_interval if args.rss_log else None
     deadline = started + args.budget
     status: int | None = None
@@ -185,7 +225,10 @@ def run_child(args: argparse.Namespace) -> int:
                 status = -1
             break
 
-        wake = min(x for x in (deadline, quit_at, term_at, rss_at) if x is not None)
+        inject_at = min((e[0] for e in inject_pending), default=None)
+        wake = min(
+            x for x in (deadline, quit_at, term_at, rss_at, inject_at) if x is not None
+        )
         readable, _, _ = select.select(
             [master], [], [], max(0.0, wake - time.monotonic())
         )
@@ -211,6 +254,12 @@ def run_child(args: argparse.Namespace) -> int:
             except ProcessLookupError:
                 pass
             term_at = None
+        while inject_pending and now >= inject_pending[0][0]:
+            _, key_bytes = inject_pending.pop(0)
+            try:
+                os.write(master, key_bytes)
+            except OSError:
+                pass  # child already gone; the read loop will notice
         if rss_at is not None and now >= rss_at:
             rss_kb = read_rss_kb(pid)
             if rss_kb is not None:
@@ -260,7 +309,19 @@ def main() -> int:
         usage_fail(f"--binary is not an executable file: {args.binary}")
     if args.quit_key is not None and args.sigterm is not None:
         usage_fail("--quit-key and --sigterm are mutually exclusive in one run")
-    return run_child(args)
+    winsize = None
+    if args.winsize is not None:
+        cols, sep, rows = args.winsize.partition("x")
+        if not sep or not cols.isdigit() or not rows.isdigit():
+            usage_fail(f"--winsize expects COLSxROWS, got {args.winsize!r}")
+        winsize = (int(cols), int(rows))
+    specs = []
+    for spec in args.inject:
+        key, sep, at = spec.partition("@")
+        if not sep or not key or not at.replace(".", "", 1).isdigit():
+            usage_fail(f"--inject expects KEY@SECONDS, got {spec!r}")
+        specs.append((float(at), key.encode()))
+    return run_child(args, inject_specs=specs, winsize=winsize)
 
 
 if __name__ == "__main__":

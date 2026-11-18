@@ -397,6 +397,25 @@ jobs:
             --expect alt-leave --expect mouse-off \
             --forbid sgr-truecolor --forbid sgr-256
 
+          # Leg 7 - the color-16 HUD purity contract (night-frontier-Z3
+          # 3a): on a --color-mode 16 session with a real 80x24 screen,
+          # the HUD toggle mid-run must not reintroduce indexed or
+          # direct-color SGRs - the task-17-era "stray 38;5 per session"
+          # residual is now an enforced invariant. The injection lands
+          # at 5.5s because the cinematic intro owns the first ~4.5s
+          # (only 'q' is honored there); 80x24 is pinned because the
+          # CI pty defaults to 0x0 and the renderer's clamp would make
+          # the HUD-content assertions trivially true.
+          python3 "${SMOKE}" --binary "${BINARY}" \
+            --log /tmp/smoke-color16-hud.log --mass "${MASS}" \
+            --label color16-hud-8s --arg=--duration --arg=8 \
+            --arg=--color-mode --arg=16 --winsize 80x24 \
+            --inject i@5.5 --env=TERM=xterm-256color --budget 25
+          python3 "${ASSERT}" --log /tmp/smoke-color16-hud.log --mass "${MASS}" \
+            --label color16-hud-8s \
+            --expect alt-leave --expect mouse-off \
+            --forbid sgr-256 --forbid sgr-truecolor
+
       - name: Verdict
         if: always()
         run: |
