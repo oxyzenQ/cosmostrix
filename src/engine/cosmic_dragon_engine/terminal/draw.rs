@@ -72,7 +72,17 @@ impl Terminal {
             // (do_full_redraw will be true when needs_clear is true, so
             // every cell gets written regardless.)
             if let Some(bg) = frame.blank.bg {
-                self.stdout.queue(SetBackgroundColor(bg))?;
+                // The blanket bg rides the BufWriter ahead of this
+                // frame's combined flush; account for its bytes here so
+                // `total_ansi_bytes` stays byte-exact against the
+                // kernel's write() lengths (the syscall-floor ledger's
+                // byte-identity row, night-frontier-Z2). to_string() is
+                // crossterm's own Display encoding — the exact bytes
+                // queue() writes — and fires once per needs_clear (the
+                // first frame plus real resizes), never per frame.
+                let bg_command = SetBackgroundColor(bg);
+                self.stdout.queue(bg_command)?;
+                self.total_ansi_bytes += bg_command.to_string().len() as u64;
             }
         }
 

@@ -717,7 +717,7 @@ bytes per frame), zero failed writes, zero short writes (a partial
 write IS a frame split), and no BufWriter spillover at the pinned
 80x24 screen; the parser handles strace's truncated-payload and
 unfinished/resumed line shapes and never guesses silently — an
-unparseable write line is a FAIL, not a skip. Effect: the claim is
+unparsable write line is a FAIL, not a skip. Effect: the claim is
 now a CI invariant on the exact binary shape the release ships, and
 a buyer can re-run the same proof locally with one strace command.
 Free with the proof: the io_uring rejection record (Retired by

@@ -841,6 +841,19 @@ jobs:
             --duration 8 \
             --budget 30
 
+      # The kernel trace is the dataset row: uploaded on every run so a
+      # residual (if the ledger ever trips) is analyzable from the raw
+      # strace output, not reconstructed from summaries.
+      - name: Upload the kernel trace (the dataset row)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: syscall-floor-trace-${{ github.run_id }}
+          path: |
+            /tmp/sf-trace.log
+            /tmp/sf-capture.log
+          if-no-files-found: ignore
+
       - name: Verdict
         if: always()
         run: |

@@ -305,7 +305,7 @@ def parse_trace(trace_path: str) -> tuple[list[WriteRecord], list[str]]:
     """Parse the strace output into WriteRecords (payload-decoded).
 
     Returns (records, problems). problems carries any unjoinable
-    unfinished/resumed pairs or unparseable write lines — a ledger
+    unfinished/resumed pairs or unparsable write lines — a ledger
     must never silently guess.
     """
     records: list[WriteRecord] = []
