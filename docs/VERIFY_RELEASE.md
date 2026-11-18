@@ -125,6 +125,24 @@ checkout path and one host (the CI two-runner job is the stronger
 cross-host proof), and the byte-identity proof covers the Linux
 x86-64-v3 musl lane — the exact shape the release ships.
 
+(night-depth-hardening-Z1) The chain no longer asks you to TRUST that
+the packaged artifact came from this process — every release run now
+PROVES it before anything ships: `release.yml` carries a standing
+`reproducible_crosscheck` job that checks out the exact release commit,
+rebuilds the pinned v3-musl shape with the publish lane's verbatim
+RUSTFLAGS composition and `SOURCE_DATE_EPOCH` pin on an independent
+runner, extracts the packaged tarball, and requires byte identity
+(`cmp`) against the fresh rebuild. The verdict line is
+`REPRODUCIBLE RELEASE CHAIN (published == rebuilt): PASS`, and
+`publish_release` GATES on the job — a release cannot publish while
+the packaged artifact differs from what the source builds. The
+"modified build without a trace" class is dead at the packaging
+boundary, not merely detectable after the fact. The remaining honest
+limits are unchanged: the crosscheck covers the Linux x86-64-v3 musl
+lane (the shape this recipe rebuilds), the freebsd KVM lane keeps its
+own toolchain law, and the GPG layer above stays the in-transit
+integrity backstop.
+
 ## 5. Raw binary hygiene in the repository (night-cafe-1)
 
 A raw compiled binary is a local build/extract product, never tracked

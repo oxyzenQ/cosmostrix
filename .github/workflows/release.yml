@@ -631,6 +631,74 @@ jobs:
           path: dist/*.zip*
           if-no-files-found: error
 
+  reproducible_crosscheck:
+    name: Cosmic Dragon - Reproducible crosscheck (published == rebuilt)
+    runs-on: ubuntu-24.04
+    needs: [build_packages]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install musl target (static link, self-contained)
+        run: rustup target add x86_64-unknown-linux-musl
+
+      - name: Download the packaged v3-musl artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: packages-linux-amd64-v3-musl
+          path: published
+
+      - name: Rebuild from the same commit (release composition)
+        env:
+          COSMOSTRIX_BUILD: pro-linux-amd64-v3-musl
+          COSMOSTRIX_PROFILE: pro-linux-amd64-v3-musl
+        run: |
+          set -euo pipefail
+          # The epoch pin, identical to the publish lane: the rebuild
+          # embeds the commit timestamp, not the runner wall clock, so
+          # the comparison below is apples-to-apples with the packaged
+          # artifact built by build_packages on a different runner.
+          EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH="${EPOCH}"
+          # The EXACT composition of the release.yml unix Build (release)
+          # step for this platform (matrix.rustflags expanded verbatim):
+          # CPU pin + redacted path prefixes + force-frame-pointers.
+          # --locked pins the dependency graph to Cargo.lock.
+          export RUSTFLAGS="-C target-cpu=x86-64-v3 --remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
+          cargo build --profile pro-linux-amd64-v3-musl --target x86_64-unknown-linux-musl --jobs "${CARGO_BUILD_JOBS:-2}" --locked
+
+      - name: Compare the packaged artifact against the rebuild
+        run: |
+          set -euo pipefail
+          TARBALL="$(find published -name 'cosmostrix-*-linux-amd64-v3-musl.tar.gz' | head -1)"
+          if [ -z "${TARBALL}" ]; then
+            echo "::error::No v3-musl tarball found in the packaged artifact"
+            exit 1
+          fi
+          echo "packaged tarball: ${TARBALL}"
+          mkdir -p extracted
+          # The archive layout is flat by law (PKGBUILD invariant):
+          # /cosmostrix at the archive root.
+          tar -xzf "${TARBALL}" -C extracted cosmostrix
+          REBUILT="target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
+          ls -l extracted/cosmostrix "${REBUILT}"
+          sha256sum extracted/cosmostrix "${REBUILT}"
+          if cmp -s extracted/cosmostrix "${REBUILT}"; then
+            echo "REPRODUCIBLE RELEASE CHAIN (published == rebuilt): PASS — the packaged artifact is byte-identical to a fresh rebuild from the same commit"
+          else
+            echo "::error::Reproducibility FAILED: the packaged artifact differs from the fresh rebuild"
+            cmp -l extracted/cosmostrix "${REBUILT}" | head -20 || true
+            exit 1
+          fi
+
   build_android:
     name: Cosmic Dragon - Build packages (android-aarch64-native)
     runs-on: ubuntu-24.04
@@ -927,7 +995,7 @@ jobs:
     name: Cosmic Dragon - Publish GitHub Release
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [build_packages, build_android, build_freebsd]
+    needs: [build_packages, build_android, build_freebsd, reproducible_crosscheck]
     permissions:
       contents: write
 

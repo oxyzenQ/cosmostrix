@@ -650,7 +650,25 @@ Verifier: the CI `reproducible_verify` job must print
 (`source_date_epoch_law_unset_invalid_and_valid` via the standalone
 `rustc --edition 2024 --test build.rs` runner); and the doc section
 [VERIFY_RELEASE.md](VERIFY_RELEASE.md) 4a tells the rebuild-yourself
-recipe once.
+recipe once. Advanced form 2 (2026-11-18, night-depth-hardening-Z1)
+turns the recipe from a manual trust exercise into a standing gate:
+`release.yml` grows a `reproducible_crosscheck` job that rebuilds the
+pinned v3-musl shape from the exact release commit on an independent
+runner (publish lane's verbatim RUSTFLAGS composition, `SOURCE_DATE_EPOCH`
+commit-epoch pin, `--locked`) and `cmp`s it against the packaged
+tarball produced by `build_packages` on a different runner; the verdict
+line is `REPRODUCIBLE RELEASE CHAIN (published == rebuilt): PASS` and
+`publish_release` needs the job, so a release physically cannot ship an
+artifact that the source does not reproduce. That closes the one seam
+the first form left open — the CI two-host proof demonstrated the
+PROCESS on a CI-lane artifact, while the published package was only
+covered by the epoch-pin argument; now the packaged artifact itself is
+byte-compared to a fresh rebuild in every release run. Honest limits:
+the gate covers the Linux x86-64-v3 musl lane (the shape the recipe
+rebuilds and the archive layout the PKGBUILD depends on), the freebsd
+KVM lane keeps its own toolchain law, and a synchronized compromise of
+the crosscheck runner AND the GPG signer remains outside the threat
+model exactly as before.
 
 ### 34. The embedded engine oracle (the capability depth, D4)
 
