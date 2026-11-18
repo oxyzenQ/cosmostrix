@@ -5,7 +5,7 @@
 The Chroma Dragon Coloring Engine — the perceptual color pipeline of
 cosmostrix, at its Phase 9-D peak. Audited at peak (commit `69af079`,
 2026-08-19) and held at Long-Term Support quality by the CI lock suite
-(`test/engine/chroma_dragon_engine/tests/lock.rs`, 19 invariants): any
+(`test/engine/chroma_dragon_engine/tests/lock.rs` + `lock_inv20_z4a.rs`, 23 invariants): any
 change to this directory must keep the invariant suite green.
 
 ## Stability Status
@@ -167,7 +167,8 @@ confirmed no regression:
 | 9-A   | Hue-preserving polar gradient | Done |
 | 9-B   | Lock suite (19 invariants) | Done |
 | 9-C   | Cartesian + sRGB-linear fallback removal (polar sole path) | Done |
-| 9-D   | ColorPipeline + legacy audit (19 invariants) | Done — current peak |
+| 9-D   | ColorPipeline + legacy audit (19 invariants) | Done |
+| 9-E   | night-frontier-Z4a measured colorimetry: ΔE-OK JND continuity + band ceiling + measured chroma troughs (INV-20/21, `lock_inv20_z4a.rs`) | Done — current peak |
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

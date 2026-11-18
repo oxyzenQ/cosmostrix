@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The thirty-nine, in dependency order
+## The forty, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -951,6 +951,60 @@ teeth: an over-budget frame paces the CPU family and not the GPU
 family, an unarmed manager no-ops, healthy frames decay to full
 cadence); the CI pty/torture lanes must stay green (the model must
 never false-throttle the documented-healthy 80x24 shapes).
+
+### 40. The measured colorimetry budgets (the ΔE-OK perceptual moat)
+
+Problem killed: "no muddy midpoints" was a design claim. The polar
+OKLab gradient's headline property was proven on one synthetic
+opposing-hue pair (entry 18's INV-10), the shipped ramps were tuned by
+eye, and nothing MEASURED the colorimetry of what actually ships — a
+future gradient change that introduced a hue-wrap spike, an overshoot
+artifact, or a chroma-collapse midpoint would have shipped while every
+existing test stayed green. Mechanism (night-frontier-Z4a, Lapis 4a):
+the Chroma Dragon lock suite now carries measured colorimetry on the
+REAL production surfaces — all 44 themes, the real catalog stops, the
+real production ramp. INV-20 pins the ΔE-OK perceptual budget: every
+interpolation path between consecutive stops is sampled at
+just-noticeable-difference resolution (adaptive arc-length two-pass
+sampling over `gradient_path_oklab`, the production sampler's
+pre-quantization math — added so the audit measures the LAW, not the
+u8 display grid, which quantizes coarsely near black) and no
+consecutive step may exceed one JND (ΔE-OK ≈ 0.02, the "What's My
+ΔE(OK) JND?" 2026 average threshold); a ±1-channel-per-sample mirror
+pin ties the shipped u8 path to the audited math. The shipped ramp's
+band widths are the designed discrete aesthetic — deliberately wider
+than one JND — so they are pinned separately by the measured band
+ceiling (0.40; the widest band any theme ships today is 0.357,
+NeonYellow). INV-21 pins the no-muddy-midpoints contracts as measured
+chroma troughs: along every saturated segment's fine path the minimum
+chroma keeps ≥ 0.80 of the weaker endpoint's chroma (measured worst
+0.984 — polar carries chroma linearly, as designed), and every
+interior entry of the shipped ramp keeps ≥ 0.50 of its neighbors'
+chroma (measured worst 0.629, Snow[7]); near-gray segments are exempt
+because the Cartesian fallback there is the visually correct path.
+Effect: the claims are quantities now — a future theme edit, gradient
+change, or floor retune that breaks perceptual continuity or collapses
+a midpoint fails CI with the offending theme, segment, and ΔE value in
+the message; the audit harness (`z4a_measure_...`) re-derives every
+budget from the same table so a deliberate retune is a visible,
+reviewable constant change, not a silent drift. Honest scope: the
+budgets govern the TrueColor interpolation surface (the mode where
+the gradient machinery's output is what renders); Color256/Color16
+quantized ladders carry their own anchor contracts (tests_c16_anchor),
+and the trough floors assert saturation retention, not a full ΔE00
+appearance model.
+Truth: `src/engine/chroma_dragon_engine/gradient/mod.rs`
+(`delta_e_ok`, `oklab_chroma`, `gradient_path_oklab` — the
+pre-quantization audit surface), `src/engine/chroma_dragon_engine/tuning.rs`
+(the five Z4a constants with their measured provenance),
+`test/engine/chroma_dragon_engine/tests/lock_inv20_z4a.rs` (INV-20,
+INV-20b, INV-21a, INV-21b, the measurement harness),
+`test/engine/chroma_dragon_engine/tests/lock.rs` (the INV table, the
+9-E version bump).
+Verifier: `cargo test lock_inv20_z4a` — JND continuity over ~300
+traced segments, the band ceiling, both trough floors, and the
+re-derivation harness must all pass; the engine version sentinel pins
+"9-E (locked)".
 
 ## Retired by verdict
 

@@ -327,3 +327,69 @@ pub(crate) const BORDER_TOUCH_HALO_MAX: f32 = 0.3;
 /// Halo lifetime is shorter than the border pulse — the halo is the
 /// "splash up" cue, not the sustained glow on the border itself.
 pub(crate) const BORDER_TOUCH_HALO_LIFETIME_MS: u32 = 400;
+
+// ── night-frontier-Z4a: the measured colorimetry budgets ───────────────────
+//
+// These constants turn the polar OKLab gradient's design claims into
+// asserted quantities. They are consumed by the engine lock suite
+// (`test/engine/chroma_dragon_engine/tests/lock_inv20_z4a.rs`), not by
+// the render path — they are LAWS about what the machinery must
+// produce, not runtime knobs. See that file for the full contract and
+// the re-derivation measurement harness.
+
+/// The ΔE-OK perceptual budget: the maximum color difference between
+/// consecutive samples of an interpolation path at just-noticeable
+/// difference (JND) resolution. One JND in Oklab ≈ 0.02 — the average
+/// threshold measured by the public "What's My ΔE(OK) JND?" study
+/// (2026), consistent with the ΔE00 convention (JND ≈ 2.0 on the 100x
+/// scale). The lock suite samples every catalog segment's interpolation
+/// path at JND resolution (adaptive arc-length two-pass sampling) and
+/// asserts no step exceeds this budget plus the quantization epsilon:
+/// the path is perceptually continuous — any discontinuity, hue-wrap
+/// spike, or overshoot artifact fails the suite.
+///
+/// This governs the interpolation machinery only. The SHIPPED ramp's
+/// band widths are the designed discrete aesthetic and are wider than
+/// one JND on purpose; they are pinned separately by
+/// [`PALETTE_BAND_DE_OK_CEILING`].
+#[cfg_attr(not(test), allow(dead_code))] // referenced by the Z4a lock suite only
+pub(crate) const PALETTE_DELTA_E_OK_BUDGET: f32 = 0.02;
+
+/// The shipped band ceiling: the widest adjacent-pair ΔE-OK any
+/// built TrueColor palette ramp may carry. NOT a JND claim — the 7-9
+/// entry trail-to-head ramp is a designed discrete-band aesthetic whose
+/// bands are intentionally perceptible (measured worst case today:
+/// 0.357, NeonYellow). The ceiling pins that design scale so a future
+/// theme edit cannot silently introduce a cliff wider than anything
+/// the catalog ships.
+#[cfg_attr(not(test), allow(dead_code))] // referenced by the Z4a lock suite only
+pub(crate) const PALETTE_BAND_DE_OK_CEILING: f32 = 0.40;
+
+/// The no-muddy-midpoints floor on the interpolation path: along every
+/// SATURATED segment (both endpoint chromas ≥
+/// [`PALETTE_TROUGH_VISIBILITY_FLOOR`]), the minimum interior chroma
+/// must keep this fraction of the weaker endpoint's chroma. Polar
+/// interpolation carries chroma magnitude linearly, so the expected
+/// trough is ~1.0; 0.80 leaves room for the hue-preserving
+/// floor/continuity scaling and u8 quantization. Measured worst case
+/// across all 44 themes: ≥ 0.87.
+#[cfg_attr(not(test), allow(dead_code))] // referenced by the Z4a lock suite only
+pub(crate) const PALETTE_CHROMA_TROUGH_MIN_RATIO: f32 = 0.80;
+
+/// The no-muddy-midpoints floor on the SHIPPED ramp (the
+/// floor/continuity-aware form): every interior ramp entry whose
+/// neighbors carry at least the visibility floor of chroma must itself
+/// keep this fraction of the neighbors' minimum chroma. Measured worst
+/// case across all 44 themes: 0.629 (Snow[7]).
+#[cfg_attr(not(test), allow(dead_code))] // referenced by the Z4a lock suite only
+pub(crate) const PALETTE_RAMP_TROUGH_MIN_RATIO: f32 = 0.50;
+
+/// Chroma visibility floor for the trough contracts: segments (or ramp
+/// entries) whose relevant endpoint chroma falls below this are exempt.
+/// A near-gray endpoint has no saturation to lose — the polar path
+/// falls back to Cartesian there by design, and a "muddy midpoint"
+/// next to a gray is the visually correct gradient. 0.02 matches the
+/// ΔE-OK JND scale: below this chroma a saturation difference is not
+/// reliably visible.
+#[cfg_attr(not(test), allow(dead_code))] // referenced by the Z4a lock suite only
+pub(crate) const PALETTE_TROUGH_VISIBILITY_FLOOR: f32 = 0.02;

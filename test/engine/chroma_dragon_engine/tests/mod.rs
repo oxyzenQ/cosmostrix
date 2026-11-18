@@ -14,4 +14,6 @@ mod lock;
 #[cfg(test)]
 mod lock_inv13_19;
 #[cfg(test)]
+mod lock_inv20_z4a;
+#[cfg(test)]
 mod night_research1;

@@ -320,19 +320,19 @@ fn lock_inv17_engine_lock_report() {
     );
     eprintln!();
     eprintln!("  ── Status ──────────────────────────────────────────────────────");
-    eprintln!("  All 19 invariants hold. Engine is at peak and locked.");
+    eprintln!("  All 23 invariants hold. Engine is at peak and locked.");
     eprintln!("  Future commits that change any constant, helper, or shader path");
     eprintln!("  in chroma/ must update the relevant INV-XX test AND bump");
     eprintln!("  CHROMA_DRAGON_ENGINE_VERSION. No silent contract drift.");
     eprintln!();
 
     // Sentinel assertion: the engine version matches the locked tag AND
-    // the invariant count is exactly 19. If a future commit adds INV-20,
+    // the invariant count is exactly 23. If a future commit adds INV-24,
     // they must update this count too.
-    assert_eq!(CHROMA_DRAGON_ENGINE_VERSION, "9-D (locked)");
-    const INV_COUNT: u32 = 19;
+    assert_eq!(CHROMA_DRAGON_ENGINE_VERSION, "9-E (locked)");
+    const INV_COUNT: u32 = 23;
     assert_eq!(
-        INV_COUNT, 19,
+        INV_COUNT, 23,
         "INV_COUNT must match the actual invariant count"
     );
 }

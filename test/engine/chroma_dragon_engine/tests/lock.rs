@@ -46,6 +46,8 @@
 //! | INV-17| Lock report          | Sentinel test prints the engine report                 |
 //! | INV-18| Polar sole path      | Production `gradient_from_stops` matches polar impl    |
 //! | INV-19| Pipeline disclosure  | `ColorPipeline::detect` routes every ColorMode correctly and the lock report lists the pipeline|
+//! | INV-20| ΔE-OK JND budget     | Interpolation paths are JND-continuous; shipped u8 path mirrors the math within ±1; measured band ceiling pins the shipped scale (Z4a, in `lock_inv20_z4a.rs`)|
+//! | INV-21| No muddy midpoints   | Measured chroma troughs: fine path ≥ 0.80x weaker endpoint; shipped ramp interior ≥ 0.50x neighbor min (Z4a, in `lock_inv20_z4a.rs`)|
 //!
 //! ## Adding a new invariant
 //!
@@ -103,7 +105,13 @@ use crate::runtime::{ColorMode, ColorScheme};
 ///   `ColorPipeline` enum + `chroma::legacy` module. INV-19 asserts
 ///   pipeline disclosure so the user can verify "chroma dragon active"
 ///   vs "legacy fallback" via `-v`, `--doctor`, and `--benchmark`.
-pub const CHROMA_DRAGON_ENGINE_VERSION: &str = "9-D (locked)";
+/// - `"9-E (locked)"` — night-frontier-Z4a: measured colorimetry. INV-20
+///   pins the ΔE-OK JND continuity of the interpolation paths (adaptive
+///   arc-length sampling in full-precision OKLab + a ±1-channel mirror
+///   pin to the shipped u8 sampler) and the shipped band ceiling; INV-21
+///   pins the measured no-muddy-midpoints chroma troughs on the fine
+///   path and the shipped ramp. Invariants live in `lock_inv20_z4a.rs`.
+pub const CHROMA_DRAGON_ENGINE_VERSION: &str = "9-E (locked)";
 
 /// Helper: list every built-in `ColorScheme` variant. Mirrors `audit_tests`
 /// — kept private here so the lock suite is self-contained even if the
@@ -182,7 +190,7 @@ fn rgb_sum(c: (u8, u8, u8)) -> u16 {
 #[test]
 fn lock_inv01_engine_version_sentinel() {
     assert_eq!(
-        CHROMA_DRAGON_ENGINE_VERSION, "9-D (locked)",
+        CHROMA_DRAGON_ENGINE_VERSION, "9-E (locked)",
         "Chroma Dragon engine version drifted. If this was intentional, update the \
          CHROMA_DRAGON_ENGINE_VERSION history comment and the INV-1 sentinel together."
     );

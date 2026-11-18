@@ -347,14 +347,31 @@ impl PolarSegment {
 /// Build-time only (called from `palette::colors_from_stops`, not the
 /// hot render path). One-shot per palette load, ~50ns per stop transition.
 pub(crate) fn gradient_from_stops_oklab(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {
+    gradient_path_oklab(stops, steps)
+        .iter()
+        .map(|&(l, a, b)| oklab_to_srgb(l, a, b))
+        .collect()
+}
+
+/// The pre-quantization OKLab path behind [`gradient_from_stops_oklab`].
+///
+/// Same law, same per-segment sampling grid, same endpoint preservation —
+/// returned as raw `(L, a, b)` floats with NO u8 round-trip. This is the
+/// audit surface for the night-frontier-Z4a colorimetry contracts: the
+/// JND-continuity and chroma-trough invariants measure the interpolation
+/// MATH at full precision (the u8 grid quantizes coarsely near black and
+/// would mask the math behind display quantization noise), and a
+/// companion pin requires the shipped u8 path to match this math within
+/// ±1 channel per sample. Build-time only.
+pub(crate) fn gradient_path_oklab(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(f32, f32, f32)> {
     if steps == 0 || stops.is_empty() {
         return Vec::new();
     }
     if stops.len() == 1 {
-        return vec![stops[0]; steps];
+        return vec![srgb_to_oklab(stops[0].0, stops[0].1, stops[0].2); steps];
     }
     if steps == 1 {
-        return vec![stops[0]];
+        return vec![srgb_to_oklab(stops[0].0, stops[0].1, stops[0].2)];
     }
 
     // Pre-convert all stops to OKLab once (not per output sample).
@@ -386,9 +403,47 @@ pub(crate) fn gradient_from_stops_oklab(stops: &[(u8, u8, u8)], steps: usize) ->
         }
         let lt = pos - (seg as f32);
         let (l, a, b) = segments[seg].sample(lt);
-        out.push(oklab_to_srgb(l, a, b));
+        out.push((l, a, b));
     }
     out
+}
+
+/// ΔE-OK: the Euclidean distance between two sRGB colors in OKLab.
+///
+/// This is the perceptual color-difference metric of the Oklab space
+/// (Wikipedia: "The perceptual color difference in Oklab is calculated
+/// as the Euclidean distance between the (L, a, b) coordinates").
+/// The scale is calibrated to human perception: one just-noticeable
+/// difference (JND) sits at about 0.02 — the average threshold measured
+/// by the public "What's My ΔE(OK) JND?" study (2026), and consistent
+/// with the ΔE00 convention where one JND ≈ 2.0 on a 0–100 scale that
+/// Oklab compresses 100x. A per-step difference at or below 0.02 is
+/// therefore the largest change a viewer can still perceive as
+/// continuous rather than banded.
+///
+/// Build-time only (palette build, audits, lock suite) — never on the
+/// render hot path.
+#[cfg_attr(not(test), allow(dead_code))] // referenced by the Z4a lock suite only
+#[inline]
+pub(crate) fn delta_e_ok(r0: u8, g0: u8, b0: u8, r1: u8, g1: u8, b1: u8) -> f32 {
+    let (l0, a0, b0) = srgb_to_oklab(r0, g0, b0);
+    let (l1, a1, b1) = srgb_to_oklab(r1, g1, b1);
+    let dl = l0 - l1;
+    let da = a0 - a1;
+    let db = b0 - b1;
+    (dl * dl + da * da + db * db).sqrt()
+}
+
+/// OKLab chroma magnitude of an sRGB color: `C = sqrt(a² + b²)`.
+///
+/// The saturation axis the "no muddy midpoints" contract is measured on:
+/// a gradient midpoint that falls far below its neighbors' chroma reads
+/// as a muddy gray band. Build-time only (audits, lock suite).
+#[cfg_attr(not(test), allow(dead_code))] // referenced by the Z4a lock suite only
+#[inline]
+pub(crate) fn oklab_chroma(r: u8, g: u8, b: u8) -> f32 {
+    let (_, a, b) = srgb_to_oklab(r, g, b);
+    (a * a + b * b).sqrt()
 }
 
 /// Perceptual (OKLab) blend between two sRGB colors.
