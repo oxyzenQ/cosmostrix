@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The thirty-five, in dependency order
+## The thirty-six, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -63,8 +63,9 @@ the frame budget. Mechanism: consecutive dirty cells in a row are
 batched into one escape run (row-RLE), colors are pre-formatted into
 cached SGR byte strings so the hot path writes bytes rather than built
 strings, and `src/bolt/` supplies branchless lookup tables; the lean
-path reaches 0.0 allocs/frame (measured, told once in the README's
-Philosophy section).
+path reaches 0.0 allocs/frame (measured once, now contract-enforced
+by the zero-alloc ledger, entry 36 — the README's Philosophy section
+carries the story).
 Truth: `src/engine/cosmic_dragon_engine/terminal/draw.rs`,
 `src/bolt/`; the batching cost model lives in
 `src/cosmic_dragon_incubator/egg/threshold_sweep.rs`.
@@ -738,6 +739,46 @@ with the `syscall-floor writes/frame=1.000 PASS` row naming the
 kernel write count and the flush count; locally, `strace -f -e
 trace=write -xx -s 96 -o /tmp/sf.trace -- ./cosmostrix --duration 8
 --perf-stats` on a real tty gives the harness the same input.
+
+### 36. The zero-alloc ledger (the enforced 0.0 allocs/frame contract)
+
+Problem killed: "0.0 allocs/frame on the lean path" was a benchmark
+number — measured in one window, quoted once in the README's
+Philosophy section, and free to regress silently between releases:
+any future per-frame Vec, String, or pool spill would land in the
+binary while every functional test stayed green, because nothing
+asserted the ABSENCE. Mechanism (night-frontier-Z2, Kernel Floor
+2b): the counting global allocator (TraceAlloc, wired in
+`src/main.rs` since the DeepSeek benchmark restructuring) is
+promoted from a measurement tool to a CONTRACT: the Cosmic Dragon
+lock suite opens a pinned steady-state window (a 200-frame warmup on
+the anchored virtual clock — the entry-32 replay law — then 180
+ledger frames of the exact bench lean shape: `Cloud::rain_at` plus
+the lean per-cell emission plus `clear_dirty`) and asserts the
+allocator delta is EXACTLY ZERO — alloc, dealloc, realloc, and
+retained bytes — with per-thread attribution (the FreeBSD CI
+incident design) keeping concurrent test threads out of the count.
+The ledger's teeth are themselves tested: a positive-control test
+runs the identical window with one intentional per-frame allocation
+and requires the count to read exactly the frame count, so a
+refactor that silently detached the window from the allocator fails
+before any false green can ship. Effect: CI goes red on the commit
+that introduces a per-frame allocation — the claim and the
+enforcement are now the same mechanism. Honest scope: the contract
+covers the LEAN path (sim + diff + lean emission), the same scope
+the 0.0 measurement claimed; the production-draw I/O path carries
+~1.1 allocs/frame by design and stays measured, not contracted; and
+one-shot surfaces (startup, config parse, palette rebuild) are out
+of scope — the ledger measures the per-frame steady state only.
+Truth: `test/cosmic_dragon_incubator/tests/alloc_ledger.rs` (the
+window, the zero assertions, the positive control),
+`src/diagnostics/alloc_trace.rs` (the counting allocator, the
+per-thread design), `src/main.rs` (the wiring),
+`test/cosmic_dragon_incubator/tests/lock.rs` (the INV-18 table row).
+Verifier: `cargo test cosmic_dragon_incubator::tests::alloc_ledger`
+— the zero test must report 0/0/0 across the window and the positive
+control must count exactly the frame count; the suite runs on every
+commit in CI.
 
 ## Retired by verdict
 

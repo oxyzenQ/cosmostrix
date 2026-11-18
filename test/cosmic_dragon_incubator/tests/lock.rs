@@ -45,6 +45,11 @@
 //! | INV-15| ColorCache miss      | `ColorCache::sgr_for_cell` returns None for unknown idx|
 //! | INV-16| Lock report          | Sentinel test prints the engine report                 |
 //! | INV-17| Idle-frame fast path | `clear_dirty` on empty frame advances `dirty_gen`      |
+//! | INV-18| Zero-alloc ledger    | lean frame path performs exactly 0 allocations        |
+//!
+//! INV-18 lives in `tests/alloc_ledger.rs` (the counting-global-allocator
+//! window is a suite-sized fixture, not a Frame/ColorCache one) — same
+//! suite, same CI gate.
 //!
 //! ## Adding a new invariant
 //!

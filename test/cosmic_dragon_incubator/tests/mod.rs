@@ -8,4 +8,6 @@
 //! dedicated `tests/` subdir (Pattern C).
 
 #[cfg(test)]
+mod alloc_ledger;
+#[cfg(test)]
 mod lock;
