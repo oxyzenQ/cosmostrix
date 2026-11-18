@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty-three, in dependency order
+## The forty-four, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1212,6 +1212,34 @@ Z5a SHA — plus the rewritten guard unit suite
 `benchmark/bench-labs/night_frontier_z5a/AB_REPORT.md` campaign
 (steady state unchanged within noise; the A/B the parked note
 demanded).
+
+### 44. The afterglow temporal colorimetry law (INV-22, night-frontier-Z5b)
+
+Problem killed: the temporal read of the phosphor trail — what the
+decay actually does to emitted color, frame over frame — carried no
+measured law. Z4a pinned the spatial palette paths, Z4c pinned the
+curve's shape and half-lives, but the perceptual behavior of the melt
+(the supra-JND steps, the death pop, the hue stability, the u8 floor)
+was nobody's asserted quantity. Mechanism (night-frontier-Z5b): the
+research MEASURED first — the charter's "temporal JND budget" framing
+was honestly wrong on three counts (the melt is designed supra-JND;
+chroma-magnitude shrinkage is the physics of dimming, not a defect;
+the death is a designed one-frame pop) — and pinned the measured law
+instead: the energy-ladder structure (monotone, terminating), the
+nominal melt envelope as a twelve-entry two-sided table (layer x fps,
++10 percent band both ways), the load corners (stacked boosts, the
+bottom-band emergency collapse to ~0.74 per step), the death pop
+(0.135 bound), the floor pop (the u8 last-quantum vanishing, 0.14
+global bound), and the hue-stability law (per-step drift <= 10
+degrees, net visible-life shift <= 21 degrees — concentrated at the
+deep-blue u8 foot, the medium's documented property). Files where the
+truth lives:
+`test/engine/chroma_dragon_engine/tests/lock_inv22_z5b.rs` (the seven
+pins, every bound measured against the real pipeline),
+`docs/research/NIGHT_FRONTIER_Z5B_TEMPORAL_COLORIMETRY.md` (the
+investigation record, including the three charter corrections).
+Verifier: `cargo test inv22` — 7 pins green; the shipped binary is
+byte-for-byte unchanged (tests-only), so no A/B applies.
 
 ## Retired by verdict
 
