@@ -336,14 +336,21 @@ jobs:
           cargo build --profile pro-linux-amd64-v3-musl --locked --target x86_64-unknown-linux-musl --jobs "${CARGO_BUILD_JOBS}"
           BIN="target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
           ls -l "${BIN}"
-          sha256sum "${BIN}" | tee "cosmostrix-sha256-host-${{ matrix.host }}.txt"
+          # Flat staging: the artifact zip preserves path structure below
+          # the least common ancestor, so a nested binary would extract
+          # under target/x86_64-unknown-linux-musl/.../ in the verify
+          # job. Copying to the workspace root keeps the artifact flat
+          # (reproducible-cosmostrix + the sha sidecar), and the verify
+          # step's paths stay trivial.
+          cp "${BIN}" reproducible-cosmostrix
+          sha256sum reproducible-cosmostrix | tee "cosmostrix-sha256-host-${{ matrix.host }}.txt"
 
       - name: Upload artifact (host ${{ matrix.host }})
         uses: actions/upload-artifact@v7
         with:
           name: reproducible-cosmostrix-host-${{ matrix.host }}
           path: |
-            target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix
+            reproducible-cosmostrix
             cosmostrix-sha256-host-${{ matrix.host }}.txt
           retention-days: 3
 
@@ -368,8 +375,8 @@ jobs:
       - name: Compare byte-for-byte
         run: |
           set -euo pipefail
-          A="host-a/cosmostrix"
-          B="host-b/cosmostrix"
+          A="host-a/reproducible-cosmostrix"
+          B="host-b/reproducible-cosmostrix"
           ls -l "$A" "$B"
           echo "host a: $(cat host-a/cosmostrix-sha256-host-a.txt)"
           echo "host b: $(cat host-b/cosmostrix-sha256-host-b.txt)"
