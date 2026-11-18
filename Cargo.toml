@@ -81,7 +81,19 @@ exclude = [
 # ceiling stays at `<4.7` so a hypothetical clap 5 (or a 4.7 with
 # breaking-ish behavior) still cannot enter the lockfile silently.
 clap = { version = ">=4.5, <4.7", default-features = false, features = ["std", "color", "help", "usage", "error-context", "derive", "suggestions"] }
-crossterm = { version = "0.29", default-features = false, features = ["bracketed-paste", "events", "windows"] }
+# crossterm: the "bracketed-paste" feature is DELIBERATELY absent
+# (night-frontier-Z5a). With the feature off, crossterm's parser has no
+# paste-accumulation branch: a dangling ESC[200~ start marker (the
+# documented hostile-wedge class, FUTURE_BACKLOG.md 5a) falls through to
+# the ordinary CSI path, parses as an unknown special key code, and is
+# discarded - the unbounded paste buffer and the input blackhole it
+# caused are structurally unreachable, not mitigated. cosmostrix also
+# never sends EnableBracketedPaste (terminal/mod.rs), so real terminals
+# deliver pastes as plain key bursts, which the PasteBurstGuard
+# suppresses by burst-rate arming (src/interactive/input.rs). The raw
+# TERMINAL_RESTORE_SEQUENCE still carries the ESC[?2004l disable as a
+# baseline reset for state earlier processes may have armed.
+crossterm = { version = "0.29", default-features = false, features = ["events", "windows"] }
 # rand: floor 0.10 (migrated from "0.9" in NIGHT-dinner-8, 2026-09-30,
 # owner-approved relax policy). The 0.10 line's engine-relevant facts,
 # each verified rather than assumed:

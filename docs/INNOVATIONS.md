@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty-two, in dependency order
+## The forty-three, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1168,6 +1168,50 @@ linearity proof: two clicks' field equals the sum of the single-click
 fields to 1e-4); the full suite (3072 tests) must stay green, and the
 zero-alloc ledger (entry 36) is untouched — the solver allocates
 nothing in the frame path.
+
+### 43. The paste fuse (the structural wedge kill, night-frontier-Z5a)
+
+Problem killed: the one hostile-input wedge the repo had documented
+but not closed (FUTURE_BACKLOG 5a). A dangling bracketed-paste START
+marker (`ESC [200~` with no end marker — a hostile multiplexer or a
+corrupted terminal; a real terminal always sends the pair) used to
+wedge crossterm's internal paste buffer: every later byte, the `q`
+quit key included, was swallowed into an unbounded `Vec<u8>` until the
+torture watchdog SIGKILLed the session (rc=-9, run 40466357873). The
+parked app-side options (cap/drain the buffer, or time out
+unterminated pastes) were verified unimplementable against the actual
+crossterm 0.29 source — the buffer is private, uncapped, and
+undrainable. Mechanism (night-frontier-Z5a): the defense moved one
+level DOWN, to the compiler — the crossterm `bracketed-paste` feature
+is compiled out, so the paste-accumulation branch does not exist and a
+dangling START parses as an ordinary unknown CSI sequence that is
+discarded (`Err` clears the buffer); the `Event::Paste` variant
+vanishes from the type system, so the wedge state is structurally
+unreachable, not mitigated. The paste UX keeps its contract by
+burst-rate arming: the `PasteBurstGuard` arms itself on three
+plain-printable Presses inside 50 ms (far above human typing,
+auto-Repeat excluded) and suppressed presses extend the window — the
+original suppression law, unchanged — while the per-frame event drain
+is wall-clock bounded (2 ms) against the neighboring
+complete-junk-sequence storm class. Honest residual (documented in the
+research doc): the first two characters of a paste stay live before
+the window arms, and the wider unterminated-CSI accumulation class
+remains upstream (bounded per-frame by the drain budget). Files where
+the truth lives: `Cargo.toml` (the feature rationale comment),
+`src/engine/cosmic_dragon_engine/terminal/mod.rs` (never enable),
+`src/engine/cosmic_dragon_engine/terminal/cleanup.rs` + `restore.rs`
+(the raw `ESC [?2004l` baseline reset for paste mode earlier processes
+may have armed), `src/interactive/input.rs` (the self-arming guard),
+`src/interactive/event_loop.rs` (the bounded drain).
+`docs/research/NIGHT_FRONTIER_Z5A_PASTE_FUSE.md` is the full
+investigation record. Verifier: the dedicated `paste-wedge` torture
+leg (dangling START + hostile content + `q` must quit, rc=0, restore
+tail intact) in `scripts/supermassive/torture.py` — 7/7 legs at the
+Z5a SHA — plus the rewritten guard unit suite
+(`cargo test burst`, `cargo test repeat`) and the
+`benchmark/bench-labs/night_frontier_z5a/AB_REPORT.md` campaign
+(steady state unchanged within noise; the A/B the parked note
+demanded).
 
 ## Retired by verdict
 

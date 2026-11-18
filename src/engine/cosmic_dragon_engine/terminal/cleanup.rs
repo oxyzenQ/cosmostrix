@@ -42,7 +42,9 @@ impl super::Terminal {
         self.cleaned_up = true;
         self.mouse_capture_enabled = false;
         self.focus_change_enabled = false;
-        self.bracketed_paste_enabled = false;
+        // night-frontier-Z5a: no bracketed_paste_enabled flip here - the
+        // flag no longer exists (bracketed paste is compiled out; see
+        // Cargo.toml and terminal/mod.rs).
         self.kitty_keyboard_enabled = false;
         self.raw_mode_enabled = false;
         self.alternate_screen_enabled = false;
@@ -57,10 +59,15 @@ impl super::Terminal {
         self.cleaned_up = true;
 
         let _ = self.disable_mouse_capture();
-        if self.bracketed_paste_enabled {
-            let _ = self.stdout.execute(event::DisableBracketedPaste);
-            self.bracketed_paste_enabled = false;
-        }
+        // night-frontier-Z5a: bracketed paste is compiled out of the
+        // crossterm dependency and never enabled by this binary, but the
+        // raw disable stays as a baseline reset — a previous process
+        // (shell, multiplexer) may have armed paste mode before this
+        // session. Pre-Z5a this was crossterm's DisableBracketedPaste
+        // command; the command type no longer exists, so the bytes go
+        // out directly (the same ESC[?2004l the raw
+        // TERMINAL_RESTORE_SEQUENCE carries on the signal paths).
+        let _ = self.stdout.write_all(b"\x1b[?2004l");
         // Kitty keyboard protocol pop: must happen before
         // LeaveAlternateScreen so the protocol stack is unwound while
         // still on the alt screen (matches the SYNC_END ordering pattern).

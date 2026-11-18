@@ -7,7 +7,7 @@ night-dragon-maintenance-4, owner directive: the supermassive CI must
 simulate a hostile server, not a friendly one - the render contract has
 to hold UNDER ATTACK, not merely on a quiet bench. This battery runs
 the built binary under a REAL pty (pty.fork, the pty_smoke transport
-lineage) while five hostile load shapes hammer it concurrently:
+lineage) while seven hostile load shapes hammer it concurrently:
 
   1. resize-storm     - TIOCSWINSZ flips at 10 Hz across extreme sizes
                         (1x1 to 300x90); the renderer must keep the
@@ -17,13 +17,21 @@ lineage) while five hostile load shapes hammer it concurrently:
                         tabs, control bytes, paste-escape fragments)
                         slammed into the pty; the 'q' quit path must
                         still win cleanly at the end.
-  3. signal-storm     - five SIGINTs (deliberately NOT a quit signal -
+  3. paste-wedge      - night-frontier-Z5a: a dangling bracketed-paste
+                        START marker (ESC[200~ with no end marker - the
+                        documented hostile-wedge class, FUTURE_BACKLOG
+                        5a) followed by the 'q' quit key. Pre-Z5a this
+                        wedged crossterm's paste buffer and the quit
+                        never landed (watchdog SIGKILL, rc=-9); the
+                        compiled-out paste parser makes the marker an
+                        inert unknown CSI, so the quit must win.
+  4. signal-storm     - five SIGINTs (deliberately NOT a quit signal -
                         the bug-15 contract) delivered mid-render, then
                         one SIGTERM; the process must ignore the SIGINTs
                         (proven by the session lifetime reaching the
                         SIGTERM mark) and shut down gracefully on the
                         SIGTERM.
-  4. config-churn     - the live-reload watcher's config file rewritten
+  5. config-churn     - the live-reload watcher's config file rewritten
                         at ~5 Hz, alternating VALID values (fps 24/60)
                         with INVALID ones (a type-broken fps) - the lazy
                         event catch must apply valid edits, reject the
@@ -32,10 +40,14 @@ lineage) while five hostile load shapes hammer it concurrently:
                         path ($HOME/.config/cosmostrix/config.toml,
                         inside the safepath whitelist) and is removed
                         afterwards so no other leg inherits churn.
-  5. restart-storm    - twelve sequential short sessions at randomized
+  6. restart-storm    - twelve sequential short sessions at randomized
                         terminal sizes; startup/shutdown churn must stay
                         leak-free and every exit must carry the restore
                         tail.
+  7. suspend-resume   - SIGTSTP suspension mid-render followed by
+                        SIGCONT: the stream must stay silent while
+                        stopped, the resume repaint must land, and the
+                        deadline exit must carry the restore tail.
 
 Sentinel contract (mirrors pty_smoke.py / pty_assert.py): every checked
 fact appends one MASS-RESULT row to the --mass file, each ending in
@@ -259,17 +271,17 @@ def leg_input_flood(binary: str, mass_path: Path, workdir: Path) -> bool:
         b"j",
         b"\t",
         b"\x1b",
-        # The bracketed-paste wrapper travels as a PAIR: a dangling
-        # start marker with no end marker wedges the input parser's
-        # paste buffer (every later byte - the 'q' included - is
-        # swallowed as paste content until the end marker arrives).
-        # That dangling-start class is a real robustness finding, but
-        # it is an app-side defense decision recorded in
-        # docs/FUTURE_BACKLOG.md, not something this lane can fix; a
-        # real terminal always sends the pair, so the pool does too
-        # and the leg keeps testing the quit path under realistic
-        # junk.
+        # The bracketed-paste wrapper, both forms (night-frontier-Z5a):
+        # the PAIR a real terminal always sends, and the DANGLING START
+        # marker a hostile multiplexer could emit. Pre-Z5a the dangling
+        # form wedged the input parser's paste buffer (every later byte
+        # - the 'q' included - swallowed as paste content until the end
+        # marker arrived; FUTURE_BACKLOG.md 5a). Z5a compiles the paste
+        # parser branch out of the crossterm dependency, so both forms
+        # parse as ordinary (unknown) CSI sequences and are discarded;
+        # they ride the junk pool as regression canaries.
         b"\x1b[200~\x1b[201~",
+        b"\x1b[200~",
         b" ",
         b"\x01",
         b"\x7f",
@@ -373,6 +385,59 @@ def _pump(pid: int, master: int, log_path: Path, budget: float, tick=None):
     except OSError:
         pass
     return code, elapsed, captured
+
+
+def leg_paste_wedge(binary: str, mass_path: Path, workdir: Path) -> bool:
+    """Leg: a dangling bracketed-paste START must not wedge the input path.
+
+    night-frontier-Z5a regression leg for FUTURE_BACKLOG.md 5a. Pre-Z5a,
+    a bare ESC[200~ start marker (no end marker) wedged crossterm's
+    internal paste buffer: every later byte - the 'q' quit key included
+    - was swallowed as paste content until the watchdog SIGKILLed the
+    session (rc=-9, first CI evidence run 40466357873's torture leg).
+    Z5a compiles the paste parser branch out of the crossterm
+    dependency, so the marker parses as an unknown CSI special-key code
+    and is discarded; the quit path must win cleanly.
+    """
+    label = "torture-paste-wedge"
+    log = workdir / "torture-paste-wedge.log"
+    log.unlink(missing_ok=True)
+
+    def tick(master: int, elapsed: float) -> None:
+        if 1.0 <= elapsed < 1.05:
+            # The hostile wedge: a dangling bracketed-paste START with
+            # no end marker, followed by content bytes that pre-Z5a
+            # would all land in the paste buffer.
+            try:
+                os.write(master, b"\x1b[200~")
+                os.write(master, b"hostile-paste-content-with-q-inside")
+            except OSError:
+                return  # child already gone
+            return
+        # The quit retries run on the flood leg's proven timeline: each
+        # burst leads with a benign key that closes any dangling ESC
+        # state, then the quit key - realistic user retry, deterministic
+        # win. Pre-Z5a these bytes never produced a quit (watchdog -9);
+        # post-Z5a the first burst quits.
+        if 4.6 <= elapsed < 6.0:
+            try:
+                os.write(master, b"xq")
+            except OSError:
+                pass
+
+    code, captured = run_hostile_session(
+        binary, log, ["--duration", "30"], budget=30.0, on_tick=tick
+    )
+    ok = True
+    mass(
+        mass_path,
+        label,
+        f"{'PASS' if code == 0 else 'FAIL'} quit-through-wedge rc={code} bytes={captured}",
+    )
+    ok = ok and code == 0
+    tail_ok = assert_restore_tail(log, mass_path, f"{label}-tail")
+    ok = ok and tail_ok
+    return ok
 
 
 def leg_signal_storm(binary: str, mass_path: Path, workdir: Path) -> bool:
@@ -724,6 +789,7 @@ def main() -> int:
     legs = [
         ("resize-storm", leg_resize_storm),
         ("input-flood", leg_input_flood),
+        ("paste-wedge", leg_paste_wedge),
         ("signal-storm", leg_signal_storm),
         ("config-churn", leg_config_churn),
         ("restart-storm", leg_restart_storm),

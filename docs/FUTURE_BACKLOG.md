@@ -133,7 +133,7 @@ updated.
 4. Commit: one micro-commit per task, per the micro-commit-push owner
    rule.
 
-## 5. Hostile-input findings (open, owner-decided)
+## 5. Hostile-input findings (resolved — kept for the record)
 
 > **Opened**: night-dragon-maintenance-5 (the torture lane's first
 > real-binary run — maintenance-4 had smoke-proven it against a
@@ -146,14 +146,29 @@ quit through the flood: the input parser's paste buffer swallows every
 later byte — the `q` quit key included — as paste content until an end
 marker arrives, so the session hit the 30s watchdog SIGKILL (rc=-9,
 `quit-through-flood rc=-9 bytes=4642`, first CI evidence
-run 40466357873's torture leg). A real terminal always sends the pair,
-so this is a deliberate-attacker class, not a user-reachable path —
-but a hostile multiplexer or a corrupted terminal could produce it.
-The lane now sends the pair (a realistic terminal cannot emit a
-dangling start) and the app-side defense decision is parked here:
-either cap/drain the paste buffer (a `PasteBurstGuard`-style volume
-cap) or time out unterminated paste sequences. Runtime change, owner's
-call, needs a benchmark A/B when picked up.
+run 40466357873's torture leg).
+
+**RESOLVED 2026-11-19 (night-frontier-Z5a) — structural kill, not a
+mitigation.** The parked app-side options (cap/drain the buffer, or
+time out unterminated pastes) were verified unimplementable: the paste
+buffer lives inside crossterm 0.29's parser (unbounded `Vec<u8>`,
+`Ok(None)` retention, no cap/timeout/public drain — read against the
+actual registry source, recorded in
+`docs/research/NIGHT_FRONTIER_Z5A_PASTE_FUSE.md`). The fix compiles
+the paste parser branch out of the crossterm dependency (the
+`bracketed-paste` feature removed), so a dangling START parses as an
+ordinary unknown CSI sequence and is discarded; `Event::Paste` ceases
+to exist and `EnableBracketedPaste` is never sent. The PasteBurstGuard
+arms by burst rate (3 plain-printable Presses / 50 ms, auto-Repeat
+excluded) and the per-frame event drain is wall-clock bounded (2 ms)
+against the neighboring complete-junk-sequence storm class. Proof: the
+dedicated `paste-wedge` torture leg (dangling START + `q` must quit,
+rc=0, restore tail intact), the dangling marker back in the flood pool
+as a regression canary, the rewritten guard unit suite, and the 10 s
+A/B campaign (steady state unchanged). A real terminal always sends
+the pair; the honest residual (two live head characters on a paste,
+the upstream unterminated-CSI accumulation class) is documented in the
+research doc.
 
 **5b. SIGINT contract pinned as shipped (resolved this pass — kept for
 the record).** The maintenance-4 harness expected five SIGINTs to be

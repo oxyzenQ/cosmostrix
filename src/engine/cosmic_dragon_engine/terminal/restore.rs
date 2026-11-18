@@ -39,7 +39,10 @@ pub(crate) fn restore_terminal_best_effort() {
     let mut out = stdout();
     let _ = out.execute(event::DisableMouseCapture);
     let _ = out.execute(event::DisableFocusChange);
-    let _ = out.execute(event::DisableBracketedPaste);
+    // night-frontier-Z5a: no crossterm DisableBracketedPaste command here
+    // - bracketed paste is compiled out (Cargo.toml) and never enabled.
+    // The raw sequence below still carries the ESC[?2004l disable as a
+    // baseline reset for paste mode a previous process may have armed.
     let _ = out.write_all(TERMINAL_RESTORE_SEQUENCE.as_bytes());
     let _ = out.execute(SetAttribute(Attribute::Reset));
     let _ = out.execute(ResetColor);
@@ -137,7 +140,10 @@ pub(crate) fn restore_terminal_best_effort_nonblocking() {
 ///
 /// Disables all optional terminal modes that cosmostrix may have enabled:
 /// - Mouse reporting (1000, 1002, 1003, 1006, 1015)
-/// - Bracketed paste (2004)
+/// - Bracketed paste (2004) — baseline reset only: cosmostrix no longer
+///   enables bracketed paste itself (night-frontier-Z5a, compiled-out
+///   crossterm feature), but the sequence still disarms the mode in case
+///   an earlier process (shell, multiplexer) left it enabled
 /// - Focus events (1004)
 /// - Kitty keyboard protocol (`\x1b[<1u` — pop DISAMBIGUATE_ESCAPE_CODES)
 ///   Added v50: panic recovery must pop kitty keyboard flags, otherwise the

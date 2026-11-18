@@ -268,6 +268,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             break;
         }
         let mut pending_resize: Option<(u16, u16)> = None;
+        // NIGHT-frontier-Z5a: the per-frame drain is wall-clock bounded
+        // (2 ms) - a hostile junk-sequence storm would otherwise spin
+        // this drain forever (100% CPU, starved render); overflow stays
+        // queued, drains over later frames. Rationale: docs/research/NIGHT_FRONTIER_Z5A_PASTE_FUSE.md
+        const EVENT_DRAIN_BUDGET: Duration = Duration::from_millis(2);
         if crate::platform::swap_term_reinit(&term_reinit) {
             // NIGHT-ultimate-1: the OLD terminal was already restored
             // externally by the SIGTSTP suspend handler (raw-fd
@@ -302,7 +307,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             ctx.last_resync_time = reinit_time;
             ctx.next_frame = reinit_time;
         }
+        let drain_deadline = Instant::now() + EVENT_DRAIN_BUDGET;
         loop {
+            if Instant::now() >= drain_deadline {
+                break; // storm overflow: remainder drains over following frames
+            }
             // Drain pending events. On Windows (ConPTY) and Termux (Android
             // PTY), crossterm's event::poll/read can fail with transient I/O
             // errors — treat as non-fatal (break drain, render frame). Watchdog

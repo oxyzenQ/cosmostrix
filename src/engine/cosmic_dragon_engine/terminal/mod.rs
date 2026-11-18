@@ -150,7 +150,12 @@ pub(crate) struct Terminal {
     ansi_buf: Vec<u8>,
     mouse_capture_enabled: bool,
     focus_change_enabled: bool,
-    bracketed_paste_enabled: bool,
+    // night-frontier-Z5a: the bracketed-paste bookkeeping flag is gone.
+    // cosmostrix never enables bracketed paste (the crossterm feature is
+    // compiled out - see Cargo.toml), so there is no paste mode to track
+    // or disable; the raw TERMINAL_RESTORE_SEQUENCE still carries the
+    // ESC[?2004l baseline reset for state earlier processes may have
+    // armed.
     /// True when the kitty keyboard protocol has been pushed (CSI >1u)
     /// and must be popped (CSI <1u) at cleanup. Set in `with_signal_exit`
     /// when `term_caps.kitty_keyboard` is true AND the push succeeds.
@@ -296,7 +301,6 @@ impl Terminal {
             ansi_buf: Vec::with_capacity(STDOUT_BUF_CAPACITY),
             mouse_capture_enabled: false,
             focus_change_enabled: false,
-            bracketed_paste_enabled: false,
             kitty_keyboard_enabled: false,
             raw_mode_enabled: true,
             alternate_screen_enabled: false,
@@ -361,9 +365,6 @@ impl Terminal {
             term.cursor_hidden = true;
             if out.execute(crossterm_terminal::DisableLineWrap).is_ok() {
                 term.line_wrap_disabled = true;
-            }
-            if out.execute(event::EnableBracketedPaste).is_ok() {
-                term.bracketed_paste_enabled = true;
             }
             // Kitty keyboard protocol: push DISAMBIGUATE_ESCAPE_CODES so
             // the terminal reports the FULL modifier bitfield on every

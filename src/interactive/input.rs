@@ -24,43 +24,103 @@ use super::super::{CloudConfig, cycle_charset_preset, cycle_color_scheme};
 use super::event_loop_ctx::LoopCtx;
 
 const PASTE_BURST_SUPPRESS_MS: u64 = 50;
+/// Burst-rate arming (night-frontier-Z5a): the guard arms itself when
+/// this many distinct plain-printable Presses arrive inside
+/// [`PASTE_BURST_ARM_WINDOW_MS`] — the terminal paste signature. The
+/// threshold sits far above human typing (peak sustained ~15 keys/s is
+/// 0.75 keys per 50 ms; even frantic distinct-key mashing stays well
+/// under 60 keys/s) and far below a real paste burst (hundreds of
+/// chars/s). Auto-repeat is excluded from the count (a held key rides
+/// ONE physical press), so hold-to-repeat can never arm the window.
+const PASTE_BURST_ARM_KEYS: usize = 3;
+const PASTE_BURST_ARM_WINDOW_MS: u64 = 50;
 
+/// Suppresses plain-printable key bursts so pasted text never triggers
+/// shortcuts (`c`, `s`, `p`, ...) and never reaches the keybinding
+/// handler.
+///
+/// night-frontier-Z5a: the guard now ARMS ITSELF by burst rate. The
+/// previous arming signal — a crossterm `Event::Paste` — no longer
+/// exists: bracketed paste is compiled out of the crossterm dependency
+/// (Cargo.toml), which makes the unbounded paste-buffer wedge
+/// (FUTURE_BACKLOG.md 5a: a dangling `ESC[200~` swallowed every later
+/// byte, the quit key included, into crossterm's internal buffer)
+/// structurally unreachable. Pasted text arrives as individual plain
+/// key events, and the burst-rate detector is what keeps it away from
+/// the shortcut handlers: fewer than [`PASTE_BURST_ARM_KEYS`] presses
+/// inside the window arm nothing (human typing), while a paste burst
+/// crosses the threshold on its third character and every further
+/// suppressed press extends the window (the original suppression law,
+/// unchanged).
+///
+/// Honest residual, documented on purpose: the first
+/// [`PASTE_BURST_ARM_KEYS`] - 1 characters of a paste pass through
+/// before the window arms (a paste literally starting with `q` could
+/// quit). Terminals that delivered bracketed paste had zero live head
+/// characters before Z5a; every terminal WITHOUT bracketed-paste
+/// support (Windows conhost, older VTE) had ALL of them live. Two live
+/// head characters is strictly closer to the safe end of that range.
+///
+/// We deliberately do NOT inspect the OS event queue for "another
+/// event is ready" — on modern terminals that emit Press+Release pairs
+/// (kitty / foot / wezterm / alacritty / contour / Windows Console),
+/// the Release event is always queued immediately after the Press, so
+/// a queue-ready check would drop every single printable key press.
+/// That made `c` (color cycle), `s` (charset), `p` (pause), etc.
+/// unreachable on those terminals.
 #[derive(Default)]
 pub(super) struct PasteBurstGuard {
     suppress_until: Option<Instant>,
+    /// Ring of the last [`PASTE_BURST_ARM_KEYS`] Press stamps (Presses
+    /// only — auto-Repeat rides one physical press and never counts).
+    burst_stamps: [Option<Instant>; PASTE_BURST_ARM_KEYS],
+    burst_cursor: usize,
 }
 
 impl PasteBurstGuard {
     /// Returns true if the given plain-printable key should be silently
-    /// dropped because we are inside a bracketed-paste suppression window.
-    ///
-    /// Only the bracketed-paste signal (`note_bracketed_paste`) arms the
-    /// suppression window. We deliberately do NOT inspect the OS event queue
-    /// for "another event is ready" — on modern terminals that emit
-    /// Press+Release pairs (kitty / foot / wezterm / alacritty / contour /
-    /// Windows Console), the Release event is always queued immediately
-    /// after the Press, so a queue-ready check would drop every single
-    /// printable key press. That made `c` (color cycle), `s` (charset),
-    /// `p` (pause), etc. unreachable on those terminals.
+    /// dropped because we are inside a bracketed-paste suppression window
+    /// (armed by an earlier burst, or armed by THIS press completing a
+    /// burst signature).
     pub(super) fn ignore_plain_key(
         &mut self,
         key: &crossterm::event::KeyEvent,
         now: Instant,
     ) -> bool {
+        use crossterm::event::KeyEventKind;
+
         if !is_plain_printable_key(key) {
             return false;
         }
 
+        // Presses only: auto-Repeat (Android accept, kitty
+        // report-all-events terminals) is the SAME physical key held
+        // down — counting it would let hold-to-repeat arm the window
+        // and freeze legitimate repeat-driven cycling.
+        if key.kind == KeyEventKind::Press {
+            self.burst_stamps[self.burst_cursor] = Some(now);
+            self.burst_cursor = (self.burst_cursor + 1) % PASTE_BURST_ARM_KEYS;
+        }
+
         if self.suppress_until.is_some_and(|until| now <= until) {
             self.suppress_until = Some(now + Duration::from_millis(PASTE_BURST_SUPPRESS_MS));
-            true
-        } else {
-            false
+            return true;
         }
-    }
 
-    pub(super) fn note_bracketed_paste(&mut self, now: Instant) {
-        self.suppress_until = Some(now + Duration::from_millis(PASTE_BURST_SUPPRESS_MS));
+        // The window arms when every ring slot holds a stamp inside the
+        // arm window — i.e. this many presses landed within
+        // PASTE_BURST_ARM_WINDOW_MS.
+        let window = Duration::from_millis(PASTE_BURST_ARM_WINDOW_MS);
+        if self
+            .burst_stamps
+            .iter()
+            .all(|stamp| stamp.is_some_and(|t| now.duration_since(t) <= window))
+        {
+            self.suppress_until = Some(now + Duration::from_millis(PASTE_BURST_SUPPRESS_MS));
+            return true;
+        }
+
+        false
     }
 }
 

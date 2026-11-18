@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Non-key runtime event handling: mouse, paste, focus.
+//! Non-key runtime event handling: mouse, focus.
 //!
 //! Extracted from `event_loop.rs` (NIGHT-improve-8) to keep that file
 //! under the 800-LOC cap (repo convention: split, don't exempt).
@@ -21,9 +21,13 @@
 //!   selection state on grid updates, and keeps the grid churning under
 //!   the whole gesture so position-anchored selection copies capture
 //!   moving rain glyphs instead of the highlighted text;
-//! - pasted content is structurally discarded (the payload is never
-//!   read) — the arm only feeds the paste burst guard and the renderer
-//!   wake, keeping phosphor decay state coherent.
+//! - pasted content is structurally discarded: bracketed paste is
+//!   compiled out of the crossterm dependency (night-frontier-Z5a, see
+//!   Cargo.toml — the unbounded paste-buffer wedge it carried,
+//!   FUTURE_BACKLOG.md 5a, is structurally unreachable), so a paste
+//!   arrives as a plain key burst and is suppressed by the
+//!   PasteBurstGuard's burst-rate arming (src/interactive/input.rs)
+//!   on the `Event::Key` path in event_loop.rs.
 
 use std::time::Instant;
 
@@ -33,7 +37,7 @@ use super::activity::register_activity;
 use super::event_loop_ctx::LoopCtx;
 use super::input::is_selection_bypass_event;
 
-/// Handle one non-key runtime event (mouse / paste / focus gained).
+/// Handle one non-key runtime event (mouse / focus gained).
 ///
 /// Returns the immediate wake time when the renderer should be woken
 /// ahead of its scheduled frame; `None` leaves the loop cadence
@@ -45,19 +49,6 @@ pub(super) fn handle_runtime_event(
     is_idle: bool,
 ) -> Option<Instant> {
     match event {
-        Event::Paste(_) => {
-            let activity_time = Instant::now();
-            ctx.paste_guard.note_bracketed_paste(activity_time);
-            let _ = register_activity(
-                &mut ctx.power_manager,
-                &mut ctx.last_resync_time,
-                activity_time,
-                is_idle,
-                false,
-            );
-            ctx.cloud.force_draw_everything();
-            Some(activity_time)
-        }
         Event::Mouse(m) => {
             // Mouse events always captured (blocks drag-select). No force_draw
             // on MOVE (old: bright-color flash). CLICK wakes renderer

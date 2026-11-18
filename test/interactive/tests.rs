@@ -23,6 +23,15 @@ mod cases {
         KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE)
     }
 
+    fn repeat_key(ch: char) -> KeyEvent {
+        KeyEvent {
+            code: KeyCode::Char(ch),
+            modifiers: KeyModifiers::NONE,
+            kind: crossterm::event::KeyEventKind::Repeat,
+            state: crossterm::event::KeyEventState::NONE,
+        }
+    }
+
     #[test]
     fn idle_resync_uses_wall_clock_time() {
         let start = Instant::now();
@@ -106,50 +115,103 @@ mod cases {
         let now = Instant::now();
         let mut guard = PasteBurstGuard::default();
 
-        // No bracketed paste signal armed → plain keys must pass through.
-        // This is the critical case for printable shortcuts like
-        // C (color cycle), S (charset), P (pause) on terminals that
+        // Fewer than PASTE_BURST_ARM_KEYS presses inside the arm window
+        // arm nothing: human typing (even rapid distinct presses) must
+        // pass through. This is the critical case for printable shortcuts
+        // like C (color cycle), S (charset), P (pause) on terminals that
         // emit Press+Release pairs — previously the queue-ready heuristic
         // would drop the Press because the Release was already queued.
         assert!(!guard.ignore_plain_key(&key('p'), now));
+        assert!(!guard.ignore_plain_key(&key('c'), now + Duration::from_millis(5)));
+        assert!(!guard.ignore_plain_key(&key('s'), now + Duration::from_millis(120)));
+    }
+
+    #[test]
+    fn paste_burst_arms_on_third_rapid_press() {
+        // night-frontier-Z5a burst-rate arming: three plain-printable
+        // Presses inside the 50 ms window are the terminal paste
+        // signature. The first two stay live (the documented residual),
+        // the third completes the signature and arms the window.
+        let now = Instant::now();
+        let mut guard = PasteBurstGuard::default();
+
+        assert!(!guard.ignore_plain_key(&key('x'), now));
+        assert!(!guard.ignore_plain_key(&key('y'), now + Duration::from_millis(10)));
+        assert!(guard.ignore_plain_key(&key('z'), now + Duration::from_millis(20)));
+    }
+
+    #[test]
+    fn paste_burst_suppresses_printables_until_window_expires() {
+        // Once armed, plain printables inside the window are dropped so
+        // pasted text never triggers shortcuts like c/s/p; after the
+        // suppress window elapses, an isolated key passes through again.
+        let now = Instant::now();
+        let mut guard = PasteBurstGuard::default();
+
+        assert!(!guard.ignore_plain_key(&key('a'), now));
+        assert!(!guard.ignore_plain_key(&key('b'), now + Duration::from_millis(10)));
+        assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(20)));
+        assert!(guard.ignore_plain_key(&key('s'), now + Duration::from_millis(30)));
+        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(40)));
+        // After PASTE_BURST_SUPPRESS_MS (50ms) past the last suppressed
+        // press, plain keys must pass through again.
+        assert!(!guard.ignore_plain_key(&key('q'), now + Duration::from_millis(100)));
+    }
+
+    #[test]
+    fn burst_does_not_arm_from_presses_spread_beyond_the_window() {
+        // Human-typing pace: presses spaced wider than the arm window
+        // never accumulate into a signature, no matter how many arrive.
+        let now = Instant::now();
+        let mut guard = PasteBurstGuard::default();
+
+        assert!(!guard.ignore_plain_key(&key('h'), now));
+        assert!(!guard.ignore_plain_key(&key('e'), now + Duration::from_millis(60)));
+        assert!(!guard.ignore_plain_key(&key('l'), now + Duration::from_millis(120)));
+        assert!(!guard.ignore_plain_key(&key('l'), now + Duration::from_millis(180)));
+        assert!(!guard.ignore_plain_key(&key('o'), now + Duration::from_millis(240)));
+    }
+
+    #[test]
+    fn auto_repeat_never_arms_the_burst() {
+        // Auto-Repeat rides ONE physical press (Android accepts Repeat;
+        // kitty report-events terminals emit it too). Repeats must not
+        // count toward the paste signature, or hold-to-repeat would arm
+        // the window and freeze legitimate repeat-driven cycling.
+        let now = Instant::now();
+        let mut guard = PasteBurstGuard::default();
+
+        // One physical press, then a long hold: ten repeats inside the
+        // arm window. Every one of them must pass through (the window
+        // stays unarmed - a single press is human input, not a paste).
         assert!(!guard.ignore_plain_key(&key('c'), now));
-        assert!(!guard.ignore_plain_key(&key('s'), now));
+        for i in 1..=10 {
+            assert!(!guard.ignore_plain_key(&repeat_key('c'), now + Duration::from_millis(i)));
+        }
+        // A second distinct press: still only two presses in the ring -
+        // the repeats contributed nothing, so the window stays unarmed
+        // and the press passes through.
+        assert!(!guard.ignore_plain_key(&key('c'), now + Duration::from_millis(12)));
+        // The third distinct press completes a REAL three-press burst
+        // signature (the repeats were irrelevant to it) and arms.
+        assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(14)));
     }
 
     #[test]
     fn paste_burst_ignores_shortcut_letters() {
-        // Bracketed paste arms the suppression window; subsequent plain
-        // keys within the window must be dropped so pasted text does not
-        // trigger shortcuts like c/s/p.
+        // Non-printable / modified keys are neither suppressed nor
+        // counted: they can neither trigger the window nor be eaten by
+        // it (a paste must not swallow Ctrl+C-class presses).
         let now = Instant::now();
         let mut guard = PasteBurstGuard::default();
 
-        guard.note_bracketed_paste(now);
-        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1)));
-        assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(2)));
-        assert!(guard.ignore_plain_key(&key('s'), now + Duration::from_millis(3)));
-    }
-
-    #[test]
-    fn paste_burst_suppression_expires() {
-        let now = Instant::now();
-        let mut guard = PasteBurstGuard::default();
-
-        guard.note_bracketed_paste(now);
-        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1)));
-        // After PASTE_BURST_SUPPRESS_MS (50ms) elapses, plain keys must
-        // pass through again.
-        assert!(!guard.ignore_plain_key(&key('p'), now + Duration::from_millis(52)));
-    }
-
-    #[test]
-    fn bracketed_paste_starts_printable_suppression_window() {
-        let now = Instant::now();
-        let mut guard = PasteBurstGuard::default();
-
-        guard.note_bracketed_paste(now);
-
-        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1)));
+        let ctrl_c = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
+        assert!(!guard.ignore_plain_key(&ctrl_c, now));
+        assert!(!guard.ignore_plain_key(&ctrl_c, now + Duration::from_millis(1)));
+        assert!(!guard.ignore_plain_key(&ctrl_c, now + Duration::from_millis(2)));
+        // The Ctrl presses above must not have contributed to any burst;
+        // plain keys still pass.
+        assert!(!guard.ignore_plain_key(&key('p'), now + Duration::from_millis(3)));
     }
 
     #[test]
@@ -170,23 +232,6 @@ mod cases {
             runtime_speed_clamp(9999.0, crate::rain_style::RainStyle::Monolith),
             MONOLITH_EFFECTIVE_SPEED_MAX
         );
-    }
-
-    #[test]
-    fn paste_suppression_does_not_trigger_shortcut_actions() {
-        // Verify that paste events go through the Paste branch, not Key,
-        // so they never trigger 'c', 's', 'p', or other shortcuts.
-        let now = Instant::now();
-        let mut guard = PasteBurstGuard::default();
-
-        // Simulate a bracketed paste event
-        guard.note_bracketed_paste(now);
-
-        // Printable keys during the suppression window should be silently
-        // ignored — they must not reach the keybinding handler.
-        assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(1)));
-        assert!(guard.ignore_plain_key(&key('s'), now + Duration::from_millis(1)));
-        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1)));
     }
 
     // --- Tab key safety tests ---
