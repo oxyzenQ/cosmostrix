@@ -311,16 +311,23 @@ def run_child(args: argparse.Namespace) -> int:
 #   <pid>  ioctl(<fd>, <REQUEST>, ...) = <ret>
 # Long payloads are truncated by the `...` marker after the quoted
 # prefix — the third argument (len) stays authoritative. A write
-# interrupted by a signal appears as two lines:
-#   <pid>  write(1, "..."..., <len> <unfinished ...>)
+# interrupted by a ptrace stop or a signal (strace -f interleaves the
+# process tree: a sibling's ioctl can land between our write's head and
+# its return) appears as two lines with NO closing paren on the head:
+#   <pid>  write(1, "..."..., <len> <unfinished ...>
 #   <pid>  <... write resumed>"..."..., <len>) = <ret>
-# The ledger joins those pairs per pid before counting; alt-output
-# and ioctl heads are counted once (their resumed tails pass).
+#   <pid>  <... write resumed>) = <ret>          (payload-less tail:
+#                                                 strace showed the
+#                                                 whole prefix in the head)
+# The ledger joins those pairs per pid before counting (one syscall,
+# head bytes + tail bytes); alt-output and ioctl heads are counted once
+# (their resumed tails pass). A head with no tail, or a tail with no
+# head, is a problem row - never guessed silently.
 WRITE_OPEN = re.compile(
-    r"^\s*(\d+)\s+write\((\d+), \"((?:[^\"\\]|\\.)*)\"(\.\.\.)?, (\d+)( <unfinished \.\.\.>)?\)"
+    r"^\s*(\d+)\s+write\((\d+), \"((?:[^\"\\]|\\.)*)\"(\.\.\.)?, (\d+)( <unfinished \.\.\.>)?(?:\))?"
 )
 WRITE_RESUMED = re.compile(
-    r"^\s*(\d+)\s+<\.\.\. write resumed>\"((?:[^\"\\]|\\.)*)\"(\.\.\.)?, (\d+)\)\s*=\s*(-?\d+)"
+    r"^\s*(\d+)\s+<\.\.\. write resumed>(?:\"((?:[^\"\\]|\\.)*)\"(\.\.\.)?, )?(\d+)?\)\s*=\s*(-?\d+)"
 )
 WRITE_RET = re.compile(r"\)\s*=\s*(-?\d+)\s*$")
 ALT_OUT_OPEN = re.compile(r"^\s*(\d+)\s+(writev|pwrite64|pwritev|pwritev2)\((\d+),")
@@ -443,7 +450,10 @@ def parse_trace(
                         int(pid),
                         head_fd,
                         int(length) if length else head_len,
-                        head_payload + decode_strace_string(payload_text),
+                        # A payload-less resumed tail (strace showed the
+                        # whole prefix in the head) contributes no bytes.
+                        head_payload
+                        + (decode_strace_string(payload_text) if payload_text else b""),
                         int(ret),
                         order,
                     )
