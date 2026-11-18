@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The thirty-six, in dependency order
+## The thirty-nine, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -441,7 +441,10 @@ by the compiled-in test tree; the PTY truth harnesses run the real
 binary on a real pty (smoke, byte-log assertions, five hostile load
 shapes, the depth-bore drift drill); the syscall-floor ledger
 straces the release shape and proves the kernel floor is exactly
-one write() per drawn frame (entry 35); CI proves the documented Linux
+one write() per drawn frame (entry 35); the torture battery's leg 6
+proves the suspend/resume contract end to end (entry 37) and the pty
+battery's leg 7 enforces the color-16 HUD purity contract (KNOWN_ISSUES,
+3a); CI proves the documented Linux
 kernel floor and the latest mainline in KVM micro-VMs; and the gate
 suite enforces headers, language, emoji, hype vocabulary, and doc
 hygiene on every push.
@@ -779,6 +782,134 @@ Verifier: `cargo test cosmic_dragon_incubator::tests::alloc_ledger`
 — the zero test must report 0/0/0 across the window and the positive
 control must count exactly the frame count; the suite runs on every
 commit in CI.
+
+### 37. The exact-state suspend/resume contract (the full-termios snapshot)
+
+Problem killed: "SIGTSTP (Ctrl-Z) suspends in raw mode... Recovery is
+automatic on `fg`/SIGCONT as long as nothing else wrote to the TTY" —
+a README limitation whose recovery depended on the terminal staying
+quiet and whose "stays in raw mode" claim was stale besides (the
+suspend path's `disable_raw_mode` is a direct `tcsetattr` syscall,
+immune to PTY byte jams). The real termios-axis gap: crossterm's
+`disable_raw_mode` restores the termios it saved at SESSION START, so
+any drift since then (another process `stty`-ing the same device, a
+nested raw-mode tool) made both suspend and resume run on stale bytes.
+Mechanism (night-frontier-Z3, Lapis 3b):
+`src/platform/termios_snapshot.rs` captures the EXACT current termios
+at SIGTSTP — before raw mode is disabled, via `tcgetattr` on the tty
+device — and the SIGCONT reinit branch re-applies those precise bytes
+over crossterm's canonical raw mode, so the render loop resumes on the
+same termios it suspended with, byte for byte, regardless of anything
+the device saw while the session was backgrounded. The escape-sequence
+axis stays on the existing nonblocking restore + full repaint contract
+(its own drift is covered by design: a dropped restore byte surfaces
+as visual drift the repaint overwrites). A bare `kill -CONT` with no
+snapshot in flight is a no-op — the pre-Z3 behavior. Honest scope: the
+Windows/Termux hosts cannot be exercised in this repo's CI; the
+observable contract is proven end to end by the supermassive torture
+battery's suspend-resume leg (leg 6): SIGTSTP silences the stream,
+shell-prompt bytes are written to the device while the session is
+stopped, SIGCONT resumes with a repaint burst, and the session exits
+by its own deadline with the full restore tail.
+Truth: `src/platform/termios_snapshot.rs` (the capture, the exact
+re-apply, the no-tty degradation), `src/interactive/signal_handlers.rs`
+(the SIGTSTP capture arm), `src/interactive/event_loop.rs` (the
+SIGCONT restore in the reinit branch),
+`scripts/supermassive/torture.py` (leg 6, the end-to-end proof).
+Verifier: the torture battery's `torture-suspend-resume` rows must all
+read PASS in CI (silence, repaint, deadline exit, restore tail); the
+snapshot slot contract is pinned by
+`cargo test platform::termios_snapshot` (capture replaces, restore
+consumes, a consumed snapshot never restores twice, and the no-tty
+path degrades without panicking); the README Limitations list no
+longer carries the SIGTSTP caveat — the contract lives in
+[TERMINAL_LIFECYCLE_MATRIX.md](TERMINAL_LIFECYCLE_MATRIX.md) rows 5-6.
+
+### 38. The synthetic terminal-gone quarantine (the pinned sudden-exit root cause)
+
+Problem killed: "Windows / Termux: the `i` key may cause sudden exit"
+— KNOWN_ISSUES' longest-standing "root cause (suspected)" entry. The
+exit was the event loop treating ONE terminal-gone error
+(`is_terminal_gone`: EIO/EBADF/BrokenPipe from crossterm's poll/read)
+as a dead PTY; on Windows and Termux the documented delivery pattern
+is a key event followed immediately by a SYNTHETIC EOF or transient
+I/O error — a single error from a perfectly alive terminal. Mechanism
+(night-frontier-Z3, Lapis 3a): `src/interactive/terminal_gone.rs`
+splits the two error classes on PERSISTENCE — a real dead terminal
+errors persistently, a synthetic one errors once — and quarantines a
+terminal-gone error only when it lands within 150 ms of an accepted
+key event AND is the first in that window. Any error outside the
+window, or a second one inside it, is persistent real death and exits
+exactly as fast as before (the post-SIGHUP fast-exit contract is
+untouched; a truly dead fd errors on the immediate re-poll and exits
+within milliseconds). Write-side failures are never quarantined — a
+write error is the kernel reporting a broken fd from the syscall
+itself. Honest limits: Windows ConHost and Termux cannot be exercised
+in this repo's CI; the quarantine covers the documented
+single-error-after-key pattern on both platforms by mechanism, pinned
+by unit tests, with non-regression proven by the supermassive PTY
+battery (a real EIO mid-run still exits; the quit paths are
+unchanged).
+Truth: `src/interactive/terminal_gone.rs` (the guard, the verdict
+state machine, the four tests), `src/interactive/event_loop.rs` (the
+four quarantine call sites, the key-activity arming).
+Verifier: `cargo test interactive::terminal_gone` — one
+error-after-key is absorbed, two are not, spontaneous errors exit
+immediately, non-gone errors always propagate; the pty smoke legs and
+the torture battery must stay green (no regression on real
+terminal-gone handling).
+
+### 39. Reader-aware emission (the consumer-side cost model)
+
+Problem killed: the terminal as a black box. The producer-side sweep
+(entry 25's incubator) priced the hot path in producer terms — bytes
+out, cells touched — while the consumer's parse cost stayed invisible,
+so congestion was learned only AFTER the pipe filled: the HUNT-23
+drain backoff is reactive by construction, and the VTE fullscreen
+entry documents exactly that weakness ("VTE's internal buffering
+creates a feedback delay that prevents perfect stabilization").
+Mechanism (night-frontier-Z3, Lapis 3c — the one NEW mechanism of this
+lapis):
+`src/central_control_power_dragon/reader_cost.rs` models the CONSUMER:
+terminal families differ in what bounds their ANSI consumption
+(byte-bound CPU parsers — the VTE family, konsole, foot; heap-bound
+xterm.js; op-bound GPU renderers), each family gets a sustainable
+byte-rate policy floor derived from the repo's own documented
+arithmetic (the Tier-2 section's 7 MB/s xterm.js number, HUNT-24's
+"2.4x overdrain" CPU derivation), and one frame's byte volume —
+which the Z2 syscall-floor ledger already made kernel-exact — maps to
+a predicted consumer parse time. `PowerManager::observe_reader_cost`
+compares the prediction against the frame period and drives a reader
+backoff through the SAME rise/fall discipline as the measured drain
+backoff: the output cadence paces to the family's sustainable rate
+BEFORE the pipe backs up. Zero new surface: the family resolves from
+the existing HUNT-24 termdetect sensors (no new detection layers),
+the lever is the existing FPS pacing, and unarmed managers (the
+pre-3c shape, and every test harness) no-op. Honest limits: the
+constants are policy floors, not claimed measurements — the reactive
+drain backoff remains the source of truth for REAL latency, and the
+model's only job is to engage the same lever earlier; the
+calibration rows pin the model against the byte volumes the
+supermassive legs captured (no false throttling of documented-healthy
+volumes, no blind throttling of the documented VTE saturation), and
+the static RLE threshold is validated against the consumer-side
+byte crossover rather than made adaptive (the hot path stays
+branch-free).
+Truth: `src/central_control_power_dragon/reader_cost.rs` (the family
+model, the predicted parse, the calibration rows, the threshold
+validation), `src/central_control_power_dragon/power_manager/mod.rs`
+(the reader backoff, the effective_fps stronger-of rule),
+`src/interactive/event_loop_post_draw.rs` (the per-frame feed),
+`src/engine/cosmic_dragon_engine/terminal/io_recovery.rs` (the
+per-frame byte volume, exact by the Z2 ledger).
+Verifier: `cargo test central_control_power_dragon::reader_cost`
+(family ordering, monotonicity, calibration verdicts, the threshold
+validation, the sensor mapping) and
+`cargo test central_control_power_dragon::power_manager` (the wiring
+teeth: an over-budget frame paces the CPU family and not the GPU
+family, an unarmed manager no-ops, healthy frames decay to full
+cadence); the CI pty/torture lanes must stay green (the model must
+never false-throttle the documented-healthy 80x24 shapes).
 
 ## Retired by verdict
 

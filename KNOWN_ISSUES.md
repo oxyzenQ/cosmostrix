@@ -438,8 +438,16 @@ click sparks are interaction impulses whose latency is a
 responsiveness signal.
 
 The VTE ANSI throughput bottleneck itself (slow frame rate on CPU-rendered
-terminals) remains a known limitation — the fix addresses the particle
-*visual* behavior, not the terminal's rendering speed.
+terminals) was closed as a RENDERER-side tail in night-frontier-Z3 (3c,
+the reader-aware cost model, INNOVATIONS entry 39): the producer now
+paces to the family's sustainable drain rate BEFORE the pipe backs up —
+the feedback delay this entry documented ("VTE's internal buffering
+creates a feedback delay that prevents perfect stabilization under
+sustained fullscreen load") is killed proactively instead of chased
+reactively. What remains is a TERMINAL property, not a cosmostrix
+defect: a CPU-rendered terminal still renders at its own speed, and the
+documented place for that is [TERMINAL_COMPATIBILITY.md](TERMINAL_COMPATIBILITY.md),
+not this file.
 
 ---
 

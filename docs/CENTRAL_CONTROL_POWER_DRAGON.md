@@ -555,6 +555,27 @@ tracked only on first transition, `note_activity` clears idle,
 `PowerThresholds` overrides via `with_thresholds`, and several edge
 cases around zero/negative FPS and clock jumps.
 
+### 6a. The reader-aware backoff (night-frontier-Z3, Lapis 3c)
+
+The drain backoff above is REACTIVE: it rises on measured write
+latency, after the PTY has already backed up. The reader-aware layer
+(`src/central_control_power_dragon/reader_cost.rs`, INNOVATIONS entry
+39) adds the PROACTIVE twin: the terminal family (resolved once from
+the HUNT-24 termdetect sensors) carries a sustainable byte-rate policy
+floor — the raw console 1 MB/s, the CPU parser class (VTE family,
+konsole, foot) 2 MB/s, xterm.js the documented 7 MB/s, the GPU tier
+20 MB/s — and one drawn frame's byte volume (kernel-exact since the
+Z2 syscall-floor ledger) maps to a predicted consumer parse time.
+When the prediction exceeds the frame period, `reader_backoff` rises
+through the same discipline as `drain_backoff` (rise 0.05, fall
+0.002, clamp [0,1]) and `effective_fps` paces to the stronger of the
+two. The constants are policy floors, not claimed measurements — the
+measured backoff remains the source of truth for real latency; the
+model's only job is to engage the same lever earlier, killing the
+feedback delay the VTE fullscreen entry documents. Zero new surface:
+the family rides the existing sensors, the lever is the existing FPS
+pacing, and an unarmed manager (tests, pre-wiring) no-ops.
+
 ---
 
 ## 7. `PowerThresholds` struct reference
