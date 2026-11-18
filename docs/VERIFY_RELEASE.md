@@ -92,6 +92,34 @@ tagged `Cargo.lock` (the `crates-io.yml` workflow publishes with
 lags behind a GitHub Release — both channels publish on the same tag
 push (stable and pre-release alike).
 
+## 4a. Reproducible release chain — rebuild the published hash yourself
+(night-frontier-Z1)
+
+Checksums and signatures prove WHO shipped an artifact; reproducibility
+proves WHAT it is: the published hash must be the hash anyone can
+rebuild from source. The CI carries the standing proof on every push
+(`ci.yml`: `reproducible_build` + `reproducible_verify`) — two
+INDEPENDENT runners build the pinned release shape
+(`pro-linux-amd64-v3-musl`: static musl, x86-64-v3) from the same
+commit with the same `SOURCE_DATE_EPOCH` pin (the commit timestamp),
+the release lane's redacted path prefixes, and NO shared cache, and the
+verify job requires byte identity (`cmp`). To re-verify locally on one
+host (two clean builds, byte-identical):
+
+```
+bash scripts/release/repro-build.sh
+```
+
+The build time embedded in the binary (`COSMOSTRIX_BUILD_TIME`, shown
+by `cosmostrix -V`) honors `SOURCE_DATE_EPOCH` — set it to the commit
+timestamp (`git log -1 --format=%ct`) and your rebuild embeds the same
+minute as the published artifact. Without the variable (plain dev
+builds) the wall clock is used, exactly as before. What is NOT yet
+claimed honestly: the local two-pass proof shares one checkout path
+and one host (the CI two-runner job is the stronger cross-host proof),
+and the proof covers the Linux x86-64-v3 musl lane — the exact shape
+the release ships.
+
 ## 5. Raw binary hygiene in the repository (night-cafe-1)
 
 A raw compiled binary is a local build/extract product, never tracked

@@ -266,6 +266,129 @@ jobs:
       - name: Tests (nextest partition)
         run: cargo nextest run --workspace --locked --partition count:${{ matrix.partition }}/2 --retries 1
 
+  # ── Reproducible release chain (night-frontier-Z1, Proof Moat 1b) ────
+  # Two INDEPENDENT runners build the pinned release shape
+  # (pro-linux-amd64-v3-musl: static musl, x86-64-v3) from the same
+  # commit with the same SOURCE_DATE_EPOCH pin (the commit timestamp),
+  # the release lane's redacted path prefixes, and NO shared cache —
+  # every dependency compiles from the lockfile on each host, so the
+  # comparison is a true two-process two-host proof, not a cache
+  # echo. The verify job downloads both artifacts and requires byte
+  # identity (cmp): the published hash must be the hash anyone can
+  # rebuild from source, which permanently retires the
+  # "modified build without a trace" class for the release lane.
+  reproducible_build:
+    name: Cosmic Dragon Guard - Reproducible build (host ${{ matrix.host }})
+    runs-on: ubuntu-24.04
+    needs: [version-sync]
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [a, b]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Set cargo build jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(nproc 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS=2
+          fi
+          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
+
+      - name: Install musl target (static link, self-contained)
+        run: rustup target add x86_64-unknown-linux-musl
+
+      - name: Build (pinned epoch, redacted paths, no cache)
+        env:
+          COSMOSTRIX_BUILD: linux-x86_64-v3-musl
+          COSMOSTRIX_PROFILE: pro-linux-amd64-v3-musl
+        run: |
+          set -euo pipefail
+          # The epoch pin is the commit timestamp: identical on every
+          # host that checks out this commit, stable across re-runs.
+          EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=${EPOCH}"
+          export SOURCE_DATE_EPOCH="${EPOCH}"
+          # The EXACT release-lane composition (scripts/lib/builds.sh):
+          # CPU pin + redacted path prefixes + force-frame-pointers,
+          # exported here (not in the env block) so ${HOME}/${PWD}
+          # expand in the shell exactly like the release lane expands
+          # them. -D warnings is appended per the strict CI law; it is
+          # a lint gate and does not change codegen bytes. No shared
+          # cache is used in this job, so both hosts compile the entire
+          # graph from the lockfile.
+          export RUSTFLAGS="-C target-cpu=x86-64-v3 --remap-path-prefix=${HOME}/.cargo=redacted --remap-path-prefix=${PWD}=redacted -Cforce-frame-pointers=yes -D warnings"
+          cargo build --profile pro-linux-amd64-v3-musl --locked --target x86_64-unknown-linux-musl --jobs "${CARGO_BUILD_JOBS}"
+          BIN="target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix"
+          ls -l "${BIN}"
+          sha256sum "${BIN}" | tee "cosmostrix-sha256-host-${{ matrix.host }}.txt"
+
+      - name: Upload artifact (host ${{ matrix.host }})
+        uses: actions/upload-artifact@v7
+        with:
+          name: reproducible-cosmostrix-host-${{ matrix.host }}
+          path: |
+            target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix
+            cosmostrix-sha256-host-${{ matrix.host }}.txt
+          retention-days: 3
+
+  reproducible_verify:
+    name: Cosmic Dragon Guard - Reproducible verify (byte identity)
+    runs-on: ubuntu-24.04
+    needs: [reproducible_build]
+    timeout-minutes: 5
+    steps:
+      - name: Download host a artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: reproducible-cosmostrix-host-a
+          path: host-a
+
+      - name: Download host b artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: reproducible-cosmostrix-host-b
+          path: host-b
+
+      - name: Compare byte-for-byte
+        run: |
+          set -euo pipefail
+          A="host-a/cosmostrix"
+          B="host-b/cosmostrix"
+          ls -l "$A" "$B"
+          echo "host a: $(cat host-a/cosmostrix-sha256-host-a.txt)"
+          echo "host b: $(cat host-b/cosmostrix-sha256-host-b.txt)"
+          if cmp -s "$A" "$B"; then
+            echo "REPRODUCIBLE RELEASE CHAIN: PASS — two independent hosts produced byte-identical release binaries"
+          else
+            echo "::error::Reproducibility FAILED: the two host builds differ byte-wise"
+            sha256sum "$A" "$B"
+            cmp -l "$A" "$B" | head -20 || true
+            exit 1
+          fi
+          # The release-shaped artifact also has to RUN: the static musl
+          # binary executes on the ubuntu runner and the replay oracle
+          # (Proof Moat 1a) must hold on the release lane too.
+          chmod +x "$A"
+          REPLAY="$("$A" --bench-replay | grep -aF 'replay-digest:' | tail -1 || true)"
+          echo "${REPLAY}"
+          test -n "${REPLAY}"
+
   macos_build:
     name: Cosmic Dragon Guard - Build (macos native)
     runs-on: ${{ matrix.os }}

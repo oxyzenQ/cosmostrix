@@ -33,6 +33,11 @@ fn main() {
     println!("cargo:rerun-if-env-changed=RUSTFLAGS");
     println!("cargo:rerun-if-env-changed=CARGO_ENCODED_RUSTFLAGS");
     println!("cargo:rerun-if-env-changed=GITHUB_SHA");
+    // night-frontier-Z1 (Proof Moat 1b): the build time honors
+    // SOURCE_DATE_EPOCH, so a change to the pin must rebuild the crate
+    // (otherwise a stale COSMOSTRIX_BUILD_TIME could survive an epoch
+    // correction and silently break the byte-identity claim).
+    println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
 
     let profile_name = detect_profile_name();
     let target_features = target_features();
@@ -714,9 +719,32 @@ fn detect_rustc_version() -> String {
 /// entry (saves ~1.3s on clean release builds by avoiding a second
 /// compile instance of chrono).
 ///
+/// Reproducible-builds law (night-frontier-Z1, Proof Moat 1b): when
+/// `SOURCE_DATE_EPOCH` is set to a valid unix timestamp, it AUTHORITATIVELY
+/// pins the build time (the convention documented at
+/// reproducible-builds.org — two hosts building the same commit with the
+/// same epoch embed the same minute and can be compared byte-for-byte).
+/// An invalid value emits a cargo warning and falls back to the wall
+/// clock, so a typo is visible in the build log (and the CI strict-build
+/// scanner fails the lane) instead of silently mis-pinning a release.
+/// With the variable unset (plain dev builds) the wall clock is used,
+/// exactly as before.
+///
 /// Returns "unknown" only if `SystemTime::now()` is somehow before
 /// `UNIX_EPOCH` (which would indicate a broken system clock).
 fn format_build_time_utc() -> String {
+    // Pure resolver keeps the epoch law unit-testable (the build-script
+    // test suite runs standalone and cannot touch env safely).
+    match resolve_source_date_epoch(std::env::var("SOURCE_DATE_EPOCH").ok().as_deref()) {
+        Ok(secs) => return format_unix_secs_as_build_time(secs),
+        Err(Some(raw)) => {
+            println!(
+                "cargo:warning=SOURCE_DATE_EPOCH='{}' is not a valid non-negative unix timestamp; the build time falls back to the wall clock and the artifact will NOT be byte-reproducible",
+                raw
+            );
+        }
+        Err(None) => {}
+    }
     use std::time::{SystemTime, UNIX_EPOCH};
 
     let Ok(secs) = SystemTime::now().duration_since(UNIX_EPOCH) else {
@@ -724,6 +752,27 @@ fn format_build_time_utc() -> String {
     };
     let total_secs: i64 = i64::try_from(secs.as_secs()).unwrap_or(0);
     format_unix_secs_as_build_time(total_secs)
+}
+
+/// Pure resolver for the SOURCE_DATE_EPOCH pin (night-frontier-Z1,
+/// Proof Moat 1b).
+///
+/// `Ok(secs)` is the authoritative build-time pin; `Err(None)` means
+/// the variable is UNSET (fall back to the wall clock — plain dev
+/// builds keep the old behavior); `Err(Some(raw))` marks an invalid
+/// value (the caller emits a cargo warning and falls back, so a typo
+/// is loud in the build log instead of silently mis-pinning a release).
+fn resolve_source_date_epoch(raw: Option<&str>) -> Result<i64, Option<String>> {
+    match raw {
+        None => Err(None),
+        Some(value) => {
+            let trimmed = value.trim();
+            match trimmed.parse::<i64>() {
+                Ok(secs) if secs >= 0 => Ok(secs),
+                _ => Err(Some(value.to_string())),
+            }
+        }
+    }
 }
 
 /// Pure formatting function — takes unix-epoch seconds and returns
@@ -1004,5 +1053,29 @@ mod tests {
         // 1969-12-31 23:59:00 UTC = -60 seconds.
         let result = format_unix_secs_as_build_time(-60);
         assert_eq!(result, "1969-12-31 23:59Z");
+    }
+
+    #[test]
+    fn source_date_epoch_law_unset_invalid_and_valid() {
+        // Unset: the wall-clock fallback (the pre-1b dev behavior).
+        assert_eq!(resolve_source_date_epoch(None), Err(None));
+        // Valid non-negative unix timestamps pin the build time.
+        assert_eq!(resolve_source_date_epoch(Some("0")), Ok(0));
+        assert_eq!(
+            resolve_source_date_epoch(Some("1763376000")),
+            Ok(1_763_376_000)
+        );
+        // Surrounding whitespace is tolerated (CI scripts may quote).
+        assert_eq!(resolve_source_date_epoch(Some(" 42 ")), Ok(42));
+        // Negative and garbage values are rejected loudly, carrying the
+        // raw string so the caller can name it in the warning.
+        assert_eq!(
+            resolve_source_date_epoch(Some("-1")),
+            Err(Some("-1".to_string()))
+        );
+        assert_eq!(
+            resolve_source_date_epoch(Some("not-a-number")),
+            Err(Some("not-a-number".to_string()))
+        );
     }
 }

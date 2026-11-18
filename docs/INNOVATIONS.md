@@ -594,6 +594,51 @@ build must end on the same `replay-digest:` line); and locally,
 `cosmostrix --bench-replay | grep replay-digest` twice must print the
 same hex.
 
+### 33. The reproducible release chain (byte-identical two-host builds)
+
+Problem killed: process identity was unclaimed. The provenance depth
+matrix (entry 31) proves an ARTIFACT is intact and the replay oracle
+(entry 32) proves the RENDER CONTRACT — but nothing proved that the
+published hash is the hash anyone can rebuild from source. A
+"modified build without a trace" — patched between build and publish,
+or built from a tree that is not the tagged source — was invisible to
+both existing proofs. Mechanism (night-frontier-Z1, Proof Moat 1b):
+the last wall-clock leak in the binary is closed
+(`COSMOSTRIX_BUILD_TIME` read `SystemTime::now()` per build; it now
+honors `SOURCE_DATE_EPOCH` — the reproducible-builds.org convention —
+with a loud cargo warning on an invalid pin instead of a silent
+mis-pin), and the CI runs a standing two-host proof on every push:
+`reproducible_build` is a two-runner matrix that each compiles the
+pinned release shape (`pro-linux-amd64-v3-musl`: static musl,
+x86-64-v3, LTO fat, codegen-units 1) from the lockfile with NO shared
+cache, the same `SOURCE_DATE_EPOCH` (the commit timestamp), and the
+release lane's exact RUSTFLAGS composition (`-C target-cpu=x86-64-v3`
+plus `--remap-path-prefix` redaction of `${HOME}/.cargo` and `${PWD}`
+plus `-Cforce-frame-pointers=yes`); `reproducible_verify` downloads
+both artifacts and requires byte identity (`cmp`). Local re-verify on
+one host (two cold builds, byte-identical): `bash
+scripts/release/repro-build.sh` — opt-in, never wired into check-all,
+because CI already burns the two full LTO builds per push. Honest
+limits: the local script proves same-host process identity (one
+checkout path, one machine — the CI two-runner job is the stronger
+cross-host proof); the standing proof covers the Linux x86-64-v3 musl
+lane, the exact shape the release ships, not every matrix lane; and
+the two runners are independent machines only as far as GitHub
+hardware isolates them — a hypothetical synchronized compromise of
+both runners is outside the threat model (the GPG layer in
+VERIFY_RELEASE.md is the backstop).
+Truth: `build.rs` (`resolve_source_date_epoch` — the epoch law, the
+warning fallback, the rerun-if-env trigger), `.github/workflows/ci.yml`
+(`reproducible_build`, `reproducible_verify`), and
+`scripts/release/repro-build.sh` (the local verifier).
+Verifier: the CI `reproducible_verify` job must print
+`REPRODUCIBLE RELEASE CHAIN: PASS` on every push (two hosts, one
+`cmp`); the build-script test suite pins the epoch resolver
+(`source_date_epoch_law_unset_invalid_and_valid` via the standalone
+`rustc --edition 2024 --test build.rs` runner); and the doc section
+[VERIFY_RELEASE.md](VERIFY_RELEASE.md) 4a tells the rebuild-yourself
+recipe once.
+
 ## Retired by verdict
 
 Not every idea earned its place. These were evaluated and rejected,
