@@ -148,8 +148,11 @@ impl SgrMode {
     /// authoritative post-palette resolution; `set_color_cache`
     /// re-arms from it once the cache is built.
     #[must_use]
-    pub(crate) fn from_color_mode(mode: crate::cosmic_dragon_engine::runtime::ColorMode) -> Self {
-        use crate::cosmic_dragon_engine::runtime::ColorMode;
+    pub(crate) fn from_color_mode(mode: crate::runtime::ColorMode) -> Self {
+        // crate::runtime (NOT the crate-root cosmic_dragon_engine
+        // re-export, which is cfg(any(unix, test))-gated and breaks the
+        // Windows build). Every other consumer rides this same path.
+        use crate::runtime::ColorMode;
         match mode {
             ColorMode::Mono => SgrMode::Mono,
             ColorMode::Color16 => SgrMode::Classic16,
