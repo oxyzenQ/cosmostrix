@@ -159,12 +159,11 @@ impl super::Cloud {
                 // froze.
                 self.gust.shift_in_time(elapsed);
                 self.event_manager.shift_in_time(elapsed);
-                // v30 fix: shift ALL active flash wave births (was single slot).
-                for w in &mut self.flash_waves {
-                    if w.active {
-                        w.birth += elapsed;
-                    }
-                }
+                // Z4b: the shockwave field needs NO pause bookkeeping — the
+                // solver steps only inside rain_at, which does not run while
+                // paused, so the wave freezes mid-flight and continues
+                // exactly where it froze (the old slot-birth shift is
+                // obsolete: there are no Instant births anymore).
                 // v30 fix: shift active quantum particle births too. Without
                 // this, particles spawned before pause instantly expire on
                 // unpause (age includes pause duration, exceeding 0.8s life).

@@ -229,8 +229,8 @@ pub struct Args {
     pub intro_color: Option<String>,
 
     // v17 mastery: --mouse flag DELETED. Mouse hover/click visual effects
-    // are now ALWAYS ON (glow + dual-ring click wave; reporting always on,
-    // blocks text selection).
+    // are now ALWAYS ON (glow + the wave-equation click shockwave; reporting
+    // always on, blocks text selection).
     #[arg(
         short = 'm',
         help_heading = "Common options",

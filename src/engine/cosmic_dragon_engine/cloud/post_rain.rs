@@ -367,18 +367,13 @@ impl super::Cloud {
         // such cells are only ever set by event.seed_phosphor() (which
         // was a no-op for GhostEvent). The function itself was removed
         // from GhostEventScheduler.
-
-        // v30 fix: sweep ALL active flash waves, not single slot.
-        // Each wave expires independently after MOUSE_FLASH_DURATION_SECS.
-        // Multiple concurrent waves (from rapid clicks) each get their own
-        // lifetime — no more reset-on-second-click.
-        for w in &mut self.flash_waves {
-            if w.active
-                && now.saturating_duration_since(w.birth).as_secs_f32() >= MOUSE_FLASH_DURATION_SECS
-            {
-                w.active = false;
-            }
-        }
+        //
+        // Z4b: the old flash-wave expiry sweep lived here (each slot
+        // expired after MOUSE_FLASH_DURATION_SECS). The shockwave field
+        // replaces it: the wave's life is its own damping physics — the
+        // amplitude envelope decays as exp(-k*t/2) and the solver clears
+        // + settles itself at the invisible floor (see wave_field.rs).
+        // There is nothing left to sweep.
 
         // ── Component timing: render end ────────────────────────────────
         // Capture render_ms AFTER all frame mutations complete. Anything

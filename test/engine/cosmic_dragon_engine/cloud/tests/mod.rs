@@ -24,6 +24,7 @@ mod tests_hud_toggle_hunt16;
 mod tests_hunt14;
 mod tests_lorenz;
 mod tests_monolith;
+mod tests_mouse_shockwave;
 mod tests_msg_border_positional;
 mod tests_msg_fill_cascade;
 mod tests_msg_fill_glitch;
@@ -41,7 +42,6 @@ mod tests_phosphor_sweep;
 mod tests_phosphor_thaw_hunt2;
 mod tests_physarum;
 mod tests_quantum;
-mod tests_quantum_flash_wave;
 mod tests_quantum_hunt22;
 mod tests_quantum_v50;
 mod tests_quasar;
@@ -58,13 +58,14 @@ mod tests_stuck_cells_hunt36;
 mod tests_stuck_cells_hunt43;
 mod tests_visual_depth;
 mod tests_vortex;
+mod tests_wave_field;
 
 use std::time::{Duration, Instant};
 
 use crossterm::style::Color;
 
 use super::Cloud;
-use super::render::{DrawCtx, PaletteLadder};
+use super::render::{DrawCtx, PaletteLadder, WaveCtx};
 // v50 (2026-08-17) border gradient fix: expose the interpolation helper to
 // the test submodule so tests/tests_border_gradient.rs can verify the smooth
 // gradient produces interpolated colors at non-integer `t` values.
@@ -269,7 +270,10 @@ fn charset_wave_uses_old_rows_below_and_new_rows_above() {
         color_wave_line: None,
         mouse_col: u16::MAX,
         mouse_line: u16::MAX,
-        flash_waves: &[],
+        wave: WaveCtx {
+            amp: &[],
+            head_rgb: (255, 255, 255),
+        },
         pool_is_binary: false,
         atmospheric: None,
         hue_drift_offset: None,
@@ -505,7 +509,10 @@ fn color_uses_previous_palette_below_wave_line() {
         color_wave_line: Some(3.0),
         mouse_col: u16::MAX,
         mouse_line: u16::MAX,
-        flash_waves: &[],
+        wave: WaveCtx {
+            amp: &[],
+            head_rgb: (255, 255, 255),
+        },
         pool_is_binary: false,
         atmospheric: None,
         hue_drift_offset: None,

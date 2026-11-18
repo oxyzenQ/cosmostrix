@@ -16,8 +16,7 @@ use crate::cloud::{CellPaint, CharLoc, DrawCtx};
 use crate::constants::{
     EDGE_FADE_BOLD_THRESHOLD, FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP, HEAD_BLOOM_CELLS,
     HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_SELFBLOOM_BASE, HEAD_SHIMMER_PERIOD_SECS,
-    MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC,
-    MOUSE_GLOW_INTENSITY, MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES,
+    MOUSE_FLASH_INTENSITY, MOUSE_GLOW_INTENSITY, MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES,
     PARALLAX_BRIGHTNESS_MULT, PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM,
     PARALLAX_HEAD_BLOOM_MULT, PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_SATURATION_MULT,
     RAIN_SHADOW_LAYER_MULT, TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
@@ -426,85 +425,41 @@ impl super::Droplet {
                     }
                 }
 
-                // Click flash: expanding glow wave from click point (v17 mastery).
-                // v30 fix: iterate ALL active flash waves (was single slot).
+                // Click shockwave (Z4b): the ripple is the SOLUTION of the
+                // 2D wave equation on the cell grid — the field solved
+                // once per frame in rain_at (leapfrog FDTD, Mur absorbing
+                // edges, time-centered damping). This hot path just READS
+                // the solved displacement at this cell: one bounds-checked
+                // lookup and a clamp, strictly cheaper than the old
+                // per-wave distance math (no sqrt, no per-wave loop).
                 //
-                // Each wave is a dual-ring water-drop ripple. A primary bright
-                // ring expands outward at MOUSE_FLASH_SPEED cells/s, followed
-                // by a secondary dimmer ring at half speed — creating a layered
-                // "stone in water" cinematic ripple that propagates to the
-                // screen edge.
-                //
-                // The fade uses a quadratic curve (fade^1.5) for natural energy
-                // dissipation — the wave starts strong and decays gradually like
-                // a real water ripple, not a linear cutoff.
-                //
-                // With the v30 bounded pool, multiple clicks within 1.8s each
-                // emit their own independent wave. Their per-cell factor
-                // contributions sum additively (capped at 1.0 by the clamp on
-                // each channel below). Visual result: overlapping rings blend
-                // into a richer interference pattern instead of one cancelling
-                // the other.
-                for w in ctx.flash_waves {
-                    let col_dist = if self.bound_col > w.col {
-                        (self.bound_col - w.col) as f32
-                    } else {
-                        (w.col - self.bound_col) as f32
-                    };
-                    let line_dist = if line > w.line {
-                        (line - w.line) as f32
-                    } else {
-                        (w.line - line) as f32
-                    };
-                    // v30 optimize (docs/archive/research/MOUSE_EFFECTS_AUDIT.md Quick Win #3):
-                    // squared-distance early-out before sqrt. Cells outside
-                    // the wave's bounding circle skip the sqrt + ring math
-                    // entirely. Skips ~75% of sqrts for typical wave coverage.
-                    let dist_sq = col_dist * col_dist + line_dist * line_dist;
-                    if dist_sq > w.max_reach_sq {
-                        continue;
-                    }
-                    let euclidean = dist_sq.sqrt();
-                    // v30 optimize (Quick Win #2): fade, primary_radius,
-                    // secondary_radius are precomputed in FlashWaveCtx.
-                    let fade = w.fade;
-
-                    // Primary ring: fast, bright, full intensity.
-                    let primary_dist = (euclidean - w.primary_radius).abs();
-                    let mut factor = 0.0;
-                    if primary_dist < MOUSE_FLASH_RING_WIDTH {
-                        // Sharp leading edge, soft trailing tail (squared falloff).
-                        let t = 1.0 - primary_dist / MOUSE_FLASH_RING_WIDTH;
-                        let t_smooth = t * t;
-                        factor = t_smooth * MOUSE_FLASH_INTENSITY * fade;
-                    }
-
-                    // Secondary ring: slower, dimmer, layered echo.
-                    let secondary_dist = (euclidean - w.secondary_radius).abs();
-                    if secondary_dist < MOUSE_FLASH_RING_WIDTH {
-                        let t = 1.0 - secondary_dist / MOUSE_FLASH_RING_WIDTH;
-                        let t_smooth = t * t;
-                        factor +=
-                            t_smooth * MOUSE_FLASH_INTENSITY * MOUSE_FLASH_SECONDARY_FRAC * fade;
-                    }
-
-                    if factor > 0.0 {
-                        // v50 chromatic shockwave + audit C-1: blend toward
-                        // the active palette's HEAD color (precomputed in
-                        // FlashWaveCtx.head_rgb, once per wave in rain.rs).
-                        let (hr, hg, hb) = w.head_rgb;
-                        let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                            crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
-                                r, g, b, hr, hg, hb, factor,
-                            )
-                        } else {
-                            crate::chroma_dragon_engine::legacy::blend_toward_rgb(
-                                r, g, b, hr, hg, hb, factor,
-                            )
-                        };
-                        r = nr;
-                        g = ng;
-                        b = nb;
+                // |u| is the wave's local energy: a crest lights the cell
+                // toward the palette HEAD color, a trough does the same
+                // (the physics produces the crest/wake banding the old
+                // primary+secondary rings drew by hand). Superposing
+                // clicks interfere for real — the amplitude at a cell
+                // already carries every click's contribution.
+                if ctx.wave.amp.is_empty() {
+                    // No field (empty cloud or pre-reset): skip.
+                } else {
+                    let idx = line as usize * ctx.cols as usize + self.bound_col as usize;
+                    if let Some(&u) = ctx.wave.amp.get(idx) {
+                        let factor = (u.abs() * MOUSE_FLASH_INTENSITY).min(1.0);
+                        if factor > 0.0 {
+                            let (hr, hg, hb) = ctx.wave.head_rgb;
+                            let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                                crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                                    r, g, b, hr, hg, hb, factor,
+                                )
+                            } else {
+                                crate::chroma_dragon_engine::legacy::blend_toward_rgb(
+                                    r, g, b, hr, hg, hb, factor,
+                                )
+                            };
+                            r = nr;
+                            g = ng;
+                            b = nb;
+                        }
                     }
                 }
 

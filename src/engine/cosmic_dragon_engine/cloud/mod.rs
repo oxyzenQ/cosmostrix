@@ -41,6 +41,7 @@ mod scene_runtime;
 mod spawn;
 mod spawn_reset;
 mod state;
+mod wave_field;
 
 // NIGHT-enhanced-1: rain-style families now live under `type_rain/`,
 // each style grouped into its own subdirectory alongside its extracted
@@ -117,7 +118,7 @@ use vortex::VortexRain;
 use flux::FluxRain;
 
 use ghost_events::GhostEventScheduler;
-use render::FlashWave;
+use wave_field::WaveField;
 
 /// Message-reveal lead: when a cinematic intro plays, the message
 /// overlay waits this long before revealing, so the text lands shortly
@@ -428,7 +429,7 @@ pub struct Cloud {
 
     pub mouse_enabled: bool,
 
-    pub(crate) flash_waves: [FlashWave; MOUSE_FLASH_POOL_SIZE],
+    pub(crate) wave_field: WaveField,
 
     pub(crate) quantum_particles: Vec<QuantumParticle>,
     /// Active quantum particle count (incremental, O(1) early-out).
@@ -691,12 +692,7 @@ impl Cloud {
             mouse_col: u16::MAX,
             mouse_line: u16::MAX,
             mouse_enabled: false,
-            flash_waves: [FlashWave {
-                active: false,
-                col: u16::MAX,
-                line: u16::MAX,
-                birth: now,
-            }; MOUSE_FLASH_POOL_SIZE],
+            wave_field: WaveField::empty(),
             quantum_particles: vec![
                 QuantumParticle {
                     active: false,
@@ -894,38 +890,24 @@ impl Cloud {
 
     pub fn set_mouse_click(&mut self, col: u16, line: u16) {
         // PERF-4 strengthen: --no-effects gate. When effects are disabled,
-        // skip flash-wave activation entirely. Without this gate the
-        // dual-ring click flash continued to spawn under --no-effects —
-        // a partial-disable leak (only the quantum-ripple particles were
-        // suppressed, the expanding ring overlay was not). Early-return
-        // here is the correct fix: no new FlashWave slot is activated,
-        // and any previously-active waves fade out naturally on their
-        // next update tick. spawn_quantum_ripple (called below when
-        // effects are on) is also independently gated for safety.
+        // skip the shockwave entirely. Without this gate the click wave
+        // continued to spawn under --no-effects — a partial-disable leak
+        // (only the quantum-ripple particles were suppressed, the
+        // expanding overlay was not). Early-return here is the correct
+        // fix: no impulse is injected, and any in-flight wave decays
+        // naturally by its own damping physics. spawn_quantum_ripple
+        // (called below when effects are on) is also independently
+        // gated for safety.
         if !self.effects_enabled {
             return;
         }
-        // v30 fix: bounded pool. Mirrors spawn_quantum_ripple: first inactive
-        // slot, or evict OLDEST (smallest birth) if all active.
-        let now = Instant::now();
-        let mut slot = None;
-        let mut oldest = (0usize, Instant::now());
-        for (i, w) in self.flash_waves.iter_mut().enumerate() {
-            if !w.active {
-                slot = Some(i);
-                break;
-            }
-            if i == 0 || w.birth < oldest.1 {
-                oldest = (i, w.birth);
-            }
-        }
-        let s = slot.unwrap_or(oldest.0);
-        self.flash_waves[s] = FlashWave {
-            active: true,
-            col,
-            line,
-            birth: now,
-        };
+        // Z4b: the click injects an impulse into the shared wave field.
+        // The wave equation is LINEAR — simultaneous clicks superpose
+        // (real interference), so the old bounded pool of independent
+        // slots is obsolete; inject caps the amplitude so a click storm
+        // saturates instead of blowing up. The field's damping gives
+        // each ripple its finite life; the solver settles itself.
+        self.wave_field.inject(col, line);
         self.spawn_quantum_ripple(col, line);
     }
 

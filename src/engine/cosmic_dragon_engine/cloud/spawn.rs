@@ -403,6 +403,12 @@ impl Cloud {
         // thaw backlog (the cells it tracked no longer exist).
         self.phosphor_thaw_pending.fill(false);
         self.phosphor_thaw_pending_count = 0;
+        // Z4b: the shockwave field rides the same one-shot reset surface —
+        // resize to the current grid (no-op when the dims did not change)
+        // and clear any in-flight wave (a scene switch voids the old
+        // ripple's world, exactly like the pre-Z4b slot deactivate).
+        self.wave_field.resize(self.cols, self.lines);
+        self.wave_field.clear();
     }
 
     pub(crate) fn fill_glitch_map(&mut self) {
@@ -540,7 +546,7 @@ impl Cloud {
 
     /// Spawn a quantum-ripple particle burst at the click point (v17 mastery).
     ///
-    /// Called by `Cloud::set_mouse_click` alongside the dual-ring flash wave.
+    /// Called by `Cloud::set_mouse_click` alongside the wave-equation shockwave.
     /// Up to `QUANTUM_RIPPLE_PARTICLE_COUNT` particles are activated per click
     /// (each in the first inactive pool slot). The particle pool is
     /// pre-allocated with `QUANTUM_RIPPLE_POOL_SIZE` slots — clicks beyond the

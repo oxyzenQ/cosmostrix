@@ -29,49 +29,21 @@ use crate::runtime::BoldMode;
 pub(crate) use crate::chroma_dragon_engine::shaders::base::CellPaint;
 pub(crate) use crate::chroma_dragon_engine::shaders::base::CharLoc;
 
-/// Pre-computed view of an active mouse-click flash wave (v30 fix).
+/// The wave-equation shockwave context for the draw call (Z4b).
 ///
-/// Built once per frame in `cloud::rain::rain_at` and borrowed by `DrawCtx`
-/// for the duration of the draw call. The renderer iterates this slice and
-/// sums per-wave factor contributions onto each cell's color.
+/// Built once per frame in `cloud::rain_at` after the field's solver
+/// step: the solved displacement slice (row-major, `idx = line * cols
+/// + col`) borrowed from `Cloud::wave_field`, plus the palette HEAD
+/// color the wave blends cells toward (the chromatic shockwave tint,
+/// decoded once per frame — the palette's last stop, same for every
+/// wave by construction since the palette is one active ramp).
+/// `(255, 255, 255)` pure white when the palette is empty.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct FlashWaveCtx {
-    /// Click column (cell-space).
-    pub col: u16,
-    /// Click line (cell-space).
-    pub line: u16,
-    // ── v30 optimize (docs/archive/research/MOUSE_EFFECTS_AUDIT.md Quick Win #2): precomputed
-    // wave-invariant quantities. These are pure functions of `elapsed` and
-    // the wave constants, so computing them once per wave (in rain.rs
-    // construction) instead of once per cell × per wave eliminates ~48K
-    // sqrts/sec + ~290K ops/sec at 60 FPS.
-    /// Primary ring radius = elapsed * MOUSE_FLASH_SPEED.
-    pub primary_radius: f32,
-    /// Secondary ring radius = elapsed * speed * secondary_speed_frac.
-    pub secondary_radius: f32,
-    /// Quadratic fade = raw_fade * raw_fade.sqrt() (includes one sqrt).
-    pub fade: f32,
-    /// Squared max reach for early-out: (max(primary, secondary) + ring_width)².
-    /// Cells with dist_sq > max_reach_sq skip the wave entirely (no sqrt needed).
-    pub max_reach_sq: f32,
-    /// v50 audit C-1: precomputed palette HEAD color (RGB tuple) for the
-    /// chromatic shockwave (C8). Decoded once per wave from the active
-    /// palette's last stop, instead of per-cell × per-wave in droplet.rs.
-    /// Falls back to (255,255,255) pure white if palette is empty.
+pub(crate) struct WaveCtx<'a> {
+    /// Solved field displacement for this frame, row-major.
+    pub amp: &'a [f32],
+    /// Palette HEAD color (RGB tuple) for the chromatic shockwave tint.
     pub head_rgb: (u8, u8, u8),
-}
-
-/// Runtime state of a mouse-click flash wave slot (v30 fix: bounded pool).
-///
-/// Each click activates a slot; the wave expands as a dual-ring water-drop
-/// ripple for `MOUSE_FLASH_DURATION_SECS`, then `active` flips to false.
-/// Pool size is `MOUSE_FLASH_POOL_SIZE`. Stored as a fixed array in `Cloud`.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct FlashWave {
-    pub active: bool,
-    pub col: u16,
-    pub line: u16,
-    pub birth: std::time::Instant,
 }
 
 /// Precomputed level-to-palette-stop indices for the structured rain
@@ -223,13 +195,12 @@ pub(crate) struct DrawCtx<'a> {
     pub mouse_col: u16,
     /// Mouse cursor line (u16::MAX if no mouse).
     pub mouse_line: u16,
-    /// Active mouse-click flash waves (v30 fix: was single slot, now bounded pool).
-    ///
-    /// Precomputed once per frame in `rain_at`. Each entry has `elapsed <
-    /// MOUSE_FLASH_DURATION_SECS`. Empty slice = no active waves. The slice
-    /// is borrowed from a stack-local `SmallVec` in `rain_at` that outlives
-    /// the DrawCtx.
-    pub flash_waves: &'a [FlashWaveCtx],
+    /// The solved click-shockwave field (Z4b). `amp` is the wave
+    /// equation's displacement for THIS frame, borrowed from
+    /// `Cloud::wave_field` (empty slice = no active wave or settled).
+    /// The renderer reads one amplitude per cell — the physics already
+    /// ran once per frame in `rain_at`.
+    pub wave: WaveCtx<'a>,
     /// Cached result of pool_is_binary check, computed once per DrawCtx
     /// construction to avoid per-cell iteration of the char pool.
     pub pool_is_binary: bool,

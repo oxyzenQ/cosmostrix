@@ -145,7 +145,7 @@ Common options:
       When set, the following subsystems become no-ops:
         - quantum ripple (mouse-click particle burst)
         - border spark (splash crown on message-border touch)
-        - mouse-click flash waves (dual-ring expanding rings)
+        - mouse-click shockwave (the wave-equation field on the cell grid)
         - anomaly zones (LuminanceSurge / GlyphCorruption / PulseWave)
         - ghost events (cinematic glyph streaks)
         - emergent storytelling moments (LuminanceSwell/DensityPulse)
@@ -248,10 +248,12 @@ Common options:
 
   Mouse interaction (always on, no option needed)
       Cursor glow: cells near the mouse cursor get a subtle brightness
-      boost (ambient halo). Click flash: a strong dual-ring glow wave
-      radiates from the click point — a primary bright ring followed by
-      a secondary dimmer echo, creating a cinematic stone-in-water
-      ripple effect. Mouse reporting is always active to block text
+      boost (ambient halo). Click shockwave: the click injects an
+      impulse into a real 2D wave-equation field on the cell grid —
+      the solver (leapfrog FDTD, CFL-stable, absorbing edges) produces
+      the expanding circular ripple that lights cells toward the
+      palette's head color, and simultaneous clicks genuinely
+      interfere. Mouse reporting is always active to block text
       selection (drag-select is captured; Shift+drag still selects in
       most terminals — this is a terminal-emulator feature that cannot
       be disabled).

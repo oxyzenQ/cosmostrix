@@ -223,7 +223,7 @@ motion math, that is what you are reading.
 
 ### Interaction & UX
 
-- Always-on mouse glow + click wave effects (cursor halo + dual-ring shockwave + quantum ripple particles). Mouse reporting always active (blocks text selection).
+- Always-on mouse glow + click wave effects (cursor halo + a real wave-equation shockwave solved on the cell grid + quantum ripple particles). Mouse reporting always active (blocks text selection).
 - Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`).
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 10×5, and on low terminals (raw console TTY, dumb, pure-CPU renderers — NIGHT-hunter-18) the default auto-skips; an explicit `--intro` overrides. Press `q` to skip mid-animation.

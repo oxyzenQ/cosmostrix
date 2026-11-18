@@ -430,17 +430,18 @@ fn scene_switch_clears_phosphor_bitvecs() {
 }
 
 #[test]
-fn scene_switch_clears_flash_waves_and_quantum_particles() {
-    // ME-03 + ME-04: stale mouse-click state (flash_waves + quantum_particles)
-    // must be cleared on scene switch so the new scene starts clean. Without
-    // this, in-flight flash waves from the previous scene render in the new
-    // scene with the previous palette's snapshot color for up to 1.8s.
+fn scene_switch_clears_wave_field_and_quantum_particles() {
+    // ME-03 + ME-04: stale mouse-click state (the shockwave field +
+    // quantum_particles) must be cleared on scene switch so the new scene
+    // starts clean. Without this, in-flight shockwave energy from the
+    // previous scene would render in the new scene with the previous
+    // palette's snapshot color until the damping decays it.
     let mut cloud = make_cinematic_like_cloud();
-    // Simulate a mouse click — populate flash_waves + quantum_particles.
+    // Simulate a mouse click — inject into the wave field + quantum particles.
     cloud.set_mouse_click(10, 5);
     assert!(
-        cloud.flash_waves.iter().any(|w| w.active),
-        "precondition: at least one flash wave must be active after click"
+        !cloud.wave_field.is_settled(),
+        "precondition: the wave field must carry energy after a click"
     );
     assert!(
         cloud.quantum_active_count > 0,
@@ -450,10 +451,10 @@ fn scene_switch_clears_flash_waves_and_quantum_particles() {
     // Scene switch cinematic → monolith.
     cloud.apply_scene_runtime("monolith", "zen", &[], false);
 
-    // The fix: flash_waves + quantum_particles cleared.
+    // The fix: wave field + quantum_particles cleared.
     assert!(
-        !cloud.flash_waves.iter().any(|w| w.active),
-        "flash_waves must be cleared on scene switch (ME-03)"
+        cloud.wave_field.is_settled(),
+        "the shockwave field must be cleared (settled) on scene switch (ME-03)"
     );
     assert_eq!(
         cloud.quantum_active_count, 0,

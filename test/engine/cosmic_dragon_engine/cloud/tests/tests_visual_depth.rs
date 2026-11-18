@@ -139,7 +139,7 @@ fn hero_spine_trail_empty_space_have_distinct_brightness() {
     // distinct levels. On a black background, this prevents the "flat wall
     // of grey" muddy residue artifact where levels become indistinguishable.
     use crate::cloud::monolith::BrightnessLevel;
-    use crate::cloud::render::{DrawCtx, PaletteLadder};
+    use crate::cloud::render::{DrawCtx, PaletteLadder, WaveCtx};
     use crossterm::style::Color;
 
     let colors: Vec<Color> = (0..=9)
@@ -180,7 +180,10 @@ fn hero_spine_trail_empty_space_have_distinct_brightness() {
         color_wave_line: None,
         mouse_col: u16::MAX,
         mouse_line: u16::MAX,
-        flash_waves: &[],
+        wave: WaveCtx {
+            amp: &[],
+            head_rgb: (255, 255, 255),
+        },
         pool_is_binary: false,
         atmospheric: None,
         hue_drift_offset: None,
@@ -484,7 +487,7 @@ fn depth_lab_brightness_level_four_tier_hierarchy() {
     // strictly increasing luminance. This is the core cinematic depth
     // invariant — flattening it creates the "flat wall of grey" artifact.
     use crate::cloud::monolith::BrightnessLevel;
-    use crate::cloud::render::{DrawCtx, PaletteLadder};
+    use crate::cloud::render::{DrawCtx, PaletteLadder, WaveCtx};
 
     let colors: Vec<Color> = (0..=9)
         .map(|i| Color::Rgb {
@@ -524,7 +527,10 @@ fn depth_lab_brightness_level_four_tier_hierarchy() {
         color_wave_line: None,
         mouse_col: u16::MAX,
         mouse_line: u16::MAX,
-        flash_waves: &[],
+        wave: WaveCtx {
+            amp: &[],
+            head_rgb: (255, 255, 255),
+        },
         pool_is_binary: false,
         atmospheric: None,
         hue_drift_offset: None,
@@ -616,7 +622,7 @@ fn depth_lab_no_muddy_residue_on_dark_backgrounds() {
     // wall instead of clear depth hierarchy. Verify that ghost cells
     // on dark backgrounds use very low luminance values.
     use crate::cloud::monolith::BrightnessLevel;
-    use crate::cloud::render::{DrawCtx, PaletteLadder};
+    use crate::cloud::render::{DrawCtx, PaletteLadder, WaveCtx};
 
     // Three distinct dark palette profiles
     let profiles: Vec<Vec<Color>> = vec![
@@ -680,7 +686,10 @@ fn depth_lab_no_muddy_residue_on_dark_backgrounds() {
             color_wave_line: None,
             mouse_col: u16::MAX,
             mouse_line: u16::MAX,
-            flash_waves: &[],
+            wave: WaveCtx {
+                amp: &[],
+                head_rgb: (255, 255, 255),
+            },
             pool_is_binary: false,
             atmospheric: None,
             hue_drift_offset: None,

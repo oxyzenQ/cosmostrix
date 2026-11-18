@@ -397,17 +397,20 @@ over the rain.
 | `MOUSE_GLOW_RADIUS_COLS` | f32 | 7.0 | Glow radius in columns. |
 | `MOUSE_GLOW_RADIUS_LINES` | f32 | 5.0 | Glow radius in lines. |
 | `MOUSE_GLOW_INTENSITY` | f32 | 0.25 | Static glow intensity (0.25 = subtle on by default). |
-| `MOUSE_FLASH_SPEED` | f32 | 32.0 | Flash expansion speed. |
-| `MOUSE_FLASH_RING_WIDTH` | f32 | 8.0 | Flash ring width. |
-| `MOUSE_FLASH_INTENSITY` | f32 | 0.85 | Flash peak intensity. |
-| `MOUSE_FLASH_DURATION_SECS` | f32 | 1.8 | Flash total duration. |
-| `MOUSE_FLASH_SECONDARY_FRAC` | f32 | 0.45 | Fraction of secondary flash. |
-| `MOUSE_FLASH_SECONDARY_SPEED_FRAC` | f32 | 0.4 | Secondary flash speed fraction. |
+| `MOUSE_FLASH_SPEED` | f32 | 32.0 | Shockwave speed c (cells/s, horizontal). |
+| `MOUSE_FLASH_INTENSITY` | f32 | 0.85 | Shockwave peak brightness factor. |
+| `MOUSE_FLASH_WAVE_DAMPING` | f32 | 6.0 | Shockwave volume damping k (telegraph form; life ~1.8 s). |
+| `MOUSE_FLASH_DT_MAX` | f32 | 1/120 | Solver sub-step ceiling (CFL margin ~11x). |
+| `MOUSE_FLASH_SETTLE_EPS` | f32 | 0.004 | Settle floor (field clears below this). |
 
 **Tuning recipes**:
 
 - **Always-on mouse glow**: set `MOUSE_GLOW_INTENSITY = 0.5`.
-- **Bigger flash**: raise `MOUSE_FLASH_RING_WIDTH` from 8.0 -> 14.0.
+- **Bigger flash**: raise `MOUSE_FLASH_INTENSITY` from 0.85 -> 1.0 (the
+  brightness factor saturates there).
+- **Slower ripple**: lower `MOUSE_FLASH_SPEED` (the wave equation's c).
+- **Shorter afterglow**: raise `MOUSE_FLASH_WAVE_DAMPING` (the envelope
+  halves every `2*ln(2)/k` seconds).
 - **Disable flash entirely**: set `MOUSE_FLASH_INTENSITY = 0.0`.
 
 ### 3.13 Monolith scene (lines 886–898)
@@ -610,11 +613,10 @@ MOUSE_GLOW_RADIUS_COLS             = 7.0
 MOUSE_GLOW_RADIUS_LINES            = 5.0
 MOUSE_GLOW_INTENSITY               = 0.25
 MOUSE_FLASH_SPEED                  = 32.0
-MOUSE_FLASH_RING_WIDTH             = 8.0
 MOUSE_FLASH_INTENSITY              = 0.85
-MOUSE_FLASH_DURATION_SECS          = 1.8
-MOUSE_FLASH_SECONDARY_FRAC         = 0.45
-MOUSE_FLASH_SECONDARY_SPEED_FRAC   = 0.4
+MOUSE_FLASH_WAVE_DAMPING           = 6.0
+MOUSE_FLASH_DT_MAX                 = 0.008333334
+MOUSE_FLASH_SETTLE_EPS             = 0.004
 
 === Front layer tail ===
 FRONT_LAYER_TAIL_PCT               = 0.45

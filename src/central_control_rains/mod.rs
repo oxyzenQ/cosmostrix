@@ -224,12 +224,14 @@ use std::time::Duration;
 mod atmosphere;
 mod density_throttle;
 mod events;
+mod mouse;
 mod parallax;
 mod phosphor_calibration;
 mod style_rain;
 pub(crate) use atmosphere::*;
 pub(crate) use density_throttle::*;
 pub(crate) use events::*;
+pub(crate) use mouse::*;
 pub(crate) use parallax::*;
 pub(crate) use phosphor_calibration::*;
 pub(crate) use style_rain::*;
@@ -397,45 +399,6 @@ pub(crate) const FRONT_LAYER_TAIL_MAX_CELLS: u8 = 12;
 
 /// Number of color stops used by long front-layer tails.
 pub(crate) const FRONT_LAYER_MAX_TAIL_STOPS: u8 = 3;
-
-// ─── Mouse interaction ─────────────────────────────────────────────────────
-
-/// Radius (in columns) of the mouse hover glow.
-pub(crate) const MOUSE_GLOW_RADIUS_COLS: f32 = 7.0;
-
-/// Radius (in lines) of the mouse hover glow.
-pub(crate) const MOUSE_GLOW_RADIUS_LINES: f32 = 5.0;
-
-/// Intensity of the mouse hover glow (0.0 = disabled in default mode).
-pub(crate) const MOUSE_GLOW_INTENSITY: f32 = 0.25;
-
-/// Speed of the mouse-click flash ring expansion (cells/sec).
-pub(crate) const MOUSE_FLASH_SPEED: f32 = 32.0;
-
-/// Width of the mouse-click flash ring (in cells).
-pub(crate) const MOUSE_FLASH_RING_WIDTH: f32 = 8.0;
-
-/// Peak intensity of the mouse-click flash.
-pub(crate) const MOUSE_FLASH_INTENSITY: f32 = 0.85;
-
-/// Duration of the mouse-click flash (sec).
-pub(crate) const MOUSE_FLASH_DURATION_SECS: f32 = 1.8;
-
-/// Fraction of the primary ring intensity applied to the secondary echo ring.
-pub(crate) const MOUSE_FLASH_SECONDARY_FRAC: f32 = 0.45;
-
-/// Speed of the secondary ring as fraction of primary ring speed.
-pub(crate) const MOUSE_FLASH_SECONDARY_SPEED_FRAC: f32 = 0.4;
-
-/// Maximum simultaneous mouse-click flash waves (click pool size).
-///
-/// v30 fix: bounded pool so rapid double/triple-clicks spawn new waves
-/// without resetting in-flight waves to zero. The previous single-slot
-/// design (`flash_time: Option<Instant>`) silently overwrote the timer on
-/// every click, restarting any in-flight wave from zero. With this pool,
-/// up to `MOUSE_FLASH_POOL_SIZE` waves can coexist; the (POOL_SIZE+1)-th
-/// click evicts the OLDEST active wave (smallest `birth`).
-pub(crate) const MOUSE_FLASH_POOL_SIZE: usize = 4;
 
 // ─── Velocity turbulence ───────────────────────────────────────────────────
 

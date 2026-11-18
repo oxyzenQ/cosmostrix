@@ -562,20 +562,22 @@ impl Cloud {
         }
         self.reset_phosphor_state();
         // ME-03..ME-05 (mouse-effect state leak fix): clear mouse-click /
-        // quantum-ripple state on scene switch. Stale flash waves + quantum
-        // particles from the previous scene would otherwise render in the
-        // new scene with the previous palette's snapshot color for up to
-        // 1.8s (flash) / 0.8s (quantum). Refreshing the timing anchors
+        // quantum-ripple state on scene switch. Stale shockwave energy +
+        // quantum particles from the previous scene would otherwise render
+        // in the new scene with the previous palette's snapshot color
+        // (the wave decays by its own damping inside reset_phosphor_state's
+        // field clear; quantum by the 0.8s life). Refreshing the timing
+        // anchors
         // (`last_phosphor_time`, `last_quantum_update_time`) prevents the
         // first post-switch frame from computing a stale `dt` that
         // teleports particles.
-        for w in &mut self.flash_waves {
-            w.active = false;
-        }
         for p in &mut self.quantum_particles {
             p.active = false;
         }
         self.quantum_active_count = 0;
+        // Z4b: the shockwave field is cleared with the scene too (reset_phosphor_state
+        // resizes + clears it on this path — the wave's world is voided
+        // exactly like the pre-Z4b slot deactivate).
         let now = Instant::now();
         self.last_spawn_time = now;
         self.last_phosphor_time = now;

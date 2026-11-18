@@ -27,10 +27,9 @@ use super::neural::{NeurSpawnParams, NeurStep, NeuralRandom};
 use super::physarum::{PhysarumRandom, PhysarumSpawnParams, PhysarumStep};
 use super::post_rain::PostRainInputs;
 use super::quasar::{QuasSpawnParams, QuasStep, QuasarRandom};
-use super::render::{DrawCtx, FlashWaveCtx, PaletteLadder};
+use super::render::{DrawCtx, PaletteLadder, WaveCtx};
 use super::solar_flare::{SolarFlareSpawnParams, SolarFlareStep, SolarRandom};
 use super::vortex::{VortexRandom, VortexSpawnParams, VortexStep};
-use smallvec::SmallVec;
 
 // Phase 3-G: atmospheric ctx for integrated post-processing.
 use crate::chroma_dragon_engine::post::climate::ClimateCtx;
@@ -1547,53 +1546,21 @@ impl super::Cloud {
             }
         };
 
-        // v30 fix: pre-compute active flash wave list once per frame.
-        // The DrawCtx borrows this slice for the duration of the draw call.
-        // Active = `active && elapsed < MOUSE_FLASH_DURATION_SECS`. Expired
-        // waves are NOT removed here — they're swept by the update loop
-        // (see expiry block at end of rain_at). We just skip them in the
-        // precomputed slice so the renderer doesn't see stale waves on the
-        // frame before the sweep runs.
-        let mut flash_waves_buf: SmallVec<[FlashWaveCtx; MOUSE_FLASH_POOL_SIZE]> = SmallVec::new();
-        for w in &self.flash_waves {
-            if w.active {
-                // v30 Hinnant-style: use injected `now` instead of
-                // `w.birth.elapsed()` (which issued a hidden Instant::now()
-                // syscall per active wave per frame). `now` is the same
-                // Instant captured once at frame start in event_loop.rs.
-                let e = now.saturating_duration_since(w.birth).as_secs_f32();
-                if e < MOUSE_FLASH_DURATION_SECS {
-                    // v30 optimize (docs/archive/research/MOUSE_EFFECTS_AUDIT.md Quick Win #2):
-                    // precompute wave-invariant quantities here (once per wave)
-                    // instead of per cell × per wave in droplet.rs hot path.
-                    let primary_radius = e * MOUSE_FLASH_SPEED;
-                    let secondary_radius = e * MOUSE_FLASH_SPEED * MOUSE_FLASH_SECONDARY_SPEED_FRAC;
-                    let raw_fade = (1.0 - e / MOUSE_FLASH_DURATION_SECS).max(0.0);
-                    let fade = raw_fade * raw_fade.sqrt();
-                    // max_reach_sq: squared bounding-circle radius for early-out.
-                    // Primary ring is always faster (secondary_speed_frac < 1.0),
-                    // so primary_radius >= secondary_radius.
-                    let max_reach = primary_radius + MOUSE_FLASH_RING_WIDTH;
-                    flash_waves_buf.push(FlashWaveCtx {
-                        col: w.col,
-                        line: w.line,
-                        primary_radius,
-                        secondary_radius,
-                        fade,
-                        max_reach_sq: max_reach * max_reach,
-                        // v50 audit C-1: precompute palette HEAD color
-                        // once per wave instead of per-cell in droplet.rs.
-                        head_rgb: self
-                            .palette
-                            .colors
-                            .last()
-                            .copied()
-                            .and_then(crate::palette::decode_color)
-                            .unwrap_or((255, 255, 255)),
-                    });
-                }
-            }
-        }
+        // Z4b: the shockwave context — the field already stepped above on
+        // the same frame clock; the renderer borrows the solved slice plus
+        // the palette HEAD tint (decoded once per frame here; the old
+        // per-wave FlashWaveCtx list is obsolete — one shared field, one
+        // tint, the physics did the rest).
+        let wave = WaveCtx {
+            amp: self.wave_field.amplitudes(),
+            head_rgb: self
+                .palette
+                .colors
+                .last()
+                .copied()
+                .and_then(crate::palette::decode_color)
+                .unwrap_or((255, 255, 255)),
+        };
 
         // Phase D (hot-path): pre-compute the per-column hue-coherence LUT
         // once per frame. Was: per-cell `column_coherence_perturbation(phase,
@@ -1664,12 +1631,10 @@ impl super::Cloud {
             color_wave_line,
             mouse_col: self.mouse_col,
             mouse_line: self.mouse_line,
-            // v30 fix: pre-compute active flash wave list once per frame.
-            // Was: single `flash_elapsed: Option<f32>` from one slot.
-            // Now: up to MOUSE_FLASH_POOL_SIZE concurrent waves, each with its
-            // own elapsed time. The slice borrows a stack-local SmallVec that
-            // outlives the DrawCtx.
-            flash_waves: &flash_waves_buf,
+            // Z4b: the solved shockwave field for this frame (one shared
+            // wave-equation solve; the renderer reads one amplitude per
+            // cell).
+            wave,
             pool_is_binary,
             atmospheric,
             // Phase 3-H + Phase C: activate ColorEcosystem.hue_drift — was
@@ -2013,6 +1978,13 @@ impl super::Cloud {
             .min(1.0 / 30.0)
             * self.resume_blend;
         self.last_phosphor_time = now;
+
+        // Z4b: the click shockwave solves its wave equation on the same
+        // frame clock — one solver step per frame at the SAME dt the
+        // phosphor pass runs (resume-blended, clamped to 1/30 s), so the
+        // ripple moves in temporal lockstep with everything else on
+        // screen. Settled fields cost zero work here.
+        self.wave_field.step(phosphor_elapsed);
 
         // ── Component timing: sim → render boundary ────────────────────
         // Everything above this line is "simulation" (cinematic events,

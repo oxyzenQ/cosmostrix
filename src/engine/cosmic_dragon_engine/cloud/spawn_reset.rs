@@ -195,6 +195,12 @@ impl super::Cloud {
         self.phosphor_thaw_pending_count = 0;
         self.phosphor_active.clear();
 
+        // Z4b: the shockwave field rides the reset too — size to the new
+        // grid and clear any in-flight wave (a fresh world, same as the
+        // phosphor state above).
+        self.wave_field.resize(cols, lines);
+        self.wave_field.clear();
+
         // Reset anomaly zones on terminal resize
         self.anomaly_zones.clear();
 

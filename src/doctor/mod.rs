@@ -213,11 +213,17 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field(
             "click_wave",
             &format!(
-                "yes (speed={:.0} cells/s, intensity={:.2}, duration={:.2}s, ring_width={:.0})",
+                "yes (wave-equation solve: c={:.0} cells/s, damping k={:.1}/s, CFL={:.3}<=1, settle_eps={:.4})",
                 crate::constants::MOUSE_FLASH_SPEED,
-                crate::constants::MOUSE_FLASH_INTENSITY,
-                crate::constants::MOUSE_FLASH_DURATION_SECS,
-                crate::constants::MOUSE_FLASH_RING_WIDTH,
+                crate::constants::MOUSE_FLASH_WAVE_DAMPING,
+                {
+                    // The Courant sum at the solver's sub-step ceiling —
+                    // printed so the CFL margin is visible in the doctor.
+                    let rx = crate::constants::MOUSE_FLASH_SPEED * crate::constants::MOUSE_FLASH_DT_MAX;
+                    let ry = rx / 2.0;
+                    rx * rx + ry * ry
+                },
+                crate::constants::MOUSE_FLASH_SETTLE_EPS,
             ),
         );
         s.field(

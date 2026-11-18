@@ -12,7 +12,7 @@ use super::{
     visible_chars,
 };
 use crate::cloud::monolith::BrightnessLevel;
-use crate::cloud::render::{DrawCtx, PaletteLadder};
+use crate::cloud::render::{DrawCtx, PaletteLadder, WaveCtx};
 use crate::constants::MAX_PALETTE_SLOTS;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
 use crossterm::style::Color;
@@ -168,7 +168,10 @@ fn monolith_color_for_level_ghost_is_faintest() {
         color_wave_line: None,
         mouse_col: u16::MAX,
         mouse_line: u16::MAX,
-        flash_waves: &[],
+        wave: WaveCtx {
+            amp: &[],
+            head_rgb: (255, 255, 255),
+        },
         pool_is_binary: false,
         atmospheric: None,
         hue_drift_offset: None,
@@ -243,7 +246,10 @@ fn monolith_background_muddy_residue_guard() {
         color_wave_line: None,
         mouse_col: u16::MAX,
         mouse_line: u16::MAX,
-        flash_waves: &[],
+        wave: WaveCtx {
+            amp: &[],
+            head_rgb: (255, 255, 255),
+        },
         pool_is_binary: false,
         atmospheric: None,
         hue_drift_offset: None,

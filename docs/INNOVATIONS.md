@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty-one, in dependency order
+## The forty-two, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -136,7 +136,7 @@ and the origin story is [INSIGHTS.md](../INSIGHTS.md), insights 1-2.
 
 Problem killed: input-driven effects that allocate per particle break
 the zero-alloc law and can spawn without bound. Mechanism: one bounded
-pool of particle values serves every effect — click ripple, dual-ring
+pool of particle values serves every effect — click ripple, shockwave
 shockwave, border spark — and spawning reuses pooled slots.
 Truth: `src/engine/cosmic_dragon_engine/cloud/state.rs` (the particle
 struct), `src/engine/cosmic_dragon_engine/cloud/mod.rs` (the pool).
@@ -1065,6 +1065,82 @@ Verifier: `cargo test z4c_` — calibration identity (bit-identical
 values, shipped envelope; the existing phosphor suites
 (`cargo test phosphor`, 60 tests) must stay green — they pin the
 same law the calibration now derives.
+
+### 42. The wave-equation click shockwave (the solved ripple, Lapis 4b)
+
+Problem killed: the mouse-click ripple was a DRAWING, not a wave — a
+synthetic pair of kinematic rings whose radii grew linearly with
+`elapsed * speed`, hand-shaped (primary bright ring + secondary echo
+at 0.4x speed, an 8-cell annulus window), bounded by a pool of 4
+slots so rapid clicks would not clobber each other, and living on a
+wall clock (`Instant` births, a 1.8 s expiry sweep). Nothing about it
+was physics: the ring had no memory, no interference, no boundary
+behavior — and its equal-cell radii rendered as an ELLIPSE on a real
+terminal (cells are twice as tall as wide). Mechanism
+(night-frontier-Z4b, Lapis 4b): `cloud/wave_field.rs` solves the 2D
+wave equation on the CELL GRID — the telegraph form
+`u_tt + k*u_t + (k/2)^2*u = c^2*laplacian(u)` — with a leapfrog FDTD
+scheme whose Courant numbers are pinned 11x inside the von Neumann
+bound (`rx^2 + ry^2 = 0.089 <= 1` at the `MOUSE_FLASH_DT_MAX` = 1/120
+sub-step ceiling; slow frames split into more sub-steps, capped at 8,
+so a stall advances the wave instead of destabilizing it). A click
+injects a compact impulse packet into ONE shared field; the wave
+equation's LINEARITY does the rest — simultaneous clicks genuinely
+interfere (the slot pool and its eviction are obsolete by physics),
+the inject amplitude caps so a click storm saturates instead of
+blowing up. The grid is PHYSICAL: `dy = 2*dx` (the cell aspect), so
+the front advances half as many rows as columns and the ripple
+renders as a CIRCLE (measured: horizontal 10-column and vertical
+5-row arrivals land in the same window, ~15-16 frames for an
+18.75-frame expectation — the residual gap is the coarse-grid
+dispersion, documented, tolerance-pinned). First-order Mur absorbing
+edges swallow the front at the screen border (no reflected ring), the
+edges ride the same telegraph envelope as the interior (Mur alone
+leaves a slow-decaying boundary reservoir — measured before the fix:
+the field settled 2x late with a visible rim), and the restoring term
+is what makes the life PROVABLE: in the pure damped wave equation the
+spatial-mean mode converges to a nonzero constant (a visible residue
+that never settles); the telegraph form rides `exp(-k*t/2)` on EVERY
+mode, so the field provably crosses the settle floor at
+`2*ln(A0/eps)/k` = 1.84 s (matching the synthetic era's 1.8 s life)
+and the solver then clears itself — post-settle frames cost ZERO
+work. The renderer's hot path strictly shrinks: one bounds-checked
+amplitude lookup per cell replaces the per-wave distance math
+(no sqrt, no loop over 4 ctx waves). Costs, kept honest: two
+preallocated f32 grids (~15 KiB at 80x24), single-threaded, ~10 flops
+per cell per sub-step, zero allocation after resize (a one-shot
+reset surface, the same class as the phosphor arrays) — the zero-alloc
+ledger's law extends here, pinned by a capacity-stability test.
+Honest scope: a scalar brightness wave, not a full elastic
+simulation; coarse-grid dispersion makes the front's numerical speed
+slightly direction- and distance-dependent (pinned within a 35%
+tolerance, not claimed exact); the field is not part of the replay
+oracle's surface (clicks are never armed headless, same as the
+pre-Z4b era) and the visual banding differs from the synthetic ring
+by design — the crest/wake pattern is the physics, not a hand-drawn
+dual ring.
+Truth: `src/engine/cosmic_dragon_engine/cloud/wave_field.rs` (the
+solver, the CFL law, the Mur edges, the settle lifecycle),
+`src/central_control_rains/mouse.rs` (the shockwave constants: c,
+k, the sub-step ceiling, the settle floor),
+`src/engine/cosmic_dragon_engine/cloud/render.rs` (WaveCtx — the
+solved slice the draw path borrows), `src/droplet/draw.rs` (the
+per-cell amplitude read),
+`src/engine/cosmic_dragon_engine/cloud/rain_at.rs` (the one step per
+frame on the phosphor clock),
+`test/engine/cosmic_dragon_engine/cloud/tests/tests_wave_field.rs`
+(CFL margin, bounded long run, speed + isotropy arrivals, damping
+envelope, superposition linearity, settle lifecycle, zero-alloc,
+determinism, inject clamping),
+`test/engine/cosmic_dragon_engine/cloud/tests/tests_mouse_shockwave.rs`
+(Cloud wiring: injection, superposition, click storm, --no-effects
+gates).
+Verifier: `cargo test wave_field` and `cargo test mouse_shockwave`
+— 20 pins, all asserting the physics (the superposition test is the
+linearity proof: two clicks' field equals the sum of the single-click
+fields to 1e-4); the full suite (3072 tests) must stay green, and the
+zero-alloc ledger (entry 36) is untouched — the solver allocates
+nothing in the frame path.
 
 ## Retired by verdict
 

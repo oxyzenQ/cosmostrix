@@ -12,7 +12,7 @@
 //! stop each level resolves to through `color_for_level`.
 
 use crate::cloud::monolith::BrightnessLevel;
-use crate::cloud::render::{DrawCtx, PaletteLadder};
+use crate::cloud::render::{DrawCtx, PaletteLadder, WaveCtx};
 use crate::constants::MAX_PALETTE_SLOTS;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
 use crossterm::style::Color;
@@ -155,7 +155,10 @@ fn color_for_level_resolves_the_ladder_stops_exactly() {
         color_wave_line: None,
         mouse_col: u16::MAX,
         mouse_line: u16::MAX,
-        flash_waves: &[],
+        wave: WaveCtx {
+            amp: &[],
+            head_rgb: (255, 255, 255),
+        },
         pool_is_binary: true,
         atmospheric: None,
         hue_drift_offset: None,
@@ -214,7 +217,10 @@ fn empty_palette_slots_still_resolve_to_none() {
         color_wave_line: None,
         mouse_col: u16::MAX,
         mouse_line: u16::MAX,
-        flash_waves: &[],
+        wave: WaveCtx {
+            amp: &[],
+            head_rgb: (255, 255, 255),
+        },
         pool_is_binary: true,
         atmospheric: None,
         hue_drift_offset: None,
