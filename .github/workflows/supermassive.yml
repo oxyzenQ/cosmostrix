@@ -429,6 +429,18 @@ jobs:
             --forbid sgr-256 --forbid sgr-256-bg \
             --forbid sgr-truecolor --forbid sgr-truecolor-bg
 
+      # The capture logs are the dataset row: a residual (if any leg
+      # ever trips) is analyzable from the raw wire bytes, not
+      # reconstructed from the MASS summaries - the same law the
+      # syscall-floor kernel trace follows.
+      - name: Upload the smoke captures (the dataset row)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pty-smoke-captures-${{ matrix.arch }}-${{ github.run_id }}
+          path: /tmp/smoke-*.log
+          if-no-files-found: ignore
+
       - name: Verdict
         if: always()
         run: |
