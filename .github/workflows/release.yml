@@ -333,7 +333,14 @@ jobs:
           # binary (supply-chain hygiene) and keep frame pointers for
           # post-mortem debugging without performance cost.
           export RUSTFLAGS="${{ matrix.rustflags }} --remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
-          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
+          # The epoch pin (night-frontier-Z1b): the published artifact
+          # embeds the commit timestamp, so a third-party rebuild of
+          # this exact commit byte-matches the shipped binary - the
+          # same pin the reproducible_build CI lane verifies. --locked
+          # forbids a drifted lockfile from silently changing the
+          # dependency graph the artifact was built from.
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}" --locked
 
       - name: Build (release)
         if: runner.os == 'Windows'
@@ -342,7 +349,12 @@ jobs:
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
           RUSTFLAGS: ${{ matrix.rustflags }}
         shell: pwsh
-        run: cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "$env:CARGO_BUILD_JOBS"
+        run: |
+          # The epoch pin (night-frontier-Z1b): see the Unix step -
+          # the published artifact embeds the commit timestamp and
+          # --locked pins the dependency graph.
+          $env:SOURCE_DATE_EPOCH = "$(git log -1 --format=%ct)"
+          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "$env:CARGO_BUILD_JOBS" --locked
 
       - name: Verify build metadata
         if: runner.os != 'Windows'
@@ -731,7 +743,10 @@ jobs:
           # binary (supply-chain hygiene) and keep frame pointers for
           # post-mortem debugging without performance cost.
           export RUSTFLAGS="--remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
-          cargo build --profile pro-android-aarch64 --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
+          # The epoch pin (night-frontier-Z1b): see the unix matrix
+          # step - the commit timestamp travels with the artifact.
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          cargo build --profile pro-android-aarch64 --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}" --locked
 
       - name: Verify embedded build metadata
         shell: bash

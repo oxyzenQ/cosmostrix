@@ -114,11 +114,16 @@ The build time embedded in the binary (`COSMOSTRIX_BUILD_TIME`, shown
 by `cosmostrix -V`) honors `SOURCE_DATE_EPOCH` — set it to the commit
 timestamp (`git log -1 --format=%ct`) and your rebuild embeds the same
 minute as the published artifact. Without the variable (plain dev
-builds) the wall clock is used, exactly as before. What is NOT yet
-claimed honestly: the local two-pass proof shares one checkout path
-and one host (the CI two-runner job is the stronger cross-host proof),
-and the proof covers the Linux x86-64-v3 musl lane — the exact shape
-the release ships.
+builds) the wall clock is used, exactly as before. The publish lane
+itself carries the same law since night-frontier-Z1b closed the last
+gap: the `release.yml` unix, windows, and android build steps export
+the commit epoch and build `--locked`, so the shipped binaries embed
+the pinned minute instead of the runner's wall clock (the freebsd KVM
+lane keeps its own toolchain law and stays outside this claim).
+What is NOT claimed honestly: the local two-pass proof shares one
+checkout path and one host (the CI two-runner job is the stronger
+cross-host proof), and the byte-identity proof covers the Linux
+x86-64-v3 musl lane — the exact shape the release ships.
 
 ## 5. Raw binary hygiene in the repository (night-cafe-1)
 

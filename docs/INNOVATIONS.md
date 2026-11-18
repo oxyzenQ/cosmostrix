@@ -634,7 +634,12 @@ lane, the exact shape the release ships, not every matrix lane; and
 the two runners are independent machines only as far as GitHub
 hardware isolates them — a hypothetical synchronized compromise of
 both runners is outside the threat model (the GPG layer in
-VERIFY_RELEASE.md is the backstop).
+VERIFY_RELEASE.md is the backstop). The chain is closed end to end:
+the `release.yml` publish lane exports the same commit-epoch pin and
+builds `--locked` on the unix, windows, and android lanes (the
+freebsd KVM lane keeps its own toolchain law), so a published
+artifact embeds the pinned minute a third party rebuilds with - the
+identity is now the PROCESS, not only the CI-lane artifact shape.
 Truth: `build.rs` (`resolve_source_date_epoch` — the epoch law, the
 warning fallback, the rerun-if-env trigger), `.github/workflows/ci.yml`
 (`reproducible_build`, `reproducible_verify`), and
