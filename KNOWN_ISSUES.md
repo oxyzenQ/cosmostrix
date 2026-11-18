@@ -36,8 +36,17 @@ indexed sequences across 786 KB of wire bytes: `38;5` = 0, `48;5` = 0.
 The probe is now a standing CI invariant: the supermassive pty battery's
 color-16 HUD leg (`scripts/supermassive/pty_smoke.py --inject`, leg 7)
 toggles the HUD mid-run on a pinned 80x24 screen and asserts
-`--forbid sgr-256 --forbid sgr-truecolor` over the whole capture — the
-residual can never silently return.
+`--forbid sgr-256 --forbid sgr-256-bg --forbid sgr-truecolor
+--forbid sgr-truecolor-bg` over the whole capture — the residual can
+never silently return. The forbid probe is symmetric since the
+night-frontier-Z3 deepening: the fg forms (38;5, 38;2) and the bg
+forms (48;5, 48;2) are both pinned, matching the empirical claim
+above (the earlier probe covered the fg forms only). The same leg
+also asserts `--expect-text " fps: "` — metrics.rs composes that
+literal as the HUD's first line and no other surface prints it, so a
+swallowed or ignored `i` injection can no longer yield a green
+purity row. The sibling downgrade legs (no-color, dumb, xterm-16)
+carry the matching bg-form forbids.
 
 ---
 

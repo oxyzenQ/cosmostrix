@@ -373,7 +373,8 @@ jobs:
             --env=TERM=xterm-256color --env=NO_COLOR=1 --budget 25
           python3 "${ASSERT}" --log /tmp/smoke-nocolor.log --mass "${MASS}" \
             --label no-color-4s \
-            --expect alt-leave --expect mouse-off --forbid sgr-truecolor
+            --expect alt-leave --expect mouse-off \
+            --forbid sgr-truecolor --forbid sgr-truecolor-bg
 
           # Leg 5 - TERM=dumb: the strongest downgrade, no color and no
           # alternate screen at all, restore-without-alt-screen still runs.
@@ -383,7 +384,9 @@ jobs:
             --env=TERM=dumb --budget 25
           python3 "${ASSERT}" --log /tmp/smoke-dumb.log --mass "${MASS}" \
             --label term-dumb-4s \
-            --expect mouse-off --forbid sgr-truecolor --forbid sgr-256 \
+            --expect mouse-off \
+            --forbid sgr-truecolor --forbid sgr-truecolor-bg \
+            --forbid sgr-256 --forbid sgr-256-bg \
             --forbid alt-enter --forbid alt-leave
 
           # Leg 6 - TERM=xterm: the 16-color tier, indexed and direct
@@ -395,17 +398,25 @@ jobs:
           python3 "${ASSERT}" --log /tmp/smoke-xterm16.log --mass "${MASS}" \
             --label xterm-16-4s \
             --expect alt-leave --expect mouse-off \
-            --forbid sgr-truecolor --forbid sgr-256
+            --forbid sgr-truecolor --forbid sgr-truecolor-bg \
+            --forbid sgr-256 --forbid sgr-256-bg
 
           # Leg 7 - the color-16 HUD purity contract (night-frontier-Z3
           # 3a): on a --color-mode 16 session with a real 80x24 screen,
           # the HUD toggle mid-run must not reintroduce indexed or
           # direct-color SGRs - the task-17-era "stray 38;5 per session"
-          # residual is now an enforced invariant. The injection lands
-          # at 5.5s because the cinematic intro owns the first ~4.5s
-          # (only 'q' is honored there); 80x24 is pinned because the
-          # CI pty defaults to 0x0 and the renderer's clamp would make
-          # the HUD-content assertions trivially true.
+          # residual is now an enforced invariant, and the forbid probe
+          # is SYMMETRIC: the fg forms (38;5, 38;2) and the bg forms
+          # (48;5, 48;2) are both pinned, matching the empirical claim
+          # in KNOWN_ISSUES.md. The injection lands at 5.5s because the
+          # cinematic intro owns the first ~4.5s (only 'q' is honored
+          # there); 80x24 is pinned because the CI pty defaults to 0x0
+          # and the renderer's clamp would make the HUD-content
+          # assertions trivially true. The --expect-text leg proves the
+          # injection really rendered the HUD (metrics.rs composes
+          # ' fps: ' as its first line and no other surface prints
+          # that literal) - a swallowed injection can no longer yield
+          # a green purity row.
           python3 "${SMOKE}" --binary "${BINARY}" \
             --log /tmp/smoke-color16-hud.log --mass "${MASS}" \
             --label color16-hud-8s --arg=--duration --arg=8 \
@@ -414,7 +425,9 @@ jobs:
           python3 "${ASSERT}" --log /tmp/smoke-color16-hud.log --mass "${MASS}" \
             --label color16-hud-8s \
             --expect alt-leave --expect mouse-off \
-            --forbid sgr-256 --forbid sgr-truecolor
+            --expect-text " fps: " \
+            --forbid sgr-256 --forbid sgr-256-bg \
+            --forbid sgr-truecolor --forbid sgr-truecolor-bg
 
       - name: Verdict
         if: always()

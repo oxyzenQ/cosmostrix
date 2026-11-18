@@ -22,9 +22,17 @@ src/output/mod.rs (truecolor / 256-color / 16-color / Mono):
 - paste-off               bracketed paste disable
 - focus-off               focus-events disable
 - sgr-truecolor           a 38;2 / 48;2 direct-color SGR
-- sgr-256                 a 38;5 / 48;5 indexed-color SGR
+- sgr-truecolor-bg        the 48;2 background direct-color SGR alone
+- sgr-256                 a 38;5 indexed-color SGR (foreground form)
+- sgr-256-bg              a 48;5 indexed-color SGR (background form)
 - sgr-16                  a basic 30-37 / 90-97 foreground SGR
 - sgr-any                 any SGR introduction at all
+
+Beyond the sequence table, --expect-text asserts a raw literal byte
+string in the capture (used by the color-16 HUD leg to prove the
+injected toggle really rendered the HUD - metrics.rs composes
+` fps: ` as the HUD's first line, and no other surface prints that
+literal).
 
 Sentinel contract: one MASS-RESULT row per checked sequence, ending in
 PASS or FAIL; exits 3 when any check fails, 2 on usage errors.
@@ -44,7 +52,9 @@ SEQ_TABLE: dict[str, bytes] = {
     "paste-off": ESC + b"[?2004l",
     "focus-off": ESC + b"[?1004l",
     "sgr-truecolor": ESC + b"[38;2",
+    "sgr-truecolor-bg": ESC + b"[48;2",
     "sgr-256": ESC + b"[38;5",
+    "sgr-256-bg": ESC + b"[48;5",
     "sgr-16": ESC + b"[3",  # 30-37 foreground tier (matches 31, 32, ...)
     "sgr-any": ESC + b"[",
 }
@@ -77,6 +87,14 @@ def parse_args() -> argparse.Namespace:
         metavar="NAME",
         help="sequence that MUST NOT appear, repeatable (see SEQ_TABLE)",
     )
+    parser.add_argument(
+        "--expect-text",
+        action="append",
+        default=[],
+        dest="expect_text",
+        metavar="LITERAL",
+        help="raw literal byte string that MUST appear in the capture, repeatable",
+    )
     return parser.parse_args()
 
 
@@ -90,6 +108,10 @@ def main() -> int:
     unknown = [name for name in (*args.expect, *args.forbid) if name not in SEQ_TABLE]
     if unknown:
         print(f"pty_assert: unknown sequence names {unknown}", file=sys.stderr)
+        return 2
+    empty_texts = [t for t in args.expect_text if not t]
+    if empty_texts:
+        print("pty_assert: --expect-text values must be non-empty", file=sys.stderr)
         return 2
 
     with open(args.log, "rb") as handle:
@@ -108,6 +130,13 @@ def main() -> int:
             failed += 1
         else:
             append_row(args.mass, args.label, f"forbid {name}: PASS")
+
+    for text in args.expect_text:
+        if text.encode("utf-8") in data:
+            append_row(args.mass, args.label, f"expect-text {text!r}: PASS")
+        else:
+            append_row(args.mass, args.label, f"expect-text {text!r}: FAIL")
+            failed += 1
 
     return 3 if failed else 0
 
