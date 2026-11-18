@@ -41,7 +41,6 @@ residual can never silently return.
 
 ---
 
-
 ## Windows / Android (Termux): `i` key (HUD toggle) may cause sudden exit
 
 ### Symptom

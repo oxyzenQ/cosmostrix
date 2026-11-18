@@ -18,15 +18,15 @@
 //!
 //! Terminal families differ in what bounds their ANSI consumption:
 //!
-//! - **Byte-bound** (CPU state-machine parsers: VTE family, konsole,
+//! - Byte-bound (CPU state-machine parsers: VTE family, konsole,
 //!   foot, the raw console): the parser walks every byte through its
 //!   state machine on one core — the frame's BYTE volume is the cost.
 //!   This is the family the KNOWN_ISSUES VTE entry describes: at
 //!   fullscreen cell counts the byte volume overwhelms the parser.
-//! - **Heap-bound** (xterm.js): JavaScript-side parsing plus per-op
+//! - Heap-bound (xterm.js): JavaScript-side parsing plus per-op
 //!   object churn — the documented OOM class that already owns the
 //!   Tier-2 byte budget, RIS reset, and the 30 FPS cap.
-//! - **Op-bound** (GPU renderers: Alacritty, kitty, WezTerm, ghostty):
+//! - Op-bound (GPU renderers: Alacritty, kitty, WezTerm, ghostty):
 //!   parsing is cheap; the render cost rides per-escape-op. Volumes
 //!   that saturate a VTE session drain freely here.
 //!
@@ -57,16 +57,16 @@
 //!
 //! ## What it feeds (zero new surface)
 //!
-//! - **Power Dragon budget**: `budget_bytes_per_frame` — the per-frame
+//! - Power Dragon budget: `budget_bytes_per_frame` — the per-frame
 //!   byte allowance at the current effective cadence, consumed by
 //!   `PowerManager::observe_reader_cost` (the reader backoff rides the
 //!   same lever HUNT-23 chose: FPS pacing, no visual side effects).
-//! - **RLE threshold**: `validate_dirty_threshold` — the static
+//! - RLE threshold: the static
 //!   `DIRTY_THRESHOLD_RATIO` is checked against the consumer-side
 //!   crossover (byte-bound families decide on bytes, exactly the
 //!   producer sweep's arithmetic), pinning that the shipped threshold
 //!   is consumer-optimal for the families that pay in bytes.
-//! - **Calibration**: `calibration_rows` — the model's numbers checked
+//! - Calibration: `calibration_rows` — the model's numbers checked
 //!   against the byte volumes the supermassive legs actually captured
 //!   (the syscall-floor leg's ~2.4 KB frames at 80x24 must sit under
 //!   every family's budget; the documented fullscreen VTE saturation
