@@ -736,9 +736,13 @@ write(): the trace covers write, writev, pwrite64, pwritev,
 pwritev2, and ioctl, and the mandatory-output ledger asserts zero
 writev/pwrite* on any pty fd (write() is the only output syscall -
 a scatter-gather or positioned write would bypass the floor) and
-zero tty ioctls between the first and the last frame write (mode
-toggles live in the setup/teardown window; a steady-state tty ioctl
-mutates the terminal outside the single frame write). Scope, stated
+zero MUTATING tty ioctls between the first and the last frame write
+(TCSETS*/TIOCSWINSZ/TIOCSCTTY and kin, plus any undecoded request -
+a ledger never guesses; mode toggles live in the setup/teardown
+window). Read-only queries (TCGETS*, TIOCGWINSZ) in the steady
+state are OS-mandatory resize telemetry - the renderer polls the
+winsize for resize detection - and are ledgered informationally,
+not criminalized. Scope, stated
 honestly: the input/wait/signal/timer vocabulary (read, poll,
 epoll, nanosleep, signal delivery, futex) stays untraced by design
 - it is OS-mandatory transport residue, ptracing it slows the
@@ -756,8 +760,8 @@ strace parser, the ledger), `.github/workflows/supermassive.yml`
 combined flush the fingerprint targets).
 Verifier: the CI `syscall_floor` job must end `MASS-VERDICT: PASS`
 with the `syscall-floor writes/frame=1.000 PASS`, `alt-output
-tty=0 PASS`, and `tty-ioctl ledger ... steady=0 PASS` rows naming
-the kernel counts; locally, `strace -f -e
+tty=0 PASS`, and `tty-ioctl ledger mutating-steady=0 PASS` rows
+naming the kernel counts; locally, `strace -f -e
 trace=write,writev,pwrite64,pwritev,pwritev2,ioctl -xx -s 96 -o
 /tmp/sf.trace -- ./cosmostrix --duration 8 --perf-stats` on a real
 tty gives the harness the same input.

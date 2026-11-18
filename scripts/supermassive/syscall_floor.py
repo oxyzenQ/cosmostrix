@@ -48,10 +48,14 @@ ioctl, and the ledger asserts the full output contract:
   - every tty output byte leaves through write() alone - a writev or
     pwrite* on a pty fd is an output path that bypasses the floor
     (scatter-gather or positioned writes) and goes red;
-  - ioctl on a pty fd lives only in the setup/teardown window
-    (raw-mode toggles, winsize queries) - a tty ioctl BETWEEN the
-    first and the last frame write mutates the terminal outside the
-    single frame write and goes red.
+  - ioctl on a pty fd: MUTATING requests (TCSETS*/TIOCSWINSZ/
+    TIOCSCTTY/TIOCSTI and kin) belong to the setup/teardown window
+    only - a steady-state terminal MUTATION outside the single frame
+    write goes red, and so does an undecoded/unknown request (a
+    ledger never guesses). Read-only queries (TCGETS*, TIOCGWINSZ)
+    in the steady state are OS-mandatory telemetry - the renderer
+    polls the winsize for resize detection - and are ledgered
+    informationally, not criminalized.
 
 Scope, stated honestly: the input/wait/signal/timer vocabulary
 (read, poll, epoll, nanosleep, signal delivery, futex) is
@@ -99,6 +103,43 @@ LEDGER_COLS = 80
 # tail — a handful of small writes. Bounded so a regression that starts
 # emitting per-cell garbage outside frames still trips the ledger.
 SETUP_TEARDOWN_BOUND = 64
+# The tty-ioctl ledger's two request families. MUTATING requests change
+# terminal state (modes, window size, controlling tty, injection) and
+# are forbidden in the steady-state window; READ-ONLY queries are
+# OS-mandatory telemetry (the renderer polls the winsize for resize
+# detection) and are ledgered informationally. Any request outside
+# both sets - or an undecoded 0x... request - is treated as mutating
+# in the steady window: a ledger never guesses.
+MUTATING_IOCTL = frozenset(
+    {
+        "TCSETS",
+        "TCSETS2",
+        "TCSETSW",
+        "TCSETSW2",
+        "TCSETSF",
+        "TCSETSF2",
+        "TIOCSWINSZ",
+        "TIOCSCTTY",
+        "TIOCSTI",
+        "TIOCSETD",
+        "TIOCSBRK",
+        "TIOCCBRK",
+        "TIOCSPTLCK",
+        "TIOCCONS",
+        "TIOCPKT",
+    }
+)
+READ_ONLY_IOCTL = frozenset(
+    {
+        "TCGETS",
+        "TCGETS2",
+        "TIOCGWINSZ",
+        "TIOCGPTN",
+        "TIOCGETD",
+        "TIOCGPGRP",
+        "TIOCGSID",
+    }
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -613,27 +654,42 @@ def run_ledger(args: argparse.Namespace) -> int:
         f"(write() is the only output syscall on the tty; {alt_detail or 'none seen'})",
     )
 
-    # The tty-ioctl ledger: mode toggles (raw mode via TCGETS/TCSETS,
-    # the winsize query) belong to the setup/teardown window. Each
-    # tty ioctl is positioned against the first and the last frame
-    # write: one BETWEEN them mutates the terminal outside the single
-    # frame write - a floor violation the write-only trace cannot
-    # see.
+    # The tty-ioctl ledger: MUTATING requests (raw-mode toggles via
+    # TCSETS*, window-size sets, injection) belong to the setup/
+    # teardown window. Each tty ioctl is positioned against the first
+    # and the last frame write: a MUTATING request between them
+    # changes terminal state outside the single frame write - a floor
+    # violation the write-only trace cannot see - and an undecoded or
+    # unknown request there fails too (a ledger never guesses).
+    # Read-only queries (TCGETS*, TIOCGWINSZ) in the steady state are
+    # OS-mandatory resize telemetry and are ledgered informationally.
     frame_orders = [r.order for r in frames]
     steady_lo = min(frame_orders) if frame_orders else -1
     steady_hi = max(frame_orders) if frame_orders else -1
     tty_ioctls = [r for r in ioctls if r.fd in tty_fds]
     steady_ioctls = [r for r in tty_ioctls if steady_lo < r.order < steady_hi]
-    ioctl_histogram: dict[str, int] = {}
-    for record in tty_ioctls:
-        ioctl_histogram[record.request] = ioctl_histogram.get(record.request, 0) + 1
-    ioctl_detail = ", ".join(f"{k}={v}" for k, v in sorted(ioctl_histogram.items()))
+    steady_mutating = [r for r in steady_ioctls if r.request not in READ_ONLY_IOCTL]
+    steady_reads = [r for r in steady_ioctls if r.request in READ_ONLY_IOCTL]
+    read_histogram: dict[str, int] = {}
+    for record in steady_reads:
+        read_histogram[record.request] = read_histogram.get(record.request, 0) + 1
+    read_detail = ", ".join(f"{k}={v}" for k, v in sorted(read_histogram.items()))
+    setup_mutating = len(
+        [r for r in tty_ioctls if r.request not in READ_ONLY_IOCTL]
+    ) - len(steady_mutating)
     append_row(
         args.mass,
         args.label,
-        f"tty-ioctl ledger setup+teardown={len(tty_ioctls) - len(steady_ioctls)} "
-        f"steady={len(steady_ioctls)} {'PASS' if not steady_ioctls else 'FAIL'} "
-        f"(mode toggles live outside the frame window; {ioctl_detail or 'none seen'})",
+        f"tty-ioctl ledger mutating-steady={len(steady_mutating)} "
+        f"{'PASS' if not steady_mutating else 'FAIL'} "
+        f"(no terminal mutation outside the frame write; unknown requests fail; "
+        f"setup+teardown mutating={setup_mutating})",
+    )
+    append_row(
+        args.mass,
+        args.label,
+        f"tty-ioctl ledger read-only-steady={len(steady_reads)} INFO "
+        f"(OS-mandatory resize/termios telemetry; {read_detail or 'none seen'})",
     )
 
     # The io_uring rejection record (free with the floor): the steady
@@ -656,7 +712,7 @@ def run_ledger(args: argparse.Namespace) -> int:
         and len(others) <= SETUP_TEARDOWN_BOUND
         and byte_ok
         and not alt_out_tty
-        and not steady_ioctls
+        and not steady_mutating
     )
     if floor_ok and clean:
         append_row(args.mass, args.label, "PASS")
