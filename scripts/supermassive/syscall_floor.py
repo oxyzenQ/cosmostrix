@@ -85,11 +85,19 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Prove the 1-write-per-frame kernel floor under strace on a real pty."
     )
-    parser.add_argument("--binary", required=True, help="cosmostrix executable to trace")
+    parser.add_argument(
+        "--binary", required=True, help="cosmostrix executable to trace"
+    )
     parser.add_argument("--trace", required=True, help="strace output file to write")
-    parser.add_argument("--log", required=True, help="file to write captured pty bytes to")
-    parser.add_argument("--mass", required=True, help="file to append MASS-RESULT rows to")
-    parser.add_argument("--label", required=True, help="leg name used in MASS-RESULT rows")
+    parser.add_argument(
+        "--log", required=True, help="file to write captured pty bytes to"
+    )
+    parser.add_argument(
+        "--mass", required=True, help="file to append MASS-RESULT rows to"
+    )
+    parser.add_argument(
+        "--label", required=True, help="leg name used in MASS-RESULT rows"
+    )
     parser.add_argument(
         "--duration",
         type=float,
@@ -213,7 +221,9 @@ def run_child(args: argparse.Namespace) -> int:
 
     exit_code = os.waitstatus_to_exitcode(status) if status not in (None, -1) else -1
     elapsed = time.monotonic() - started
-    append_row(args.mass, args.label, f"captured={len(captured)} bytes in {elapsed:.1f}s")
+    append_row(
+        args.mass, args.label, f"captured={len(captured)} bytes in {elapsed:.1f}s"
+    )
     append_row(args.mass, args.label, f"exit={exit_code} expected=0")
 
     if fail_reason is not None:
@@ -281,7 +291,7 @@ def decode_strace_string(text: str) -> bytes:
 class WriteRecord:
     """One kernel-visible write() syscall on a tty fd."""
 
-    __slots__ = ("pid", "fd", "length", "payload", "ret")
+    __slots__ = ("fd", "length", "payload", "pid", "ret")
 
     def __init__(self, pid: int, fd: int, length: int, payload: bytes, ret: int):
         self.pid = pid
@@ -313,7 +323,9 @@ def parse_trace(trace_path: str) -> tuple[list[WriteRecord], list[str]]:
                 pid, payload_text, _ellipsis, length, ret = resumed.groups()
                 pending = unfinished.pop(int(pid), None)
                 if pending is None:
-                    problems.append(f"resumed write without unfinished head: {line[:120]}")
+                    problems.append(
+                        f"resumed write without unfinished head: {line[:120]}"
+                    )
                     continue
                 head_fd, head_len, head_payload = pending
                 records.append(
@@ -329,9 +341,15 @@ def parse_trace(trace_path: str) -> tuple[list[WriteRecord], list[str]]:
 
             opened = WRITE_OPEN.match(line)
             if opened:
-                pid, fd, payload_text, _ellipsis, length, unfinished_mark = opened.groups()
+                pid, fd, payload_text, _ellipsis, length, unfinished_mark = (
+                    opened.groups()
+                )
                 if unfinished_mark:
-                    unfinished[int(pid)] = (int(fd), int(length), decode_strace_string(payload_text))
+                    unfinished[int(pid)] = (
+                        int(fd),
+                        int(length),
+                        decode_strace_string(payload_text),
+                    )
                     continue
                 ret_match = WRITE_RET.search(line)
                 ret = int(ret_match.group(1)) if ret_match else -1
@@ -385,7 +403,11 @@ def parse_frames_flushed(capture_path: str) -> tuple[int | None, int | None]:
 def run_ledger(args: argparse.Namespace) -> int:
     frames_flushed, total_ansi = parse_frames_flushed(args.log)
     if frames_flushed is None:
-        append_row(args.mass, args.label, "FAIL reason=no frames_flushed row in the perf report")
+        append_row(
+            args.mass,
+            args.label,
+            "FAIL reason=no frames_flushed row in the perf report",
+        )
         return 3
     append_row(args.mass, args.label, f"frames_flushed={frames_flushed}")
 
@@ -411,7 +433,9 @@ def run_ledger(args: argparse.Namespace) -> int:
 
     # THE FLOOR: one write() per drawn frame, kernel-visible.
     if frames_flushed == 0:
-        append_row(args.mass, args.label, "FAIL reason=frames_flushed is 0 — nothing rendered")
+        append_row(
+            args.mass, args.label, "FAIL reason=frames_flushed is 0 — nothing rendered"
+        )
         return 3
     ratio = len(frames) / frames_flushed
     if len(frames) == frames_flushed:
