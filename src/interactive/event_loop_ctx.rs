@@ -367,7 +367,18 @@ impl LoopCtx {
             frame,
             w,
             h,
-            power_manager: PowerManager::new(startup.target_fps, Instant::now()),
+            power_manager: {
+                let mut power_manager = PowerManager::new(startup.target_fps, Instant::now());
+                // night-frontier-Z3 Lapis 3c: arm the reader-cost model
+                // with the detected terminal family (the same HUNT-24
+                // sensors the startup detection already read; one env
+                // scan, cached inside the model). Before this call the
+                // power path stays purely reactive.
+                power_manager.set_reader_family(
+                    crate::central_control_power_dragon::reader_cost::detect_family(),
+                );
+                power_manager
+            },
             next_frame: Instant::now(),
             last_resync_time: Instant::now(),
             reclaim_state: ReclaimState::new(),

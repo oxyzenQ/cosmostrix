@@ -61,6 +61,12 @@ impl super::Terminal {
         let frame_bytes = self.ansi_buf.len() as u64;
         self.total_ansi_bytes += frame_bytes;
         self.flush_count += 1;
+        // night-frontier-Z3 Lapis 3c: the last drawn frame's byte volume,
+        // read by the power system for the reader-aware backoff. Written
+        // before the empty-buffer early return can matter — this line
+        // only runs on non-empty buffers (a flush with content), which
+        // is exactly the frame the model should see.
+        self.last_frame_bytes = frame_bytes;
 
         // Tier 2 -- RIS reset (xterm.js hosts only).
         //

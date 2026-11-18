@@ -744,3 +744,78 @@ fn nh2_long_stall_does_not_teleport_the_filter() {
         "single post-stall frame must move the EMA by at most one capped step, before={before} after={after}"
     );
 }
+
+// ── night-frontier-Z3 Lapis 3c: the reader-aware backoff ──────────────
+
+/// The model's teeth, wiring level: an oversized frame on a CPU-rendered
+/// family raises the reader backoff and effective_fps paces down; the
+/// same frame on the GPU family does not. This is the proactive twin of
+/// the drain-backoff tests — the pacing must engage BEFORE the pipe
+/// backs up, not after.
+#[test]
+fn reader_backoff_paces_oversized_frames_by_family() {
+    let cpu = crate::central_control_power_dragon::reader_cost::TerminalFamily::CpuRendered;
+    let gpu = crate::central_control_power_dragon::reader_cost::TerminalFamily::Gpu;
+    // 48 KB frame (the producer sweep's 200x60 full-redraw number) in a
+    // 16.7 ms frame period: 2.9 MB/s against the CPU family's 2 MB/s
+    // floor — over budget. On the GPU family's 20 MB/s floor: within.
+    let frame_bytes = 48_000u64;
+    let period = 1.0 / 60.0;
+
+    let mut pm_cpu = make_pm_at(Instant::now());
+    pm_cpu.set_reader_family(cpu);
+    pm_cpu.observe_reader_cost(frame_bytes, period as f32);
+    assert!(
+        pm_cpu.effective_fps(false, true) < pm_cpu.base_target_fps(),
+        "an over-budget frame must pace the CPU family below its target"
+    );
+
+    let mut pm_gpu = make_pm_at(Instant::now());
+    pm_gpu.set_reader_family(gpu);
+    pm_gpu.observe_reader_cost(frame_bytes, period as f32);
+    assert_eq!(
+        pm_gpu.effective_fps(false, true),
+        pm_gpu.base_target_fps(),
+        "the same frame on the GPU family must run at full cadence"
+    );
+}
+
+/// An unarmed manager (the pre-3c shape) no-ops: observe_reader_cost
+/// changes nothing, so a call-site regression that arms late or never
+/// degrades to the purely reactive behavior rather than false pacing.
+#[test]
+fn unarmed_reader_model_is_a_no_op() {
+    let mut pm = make_pm_at(Instant::now());
+    pm.observe_reader_cost(48_000, (1.0 / 60.0) as f32);
+    assert_eq!(pm.effective_fps(false, true), pm.base_target_fps());
+}
+
+/// Healthy frames decay the backoff: after a pacing episode, small
+/// frames walk the cadence back to full speed (the same recovery
+/// discipline the measured drain backoff follows).
+#[test]
+fn reader_backoff_decays_on_healthy_frames() {
+    let cpu = crate::central_control_power_dragon::reader_cost::TerminalFamily::CpuRendered;
+    let period = (1.0 / 60.0) as f32;
+    let mut pm = make_pm_at(Instant::now());
+    pm.set_reader_family(cpu);
+    // Oversized frames raise it.
+    for _ in 0..40 {
+        pm.observe_reader_cost(48_000, period);
+    }
+    let paced = pm.effective_fps(false, true);
+    assert!(paced < pm.base_target_fps());
+    // Healthy frames (the 80x24 captured volume, ~2.4 KB) decay it —
+    // the FALL constant is deliberately gentle (0.002/frame), so a
+    // pacing episode recovers over ~500 healthy frames, never snapping.
+    for _ in 0..500 {
+        pm.observe_reader_cost(2_400, period);
+    }
+    assert_eq!(
+        pm.effective_fps(false, true),
+        pm.base_target_fps(),
+        "healthy frames must restore the full cadence"
+    );
+    // (the paced value is pinned above only as a precondition)
+    let _ = paced;
+}

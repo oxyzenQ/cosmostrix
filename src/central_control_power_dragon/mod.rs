@@ -122,6 +122,7 @@
 mod endurance_health;
 mod phase_predictor;
 mod power_manager;
+pub(crate) mod reader_cost;
 mod reclaim_state;
 mod self_healer;
 mod thermal_sampler;

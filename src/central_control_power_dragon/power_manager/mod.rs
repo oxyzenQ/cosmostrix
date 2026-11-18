@@ -123,6 +123,21 @@ pub(crate) struct PowerManager {
     /// blocking inside flush().
     drain_backoff: f32,
 
+    /// night-frontier-Z3 Lapis 3c: the reader-aware backoff — the
+    /// PROACTIVE twin of `drain_backoff`. Where `drain_backoff` reacts
+    /// to MEASURED write latency (after the pipe has already backed
+    /// up), this signal is predicted from the frame's byte volume
+    /// against the terminal family's sustainable drain rate
+    /// (`reader_cost::TerminalFamily`). Same lever, same [0.0, 1.0]
+    /// shape, same rise/fall discipline; `effective_fps()` takes the
+    /// stronger of the two. 0.0 = the family's budget covers the
+    /// emission; 1.0 = maximum reader-aware pacing.
+    reader_backoff: f32,
+
+    /// The detected terminal family for the reader-cost model. `None`
+    /// until `set_reader_family` arms it (tests and pre-wiring paths).
+    reader_family: Option<crate::central_control_power_dragon::reader_cost::TerminalFamily>,
+
     // ── Thermal guard input (feature #13) ──
     // 0.0 = cool, 1.0 = thermal emergency. Added to perf_pressure in
     // effective_pressure(). Future feature will sample real thermal
@@ -173,6 +188,8 @@ impl PowerManager {
             idle_started: None,
             base_target_fps: base_target_fps.max(1.0),
             drain_backoff: 0.0,
+            reader_backoff: 0.0,
+            reader_family: None,
             thermal_pressure: 0.0,
             visual_pressure: 0.0,
             last_visual_sample: now,
@@ -379,6 +396,51 @@ impl PowerManager {
         }
     }
 
+    /// night-frontier-Z3 Lapis 3c: observe one drawn frame's byte volume
+    /// against the terminal family's per-frame budget. The predicted
+    /// consumer overshoot rides the same rise/fall discipline as the
+    /// measured `write_overshoot`, so the output cadence paces to the
+    /// family's sustainable drain rate BEFORE the pipe fills — the
+    /// proactive kill for the feedback delay the VTE fullscreen entry
+    /// documents. No-op until `set_reader_family` arms the family (the
+    /// pre-3c behavior: reactive-only pacing).
+    pub(crate) fn observe_reader_cost(&mut self, frame_bytes: u64, frame_period_s: f32) {
+        let Some(family) = self.reader_family else {
+            return;
+        };
+        if frame_period_s <= 0.0 || frame_bytes == 0 {
+            // An idle frame (nothing drawn) decays the backoff, mirroring
+            // the measured path's did_draw gate.
+            self.reader_backoff = (self.reader_backoff - OUTPUT_DRAIN_BACKOFF_FALL).max(0.0);
+            return;
+        }
+        // The model's documented shape: predicted consumer parse time
+        // for this byte volume, versus the frame period the cadence
+        // allows. Over 1.0 = the consumer cannot keep up at this rate.
+        let predicted_ms = family.predicted_parse_ms(frame_bytes);
+        let period_ms = f64::from(frame_period_s) * 1000.0;
+        if period_ms <= 0.0 {
+            return;
+        }
+        let reader_overshoot = ((predicted_ms / period_ms) - 1.0).clamp(0.0, 2.0) as f32;
+        if reader_overshoot > 0.0 {
+            self.reader_backoff =
+                (self.reader_backoff + reader_overshoot * OUTPUT_DRAIN_BACKOFF_RISE).min(1.0);
+        } else {
+            self.reader_backoff = (self.reader_backoff - OUTPUT_DRAIN_BACKOFF_FALL).max(0.0);
+        }
+    }
+
+    /// Arm the reader-cost model with the detected terminal family.
+    /// Called once at event-loop setup; before it, `observe_reader_cost`
+    /// no-ops and pacing stays purely reactive.
+    pub(crate) fn set_reader_family(
+        &mut self,
+        family: crate::central_control_power_dragon::reader_cost::TerminalFamily,
+    ) {
+        self.reader_family = Some(family);
+    }
+
     /// Effective `perf_pressure` — unified read replacing scattered
     /// `perf_pressure` reads. Includes the thermal guard as INPUT
     /// (added to base pressure, clamped to 1.0).
@@ -431,7 +493,12 @@ impl PowerManager {
             self.base_target_fps
         };
         if power_dragon_enabled {
-            let factor = 1.0 - OUTPUT_DRAIN_BACKOFF_MAX * f64::from(self.drain_backoff);
+            // The stronger of the reactive (measured latency) and
+            // proactive (predicted consumer parse) backoffs wins; each
+            // decays independently, so a healthy measurement always
+            // relaxes its own axis.
+            let backoff = self.drain_backoff.max(self.reader_backoff);
+            let factor = 1.0 - OUTPUT_DRAIN_BACKOFF_MAX * f64::from(backoff);
             let floor = OUTPUT_DRAIN_FPS_FLOOR.min(self.base_target_fps);
             fps = (fps * factor).max(floor);
         }

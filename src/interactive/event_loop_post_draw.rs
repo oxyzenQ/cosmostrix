@@ -174,6 +174,16 @@ pub(crate) fn post_draw_accounting(
 
     let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);
     let utilization = work_s / frame_period_s;
+    // night-frontier-Z3 Lapis 3c: feed the reader-cost model the frame's
+    // byte volume. The model predicts the consumer's parse cost for the
+    // detected terminal family and paces the output BEFORE the pipe
+    // backs up (the proactive twin of the measured write_overshoot
+    // below); a no-op until armed, and skipped for frames that did not
+    // draw (the model then decays, mirroring the measured did_draw gate
+    // inside observe_frame_end).
+    if did_draw {
+        power_manager.observe_reader_cost(term.last_frame_bytes(), frame_period_s);
+    }
     // (Phase 3): PowerManager.observe_frame_end() replaces the
     // inline perf_pressure increment/decay. Same math, same constants.
     // overshoot is kept as a local for the perf_stats overshoot-frame

@@ -188,6 +188,10 @@ pub(crate) struct Terminal {
     /// Incremented in `flush_ansi()` by `ansi_buf.len()` before clearing.
     /// Used by `--perf-stats` to report average bytes/frame and total bandwidth.
     total_ansi_bytes: u64,
+    /// night-frontier-Z3 Lapis 3c: the byte volume of the most recent
+    /// drawn frame (the reader-cost model's input). Updated by
+    /// `flush_ansi` on every non-empty flush.
+    last_frame_bytes: u64,
     /// Number of `flush_ansi()` calls (= number of frames drawn).
     /// Used with `total_ansi_bytes` to compute average bytes/frame.
     flush_count: u64,
@@ -304,6 +308,7 @@ impl Terminal {
             term_caps,
             color_cache: None,
             total_ansi_bytes: 0,
+            last_frame_bytes: 0,
             flush_count: 0,
             combined_flush_buf: Vec::with_capacity(RENDER_COMBINED_FLUSH_INIT_CAP),
             #[cfg(unix)]
@@ -496,6 +501,13 @@ impl Terminal {
             mode => Some(SgrQuantizer::new(mode)),
         };
         self.color_cache = Some(cache);
+    }
+
+    /// The byte volume of the most recent drawn frame (0 before the
+    /// first flush). The reader-cost model's per-frame input
+    /// (night-frontier-Z3 3c).
+    pub(crate) fn last_frame_bytes(&self) -> u64 {
+        self.last_frame_bytes
     }
 
     /// Return encoding statistics as `(total_ansi_bytes, flush_count, sgr_hits, sgr_misses)`.
