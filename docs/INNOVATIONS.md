@@ -731,6 +731,18 @@ a buyer can re-run the same proof locally with one strace command.
 Free with the proof: the io_uring rejection record (Retired by
 verdict, below) becomes evidence-backed — one write() per frame IS
 the kernel floor, so io_uring for a single write is pure overhead.
+The ledger is closed against the WHOLE output surface, not only
+write(): the trace covers write, writev, pwrite64, pwritev,
+pwritev2, and ioctl, and the mandatory-output ledger asserts zero
+writev/pwrite* on any pty fd (write() is the only output syscall -
+a scatter-gather or positioned write would bypass the floor) and
+zero tty ioctls between the first and the last frame write (mode
+toggles live in the setup/teardown window; a steady-state tty ioctl
+mutates the terminal outside the single frame write). Scope, stated
+honestly: the input/wait/signal/timer vocabulary (read, poll,
+epoll, nanosleep, signal delivery, futex) stays untraced by design
+- it is OS-mandatory transport residue, ptracing it slows the
+traced child, and it pins no renderer claim.
 Honest scope: strace is Linux-only by definition, so the ledger
 proves the x86_64 release lane (the syscall contract is
 arch-shared; the ptrace tool is not); the 8-second leg renders one
@@ -743,10 +755,12 @@ strace parser, the ledger), `.github/workflows/supermassive.yml`
 `src/engine/cosmic_dragon_engine/terminal/io_recovery.rs` (the
 combined flush the fingerprint targets).
 Verifier: the CI `syscall_floor` job must end `MASS-VERDICT: PASS`
-with the `syscall-floor writes/frame=1.000 PASS` row naming the
-kernel write count and the flush count; locally, `strace -f -e
-trace=write -xx -s 96 -o /tmp/sf.trace -- ./cosmostrix --duration 8
---perf-stats` on a real tty gives the harness the same input.
+with the `syscall-floor writes/frame=1.000 PASS`, `alt-output
+tty=0 PASS`, and `tty-ioctl ledger ... steady=0 PASS` rows naming
+the kernel counts; locally, `strace -f -e
+trace=write,writev,pwrite64,pwritev,pwritev2,ioctl -xx -s 96 -o
+/tmp/sf.trace -- ./cosmostrix --duration 8 --perf-stats` on a real
+tty gives the harness the same input.
 
 ### 36. The zero-alloc ledger (the enforced 0.0 allocs/frame contract)
 

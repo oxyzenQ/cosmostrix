@@ -40,6 +40,26 @@ operation. At the floor, being AT the floor is the depth; the
 experiment is concluded and the record stands (the measured-cost
 benchmark lives in src/cosmic_dragon_incubator/egg/io_uring_rejected.rs).
 
+The mandatory-output ledger (night-frontier-Z2 2a depth): the floor
+must hold against EVERY output syscall, not only write(). The trace
+therefore covers write, writev, pwrite64, pwritev, pwritev2, and
+ioctl, and the ledger asserts the full output contract:
+
+  - every tty output byte leaves through write() alone - a writev or
+    pwrite* on a pty fd is an output path that bypasses the floor
+    (scatter-gather or positioned writes) and goes red;
+  - ioctl on a pty fd lives only in the setup/teardown window
+    (raw-mode toggles, winsize queries) - a tty ioctl BETWEEN the
+    first and the last frame write mutates the terminal outside the
+    single frame write and goes red.
+
+Scope, stated honestly: the input/wait/signal/timer vocabulary
+(read, poll, epoll, nanosleep, signal delivery, futex) is
+OS-mandatory transport residue, not renderer output - ptracing
+those hot syscalls slows the traced child and pins no renderer
+claim, so they stay outside the ledger by design. The OUTPUT floor
+is the contract this harness owns.
+
 Sentinel contract: MASS-RESULT rows, one per checked fact, each
 ending in PASS or FAIL; exits 0 when every check passes, 2 on usage
 errors, 3 on transport or assertion failure (same shape as
@@ -142,7 +162,11 @@ def run_child(args: argparse.Namespace) -> int:
         "strace",
         "-f",  # follow the fork guard's children
         "-e",
-        "trace=write",
+        # The full output + control surface (night-frontier-Z2 2a):
+        # write alone proves the 1-per-frame floor; writev/pwrite*
+        # close the alternate-output bypass; ioctl pins the terminal
+        # mode toggles to the setup/teardown window.
+        "trace=write,writev,pwrite64,pwritev,pwritev2,ioctl",
         "-xx",  # every payload byte as \xNN — uniform parsing
         "-s",
         "96",  # payload prefix for classification; the length arg is authoritative
@@ -238,14 +262,19 @@ def run_child(args: argparse.Namespace) -> int:
 
 # ── strace parsing ─────────────────────────────────────────────────────────
 #
-# With `-f -xx -s 96 -e trace=write -o FILE` every traced line is:
+# With `-f -xx -s 96 -e trace=write,writev,pwrite64,pwritev,pwritev2,
+# ioctl -o FILE` every traced line is one of:
 #   <pid>  write(<fd>, "<hex payload>"..., <len>) = <ret>
+#   <pid>  writev(<fd>, [{...}, ...], <len>) = <ret>
+#   <pid>  pwrite64/pwritev/pwritev2(<fd>, ...) = <ret>
+#   <pid>  ioctl(<fd>, <REQUEST>, ...) = <ret>
 # Long payloads are truncated by the `...` marker after the quoted
 # prefix — the third argument (len) stays authoritative. A write
 # interrupted by a signal appears as two lines:
 #   <pid>  write(1, "..."..., <len> <unfinished ...>)
 #   <pid>  <... write resumed>"..."..., <len>) = <ret>
-# The ledger joins those pairs per pid before counting.
+# The ledger joins those pairs per pid before counting; alt-output
+# and ioctl heads are counted once (their resumed tails pass).
 WRITE_OPEN = re.compile(
     r"^\s*(\d+)\s+write\((\d+), \"((?:[^\"\\]|\\.)*)\"(\.\.\.)?, (\d+)( <unfinished \.\.\.>)?\)"
 )
@@ -253,6 +282,8 @@ WRITE_RESUMED = re.compile(
     r"^\s*(\d+)\s+<\.\.\. write resumed>\"((?:[^\"\\]|\\.)*)\"(\.\.\.)?, (\d+)\)\s*=\s*(-?\d+)"
 )
 WRITE_RET = re.compile(r"\)\s*=\s*(-?\d+)\s*$")
+ALT_OUT_OPEN = re.compile(r"^\s*(\d+)\s+(writev|pwrite64|pwritev|pwritev2)\((\d+),")
+IOCTL_OPEN = re.compile(r"^\s*(\d+)\s+ioctl\((\d+), ([^,)]+)")
 
 
 def decode_strace_string(text: str) -> bytes:
@@ -291,29 +322,67 @@ def decode_strace_string(text: str) -> bytes:
 class WriteRecord:
     """One kernel-visible write() syscall on a tty fd."""
 
-    __slots__ = ("fd", "length", "payload", "pid", "ret")
+    __slots__ = ("fd", "length", "order", "payload", "pid", "ret")
 
-    def __init__(self, pid: int, fd: int, length: int, payload: bytes, ret: int):
+    def __init__(
+        self, pid: int, fd: int, length: int, payload: bytes, ret: int, order: int
+    ):
         self.pid = pid
         self.fd = fd
         self.length = length
         self.payload = payload
         self.ret = ret
+        self.order = order
 
 
-def parse_trace(trace_path: str) -> tuple[list[WriteRecord], list[str]]:
-    """Parse the strace output into WriteRecords (payload-decoded).
+class AltOutRecord:
+    """One kernel-visible alternate output syscall (writev/pwrite*).
 
-    Returns (records, problems). problems carries any unjoinable
-    unfinished/resumed pairs or unparsable write lines — a ledger
-    must never silently guess.
+    These must never appear on a pty fd: write() is the only output
+    syscall the renderer's design contains.
+    """
+
+    __slots__ = ("fd", "name", "order", "pid")
+
+    def __init__(self, pid: int, name: str, fd: int, order: int):
+        self.pid = pid
+        self.name = name
+        self.fd = fd
+        self.order = order
+
+
+class IoctlRecord:
+    """One kernel-visible ioctl syscall with its (decoded) request."""
+
+    __slots__ = ("fd", "order", "pid", "request")
+
+    def __init__(self, pid: int, fd: int, request: str, order: int):
+        self.pid = pid
+        self.fd = fd
+        self.request = request
+        self.order = order
+
+
+def parse_trace(
+    trace_path: str,
+) -> tuple[list[WriteRecord], list[AltOutRecord], list[IoctlRecord], list[str]]:
+    """Parse the strace output into the full output-surface ledger.
+
+    Returns (writes, alt_out, ioctls, problems). writes are
+    payload-decoded WriteRecords; alt_out carries writev/pwrite*
+    syscalls (forbidden on tty fds); ioctls carry their request
+    tokens (window-checked against the frame writes). problems
+    carries any unjoinable unfinished/resumed pairs or unparsable
+    lines - a ledger must never silently guess.
     """
     records: list[WriteRecord] = []
+    alt_out: list[AltOutRecord] = []
+    ioctls: list[IoctlRecord] = []
     problems: list[str] = []
     unfinished: dict[int, tuple[int, int, str]] = {}
 
     with open(trace_path, encoding="utf-8", errors="replace") as handle:
-        for raw in handle:
+        for order, raw in enumerate(handle, start=1):
             line = raw.rstrip("\n")
             if not line or line.startswith("strace:") or "exited with" in line:
                 continue
@@ -335,6 +404,7 @@ def parse_trace(trace_path: str) -> tuple[list[WriteRecord], list[str]]:
                         int(length) if length else head_len,
                         head_payload + decode_strace_string(payload_text),
                         int(ret),
+                        order,
                     )
                 )
                 continue
@@ -360,8 +430,27 @@ def parse_trace(trace_path: str) -> tuple[list[WriteRecord], list[str]]:
                         int(length),
                         decode_strace_string(payload_text),
                         ret,
+                        order,
                     )
                 )
+                continue
+
+            alt = ALT_OUT_OPEN.match(line)
+            if alt:
+                pid, name, fd = alt.groups()
+                alt_out.append(AltOutRecord(int(pid), name, int(fd), order))
+                continue
+
+            ioctl = IOCTL_OPEN.match(line)
+            if ioctl:
+                pid, fd, request = ioctl.groups()
+                ioctls.append(IoctlRecord(int(pid), int(fd), request, order))
+                continue
+
+            if "<... " in line and "resumed>" in line:
+                # A resumed continuation of an alt-out or ioctl
+                # syscall: the head line already counted the syscall
+                # once, so the tail passes without a second record.
                 continue
 
             if "<unfinished ...>" in line or "write resumed>" in line:
@@ -371,7 +460,7 @@ def parse_trace(trace_path: str) -> tuple[list[WriteRecord], list[str]]:
 
     for pid in unfinished:
         problems.append(f"unfinished write never resumed (pid {pid})")
-    return records, problems
+    return records, alt_out, ioctls, problems
 
 
 # ── perf report parsing ────────────────────────────────────────────────────
@@ -411,7 +500,7 @@ def run_ledger(args: argparse.Namespace) -> int:
         return 3
     append_row(args.mass, args.label, f"frames_flushed={frames_flushed}")
 
-    records, problems = parse_trace(args.trace)
+    records, alt_out, ioctls, problems = parse_trace(args.trace)
     if problems:
         for problem in problems[:8]:
             append_row(args.mass, args.label, f"FAIL reason=trace parse: {problem}")
@@ -506,6 +595,47 @@ def run_ledger(args: argparse.Namespace) -> int:
         f"{'PASS' if len(others) <= SETUP_TEARDOWN_BOUND else 'FAIL'}",
     )
 
+    # The mandatory-output ledger: write() must be the ONLY output
+    # syscall on the pty. Any writev/pwrite* on an inherited tty fd
+    # is an output path that bypasses the floor (the renderer's
+    # design has exactly one write_all + one flush per frame).
+    tty_fds = {0, 1, 2}
+    alt_out_tty = [r for r in alt_out if r.fd in tty_fds]
+    alt_histogram: dict[str, int] = {}
+    for record in alt_out_tty:
+        alt_histogram[record.name] = alt_histogram.get(record.name, 0) + 1
+    alt_detail = ", ".join(f"{k}={v}" for k, v in sorted(alt_histogram.items()))
+    append_row(
+        args.mass,
+        args.label,
+        f"alt-output tty={len(alt_out_tty)} non-tty={len(alt_out) - len(alt_out_tty)} "
+        f"{'PASS' if not alt_out_tty else 'FAIL'} "
+        f"(write() is the only output syscall on the tty; {alt_detail or 'none seen'})",
+    )
+
+    # The tty-ioctl ledger: mode toggles (raw mode via TCGETS/TCSETS,
+    # the winsize query) belong to the setup/teardown window. Each
+    # tty ioctl is positioned against the first and the last frame
+    # write: one BETWEEN them mutates the terminal outside the single
+    # frame write - a floor violation the write-only trace cannot
+    # see.
+    frame_orders = [r.order for r in frames]
+    steady_lo = min(frame_orders) if frame_orders else -1
+    steady_hi = max(frame_orders) if frame_orders else -1
+    tty_ioctls = [r for r in ioctls if r.fd in tty_fds]
+    steady_ioctls = [r for r in tty_ioctls if steady_lo < r.order < steady_hi]
+    ioctl_histogram: dict[str, int] = {}
+    for record in tty_ioctls:
+        ioctl_histogram[record.request] = ioctl_histogram.get(record.request, 0) + 1
+    ioctl_detail = ", ".join(f"{k}={v}" for k, v in sorted(ioctl_histogram.items()))
+    append_row(
+        args.mass,
+        args.label,
+        f"tty-ioctl ledger setup+teardown={len(tty_ioctls) - len(steady_ioctls)} "
+        f"steady={len(steady_ioctls)} {'PASS' if not steady_ioctls else 'FAIL'} "
+        f"(mode toggles live outside the frame window; {ioctl_detail or 'none seen'})",
+    )
+
     # The io_uring rejection record (free with the floor): the steady
     # state is ONE write() per frame — the kernel floor for a tty
     # writer. io_uring for a single write is strictly more overhead
@@ -525,6 +655,8 @@ def run_ledger(args: argparse.Namespace) -> int:
         and not spillover
         and len(others) <= SETUP_TEARDOWN_BOUND
         and byte_ok
+        and not alt_out_tty
+        and not steady_ioctls
     )
     if floor_ok and clean:
         append_row(args.mass, args.label, "PASS")
