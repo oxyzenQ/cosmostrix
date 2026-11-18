@@ -79,3 +79,11 @@ jobs:
         with:
           runtime: 30
           args: --output-format terse --harness blend_toward_bg_rgb_stays_in_channel_hull
+
+# night-zen-lts-2: join the estate-wide cancel-in-progress law. The
+# other eleven workflows serialize per-ref; these heavy lanes ran
+# every push to completion, so a rapid push pair paid for two full
+# model-checking sweeps with the first one discarded unread.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true

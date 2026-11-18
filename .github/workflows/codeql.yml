@@ -190,3 +190,11 @@ jobs:
           # 0 = one thread per core, the honest budget on a 4-core
           # runner under the five-minute law.
           threads: 0
+
+# night-zen-lts-2: join the estate-wide cancel-in-progress law. The
+# other eleven workflows serialize per-ref; these heavy lanes ran
+# every push to completion, so a rapid push pair paid for two full
+# model-checking sweeps with the first one discarded unread.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
