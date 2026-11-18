@@ -19,17 +19,14 @@
 //! The crossover threshold is `DIRTY_THRESHOLD_RATIO` (currently 8 = 12.5%).
 //! See `cosmic_dragon::egg::threshold_sweep` for the benchmark that tuned it.
 
-use std::io::Result;
+use std::io::{Result, Write};
 
-use crossterm::{
-    QueueableCommand,
-    style::{Color, SetBackgroundColor},
-};
+use crossterm::style::Color;
 
 use crate::bolt::{BOLD_ESCAPE_LENS, BOLD_ESCAPES};
 use crate::constants::DIRTY_THRESHOLD_RATIO;
 use crate::frame::Frame;
-use crate::sgr_format::push_u16;
+use crate::sgr_format::{push_u16, write_sgr_colors_buf};
 
 use super::{LastFrame, Terminal};
 
@@ -89,18 +86,26 @@ impl Terminal {
                     None => Some(bg),
                 };
                 if let Some(bg) = bg {
-                    // The blanket bg rides the BufWriter ahead of this
-                    // frame's combined flush; account for its bytes here
-                    // so `total_ansi_bytes` stays byte-exact against the
-                    // kernel's write() lengths (the syscall-floor
-                    // ledger's byte-identity row, night-frontier-Z2).
-                    // to_string() is crossterm's own Display encoding -
-                    // the exact bytes queue() writes - and fires once
-                    // per needs_clear (the first frame plus real
-                    // resizes), never per frame.
-                    let bg_command = SetBackgroundColor(bg);
-                    self.stdout.queue(bg_command)?;
-                    self.total_ansi_bytes += bg_command.to_string().len() as u64;
+                    // The blanket rides the repo's own classic-code
+                    // writer, NOT crossterm's Display: crossterm renders
+                    // NAMED colors in the indexed 48;5;N form (Black bg
+                    // = ESC[48;5;0m), which the deepened bg-form probe
+                    // caught as one indexed SGR per non-truecolor
+                    // session even after the quantizer armed correctly
+                    // (the debug trace proved it: armed=true, bg=Black,
+                    // and the wire still carried 48;5;0m). The cells
+                    // ride sgr_format's classic wire (task-17); the
+                    // canvas paint rides the same wire. fg rides 39
+                    // (default) - the byte shape of the cache's reset
+                    // entry. The 16-byte scratch Vec replaces the old
+                    // to_string() allocation, same once-per-needs_clear
+                    // window, and total_ansi_bytes counts the exact
+                    // queued bytes so the syscall-floor byte-identity
+                    // row stays kernel-exact.
+                    let mut buf = Vec::with_capacity(16);
+                    write_sgr_colors_buf(&mut buf, None, Some(bg));
+                    self.stdout.write_all(&buf)?;
+                    self.total_ansi_bytes += buf.len() as u64;
                 }
             }
         }
