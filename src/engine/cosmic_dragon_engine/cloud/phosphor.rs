@@ -420,11 +420,11 @@ impl Cloud {
             * adaptive_factor
             * elapsed_sec;
         let bottom_base_decay = base_decay * PHOSPHOR_BOTTOM_DECAY_MULT;
-        let mut decay_exp_factors = [1.0f32; PARALLAX_LAYERS * 2];
-        for (i, &lm) in PHOSPHOR_LAYER_DECAY_MULT.iter().enumerate() {
-            decay_exp_factors[i * 2] = (-base_decay * lm).exp();
-            decay_exp_factors[i * 2 + 1] = (-bottom_base_decay * lm).exp();
-        }
+        // Z4c: the per-frame decay LUT is the calibration module's
+        // product now — the same exp() law, built in one audited place
+        // (central_control_rains::phosphor_calibration, the P1-class
+        // calibration the rate derives from).
+        let decay_exp_factors = phosphor_decay_lut(base_decay, bottom_base_decay);
 
         // Pass 3: Decay non-fresh cells with phosphor energy.
         // OPTIMIZED: iterate only active phosphor cells instead of full grid.

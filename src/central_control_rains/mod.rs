@@ -225,11 +225,13 @@ mod atmosphere;
 mod density_throttle;
 mod events;
 mod parallax;
+mod phosphor_calibration;
 mod style_rain;
 pub(crate) use atmosphere::*;
 pub(crate) use density_throttle::*;
 pub(crate) use events::*;
 pub(crate) use parallax::*;
+pub(crate) use phosphor_calibration::*;
 pub(crate) use style_rain::*;
 
 // ─── Exponential trail fade & head bloom ───────────────────────────────────
@@ -781,3 +783,7 @@ pub(crate) const MONOLITH_DRAWN_CELLS_PER_LANE_RESERVE: usize = 32;
 #[cfg(test)]
 #[path = "../../test/central_control_rains/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../test/central_control_rains/tests_phosphor_calibration.rs"]
+mod phosphor_calibration_tests;

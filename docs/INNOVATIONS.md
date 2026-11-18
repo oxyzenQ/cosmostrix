@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty, in dependency order
+## The forty-one, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1005,6 +1005,66 @@ Verifier: `cargo test lock_inv20_z4a` — JND continuity over ~300
 traced segments, the band ceiling, both trough floors, and the
 re-derivation harness must all pass; the engine version sentinel pins
 "9-E (locked)".
+
+### 41. The calibrated phosphor decay (the P1-class curve, Lapis 4c)
+
+Problem killed: the trail afterglow was an exponential with a bare
+hand-tuned rate — `PHOSPHOR_DECAY_RATE = 8.0` carried no provenance,
+the per-frame decay factors were built inline in the decay pass, and
+nothing said what the number MEANS physically or pinned the curve's
+shape; a future retune could silently reshape the afterglow under
+every test. Mechanism (night-frontier-Z4c, Lapis 4c):
+`central_control_rains::phosphor_calibration` maps the decay curve to
+the real CRT phosphor persistence data. The matrix-rain afterglow
+emulates the P1 class — Zn2SiO4:Mn green willemite, 525 nm, the
+phosphor of oscilloscopes and the green monochrome monitors the whole
+aesthetic descends from, classified medium persistence (1-100 ms) by
+the standard P-designation table — whose characteristic exponential
+decay component sits at tau = 25 ms. A 25 ms afterglow is invisible at
+terminal scale, so the engine runs phosphor time DILATED:
+`PHOSPHOR_SIM_TIME_SCALE = 5.0` — one simulated second of decay
+represents 5 phosphor seconds, a documented aesthetic dilation chosen
+to reproduce the shipped rate BIT-IDENTICALLY (1 / (0.025 x 5.0) =
+8.0 exactly in f32), so the owner's tuned trail envelope is preserved
+byte for byte while the number gains its physical identity: the trail
+is the P1 curve at 5x dilation (simulated tau 125 ms, simulated
+half-life 86.6 ms). `PHOSPHOR_DECAY_RATE` is now DERIVED from the
+calibration (a test pins the bit-identity — if the rate ever moves,
+the commit must say "retune"), the per-frame decay LUT is built by
+`phosphor_decay_lut` in one audited place (the same exp() law the
+decay pass always ran, only the construction site moved), and the
+cosmostrix parallax multipliers keep their documented meaning: each
+layer's effective tau is the P1 sim tau divided by its multiplier
+(back 65.8 ms, mid 108.7 ms, front 192.3 ms; half-lives 45.6 / 75.3 /
+133.2 ms; bottom band accelerated by 1.8x). The module also carries
+the P-designation reference classes the trail could emulate — P3
+amber (~13 ms), P4 white B/W TV (~60 us), P7 radar dual-layer (long
+component ~200 ms) — pinned as REAL published values with the honest
+scope stated: only the P1 identity is load-bearing, and cross-class
+ratios are deliberately not engine law because public persistence
+tables quote decay to different brightness levels (10% vs 1%).
+Effect: the afterglow claim is calibrated and pinned — tests assert
+the rate identity, the half-life law (t_half = tau x ln(2), the LUT
+lands exactly on 0.5 there), the 1/e tau point, the exponential law
+(factor(2t) = factor(t)^2 per slot), the real reference table, and
+the shipped trail envelope end to end (a tail-residual cell dies
+after 13 / 22 / 38 frames per layer at 60 fps). A future retune of
+tau, dilation, or shape fails with the physical consequence in the
+message; a deliberate class-aware trail (amber schemes riding P3) is
+now a constant change, not a research project.
+Truth: `src/central_control_rains/phosphor_calibration.rs` (the law,
+the reference classes, the LUT builder),
+`src/central_control_rains/parallax.rs` (the derived rate, the
+layer-multiplier provenance),
+`src/engine/cosmic_dragon_engine/cloud/phosphor.rs` (the decay pass
+consuming the calibration LUT),
+`test/central_control_rains/tests_phosphor_calibration.rs` (the six
+pins).
+Verifier: `cargo test z4c_` — calibration identity (bit-identical
+8.0), half-life law, tau point, exponential-law structure, reference
+values, shipped envelope; the existing phosphor suites
+(`cargo test phosphor`, 60 tests) must stay green — they pin the
+same law the calibration now derives.
 
 ## Retired by verdict
 

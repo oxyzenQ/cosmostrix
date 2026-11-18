@@ -54,7 +54,12 @@ The audit confirmed the engine is already at peak. Specifically:
   array with direct indexing (no hash lookup). The 2 `.clone()` calls
   are cold-path (palette switch / char_pool snapshot), not per-frame.
 - **Phosphor decay** — hysteresis band (skip at >0.70, resume at <0.50)
-  prevents strobing under fluctuating load.
+  prevents strobing under fluctuating load. The decay curve itself is
+  CALIBRATED (night-frontier-Z4c): the per-frame LUT is built by
+  `central_control_rains::phosphor_calibration` from the real P1-class
+  phosphor decay constant (tau 25 ms) under a documented 5x aesthetic
+  time dilation, reproducing the shipped rate bit-identically — the
+  half-lives are pinned in `test/central_control_rains/tests_phosphor_calibration.rs`.
 - **`tier2.rs`** — backpressure + RIS reset heuristics (`ByteWindow`
   sliding window), no allocation in hot path.
 

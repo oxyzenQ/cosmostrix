@@ -90,11 +90,26 @@ pub(crate) const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 
 /// Per-cell phosphor energy decay rate (higher = faster fade).
 ///
-/// Deep Focus preset: 5.5 (~360 ms afterglow — less residual
-/// busyness than noir's 400 ms). Gentle dissolve with cinematic
-/// trail. Phosphor afterglow decay rate (per second, exponential).
+/// CALIBRATED (night-frontier-Z4c): the rate is no longer a bare
+/// hand-tuned number — it derives from the real P1-class phosphor
+/// decay constant under one documented aesthetic time dilation:
 ///
-/// v50.0.0-beta.6: increased from 5.5 to 8.0 for cross-terminal
+/// ```text
+/// rate = 1 / (tau_P1 * time_scale) = 1 / (0.025 s * 5.0) = 8.0 /s
+/// ```
+///
+/// P1 (Zn2SiO4:Mn green willemite, the classic green monochrome
+/// monitor phosphor) has a characteristic exponential decay component
+/// of tau = 25 ms; a 25 ms afterglow is invisible at terminal scale,
+/// so the engine runs phosphor time 5x slower — a documented aesthetic
+/// dilation chosen to reproduce THIS rate bit-identically. The
+/// calibration gives the number its physical identity ("the P1 curve
+/// at 5x dilation, half-life 86.6 ms simulated") without retuning the
+/// visuals; `central_control_rains::phosphor_calibration` owns the
+/// law, the reference classes (P3 amber, P4 white, P7 radar), and the
+/// per-frame decay LUT, and the lock tests pin the half-lives.
+///
+/// v50.0.0-beta.6 history: increased from 5.5 to 8.0 for cross-terminal
 /// consistency. At 5.5, trails lasted ~0.6s — visually longer on
 /// VTE-based terminals (gnome-console, gnome-terminal) due to
 /// their CPU-rendered sub-pixel blending making dim ghosts more
@@ -102,7 +117,9 @@ pub(crate) const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 /// Alacritty (GPU-rendered). Terminal-aware multiplier
 /// (`phosphor_decay_mult` in TerminalCaps) further adjusts per
 /// terminal tier.
-pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 8.0;
+pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 1.0
+    / (super::phosphor_calibration::PHOSPHOR_TAU_P1_SECS
+        * super::phosphor_calibration::PHOSPHOR_SIM_TIME_SCALE);
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
 ///
@@ -129,6 +146,13 @@ pub(crate) const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 ///   - Back  (0): 1.9 (quick flicker — shadow exit)
 ///   - Mid   (1): 1.15 (smooth — clean dissolve)
 ///   - Front (2): 0.65 (lingering cinematic trail)
+///
+/// The multipliers are cosmostrix's own parallax-depth structure,
+/// layered ON TOP of the calibrated P1 base rate: each layer's
+/// effective tau is the P1 curve's simulated tau (0.125 s = 25 ms x
+/// 5.0 dilation) divided by the multiplier (back tau 65.8 ms, mid
+/// 108.7 ms, front 192.3 ms — half-lives 45.6 / 75.3 / 133.2 ms;
+/// pinned in the Z4c calibration tests).
 pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.9, 1.15, 0.65];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
