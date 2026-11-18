@@ -93,11 +93,11 @@ lags behind a GitHub Release — both channels publish on the same tag
 push (stable and pre-release alike).
 
 ## 4a. Reproducible release chain — rebuild the published hash yourself
-(night-frontier-Z1)
 
-Checksums and signatures prove WHO shipped an artifact; reproducibility
-proves WHAT it is: the published hash must be the hash anyone can
-rebuild from source. The CI carries the standing proof on every push
+(night-frontier-Z1) Checksums and signatures prove WHO shipped an
+artifact; reproducibility proves WHAT it is: the published hash must be
+the hash anyone can rebuild from source. The CI carries the standing
+proof on every push
 (`ci.yml`: `reproducible_build` + `reproducible_verify`) — two
 INDEPENDENT runners build the pinned release shape
 (`pro-linux-amd64-v3-musl`: static musl, x86-64-v3) from the same
