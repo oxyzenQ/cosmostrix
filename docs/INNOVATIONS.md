@@ -72,7 +72,9 @@ Verifier: lock invariants for the SGR color cache (Cosmic Dragon
 INV-14/15), plus the `escape_ctrl` fuzz target proving emission stays
 safe under adversarial input; the supermassive PTY byte-log assertions
 (`scripts/supermassive/pty_assert.py`) observe the emitted control
-sequences on a real terminal, where the batching result is visible.
+sequences on a real terminal, where the batching result is visible,
+and the syscall-floor ledger (entry 35) proves the batching lands in
+exactly one kernel write() per frame.
 
 ### 3. The three-layer parallax depth system
 
@@ -436,7 +438,9 @@ Problem killed: claims that cannot be re-run are marketing. Mechanism:
 the engine lock suites assert public contracts on every commit, backed
 by the compiled-in test tree; the PTY truth harnesses run the real
 binary on a real pty (smoke, byte-log assertions, five hostile load
-shapes, the depth-bore drift drill); CI proves the documented Linux
+shapes, the depth-bore drift drill); the syscall-floor ledger
+straces the release shape and proves the kernel floor is exactly
+one write() per drawn frame (entry 35); CI proves the documented Linux
 kernel floor and the latest mainline in KVM micro-VMs; and the gate
 suite enforces headers, language, emoji, hype vocabulary, and doc
 hygiene on every push.
@@ -687,6 +691,54 @@ Verifier: `cosmostrix sig` must end
 determinism, the manual fold, and the non-degenerate vector); the
 installer release law gates on the 5/5 line.
 
+### 35. The syscall-floor ledger (the kernel-floor proof)
+
+Problem killed: the "single-syscall flush" claim was a document.
+RENDER_ENGINE.md says "256 KiB single-syscall flush" and the P3
+comments say "3→1 write_all per frame", but nothing measured the
+KERNEL side — a flush-path regression that split a frame across two
+write() calls, or dribbled per-cell writes, would ship invisibly
+while every unit test stayed green. Mechanism (night-frontier-Z2,
+Kernel Floor 2a): the supermassive battery runs the release-shape
+binary under strace on a real pty
+(`scripts/supermassive/syscall_floor.py`) and the ledger asserts the
+kernel-visible floor: the count of write() syscalls carrying the
+synchronized-output frame marker (`ESC[?2026h`) equals the
+`--perf-stats` `frames_flushed` count — the renderer's own ledger of
+`flush_ansi()` calls. The fingerprint is exact by construction: the
+ONLY writer of the sync-open marker is the combined flush buffer
+(the marker rides the frame's single write_all; the exit stack emits
+only the sync END, and the v50 fix removed the init-time standalone
+open), so mode toggles and the restore tail can never false-positive.
+The ledger also pins byte-exact identity (the sum of kernel
+frame-write lengths equals `total_ansi_bytes` + 16 sync-wrapper
+bytes per frame), zero failed writes, zero short writes (a partial
+write IS a frame split), and no BufWriter spillover at the pinned
+80x24 screen; the parser handles strace's truncated-payload and
+unfinished/resumed line shapes and never guesses silently — an
+unparseable write line is a FAIL, not a skip. Effect: the claim is
+now a CI invariant on the exact binary shape the release ships, and
+a buyer can re-run the same proof locally with one strace command.
+Free with the proof: the io_uring rejection record (Retired by
+verdict, below) becomes evidence-backed — one write() per frame IS
+the kernel floor, so io_uring for a single write is pure overhead.
+Honest scope: strace is Linux-only by definition, so the ledger
+proves the x86_64 release lane (the syscall contract is
+arch-shared; the ptrace tool is not); the 8-second leg renders one
+pinned configuration (80x24, xterm-256color with sync output); and
+the byte-identity row assumes the 16-byte sync wrapper pair that the
+fingerprint itself proves present.
+Truth: `scripts/supermassive/syscall_floor.py` (the transport, the
+strace parser, the ledger), `.github/workflows/supermassive.yml`
+(the `syscall_floor` job),
+`src/engine/cosmic_dragon_engine/terminal/io_recovery.rs` (the
+combined flush the fingerprint targets).
+Verifier: the CI `syscall_floor` job must end `MASS-VERDICT: PASS`
+with the `syscall-floor writes/frame=1.000 PASS` row naming the
+kernel write count and the flush count; locally, `strace -f -e
+trace=write -xx -s 96 -o /tmp/sf.trace -- ./cosmostrix --duration 8
+--perf-stats` on a real tty gives the harness the same input.
+
 ## Retired by verdict
 
 Not every idea earned its place. These were evaluated and rejected,
@@ -695,6 +747,16 @@ and the records are kept so the same debate does not rerun:
 - **GPU image-mode rendering** — rejected because it breaks the
   character-grid aesthetic (every glyph must stay a real, selectable
   codepoint). Record: `docs/archive/cosmic_dragon/EXPLORATION.md`.
+- **io_uring** — rejected twice, on cost and then on proof. The
+  measured-cost egg benchmark
+  (`src/cosmic_dragon_incubator/egg/io_uring_rejected.rs`) priced it:
+  at 60 FPS one write() costs ~0.006% CPU and the theoretical ring
+  savings are negligible. The syscall-floor ledger (entry 35) then
+  proved the deeper point: the steady state is EXACTLY one write()
+  per frame — the minimum any tty writer can emit — so io_uring for
+  a single write replaces one syscall with ring setup plus a
+  submission: strictly more overhead for the same operation. The
+  record stands on proof, not preference.
 - **The atmosphere engine subsystem** — eliminated; the elimination
   record and the historical spec are linked from the note in
   [README.md](README.md) (the docs index).

@@ -38,8 +38,10 @@ impl super::Terminal {
     ///
     /// Also accumulates `ansi_buf.len()` into `total_ansi_bytes` and
     /// increments `flush_count` for `--perf-stats` reporting. The sync
-    /// wrapper bytes (12 bytes total when sync_output is enabled) are
-    /// NOT counted — only the actual frame content.
+    /// wrapper bytes (SYNC_START 8 + SYNC_END 8 = 16 bytes per frame;
+    /// the syscall-floor ledger pins that number byte-exactly against
+    /// the kernel trace) are NOT counted — only the actual frame
+    /// content.
     ///
     /// P3 optimization: when sync_output is enabled, combine the 3
     /// write_all calls (SYNC_START + ansi_buf + SYNC_END) into a single

@@ -41,7 +41,7 @@ cosmostrix uses these Linux syscalls, each with a minimum kernel version:
 | `epoll` | 2.6 (2003) | `mio` event loop (crossterm) | Yes |
 | `timerfd` | 2.6.25 (2008) | `mio` timer (crossterm) | Yes |
 | `getrandom` | 3.17 (2015) | `rand` crate entropy | Fallback to `/dev/urandom` |
-| `io_uring` | 5.1 (2019) | NOT used — cosmic-dragon-egg experiment only | No |
+| `io_uring` | 5.1 (2019) | NOT used — rejected on proof (syscall-floor ledger: 1 write()/frame is the kernel floor) | No |
 
 **Practical minimum: Linux 2.6.27** (December 2008). This covers:
 
@@ -302,7 +302,10 @@ matrix.
 - **D-Bus** — no desktop integration dependencies
 - **X11/Wayland** — terminal-only, no display server
 - **io_uring** — investigated (cosmic-dragon-egg experiment), rejected as not
-  worth the complexity at 60 FPS
+  worth the complexity at 60 FPS, then rejected on PROOF: the
+  syscall-floor ledger (supermassive `syscall_floor` job) measures the
+  steady state at exactly one write() per drawn frame — the kernel floor
+  for a tty writer, so io_uring for a single write is pure overhead
 - **Network** — fully offline, no telemetry or update checks by default
   (`--check-update` is opt-in; it needs `curl` or `wget` on PATH and
   reports an actionable error with the manual releases URL when neither

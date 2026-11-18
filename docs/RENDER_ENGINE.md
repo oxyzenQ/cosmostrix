@@ -27,7 +27,7 @@ in `main.rs` so all `crate::cloud::*` / `crate::frame::*` /
 | File | Role |
 |------|------|
 | `src/engine/cosmic_dragon_engine/frame.rs` | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `src/engine/cosmic_dragon_engine/terminal/` | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, /dev/tty fallback |
+| `src/engine/cosmic_dragon_engine/terminal/` | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush (kernel-proven by the supermassive syscall-floor ledger), /dev/tty fallback |
 | `src/engine/cosmic_dragon_engine/runtime.rs` | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`, `ColorPipeline` |
 
 Imported by **every render-path module** across `src/`. These are not a

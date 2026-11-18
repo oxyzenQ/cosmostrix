@@ -79,6 +79,19 @@
 #      pty_assert.py SEQ_TABLE grammar; every checked fact lands a
 #      MASS-RESULT row; the harness was smoke-proven 5/5 against a
 #      contract-stub renderer before landing.
+#   6. Syscall-floor ledger (syscall_floor job, night-frontier-Z2
+#      Kernel Floor 2a) - the kernel-floor proof: the binary runs
+#      under strace on a real pty and the ledger asserts the
+#      steady state is EXACTLY ONE write() syscall per drawn frame
+#      (kernel-visible sync-marker writes == the --perf-stats
+#      frames_flushed count), with byte-exact identity between the
+#      renderer's own byte accounting and the kernel's syscalls,
+#      zero failed/short writes, and no BufWriter spillover at the
+#      pinned 80x24 screen. The same proof is the io_uring
+#      rejection record: 1 write()/frame IS the kernel floor, so
+#      io_uring for a single write is pure overhead - rejected,
+#      record stands. The ledger is Linux-only by definition
+#      (strace); it proves the floor on the x86_64 release shape.
 #
 # Trigger discipline (the owner's unfiltered-CI simplification,
 # night-dragon-maintenance-2): the push trigger is unfiltered — no
@@ -133,7 +146,10 @@
 #
 # Budgets: build_musl 12 min (the one compile; its cold-cache
 # ceiling - warm-cache runs land well under the five-minute target),
-# pty_smoke 5 min, torture 5 min, soak 6 min (a 240 s render plus
+# pty_smoke 5 min, torture 5 min, syscall_floor 5 min (an 8 s render
+# under strace plus the artifact download and the parse; strace is
+# preinstalled on the runner image, with an apt fallback under the
+# retry contract), soak 6 min (a 240 s render plus
 # the artifact download and the ceiling check; the target is five),
 # musl_compile 12 min (the one test compile; line-tables-only
 # retired the full-debuginfo bulk that used to push the cold ceiling
@@ -746,5 +762,112 @@ jobs:
             echo
             echo '```'
             cat /tmp/mass-torture.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # night-frontier-Z2 Kernel Floor 2a (the owner's directive): the
+  # "single-syscall flush" claim stops being a document and becomes a
+  # kernel-measured CI invariant. The release-shape binary runs under
+  # strace on a real pty; scripts/supermassive/syscall_floor.py parses
+  # the kernel trace and asserts:
+  #   - exactly ONE write() syscall per drawn frame, proven by the
+  #     sync-marker fingerprint (the ONLY writer of ESC[?2026h is the
+  #     combined flush buffer) against the --perf-stats frames_flushed
+  #     count - the renderer's own ledger of flush_ansi() calls;
+  #   - byte-exact identity: the sum of kernel frame-write lengths
+  #     equals total_ansi_bytes + 16 sync-wrapper bytes per frame;
+  #   - zero failed writes, zero short (frame-splitting) writes, and
+  #     no BufWriter spillover at the pinned 80x24 screen;
+  #   - the io_uring rejection record, free with the proof: the
+  #     steady state is 1 write()/frame = the kernel floor for a tty
+  #     writer, so io_uring for a single write is pure overhead -
+  #     rejected, record stands (the measured-cost benchmark lives in
+  #     src/cosmic_dragon_incubator/egg/io_uring_rejected.rs).
+  # strace is Linux-only by definition, so the ledger rides the
+  # x86_64 release shape (the same binary the release page ships);
+  # the aarch64 lane shares the kernel syscall contract, not the
+  # ptrace tool. The apt fallback rides the owner's retry contract in
+  # case a future runner image drops preinstalled strace.
+  syscall_floor:
+    name: supermassive test - syscall floor ledger (the kernel floor)
+    runs-on: ubuntu-24.04
+    needs: [build_musl]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the built battery binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cosmostrix-pro-v3-musl
+          path: /tmp/mass-bin
+
+      # upload-artifact does not preserve the exec bit; the consumers
+      # restore it after download.
+      - name: Restore the exec bit
+        run: chmod 755 /tmp/mass-bin/cosmostrix
+
+      # strace is preinstalled on the ubuntu-24.04 runner image; the
+      # fallback keeps the leg honest if that ever changes. Retry
+      # contract for the network touch, per the workflow header.
+      - name: Ensure strace
+        run: |
+          set -euo pipefail
+          if ! command -v strace >/dev/null 2>&1; then
+            for attempt in 1 2 3; do
+              if sudo apt-get update && sudo apt-get install -y strace; then
+                break
+              fi
+              echo "apt attempt ${attempt} failed; retrying" >&2
+              sleep 5
+            done
+          fi
+          strace -V
+
+      - name: Run the syscall-floor ledger under strace
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-syscall.log"
+          rm -f "${MASS}"
+          python3 scripts/supermassive/syscall_floor.py \
+            --binary /tmp/mass-bin/cosmostrix \
+            --trace /tmp/sf-trace.log \
+            --log /tmp/sf-capture.log \
+            --mass "${MASS}" \
+            --label syscall-floor-8s \
+            --duration 8 \
+            --budget 30
+
+      - name: Verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-syscall.log"
+          echo "--- MASS-RESULT relay (syscall floor) ---"
+          cat "${MASS}"
+          if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
+            echo "MASS-VERDICT: FAIL"
+            exit 1
+          fi
+          echo "MASS-VERDICT: PASS"
+          echo "OK: the kernel proves 1 write() syscall per drawn frame - the floor holds"
+
+      - name: Syscall floor summary (the longitudinal dataset row)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Supermassive watch - syscall floor ledger"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### relay rows"
+            echo
+            echo '```'
+            cat /tmp/mass-syscall.log
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
