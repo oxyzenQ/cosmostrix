@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+
 # NIGHT-frontier-Z5c — the unsafe-law A/B campaign
 
 Two binaries, one commit apart: `baseline` = 8288b8ff (pre-Z5c),

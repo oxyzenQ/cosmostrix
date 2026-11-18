@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+
 # NIGHT-frontier-Z5a — the paste fuse A/B campaign
 
 Two binaries, one commit apart: `baseline` = 12f9c9a9 (pre-Z5a),
