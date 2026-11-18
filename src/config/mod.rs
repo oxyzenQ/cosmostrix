@@ -593,6 +593,24 @@ pub struct Args {
     )]
     pub bench_frames: Option<u64>,
 
+    /// night-frontier-Z1 (Proof Moat 1a): the deterministic replay
+    /// oracle. Renders a fixed-seed, anchored-clock, pinned-screen
+    /// frame sequence headlessly and prints one blake3 hash line per
+    /// N frames plus a folded `replay-digest:` line — two runs of the
+    /// same invocation must produce byte-identical digests (asserted
+    /// in-process by the replay tests and across processes by the CI
+    /// replay-oracle step). `--bench-frames` and `--screen-size` stay
+    /// honored as deterministic inputs to the sequence; everything
+    /// host-dependent (env screen, terminal size, Crystal Dragon
+    /// polling) is force-disabled so the digest pins the render
+    /// contract, not the machine.
+    #[arg(
+        long = "bench-replay",
+        hide = true,
+        help = "Run the deterministic replay oracle (pinned blake3 frame-sequence hashes) and exit"
+    )]
+    pub bench_replay: bool,
+
     /// Crystal Dragon Engine: ambient intelligence for palette drift.
     ///
     /// Maps system state (CPU or clock) to a temperature group

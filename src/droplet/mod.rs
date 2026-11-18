@@ -216,6 +216,24 @@ impl Droplet {
         self.birth_time = Some(now);
     }
 
+    /// Re-anchor this droplet's wall-clock stamps onto one caller
+    /// supplied origin (night-frontier-Z1, the deterministic replay
+    /// oracle).
+    ///
+    /// The warm-start path (`ensure_glyph_pool_and_warm_start`) stamps
+    /// `last_time` / `birth_time` from a real `Instant::now()` read at
+    /// reset time — BEFORE a headless driver can anchor the virtual
+    /// clock — so replayed ages would carry real-clock residue. This
+    /// keeps the droplet's motion state exactly as it is and rewrites
+    /// only the timestamps (each to the origin when present), the same
+    /// shape `Cloud::anchor_virtual_clock` applies to the engine-level
+    /// anchors. Idle fields stay idle; nothing else moves.
+    pub(crate) fn anchor_clock(&mut self, origin: Instant) {
+        self.last_time = self.last_time.map(|_| origin);
+        self.head_stop_time = self.head_stop_time.map(|_| origin);
+        self.birth_time = self.birth_time.map(|_| origin);
+    }
+
     /// Apply spawn phase jitter: set a random fractional advance offset so
     /// this droplet's row advances are staggered relative to other droplets.
     /// Without jitter, all droplets start at advance_remainder=0 and advance

@@ -187,6 +187,33 @@ jobs:
       - name: Build (debug)
         run: bash scripts/ci/ci-strict-build.sh -- build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
 
+      # night-frontier-Z1 (Proof Moat 1a, the deterministic replay
+      # oracle): the just-built binary renders the pinned frame sequence
+      # TWICE in two separate processes and the folded
+      # `replay-digest:` lines must be byte-identical. This is the
+      # cross-process half of the contract (the in-process half lives
+      # in the replay unit tests): same seed + same invocation =>
+      # identical blake3 frame hashes, run over run. A divergence
+      # prints both logs before failing.
+      - name: Replay oracle (two runs must be byte-identical)
+        run: |
+          set -euo pipefail
+          BIN="target/debug/cosmostrix"
+          RUN1="$(mktemp)"
+          RUN2="$(mktemp)"
+          "$BIN" --bench-replay | tee "$RUN1" > /dev/null
+          "$BIN" --bench-replay | tee "$RUN2" > /dev/null
+          D1="$(grep -aF 'replay-digest:' "$RUN1" | tail -1 || true)"
+          D2="$(grep -aF 'replay-digest:' "$RUN2" | tail -1 || true)"
+          echo "run 1: ${D1}"
+          echo "run 2: ${D2}"
+          if [[ -z "$D1" || "$D1" != "$D2" ]]; then
+            echo "::error::Replay oracle failed: digests missing or not byte-identical between runs"
+            diff "$RUN1" "$RUN2" | head -40 || true
+            exit 1
+          fi
+          echo "Replay oracle: PASS (byte-identical frame sequences across two processes)"
+
   # NIGHT-perf-2 (2026-09-20): the full suite (~2950 tests) executes here
   # in two parallel, count-balanced partitions via cargo-nextest. Each
   # partition restores the same rust-cache and compiles the same test

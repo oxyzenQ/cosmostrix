@@ -342,4 +342,79 @@ impl super::Cloud {
             _ => {}
         }
     }
+
+    /// Re-anchor every wall-clock-derived state field to one caller
+    /// supplied instant (night-frontier-Z1, the deterministic replay
+    /// oracle).
+    ///
+    /// Problem killed: the engine mixes two clocks. Construction and
+    /// reset read `Instant::now()` into the state anchors
+    /// (`last_spawn_time`, `last_reseed_time`, `start_anchor`, the
+    /// ecosystem drift accumulators, the gust state machine), while
+    /// headless drivers (`--bench-frames`, the replay oracle) advance
+    /// the simulation on a virtual clock (`sim_now += period` per
+    /// frame). The `elapsed` deltas those subsystems compute therefore
+    /// carry the real-clock gap between two `Instant::now()` reads —
+    /// microseconds that differ per run and can flip a spawn boundary,
+    /// a 10s density-noise bucket, or an RNG reseed rung. Frame
+    /// content would drift between runs of the SAME seed, and the
+    /// replay oracle could never pin byte-identical hashes.
+    ///
+    /// Mechanism: after construction/reset, the driver captures ONE
+    /// real instant as the virtual clock's origin and calls this
+    /// method; every anchor below is rewritten to that origin (or to
+    /// `None` when the field is idle), so every subsequent `elapsed`
+    /// is exact virtual-clock arithmetic — `k * period`, no real-clock
+    /// residue. The RNG is NOT touched here: it is already
+    /// deterministic (fixed launch seed, counter-based reseed ladder),
+    /// and re-seeding would change what the anchor pins.
+    ///
+    /// Contract: call ONCE on a freshly constructed/reset cloud,
+    /// BEFORE the first frame; then drive `rain_at` with
+    /// `origin + k * period` instants only. Interactive mode never
+    /// calls this — wall-clock behavior there is unchanged.
+    pub(crate) fn anchor_virtual_clock(&mut self, origin: Instant) {
+        // Glitch cycle: last fires at the origin; next eligibility is
+        // a fixed offset (deterministic; the sampled value in reset()
+        // already came from the fixed-seed stream).
+        self.last_glitch_time = origin;
+        self.next_glitch_time = origin;
+        // Monolith/vortex lane spawn-rate integration.
+        self.last_spawn_time = origin;
+        // Deterministic reseed ladder (counter-based) origin.
+        self.last_reseed_time = origin;
+        // Phosphor decay and quantum particle integration clocks.
+        self.last_phosphor_time = origin;
+        self.last_quantum_update_time = origin;
+        // The density-noise 10s bucket reads
+        // `now.saturating_duration_since(start_anchor)`.
+        self.start_anchor = origin;
+        // Drift accumulators + subsystem state machines that hold an
+        // origin Instant internally (last_tick fields).
+        self.color_ecosystem = ColorEcosystem::new(origin);
+        self.entropy_drift = EntropyDrift::new(origin);
+        self.memory = RendererMemory::new(origin);
+        self.storytelling = StorytellingState::new(origin);
+        self.gust = crate::cloud::living_rain::GustState::new(origin);
+        self.event_manager.reset(origin);
+        // Warm-started glyph droplets: the pool seeding stamps
+        // last_time/birth_time from a real clock read inside the reset
+        // path (before this anchor runs), so their replayed ages would
+        // carry real-clock residue. Rewrite only the timestamps; the
+        // motion state (positions, velocity, phase jitter) is intact.
+        for droplet in &mut self.droplets {
+            droplet.anchor_clock(origin);
+        }
+        // One-shot transition windows: keep the idle/armed shape, but
+        // anchor armed windows to the origin so an in-flight window is
+        // still deterministic if a driver ever anchors mid-transition.
+        self.charset_transition_start = self.charset_transition_start.map(|_| origin);
+        self.transition_start = self.transition_start.map(|_| origin);
+        self.profile_transition_start = self.profile_transition_start.map(|_| origin);
+        self.glyph_entry_time = self.glyph_entry_time.map(|_| origin);
+        self.message_start_time = self.message_start_time.map(|_| origin);
+        self.pause_start = self.pause_start.map(|_| origin);
+        self.pause_time = self.pause_time.map(|_| origin);
+        self.resume_start = self.resume_start.map(|_| origin);
+    }
 }

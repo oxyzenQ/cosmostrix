@@ -9,6 +9,7 @@
 //! Routes to the appropriate runner based on bench flags:
 //! - `--bench-all` → scaling benchmark (JSON output if --json)
 //! - `--benchmark` → premium benchmark (report-engine output)
+//! - `--bench-replay` → deterministic replay oracle (night-frontier-Z1)
 //! - `--bench-frames N` → legacy CI benchmark (parseable BENCH: format)
 //! - (none) → interactive mode (the main rain loop)
 //!
@@ -59,6 +60,16 @@ pub(crate) fn dispatch_bench(
             return Some(crate::bench_cosmetics::run_cosmetics_benchmark(cloud_cfg));
         }
         return Some(bench::run_premium_benchmark(cloud_cfg));
+    }
+
+    // night-frontier-Z1 (Proof Moat 1a): the replay oracle routes BEFORE
+    // the plain --bench-frames branch so `--bench-replay --bench-frames N`
+    // reaches the oracle with N as the sequence length (the oracle is the
+    // more specific dispatch; the legacy benchmark keeps every other
+    // --bench-frames invocation).
+    if args.bench_replay {
+        crate::bench_helpers::warn_bench_noop_flags(args, fps_user_set);
+        return Some(bench::run_replay(cloud_cfg));
     }
 
     if let Some(_bench_frames) = args.bench_frames {

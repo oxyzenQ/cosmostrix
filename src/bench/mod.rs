@@ -42,6 +42,7 @@ pub mod bench_mem;
 pub mod bench_meta;
 pub mod bench_perf;
 pub mod bench_progress;
+pub mod bench_replay;
 pub mod bench_report;
 pub mod bench_report_engine;
 #[cfg(test)]
@@ -52,6 +53,7 @@ pub mod bench_scale;
 #[path = "../../test/bench/bench_tests.rs"]
 pub mod bench_tests;
 pub mod bench_visual;
+pub mod frame_digest;
 mod peak_fps;
 mod premium;
 mod run_bench;
@@ -88,6 +90,11 @@ pub(crate) use peak_fps::compute_peak_fps;
 // to silent.rs to keep this file under the 800-LOC hard cap.
 pub(crate) use run_bench::run_benchmark;
 pub(crate) use silent::run_premium_benchmark_silent;
+
+// night-frontier-Z1: the deterministic replay oracle (Proof Moat 1a)
+// and its canonical frame-digest serializer (shared with the embedded
+// engine oracle in the diagnostics layer).
+pub(crate) use bench_replay::run_replay;
 
 /// Run benchmark and return the report data without printing.
 /// Used by --bench-all scaling automation.

@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The thirty-one, in dependency order
+## The thirty-four, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -541,6 +541,58 @@ fingerprint equality, the anchor equality against the generator's
 hex oracle, the framing layout, and the tamper sensitivity
 (`cargo test diagnostics::signature diagnostics::info
 diagnostics::sig_report`).
+
+### 32. The deterministic replay oracle (byte-identical render sequences)
+
+Problem killed: a fixed-seed benchmark that still cannot PROVE its
+content — the headless loop mixed two clocks (state anchors stamped
+from real `Instant::now()` at construction/reset, simulation advanced
+on the virtual `sim_now` ladder), so microsecond real-clock residue
+could flip a spawn boundary, an RNG reseed rung, or the 10s
+density-noise bucket, and two runs of the SAME seed silently diverged
+frame-by-frame. Visual claims (`frame_entropy`, density gini) were
+sampled, not pinned. Mechanism (night-frontier-Z1, Proof Moat 1a):
+`Cloud::anchor_virtual_clock(origin)` rewrites every wall-clock-derived
+state anchor (glitch cycle, spawn integration, reseed ladder, phosphor,
+quantum, `start_anchor`, the ecosystem/gust/drift accumulators, the
+event scheduler) onto one caller-supplied origin, so every `elapsed`
+inside the sequence is exact `k * period` arithmetic — zero real-clock
+residue. On top of that, `--bench-replay` renders the pinned sequence
+(compile-time seed, pinned 120x40 virtual screen — never the env, the
+terminal, or the host — and every host-dependent surface such as
+Crystal Dragon ambient polling force-disabled) and reports blake3
+over EVERY frame via a canonical cell serializer (pinned color-tag
+ordinals, exhaustive match, `width`/`height`/frame-number headers),
+one `replay: frame=<k> hash=b3:` line per 25 frames plus one folded
+`replay-digest: b3:` line whose fold commits to sequence length AND
+order. Two runs of the same invocation must be byte-identical —
+asserted in-process by the replay unit tests (independent Clouds,
+independent RNG streams) and across processes by the CI replay-oracle
+step, which runs the built binary twice and diffs the digest lines.
+Effect: visual regression detection is per-byte ("this frame differs"),
+the benchmark's `frame_entropy`/density-gini metrics become pinned
+values instead of samples, and a buyer can re-verify the render
+contract offline with two invocations and one `diff`. Honest scope:
+the oracle pins the core render path (spawn lanes, movement, color,
+phosphor, quantum, climate drift) for a fixed configuration — message
+overlays, ghost-kanji events, and click effects are not part of the
+replay surface (the headless loop never arms them; ghost events age on
+wall-clock `.elapsed()` by design), and a legitimately different
+engine release produces different digests — the digests are
+version-bound, exactly like the provenance anchor.
+Truth: `src/bench/frame_digest.rs` (the canonical serializer, the
+color-tag law, the length-and-order fold), `src/bench/bench_replay.rs`
+(the pinned sequence, the report format, the input echo),
+`src/engine/cosmic_dragon_engine/cloud/spawn_reset.rs`
+(`anchor_virtual_clock` — the clock-mixing kill), `src/bench/dispatch.rs`
+(the `--bench-replay` route), `src/config/mod.rs` (the flag).
+Verifier: the replay unit tests
+(`cargo test bench::bench_replay::replay_tests` — cross-run identity,
+input sensitivity, fold length/order binding, anchor completeness,
+digest teeth); the CI replay-oracle step (two processes of the debug
+build must end on the same `replay-digest:` line); and locally,
+`cosmostrix --bench-replay | grep replay-digest` twice must print the
+same hex.
 
 ## Retired by verdict
 
