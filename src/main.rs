@@ -126,6 +126,10 @@ mod doctor;
 #[path = "../test/docs_tests/mod.rs"]
 mod docs_tests;
 
+#[cfg(test)]
+#[path = "../test/test_support/mod.rs"]
+mod test_support;
+
 // Group: Droplet subsystem
 mod droplet;
 

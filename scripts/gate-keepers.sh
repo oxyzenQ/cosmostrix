@@ -125,6 +125,14 @@ export PYTHONDONTWRITEBYTECODE=1
 #       into zelynic's ledger), no duplicate release lines. The
 #       bump's writer verifies its own writes in place; this gate
 #       catches hand-edit drift between bumps.
+#  23.  Unsafe census pin (night-frontier-Z5c —
+#       scripts/gates/unsafe-census.py): the unsafe surface is a
+#       closed, audited list pinned line-by-line (61 lines across 17
+#       OS-boundary files at the Z5c SHA), and the engine render core
+#       (chroma, crystal, cosmic cloud/frame/runtime) carries
+#       forbid(unsafe_code) at build time. Growth, shrinkage or a new
+#       file on the surface is a finding - the surface can only change
+#       on purpose.
 # Exit codes:
 #   0 = all checks passed
 #   1 = one or more checks failed
@@ -778,6 +786,26 @@ if [ -f scripts/gates/check-release-ledger.sh ]; then
 	fi
 else
 	skip "check-release-ledger.sh not found — skipping (tree fault: the gate script itself is missing)"
+fi
+
+# ── 23. Unsafe Census Pin (night-frontier-Z5c) ──────────────────────────
+# The unsafe surface is a closed, audited list: the OS-boundary
+# modules (clock, platform guards, watchdog, reclaim, sysstat, the
+# terminal/tty recovery ladder, the io_uring rejection record) carry a
+# fixed number of reviewed unsafe lines, everything else in src/ stays
+# unsafe-free, and the engine render core carries
+# forbid(unsafe_code) at build time. The gate pins the census
+# line-by-line: growth, shrinkage or a new file on the surface is a
+# finding - the surface can only change on purpose.
+header "Unsafe Census Pin (unsafe-census.py)"
+if [ -f scripts/gates/unsafe-census.py ] && command -v python3 >/dev/null 2>&1; then
+	if python3 scripts/gates/unsafe-census.py 2>&1; then
+		PASS=$((PASS + 1))
+	else
+		fail "unsafe-census: the unsafe surface drifted from its pin (see the census report above)"
+	fi
+else
+	skip "unsafe-census.py or python3 not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

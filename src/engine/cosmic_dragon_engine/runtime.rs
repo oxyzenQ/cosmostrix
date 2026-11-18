@@ -1,6 +1,16 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! night-frontier-Z5c: this tree is compiler-forbidden unsafe —
+//! `#![forbid(unsafe_code)]` turns the no-unsafe-in-renderer law into a
+//! build error. The audited OS boundary (raw fd I/O, libc calls,
+//! signal plumbing) lives OUTSIDE these trees (clock/, platform/,
+//! interactive/watchdog.rs, the cosmic engine's terminal/ recovery
+//! ladder) and is pinned line-by-line by the unsafe-census gate
+//! (scripts/gates/unsafe-census.py).
+
+#![forbid(unsafe_code)]
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColorMode {
     Mono,

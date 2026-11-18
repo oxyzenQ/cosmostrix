@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty-four, in dependency order
+## The forty-five, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1240,6 +1240,39 @@ pins, every bound measured against the real pipeline),
 investigation record, including the three charter corrections).
 Verifier: `cargo test inv22` — 7 pins green; the shipped binary is
 byte-for-byte unchanged (tests-only), so no A/B applies.
+
+### 45. The unsafe law (the compiler-forbidden render core, night-frontier-Z5c)
+
+Problem killed: the no-unsafe-in-renderer policy was a review
+convention — nothing stopped the next unsafe block from landing in the
+color engine, and nothing measured the OS-boundary surface the render
+core legitimately needs. Mechanism (night-frontier-Z5c), two enforced
+layers: `#![forbid(unsafe_code)]` on the five safe engine trees — the
+Chroma Dragon, the Crystal Dragon, and the Cosmic Dragon's render core
+(`cloud/`, `frame.rs`, `runtime.rs`); `forbid` cannot be overridden by
+a nested allow, so unsafe there is a BUILD ERROR (a probe block was
+compile-rejected during the landing). And the unsafe-census gate
+(gate-keepers check 23, `scripts/gates/unsafe-census.py`) pins the
+ENTIRE non-test unsafe surface line-by-line — 61 lines across 17
+OS-boundary files (clock, platform guards, watchdog, reclaim, sysstat,
+the terminal/tty recovery ladder, the io_uring rejection record):
+growth, shrinkage, or a new file is a finding; the surface can only
+change on purpose. The test harness's one legitimate unsafe
+(edition-2024 `env::set_var`) moved OUT of the forbidden trees to a
+single audited helper (`test/test_support::set_env_var`, mounted at
+the crate root) instead of weakening the forbid. The census-first
+lesson is recorded: the first grep undercounted the terminal ladder's
+unsafe, so the whole-engine forbid plan was corrected to
+core-forbidden + boundary-pinned — the boundary is exactly where
+audited unsafe belongs. Files where the truth lives: the five module
+roots (the attribute + the law comment),
+`scripts/gates/unsafe-census.py` (the scanner that generated its own
+pin), `test/test_support/mod.rs` (the carve-out),
+`docs/research/NIGHT_FRONTIER_Z5C_UNSAFE_LAW.md` (the record).
+Verifier: the compile-negative probe, the census-negative probe, the
+gate-keepers 23-check sweep, and
+`benchmark/bench-labs/night_frontier_z5c/AB_REPORT.md`
+(performance-neutral — the attribute is a lint, zero codegen).
 
 ## Retired by verdict
 

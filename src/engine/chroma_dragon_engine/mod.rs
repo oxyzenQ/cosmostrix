@@ -54,6 +54,16 @@
 //! Modules `palette`, `catalog`, `shaders`, `gradient`, `legacy`, `post`,
 //! `tuning`, `intro_colors` cover all chroma concerns; no further sub-modules are planned.
 
+//! night-frontier-Z5c: this tree is compiler-forbidden unsafe —
+//! `#![forbid(unsafe_code)]` turns the no-unsafe-in-renderer law into a
+//! build error. The audited OS boundary (raw fd I/O, libc calls,
+//! signal plumbing) lives OUTSIDE these trees (clock/, platform/,
+//! interactive/watchdog.rs, the cosmic engine's terminal/ recovery
+//! ladder) and is pinned line-by-line by the unsafe-census gate
+//! (scripts/gates/unsafe-census.py).
+
+#![forbid(unsafe_code)]
+
 pub mod catalog;
 pub(crate) mod gradient;
 pub(crate) mod legacy;
