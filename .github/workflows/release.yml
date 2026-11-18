@@ -98,7 +98,10 @@ jobs:
     name: Cosmic Dragon - Build packages (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     needs: ci_gate
-    timeout-minutes: 5
+    # night-depth-hardening-Z1: same runner-physics law as the ci.yml
+    # macos lane - the guard is a runaway bound, not a performance spec;
+    # a congested macos-26 pool demonstrably needs more than 5 minutes.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
