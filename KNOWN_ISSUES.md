@@ -63,15 +63,16 @@ return to the shell prompt.
   and certain printable-key sequences arrive inconsistently when the
   process is in raw mode.
 
-### Root cause (suspected)
+### Root cause (pinned by mechanism, night-frontier-Z3 3a)
 
-The `i` key is bound to `hud_state.toggle()` in
-`src/interactive/event_loop.rs`. On Linux/macOS, crossterm delivers the
-`KeyEvent` cleanly through the standard PTY `read()` path. On Windows,
-crossterm uses the `Console` API which can coalesce rapid key events;
-on Termux, the Android terminal layer sometimes delivers a key event
-followed immediately by a synthetic EOF or focus-loss event, which the
-event loop interprets as a shutdown signal.
+The exit was the event loop treating ONE terminal-gone error
+(`is_terminal_gone`: EIO/EBADF/BrokenPipe from crossterm's
+poll/read) as a dead PTY and stopping the session. On Windows and
+Termux the documented delivery pattern is a key event followed
+immediately by a synthetic EOF / transient I/O error — a SINGLE error
+from a perfectly alive terminal. A real dead PTY errors
+persistently; the two classes separate on persistence, and the event
+loop had no persistence check.
 
 This is a **platform event-delivery issue**, not a renderer bug — the
 render pipeline itself is unaffected. The renderer continues correctly
@@ -114,11 +115,22 @@ Pick whichever applies to your setup:
 
 ### Status
 
-**Partially mitigated (v30 guard).** The Termux case is largely
-resolved by the pre-screensaver-exit guard. The Windows ConHost case
-may still occur. A full fix (filtering synthetic EOF/focus-loss events
-in the crossterm event loop) is not currently scheduled due to the
-complexity of testing across crossterm versions and platforms.
+**Quarantined (night-frontier-Z3 3a).** The event loop now runs the
+synthetic terminal-gone quarantine (`src/interactive/terminal_gone.rs`):
+a terminal-gone error that lands within 150 ms of an accepted key event
+AND is the first in that window is absorbed and the loop re-polls; any
+error outside the window, or a second one inside it, is persistent real
+death and exits exactly as fast as before (the post-SIGHUP fast-exit
+contract is untouched, and write-side failures are never quarantined —
+a write error is the kernel reporting a broken fd from the syscall
+itself). The guard's guarantees are pinned by unit tests
+(`interactive::terminal_gone`); the supermassive PTY battery proves
+non-regression (a real EIO mid-run still exits, the quit paths are
+unchanged). Honest limits: Windows ConHost and Termux cannot be
+exercised in this repo's CI — the quarantine covers the DOCUMENTED
+single-error-after-key pattern on both platforms by mechanism, and any
+further platform-specific delivery quirk outside that pattern remains
+subject to the standard terminal-gone exit.
 
 ---
 

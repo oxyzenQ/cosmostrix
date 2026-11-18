@@ -57,6 +57,7 @@ mod event_loop_ctx;
 mod event_loop_finalize;
 mod event_loop_hud;
 mod event_loop_intro;
+mod terminal_gone;
 // NIGHT-improve-8: non-key runtime event arms (mouse / paste / focus)
 // extracted from `event_loop.rs` (800-LOC cap) — owns the anti-copy
 // policy for non-key events (capture-consumed mouse, zero-ack modified

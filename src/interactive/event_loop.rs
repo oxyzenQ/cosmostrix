@@ -32,6 +32,7 @@ use super::activity::{register_activity, spin_wait};
 use super::event_loop_ctx::{FrameObs, LoopCtx, LoopCtxCore, SceneIdentity};
 use super::event_loop_finalize::finalize_session;
 use super::input::{KeybindingCtx, handle_keybinding, hud_toggle_accepted, is_unmodified};
+use super::terminal_gone::{TerminalGoneGuard, Verdict};
 use super::watchdog::{GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
@@ -87,6 +88,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     )?;
 
     let start_time = Instant::now();
+    // night-frontier-Z3 3a: the synthetic terminal-gone quarantine (see
+    // interactive/terminal_gone.rs for the full mechanism contract).
+    let mut gone_guard = TerminalGoneGuard::default();
     // NIGHT-hunter-22 F2: `duration_s` is the single duration source of
     // truth (validated at startup: finite, 0.1..=86400 in range, or the
     // 0 = run-forever sentinel). The old cross-read of the raw twin
@@ -310,8 +314,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 match Terminal::poll_event(Duration::from_millis(0)) {
                     Ok(false) => break,
                     Err(e) if is_terminal_gone(&e) => {
-                        ctx.cloud.raining = false;
-                        break;
+                        // 3a: one in-window error = the synthetic-EOF
+                        // pattern, absorbed; persistent = real death.
+                        if gone_guard.classify(&e) == Verdict::Exit {
+                            ctx.cloud.raining = false;
+                            break;
+                        }
+                        continue;
                     }
                     Err(_) => break,
                     Ok(true) => {}
@@ -319,8 +328,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 let ev = match Terminal::read_event() {
                     Ok(e) => e,
                     Err(e) if is_terminal_gone(&e) => {
-                        ctx.cloud.raining = false;
-                        break;
+                        if gone_guard.classify(&e) == Verdict::Exit {
+                            ctx.cloud.raining = false;
+                            break;
+                        }
+                        continue;
                     }
                     Err(_) => break,
                 };
@@ -355,6 +367,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         } else if k.kind != KeyEventKind::Press {
                             continue;
                         }
+                        // An accepted key event arms the 3a quarantine
+                        // window: the synthetic-EOF delivery pattern
+                        // rides the key event that triggered it.
+                        gone_guard.note_key();
                         let activity_time = Instant::now();
                         if ctx.paste_guard.ignore_plain_key(&k, activity_time) {
                             let _ = register_activity(
@@ -537,8 +553,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     Ok(true) => continue,
                     Ok(false) => {}
                     Err(e) if is_terminal_gone(&e) => {
-                        ctx.cloud.raining = false;
-                        break;
+                        // 3a quarantine, same contract as the drain loop.
+                        if gone_guard.classify(&e) == Verdict::Exit {
+                            ctx.cloud.raining = false;
+                            break;
+                        }
+                        continue;
                     }
                     Err(e) => return Err(e),
                 }
@@ -555,8 +575,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     Ok(true) => continue,
                     Ok(false) => {}
                     Err(e) if is_terminal_gone(&e) => {
-                        ctx.cloud.raining = false;
-                        break;
+                        if gone_guard.classify(&e) == Verdict::Exit {
+                            ctx.cloud.raining = false;
+                            break;
+                        }
+                        continue;
                     }
                     Err(e) => return Err(e),
                 }
