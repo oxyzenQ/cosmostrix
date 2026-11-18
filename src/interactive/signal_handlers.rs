@@ -142,6 +142,17 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
                         // handler on a jammed PTY before it ever reached
                         // raise(SIGSTOP), killing Ctrl+Z too.
                         MOUSE_CAPTURE_ACTIVE.store(false, Ordering::Release);
+                        // night-frontier-Z3 Lapis 3b: capture the EXACT
+                        // raw termios BEFORE raw mode is disabled — the
+                        // SIGCONT reinit branch applies these precise
+                        // bytes back, so resume runs on the same termios
+                        // the session suspended with instead of
+                        // crossterm's canonical raw flags (a tcgetattr
+                        // syscall, immune to PTY byte jams). A false
+                        // return here (no tty) keeps the pre-3b
+                        // behavior; the snapshot slot stays empty and
+                        // the restore side no-ops.
+                        let _ = crate::platform::termios_snapshot::capture_suspend_snapshot();
                         // NIGHT-termux-hang: the nonblocking restore — a
                         // jammed PTY must not wedge the suspend handler
                         // before it reaches raise(SIGSTOP). Dropped

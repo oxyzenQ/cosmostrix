@@ -276,6 +276,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // MAIN screen, keys echo in cooked mode).
             ctx.term.mark_externally_restored();
             ctx.term = Terminal::with_signal_exit(signal_exit.clone())?;
+            // night-frontier-Z3 Lapis 3b: the fresh Terminal enabled
+            // crossterm's canonical raw mode; the suspend-time snapshot
+            // (captured at SIGTSTP, before raw mode was disabled) now
+            // overrides it with the EXACT pre-suspend bytes — resume
+            // runs on the same termios the session stopped under, byte
+            // for byte, regardless of anything the device saw while the
+            // session was backgrounded. A false return (no snapshot in
+            // flight, e.g. a bare `kill -CONT`) keeps crossterm's
+            // canonical raw mode — the pre-3b behavior.
+            let _ = crate::platform::termios_snapshot::restore_suspend_snapshot();
             // v17: always re-enable mouse reporting after SIGCONT (see
             // startup comment for rationale — block copy in all modes).
             if ctx.term.enable_mouse_capture().is_ok() {

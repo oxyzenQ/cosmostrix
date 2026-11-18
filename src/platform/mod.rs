@@ -232,4 +232,5 @@ mod tests {
 pub(crate) mod fork_guard;
 pub(crate) mod panic_hook;
 pub(crate) mod root_guard;
+pub(crate) mod termios_snapshot;
 pub(crate) mod update;

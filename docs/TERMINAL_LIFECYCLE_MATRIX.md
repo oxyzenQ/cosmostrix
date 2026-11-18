@@ -15,8 +15,8 @@ non-destructive behavior.
 | 2 | SIGINT (Ctrl+C) — **DEPRECATED**: SIGINT is no longer caught. Only `q` exits. Ctrl+C at the key level is ignored; `kill -INT` will use OS default (terminate without cleanup). Use SIGTERM/SIGHUP/SIGQUIT for graceful signal exit. | N/A (signal not caught) | No | No | No (OS default) | No | N/A | Depends on OS |
 | 3 | SIGTERM / `pkill -TERM` | Full via `Terminal::drop()` | No | No | Yes | Yes | No | No |
 | 4 | SIGHUP | Full via `Terminal::drop()` | No | No | Yes | Yes | No | No |
-| 5 | SIGTSTP / Ctrl-Z | Partial — terminal mode suspended, no explicit cleanup | No | No | Deferred (on SIGCONT) | Yes | No | No |
-| 6 | SIGCONT resume | Terminal mode restored, render loop continues | No | No | Yes | Yes | No | No |
+| 5 | SIGTSTP / Ctrl-Z | Full termios snapshot captured (`platform/termios_snapshot.rs`), nonblocking escape restore, cooked mode for the shell | No | No | Deferred (exact snapshot re-applied on SIGCONT) | Yes | No | No |
+| 6 | SIGCONT resume | Exact pre-suspend termios re-applied + full reinit + full repaint (torture leg 6 proves the contract) | No | No | Yes (exact-state) | Yes | No | No |
 | 7 | SIGKILL / `kill -9` | None — cannot be caught | No | No | Fork guard best-effort (Linux only) | No | Yes (residual state possible) | Potentially |
 | 8 | `--reset-terminal` | Full destructive reset | Yes | Yes | Yes (`stty sane` + `reset`) | N/A (intentional) | N/A (explicit user action) | Yes |
 | 9 | Windows Terminal reset path | Manual user recovery | User action | User action | User action | N/A | Yes (issue #15) | User-controlled |
@@ -94,14 +94,18 @@ restoration via `tcsetattr()` is still attempted.
 cosmostrix installs a custom SIGTSTP handler (the
 `signal_hook` SIGTSTP/SIGCONT source in
 `src/interactive/signal_handlers.rs`, added with the NIGHT-termux-hang
-work). On SIGTSTP the handler runs a **nonblocking best-effort
+work). On SIGTSTP the handler **captures the exact current termios**
+into the full-suspend snapshot (`src/platform/termios_snapshot.rs`,
+night-frontier-Z3 3b — a `tcgetattr` syscall on the tty device,
+immune to PTY byte jams) and then runs a **nonblocking best-effort
 restore** (`restore_terminal_best_effort_nonblocking`): raw mode off,
 mouse capture off, bracketed-paste/kitty pop, alternate screen left
 (`1049l`), sync-end, cursor shown, SGR reset — all via raw-fd writes
 under a temporary `O_NONBLOCK` so a jammed PTY can never wedge the
 handler before it reaches `raise(SIGSTOP)`. Dropped restore bytes are
-safe by design: the SIGCONT resume path re-initializes the terminal
-and repaints the full frame. The handler then flags `TermReinit`
+safe by design: the SIGCONT resume path re-initializes the terminal,
+applies the exact pre-suspend termios back, and repaints the full
+frame. The handler then flags `TermReinit`
 before suspending, so the main loop knows a reinit is pending.
 
 If the SIGTSTP/SIGCONT signal source fails to install (fd exhaustion,
@@ -118,8 +122,19 @@ a full terminal reinit: the OLD `Terminal` value is neutralized via
 `mark_externally_restored()` (its enable-flags no longer describe the
 physical terminal — the suspend handler restored it externally), a
 fresh `Terminal` is constructed (raw mode + alt screen + cursor hide),
-mouse capture is re-enabled, the size is re-read, and the cloud forces
-a full repaint.
+the suspend snapshot's exact pre-suspend termios is applied back over
+crossterm's canonical raw mode (`restore_suspend_snapshot` — the
+render loop resumes on the precise bytes it suspended with, regardless
+of anything the device saw while the session was backgrounded; a bare
+`kill -CONT` with no snapshot in flight is a no-op keeping the
+pre-Z3 behavior), mouse capture is re-enabled, the size is re-read,
+and the cloud forces a full repaint. The observable contract is
+proven end to end by the supermassive torture battery's
+suspend-resume leg (`scripts/supermassive/torture.py`, leg 6):
+SIGTSTP silences the stream, shell-prompt bytes are written to the
+device while the session is stopped, SIGCONT resumes with a repaint
+burst, and the session exits by its own deadline with the full
+restore tail.
 
 NIGHT-ultimate-1 audit note: the reinit previously assigned the fresh
 `Terminal` directly into `ctx.term`. Because Rust drops the

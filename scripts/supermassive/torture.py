@@ -71,6 +71,11 @@ ASSERT = REPO_ROOT / "scripts" / "supermassive" / "pty_assert.py"
 RESTORE_TAIL = ["alt-leave", "mouse-off", "paste-off", "focus-off"]
 
 
+# Optional hook (leg 6 only): when set, run_hostile_session hands the
+# child pid to it right after the fork. Other legs leave it None.
+_PID_HOOK = None
+
+
 def mass(mass_path: Path, label: str, text: str) -> None:
     """Append one sentinel row (the shared supermassive contract)."""
     with open(mass_path, "a", encoding="utf-8") as handle:
@@ -121,6 +126,8 @@ def run_hostile_session(
             os.execv(binary, [binary, *child_args])
         except Exception:  # noqa: BLE001 - exec failure must not hang CI
             os._exit(127)
+    if _PID_HOOK is not None:
+        _PID_HOOK(pid)
 
     captured = 0
     start = time.monotonic()
@@ -548,6 +555,151 @@ def leg_restart_storm(binary: str, mass_path: Path, workdir: Path) -> bool:
     return ok
 
 
+def leg_suspend_resume(binary: str, mass_path: Path, workdir: Path) -> bool:
+    """Leg 6: the SIGTSTP/SIGCONT suspend-resume drill (night-frontier-Z3 3b).
+
+    The suspend/resume contract, exercised end to end on a real pty:
+    SIGTSTP silences the stream, shell-prompt bytes are written to the
+    device WHILE the session is stopped (the exact "something else
+    wrote" scenario the retired README limitation guarded), SIGCONT
+    resumes, and the session must keep rendering and exit by its own
+    deadline with the full restore tail. The full-termios snapshot
+    (src/platform/termios_snapshot.rs) makes the resume exact-state on
+    the termios axis; this leg proves the observable contract - output
+    stops, output resumes with a repaint burst, exit clean.
+    """
+    label = "torture-suspend-resume"
+    log = workdir / "torture-suspend.log"
+    log.unlink(missing_ok=True)
+    state = {
+        "phase": "run",
+        "bytes_at_suspend": 0,
+        "bytes_after_cont": 0,
+        "cont_at": None,
+        "first_byte_after_cont": None,
+        "shell_written": False,
+    }
+
+    def tick(master: int, elapsed: float) -> None:
+        if state["phase"] == "run" and elapsed >= 2.0:
+            try:
+                os.kill(pid_holder[0], signal.SIGTSTP)
+            except ProcessLookupError:
+                return
+            state["phase"] = "stopped"
+            state["bytes_at_suspend"] = state["bytes_total"]
+        elif (
+            state["phase"] == "stopped"
+            and elapsed >= 4.0
+            and not state["shell_written"]
+        ):
+            # The "something else wrote" scenario: a shell prompt lands
+            # on the device while the session is stopped. These bytes
+            # sit in the pty input buffer as junk keys ('[', '$', ... -
+            # no 'q') and must not affect the resumed session.
+            try:
+                os.write(master, b"[shell]$ ")
+            except OSError:
+                return
+            state["shell_written"] = True
+        elif state["phase"] == "stopped" and elapsed >= 5.0:
+            try:
+                os.kill(pid_holder[0], signal.SIGCONT)
+            except ProcessLookupError:
+                return
+            state["phase"] = "resumed"
+            state["cont_at"] = elapsed
+
+    pid_holder = [None]
+
+    # The tick needs the RUNNING captured-bytes count (the suspend and
+    # resume facts are byte deltas); the log file's size is the
+    # authoritative captured total - run_hostile_session appends every
+    # chunk there.
+    def tick_with_counter(master: int, elapsed: float) -> None:
+        try:
+            state["bytes_total"] = log.stat().st_size if log.exists() else 0
+        except OSError:
+            pass
+        if state["phase"] == "resumed":
+            grown = state["bytes_total"] - state["bytes_at_suspend"]
+            state["bytes_after_cont"] = grown
+            if grown > 0 and state["first_byte_after_cont"] is None:
+                state["first_byte_after_cont"] = elapsed - state["cont_at"]
+        tick(master, elapsed)
+
+    code, captured = run_hostile_session_with_pid(
+        binary,
+        log,
+        ["--duration", "9"],
+        budget=30.0,
+        on_tick=tick_with_counter,
+        pid_out=pid_holder,
+    )
+
+    ok = True
+    suspend_ok = state["phase"] == "resumed" and state["bytes_at_suspend"] > 0
+    mass(
+        mass_path,
+        label,
+        f"{'PASS' if suspend_ok else 'FAIL'} suspend-silenced stream "
+        f"(bytes_before={state['bytes_at_suspend']})",
+    )
+    ok = ok and suspend_ok
+    resumed_ok = (
+        state["bytes_after_cont"] > 1000
+        and state["first_byte_after_cont"] is not None
+        and state["first_byte_after_cont"] <= 2.0
+    )
+    mass(
+        mass_path,
+        label,
+        f"{'PASS' if resumed_ok else 'FAIL'} resumed-repaint "
+        f"(bytes_after={state['bytes_after_cont']} "
+        f"first_byte_within={state['first_byte_after_cont']}s)",
+    )
+    ok = ok and resumed_ok
+    exit_ok = code == 0
+    mass(
+        mass_path,
+        label,
+        f"{'PASS' if exit_ok else 'FAIL'} deadline-exit-after-resume rc={code} "
+        f"bytes={captured}",
+    )
+    ok = ok and exit_ok
+    tail_ok = assert_restore_tail(log, mass_path, f"{label}-tail")
+    ok = ok and tail_ok
+    return ok
+
+
+def run_hostile_session_with_pid(
+    binary: str,
+    log_path: Path,
+    child_args: list[str],
+    budget: float,
+    on_tick=None,
+    pid_out: list[int] | None = None,
+) -> tuple[int | None, int]:
+    """run_hostile_session with the child pid handed out via pid_out[0].
+
+    Only leg 6 needs the pid (it signals SIGTSTP/SIGCONT on its own
+    timeline); the shared transport keeps the pid private, so this thin
+    variant routes it through the module-level _PID_HOOK. Behavior is
+    otherwise identical to run_hostile_session.
+    """
+    # The battery's transport builds the child inside run_hostile_session;
+    # a faithful copy would duplicate 60 lines. Instead: spawn the child
+    # here, then delegate the hostile loop is not possible (the loop owns
+    # the pty fds). Honest solution: a module-level hook the shared
+    # transport calls with the pid - set by this leg, ignored elsewhere.
+    global _PID_HOOK
+    _PID_HOOK = (lambda pid: pid_out.__setitem__(0, pid)) if pid_out else None
+    try:
+        return run_hostile_session(binary, log_path, child_args, budget, on_tick)
+    finally:
+        _PID_HOOK = None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--binary", required=True, help="cosmostrix binary to torture")
@@ -575,6 +727,7 @@ def main() -> int:
         ("signal-storm", leg_signal_storm),
         ("config-churn", leg_config_churn),
         ("restart-storm", leg_restart_storm),
+        ("suspend-resume", leg_suspend_resume),
     ]
     print(f"torture: begin - {len(legs)} hostile legs against {binary}", flush=True)
     failed = 0
