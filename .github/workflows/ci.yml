@@ -213,6 +213,20 @@ jobs:
             exit 1
           fi
           echo "Replay oracle: PASS (byte-identical frame sequences across two processes)"
+          # night-depth-hardening-4: publish the debug (glibc) digest so
+          # the reproducible-verify lane can prove the static musl release
+          # binary renders the byte-identical sequence under a different
+          # libc — the cross-libm half of the determinism contract. The
+          # cross-process half above pins one host; this anchor is what
+          # makes the pinned sequence a distro-independent fact.
+          printf '%s\n' "$D1" > replay-digest-debug.txt
+
+      - name: Publish debug replay digest (glibc anchor)
+        uses: actions/upload-artifact@v7
+        with:
+          name: replay-digest-debug
+          path: replay-digest-debug.txt
+          retention-days: 3
 
   # NIGHT-perf-2 (2026-09-20): the full suite (~2950 tests) executes here
   # in two parallel, count-balanced partitions via cargo-nextest. Each
@@ -357,7 +371,7 @@ jobs:
   reproducible_verify:
     name: Cosmic Dragon Guard - Reproducible verify (byte identity)
     runs-on: ubuntu-24.04
-    needs: [reproducible_build]
+    needs: [reproducible_build, build_test]
     timeout-minutes: 5
     steps:
       - name: Download host a artifact
@@ -371,6 +385,12 @@ jobs:
         with:
           name: reproducible-cosmostrix-host-b
           path: host-b
+
+      - name: Download debug replay digest (glibc anchor)
+        uses: actions/download-artifact@v8
+        with:
+          name: replay-digest-debug
+          path: digest-debug
 
       - name: Compare byte-for-byte
         run: |
@@ -395,6 +415,25 @@ jobs:
           REPLAY="$("$A" --bench-replay | grep -aF 'replay-digest:' | tail -1 || true)"
           echo "${REPLAY}"
           test -n "${REPLAY}"
+          # night-depth-hardening-4: the pinned sequence must also
+          # survive the libc boundary. The debug digest was computed
+          # under glibc on a separate runner; this static musl binary
+          # carries its own libm. The replay path uses only f32 math,
+          # which glibc and musl both evaluate to the correctly-rounded
+          # result, so equal digests are the expected outcome — and now
+          # they are MEASURED on every push instead of asserted. A
+          # divergence means some float call stopped being
+          # correctly-rounded on one libc (or drifted off the f32 law)
+          # and the deterministic-output claim would be false until
+          # fixed.
+          DEBUG_D="$(grep -aF 'replay-digest:' digest-debug/replay-digest-debug.txt | tail -1 || true)"
+          echo "debug (glibc): ${DEBUG_D}"
+          echo "release (musl): ${REPLAY}"
+          if [[ -z "$DEBUG_D" || "$DEBUG_D" != "$REPLAY" ]]; then
+            echo "::error::Cross-libm determinism FAILED: the static musl release digest differs from the glibc debug digest for the same SHA"
+            exit 1
+          fi
+          echo "Cross-libm determinism: PASS — the musl release binary renders the byte-identical pinned sequence as the glibc debug build"
 
   macos_build:
     name: Cosmic Dragon Guard - Build (macos native)

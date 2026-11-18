@@ -602,6 +602,25 @@ build must end on the same `replay-digest:` line); and locally,
 `cosmostrix --bench-replay | grep replay-digest` twice must print the
 same hex.
 
+night-depth-hardening-4 (2026-11-19) extends the contract across the
+libc boundary. The original proof was same-host: two processes of one
+build, one libm. The census of the executed replay surface found every
+transcendental call on it is f32 (`powf`, `cbrt`, `sqrt`, `sin`, `cos`,
+`exp` on f32 operands — the OKLab conversion in gradient/mod.rs, spawn
+lanes, ecosystem drift, rain_at easing), and f32 routines in glibc
+2.28+ and musl evaluate to the correctly-rounded result, so the two
+libcs must agree bit-for-bit; every Linux distro at kernel 5.15 or
+above ships inside that regime. ci.yml now publishes the debug build's
+glibc digest as an artifact and `reproducible_verify` compares it
+against the static musl release binary's digest (two libcs, two
+runners, one required digest line). Debug-vs-release equality was
+proven first on a developer host (both profiles print
+`b3:7e938efa5efcb659dc214a9bf1fc84afdbbe8d6b8e0aab9f67b0b3606f1578d7`),
+so the cross-profile half is measured and the cross-libm half is now a
+standing CI gate: a future float call drifting off the f32
+correctly-rounded law fails the push instead of silently breaking a
+buyer's offline re-verification.
+
 ### 33. The reproducible release chain (byte-identical two-host builds)
 
 Problem killed: process identity was unclaimed. The provenance depth
@@ -669,6 +688,14 @@ rebuilds and the archive layout the PKGBUILD depends on), the freebsd
 KVM lane keeps its own toolchain law, and a synchronized compromise of
 the crosscheck runner AND the GPG signer remains outside the threat
 model exactly as before.
+
+night-depth-hardening-4 (2026-11-19) doubles the verify lane as the
+determinism gate: the same `reproducible_verify` job now also compares
+the release musl binary's `replay-digest:` against the debug glibc
+build's digest (published by `build_test` as an artifact), so byte
+identity of the artifact AND bit identity of the pinned render
+sequence across libcs are both standing push-time gates (see
+innovation 32).
 
 ### 34. The embedded engine oracle (the capability depth, D4)
 
