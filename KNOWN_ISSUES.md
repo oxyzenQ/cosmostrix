@@ -37,11 +37,18 @@ probe): the first probe pass on the dumb lane caught exactly one
 `SetBackgroundColor(frame.blank.bg)` through raw crossterm, the one
 color emission that never rode the quantizer (the fg side was
 quantized, so the earlier fg-only probe could not see it). Fixed at
-the emission boundary: the blanket bg now rides the same
-`SgrQuantizer` the cells ride (Mono resolves to Reset - never paint
-on dumb terminals; Classic16 resolves to a named classic color;
-truecolor sessions keep the raw color). The forbid probe now pins
-both forms on every downgrade lane.
+the emission boundary, and the CI capture forensics (the smoke
+captures upload as the dataset row) then pinned the deeper half: on
+the CI pty the 0x0 clamp skips the intro at 1x1, so the blanket is
+the session's only color emission, and it fired while the quantizer
+was STILL UNWIRED - `set_color_cache` arms it after the palette is
+built, which the first drawn frame precedes. The quantizer now arms
+at Terminal construction from the session's detected color mode
+(`SgrMode::from_color_mode`); `set_color_cache` re-arms from the
+cache's authoritative mode once the palette is built, so an explicit
+`--color-mode` override self-corrects. Truecolor sessions stay
+`None` - the raw wire is unchanged. The forbid probe pins both forms
+on every downgrade lane.
 
 ### Enforced contract
 

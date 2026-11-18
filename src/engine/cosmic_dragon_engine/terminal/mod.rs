@@ -325,6 +325,23 @@ impl Terminal {
             last_flush_suppressed: false,
         };
 
+        // Pre-arm the emission-boundary quantizer from the startup
+        // color mode (night-frontier-Z3a). The first drawn frame fires
+        // the blanket canvas paint BEFORE set_color_cache wires the
+        // authoritative cache, and an unwired quantizer passed the raw
+        // palette bg through - one indexed 48;5 SGR per session on the
+        // non-truecolor lanes (the deepened bg-form probe caught it on
+        // the CI pty, where the 1x1 clamp skips the intro and the
+        // blanket is the session's only color emission). The env-
+        // derived mode is the best pre-cache knowledge; set_color_cache
+        // re-arms from the cache's authoritative mode once the palette
+        // is built, so an explicit --color-mode override self-corrects
+        // there. TrueColor stays None - the raw wire is unchanged.
+        term.sgr_quantizer = match SgrMode::from_color_mode(crate::cli::detect_color_mode_auto()) {
+            SgrMode::TrueColor => None,
+            mode => Some(SgrQuantizer::new(mode)),
+        };
+
         let init_res: Result<()> = (|| {
             let out = &mut term.stdout;
             // Only enter alternate screen if the terminal supports it.

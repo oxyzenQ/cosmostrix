@@ -136,6 +136,27 @@ impl SgrMode {
         }
         SgrMode::Classic16
     }
+
+    /// The wire mode a session resolves to before any palette exists.
+    ///
+    /// The startup blanket canvas paint (night-frontier-Z3a) arms the
+    /// emission-boundary quantizer from the session's detected color
+    /// mode AHEAD of the first drawn frame - the blanket used to fire
+    /// while the quantizer was still unwired, and the raw palette bg
+    /// (the AnsiValue black canvas) leaked one indexed `48;5` SGR per
+    /// session on the non-truecolor lanes. `from_palette` stays the
+    /// authoritative post-palette resolution; `set_color_cache`
+    /// re-arms from it once the cache is built.
+    #[must_use]
+    pub(crate) fn from_color_mode(mode: crate::cosmic_dragon_engine::runtime::ColorMode) -> Self {
+        use crate::cosmic_dragon_engine::runtime::ColorMode;
+        match mode {
+            ColorMode::Mono => SgrMode::Mono,
+            ColorMode::Color16 => SgrMode::Classic16,
+            ColorMode::Color256 => SgrMode::Ansi256,
+            ColorMode::TrueColor => SgrMode::TrueColor,
+        }
+    }
 }
 
 // ── Canonical xterm palettes ────────────────────────────────────────────────
