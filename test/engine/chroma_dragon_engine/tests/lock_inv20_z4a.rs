@@ -9,7 +9,7 @@
 //! measured colorimetry on the REAL production surfaces — all 44
 //! built-in themes, the real catalog stops, the real production ramp:
 //!
-//! - **INV-20 (the ΔE-OK perceptual budget).** The interpolation path
+//! - INV-20 (the ΔE-OK perceptual budget). The interpolation path
 //!   between consecutive stops is sampled at JND resolution (adaptive,
 //!   arc-length-driven two-pass sampling, full-precision OKLab math via
 //!   `gradient_path_oklab`) and every consecutive step must stay within
@@ -23,7 +23,7 @@
 //!   pair of shipped palette entries may exceed the widest band any
 //!   theme ships today. The budget governs the interpolation
 //!   machinery; the ceiling pins the shipped band scale.
-//! - **INV-21 (no muddy midpoints, measured).** Along every saturated
+//! - INV-21 (no muddy midpoints, measured). Along every saturated
 //!   segment's fine path the chroma trough must keep at least
 //!   `PALETTE_CHROMA_TROUGH_MIN_RATIO` (0.80) of the segment's weaker
 //!   endpoint chroma, and every interior entry of the shipped ramp must
