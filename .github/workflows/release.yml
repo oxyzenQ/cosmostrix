@@ -338,8 +338,12 @@ jobs:
           # this exact commit byte-matches the shipped binary - the
           # same pin the reproducible_build CI lane verifies. --locked
           # forbids a drifted lockfile from silently changing the
-          # dependency graph the artifact was built from.
-          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          # dependency graph the artifact was built from. Declare
+          # then export separately per the shellcheck law (SC2155):
+          # a masked git failure must abort the build, not silently
+          # fall through to an empty epoch.
+          EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH="${EPOCH}"
           cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}" --locked
 
       - name: Build (release)
@@ -745,7 +749,10 @@ jobs:
           export RUSTFLAGS="--remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
           # The epoch pin (night-frontier-Z1b): see the unix matrix
           # step - the commit timestamp travels with the artifact.
-          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          # Declare then export separately per the shellcheck law
+          # (SC2155) so a masked git failure aborts the build.
+          EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH="${EPOCH}"
           cargo build --profile pro-android-aarch64 --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}" --locked
 
       - name: Verify embedded build metadata
