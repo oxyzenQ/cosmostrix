@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty-five, in dependency order
+## The forty-six, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1110,7 +1110,9 @@ wave equation on the CELL GRID — the telegraph form
 scheme whose Courant numbers are pinned 11x inside the von Neumann
 bound (`rx^2 + ry^2 = 0.089 <= 1` at the `MOUSE_FLASH_DT_MAX` = 1/120
 sub-step ceiling; slow frames split into more sub-steps, capped at 8,
-so a stall advances the wave instead of destabilizing it). A click
+so a stall advances the wave instead of destabilizing it — and since
+night-frontier-Z6 every sub-step is EXACTLY one `MOUSE_FLASH_DT_MAX`
+quantum, see entry 46). A click
 injects a compact impulse packet into ONE shared field; the wave
 equation's LINEARITY does the rest — simultaneous clicks genuinely
 interfere (the slot pool and its eviction are obsolete by physics),
@@ -1273,6 +1275,70 @@ Verifier: the compile-negative probe, the census-negative probe, the
 gate-keepers 23-check sweep, and
 `benchmark/bench-labs/night_frontier_z5c/AB_REPORT.md`
 (performance-neutral — the attribute is a lint, zero codegen).
+
+### 46. The wave-field energy ledger (the named Lyapunov bound, night-frontier-Z6)
+
+Problem killed: the click shockwave's stability story (#42) was a set
+of IMPLICIT bounds — CFL margin, a bounded-run test, a damping law —
+with no running quantity that names the wave's energy and would NOTICE
+if the solver ever started creating it. Worse, the ledger's first
+empirical sweep found a real hole the implicit bounds could not see:
+under ALTERNATING frame pacing (a synthetic 1/60 -> 1/45 -> 1/30 ->
+1/90 cycle) the fractional-width sub-step schedule composed
+amplification matrices whose product RESONATES — exponential energy
+growth (~15% per 4-frame cycle), invisible to a constant-pacing
+bounded-run test, and plausibly reachable in production where the
+Power Dragon's throttle cycles and adaptive pacing oscillate the frame
+delta. Mechanism (night-frontier-Z6, S4), three layers:
+`cloud/wave_field.rs` now carries an explicit `EnergyLedger` over the
+three-level leapfrog scheme's discrete Lyapunov functional — kinetic
+at level n-1/2 plus the CROSS-TIME-LEVEL gradient products
+`E = (1/2)*sum((u^n - u^(n-1))^2) + (rx^2/2)*<grad_x u^n, grad_x
+u^(n-1)> + (ry^2/2)*<grad_y u^n, grad_y u^(n-1)>` (the textbook
+discrete energy: dot the scheme with the centered velocity, the
+kinetic telescopes exactly, the self-adjoint Laplacian part telescopes
+into the staggered potential, the damping term `2a*||v||^2` is
+positive-definite removal — the plain potential-on-current-level form
+is NOT monotone, measured worst per-frame tick 1.3e-2, the cross-term
+form measures exactly zero). The ledger attributes every movement to
+named signed buckets (`injected` — the exact touched-set closed-form
+delta per click, a fresh interior click deposits exactly
+`rx^2*2 + ry^2*2` = 0.0889; `dissipated` — the per-frame delta;
+`rescale` — measurement-scale reconciliation, identically zero under
+the quantum clock) with the identity
+`energy == injected - dissipated + rescale` holding exactly at every
+point of every lifecycle. Second layer, the CAP law: every term of E
+is a difference of values each bounded by INJECT_CAP, so per-cell
+`E <= 2.5*cap^2 = 10.0` (measured storm operating point: 0.0002 per
+cell — the cap is a rigorous ceiling, not the operating point), and
+the per-frame pass plus per-inject local delta are f64 over the f32
+state, zero allocation, closed form (no grid pass per click — the
+click-storm cost is ~100 flops per click). Third layer, the fix the
+ledger forced: the solver now runs a QUANTUM CLOCK — frame time
+accumulates and every sub-step is EXACTLY `MOUSE_FLASH_DT_MAX` wide
+(capped 8/frame, remainder carries over) — so the amplification matrix
+is CONSTANT frame to frame and the alternating-h class is eliminated
+by construction: the pathological cycle now decays monotonically to
+exactly zero, settled, `dissipated == injected` to the last f64 bit.
+Honest residuals, named not laundered: under click-storm saturation
+the Mur boundary extrapolation reflects a sliver of oblique energy
+back into the interior (measured worst per-frame tick 3.1e-2 at 80x24
+saturated, decaying with the field — visible as a slightly negative
+`dissipated` run); the visible timing quantization is bounded by one
+quantum (8.3 ms on a 1.8 s life). Costs: one extra f64 pass over the
+grid per ACTIVE frame (the settled path is untouched zero-work), zero
+on settled frames, and the render path never reads the ledger.
+Truth: `src/engine/cosmic_dragon_engine/cloud/wave_field.rs`
+(EnergyLedger, the functional, the quantum clock, the touched-set
+inject delta),
+`test/engine/cosmic_dragon_engine/cloud/tests/tests_wave_field.rs`
+(the Z6 pins: closed-form deposit, monotone steps, storm cap, ledger
+identity, quantum-clock quanta, rescale-zero, reset semantics).
+Verifier: `cargo test wave_field` — 16 wave-field pins (10 Z4b + 6
+Z6), all asserting the laws; the full suite must stay green; the
+replay digest is unchanged by the ledger (the render surface is
+untouched — pinned by the CI replay-oracle step and by the A/B
+report).
 
 ## Retired by verdict
 

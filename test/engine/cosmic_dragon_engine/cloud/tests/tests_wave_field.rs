@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! # Wave-field solver physics pins (night-frontier-Z4b)
+//! # Wave-field solver physics pins (night-frontier-Z4b, Z6)
 //!
 //! The click shockwave claims to SOLVE the 2D wave equation — these
 //! tests make that claim load-bearing:
@@ -21,8 +21,15 @@
 //!   documented window and then costs zero work.
 //! - Zero allocation: stepping never grows or reallocates the grids.
 //! - Determinism: identical runs produce bit-identical fields.
+//! - Energy ledger (night-frontier-Z6): the discrete Lyapunov
+//!   functional is non-increasing under steps at the pinned schedule
+//!   (to f64 rounding), every click's deposit matches the closed-form
+//!   seed-packet energy, the identity `energy == injected - dissipated
+//!   + rescale` holds at all times, click storms stay under the named
+//!   per-cell cap, and every lifecycle ends with the ledger landing
+//!   energy at exactly zero with `dissipated == injected`.
 
-use super::super::wave_field::WaveField;
+use super::super::wave_field::{WAVE_ENERGY_CAP_PER_CELL, WaveField};
 use crate::constants::{MOUSE_FLASH_DT_MAX, MOUSE_FLASH_SPEED, MOUSE_FLASH_WAVE_DAMPING};
 
 /// The CFL pin: at the solver's sub-step ceiling, `rx^2 + ry^2` must
@@ -312,4 +319,279 @@ fn wave_field_resize_round_trip_stable() {
     f.resize(60, 20);
     assert_eq!(f.amplitudes().len(), 60 * 20);
     assert!(f.is_settled(), "a resize clears the field");
+}
+
+// ── night-frontier-Z6, S4: the energy ledger ───────────────────────────────
+//
+// The wave equation bound becomes a NAMED quantity: the discrete
+// Lyapunov functional of the three-level leapfrog scheme (kinetic at
+// level n-1/2, cross-time-level gradient products), carried by an
+// explicit ledger with signed injection, dissipation, and rescale
+// buckets. These tests make every ledger law load-bearing.
+
+/// Reference Courant numbers of the ledger scale (the sub-step
+/// ceiling): `LEDGER_RX = c * MOUSE_FLASH_DT_MAX`, `LEDGER_RY = rx/2`.
+const LEDGER_RX: f64 = (MOUSE_FLASH_SPEED * MOUSE_FLASH_DT_MAX) as f64;
+const LEDGER_RY: f64 = LEDGER_RX / 2.0;
+
+/// The identity law: `energy == injected - dissipated + rescale`
+/// holds exactly (f64) at every point of any lifecycle — every energy
+/// movement is attributed to exactly one named bucket.
+fn assert_ledger_identity(f: &WaveField) {
+    let l = f.ledger();
+    let book = l.injected() - l.dissipated() + l.rescale();
+    assert!(
+        (l.energy() - book).abs() <= 1e-9,
+        "ledger identity broken: energy {} != injected {} - dissipated {} + rescale {}",
+        l.energy(),
+        l.injected(),
+        l.dissipated(),
+        l.rescale()
+    );
+}
+
+/// The closed-form deposit: one interior click's seed packet (center
+/// 1.0, four neighbors 0.5, zero initial velocity) raises the
+/// functional by exactly `rx^2 * 2 + ry^2 * 2` over two (the seed
+/// touches 8 horizontal and 8 vertical edges of 0.25 squared units
+/// each — 2.0 squared units per direction; kinetic is exactly zero
+/// since cur == prev). The 1e-7 slack is the f32 rounding of the
+/// Courant product (16/225 and 4/225 are the exact f64 values).
+#[test]
+fn wave_field_energy_inject_deposit_matches_closed_form() {
+    let mut f = WaveField::empty();
+    f.resize(80, 24);
+    f.inject(40, 12);
+    let l = f.ledger();
+    let expected = 0.5 * LEDGER_RX * LEDGER_RX * 2.0 + 0.5 * LEDGER_RY * LEDGER_RY * 2.0;
+    assert!(
+        (l.injected() - expected).abs() <= 1e-7,
+        "the click's energy deposit drifted from the closed form: {} vs {}",
+        l.injected(),
+        expected
+    );
+    assert_eq!(
+        l.energy(),
+        l.injected(),
+        "a fresh field's energy is the deposit"
+    );
+    assert_eq!(l.rescale(), 0.0, "no frames stepped, no rescale");
+    assert!(l.energy() > 0.0, "a click must deposit positive energy");
+    assert_eq!(l.substeps(), 0, "no quantum has run yet");
+}
+
+/// The Lyapunov law at the pinned schedule: with one click and 600
+/// frames at 60 fps (every sub-step at exactly MOUSE_FLASH_DT_MAX), the
+/// per-frame functional delta is non-positive to f64 rounding — the
+/// solver NEVER creates energy — and the lifecycle ends at exactly
+/// zero with every deposited unit accounted as dissipated.
+#[test]
+fn wave_field_energy_is_lyapunov_under_steps() {
+    let mut f = WaveField::empty();
+    f.resize(80, 24);
+    f.inject(40, 12);
+    let injected = f.ledger().injected();
+    assert!(injected > 0.0);
+    let mut e_prev = f.ledger().energy();
+    let mut worst_up = 0.0f64;
+    for _ in 0..600 {
+        f.step(1.0 / 60.0);
+        let e = f.ledger().energy();
+        if e - e_prev > worst_up {
+            worst_up = e - e_prev;
+        }
+        assert_ledger_identity(&f);
+        e_prev = e;
+    }
+    assert!(
+        worst_up <= 1e-9,
+        "the solver created energy: worst per-frame delta = {worst_up:e} — the \
+         Lyapunov law failed at the pinned schedule"
+    );
+    let l = f.ledger();
+    assert_eq!(
+        l.energy(),
+        0.0,
+        "the settled field must hold exactly zero energy"
+    );
+    assert!(
+        (l.dissipated() - l.injected()).abs() <= 1e-9,
+        "the lifecycle must account every deposited unit: dissipated {} vs injected {}",
+        l.dissipated(),
+        l.injected()
+    );
+    assert!(l.frames() > 50, "the active frames must be accounted");
+    assert_eq!(
+        l.peak(),
+        injected,
+        "the peak is the fresh deposit (decays from there)"
+    );
+}
+
+/// The cap law under a click storm: 200 clicks per frame for 200
+/// frames — the functional NEVER exceeds the named per-cell cap (the
+/// rigorous value bound: every term is a difference of amplitudes each
+/// pinned under INJECT_CAP, so `E <= 2.5 * cap^2` per cell at ANY
+/// pacing under ANY storm), and the field still settles to exactly
+/// zero afterwards with the ledger balanced.
+#[test]
+fn wave_field_energy_click_storm_stays_under_cap() {
+    let mut f = WaveField::empty();
+    f.resize(80, 24);
+    let n_cells = (80 * 24) as f64;
+    let cap = WAVE_ENERGY_CAP_PER_CELL * n_cells;
+    // Deterministic LCG positions (no RNG dependency).
+    let mut state: u64 = 0x9E3779B97F4A7C15;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state
+    };
+    for _ in 0..200 {
+        for _ in 0..200 {
+            let c = (next() % 80) as u16;
+            let l = (next() % 24) as u16;
+            f.inject(c, l);
+        }
+        f.step(1.0 / 60.0);
+        assert_ledger_identity(&f);
+        let e = f.ledger().energy();
+        assert!(
+            e <= cap,
+            "the storm breached the energy cap: {e} > {cap} — the value-bound law \
+             or the inject cap failed"
+        );
+    }
+    let l = f.ledger();
+    assert!(l.peak() <= cap, "the session peak must respect the cap");
+    assert!(l.injected() > 0.0, "a storm must deposit energy");
+    assert!(l.energy() > 0.0, "the storm's field is still alive");
+    // The decay: 500 more frames must land exactly zero, fully balanced.
+    for _ in 0..500 {
+        f.step(1.0 / 60.0);
+    }
+    let l = f.ledger();
+    assert_eq!(
+        l.energy(),
+        0.0,
+        "the storm field must settle to exactly zero"
+    );
+    assert!(
+        (l.dissipated() - l.injected()).abs() <= 1e-6,
+        "the storm lifecycle must balance: dissipated {} vs injected {}",
+        l.dissipated(),
+        l.injected()
+    );
+}
+
+/// The rescale law: the quantum clock keeps ONE sub-step width for the
+/// whole session — the measurement scale never shifts, so `rescale`
+/// stays exactly zero at any frame pacing, and the decay still lands
+/// at exactly zero under pacing that never completes a quantum.
+#[test]
+fn wave_field_energy_rescale_is_zero_under_any_pacing() {
+    let mut f = WaveField::empty();
+    f.resize(80, 24);
+    f.inject(40, 12);
+    // Pathological pacing mix (the alternating-h cycle that RESONATED
+    // under the old fractional sub-step widths — the quantum clock
+    // must make it a plain decay).
+    let dts = [1.0 / 60.0, 1.0 / 45.0, 1.0 / 30.0, 1.0 / 90.0];
+    let mut worst_up = 0.0f64;
+    let mut e_prev = f.ledger().energy();
+    for k in 0..600 {
+        f.step(dts[k % dts.len()]);
+        assert_ledger_identity(&f);
+        let cap = WAVE_ENERGY_CAP_PER_CELL * (80.0 * 24.0);
+        let e = f.ledger().energy();
+        assert!(
+            e <= cap,
+            "the cap law must hold under any pacing (got {e} at frame {k})"
+        );
+        if e - e_prev > worst_up {
+            worst_up = e - e_prev;
+        }
+        e_prev = e;
+    }
+    let l = f.ledger();
+    assert_eq!(
+        l.rescale(),
+        0.0,
+        "the quantum clock must keep the measurement scale fixed — rescale \
+         stays exactly zero"
+    );
+    assert!(
+        worst_up <= 1e-9,
+        "the alternating-pacing cycle must not create energy (worst delta \
+         {worst_up:e}) — the quantum clock failed to pin the schedule"
+    );
+    assert_eq!(
+        l.energy(),
+        0.0,
+        "the decay law holds under pathological pacing too — exactly zero at settle"
+    );
+}
+
+/// The quantum clock: frame deltas smaller than one quantum accumulate
+/// (10 half-quantum frames = exactly 5 sub-steps), larger deltas run
+/// multiple quanta (3 double-quantum frames = exactly 6 sub-steps),
+/// and a pathological stall is capped at 8 quanta per frame while the
+/// remainder carries over (no sim-time is invented or lost beyond the
+/// documented stall bound).
+#[test]
+fn wave_field_energy_quantum_clock_accounts_exact_quanta() {
+    let mut f = WaveField::empty();
+    f.resize(80, 24);
+    f.inject(40, 12);
+    let quantum = MOUSE_FLASH_DT_MAX;
+    for _ in 0..10 {
+        f.step(quantum / 2.0);
+    }
+    assert_eq!(
+        f.ledger().substeps(),
+        5,
+        "ten half-quantum frames must run exactly five sub-steps"
+    );
+    for _ in 0..3 {
+        f.step(quantum * 2.0);
+    }
+    assert_eq!(
+        f.ledger().substeps(),
+        11,
+        "three double-quantum frames must add exactly six sub-steps"
+    );
+    // The stall cap: a 100-quantum frame runs 8 and carries the rest.
+    f.step(quantum * 100.0);
+    assert_eq!(
+        f.ledger().substeps(),
+        19,
+        "a pathological stall must cap at 8 quanta in one frame"
+    );
+    assert_ledger_identity(&f);
+}
+
+/// Lifecycle reset: `clear()` (scene switch / resize surfaces) starts a
+/// fresh ledger — all buckets exactly zero, no history carried.
+#[test]
+fn wave_field_energy_ledger_resets_on_clear() {
+    let mut f = WaveField::empty();
+    f.resize(80, 24);
+    f.inject(40, 12);
+    for _ in 0..30 {
+        f.step(1.0 / 60.0);
+    }
+    assert!(f.ledger().injected() > 0.0 && f.ledger().frames() > 0);
+    f.clear();
+    let l = f.ledger();
+    assert_eq!(l.energy(), 0.0);
+    assert_eq!(l.injected(), 0.0);
+    assert_eq!(l.dissipated(), 0.0);
+    assert_eq!(l.rescale(), 0.0);
+    assert_eq!(l.peak(), 0.0);
+    assert_eq!(l.frames(), 0);
+    // And a fresh click re-arms both the field and the ledger.
+    f.inject(10, 5);
+    assert!(f.ledger().injected() > 0.0);
+    assert!(!f.is_settled());
 }
