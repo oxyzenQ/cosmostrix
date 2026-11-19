@@ -40,8 +40,10 @@ env:
   RUST_VERSION: "1.98.1"
   # Strict build lane (the ci.yml law): every cargo invocation in this
   # workflow denies warnings, and scripts/ci/ci-strict-build.sh adds
-  # the post-hoc warning scan on top (catches the alias-driven builds
-  # whose --config build.rustflags shadow the env RUSTFLAGS).
+  # the post-hoc warning scan on top. The alias-driven build carries a
+  # step-level RUSTFLAGS override (night-dragon-maintenance-11): the
+  # env value shadows the alias's --config build.rustflags, so that
+  # step must re-add the alias's exact -C target-cpu token.
   RUSTFLAGS: "-D warnings"
   # GPG signing key fingerprint (master key). Full 40-char fingerprint.
   GPG_KEY_FINGERPRINT: "F5324E0967F104D58CE025F347A50AEF4B65AAC2"
@@ -225,10 +227,28 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: cargo fmt --all -- --check
 
-      - name: Build project
+      - name: Build project (dev)
         if: steps.changes.outputs.changed == 'true'
         run: |
           bash scripts/ci/ci-strict-build.sh -- build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
+
+      - name: Build project (release-shape alias validation)
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          # night-dragon-maintenance-11 (the RUSTFLAGS env shadow, the
+          # ci.yml v80 contract rule 3, the supermassive build_musl law):
+          # cargo precedence gives the RUSTFLAGS env shadow over the
+          # alias's --config build.rustflags, so the workflow-level
+          # RUSTFLAGS="-D warnings" silently dropped the alias's
+          # -C target-cpu=x86-64-v3 token and build.rs rejected the
+          # claimed x86-64-v3 baseline (missing avx2,bmi2,fma) every
+          # time this lane ran with fresh dependency updates (red since
+          # ad7a045 added the global env). This step-level override
+          # REPLACES the global env and MUST re-add -D warnings (the
+          # strict law holds) plus the alias's exact -C token -
+          # byte-for-byte the supermassive.yml x86_64 matrix shape.
+          RUSTFLAGS: "-D warnings -C target-cpu=x86-64-v3"
+        run: |
           # Owner directive 2026-10-27 (night-dragon-maintenance-3): builds
           # ride the named alias path - never a bare cargo release build.
           # night-dragon-maintenance-6: the validation build is the static

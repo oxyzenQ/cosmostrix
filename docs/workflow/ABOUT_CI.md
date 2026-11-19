@@ -230,6 +230,13 @@ not "later" (later never comes).
    build jobs each set their own `RUSTFLAGS` env (which REPLACES the
    global one), so each override string has `-D warnings` appended
    to preserve strictness alongside the target-cpu tuning.
+   The maintenance workflow's alias validation build
+   (`pro-linux-amd64-v3-musl`) carries the same step-level override
+   (night-dragon-maintenance-11): cargo precedence gives the
+   `RUSTFLAGS` env shadow over the alias's `--config build.rustflags`,
+   so a bare global env silently drops the alias's target-cpu token
+   and build.rs rejects the claimed x86-64-v3 baseline
+   (missing avx2,bmi2,fma). The env REPLACES, never merges.
 4. **`scripts/ci/ci-strict-build.sh` wrapper** — a belt-and-suspenders
    post-build scanner. Every `cargo build` invocation in a bash-shell
    CI step runs through this wrapper, which:
