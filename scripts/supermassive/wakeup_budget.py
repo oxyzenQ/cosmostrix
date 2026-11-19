@@ -88,6 +88,12 @@ TRACE_SET = (
 )
 
 WAIT_FAMILY = {"epoll_wait", "epoll_pwait", "ppoll", "poll", "select", "pselect6"}
+# The epoll family is ONE mechanism in two syscall shapes: mio picks
+# epoll_wait or epoll_pwait (the signal-mask variant) per target - the
+# glibc dev shape measures epoll_wait, the musl release shape measures
+# epoll_pwait (both measured, both pinned). Anything OUTSIDE the epoll
+# family is a foreign wait mechanism and a finding.
+EPOLL_FAMILY = {"epoll_wait", "epoll_pwait"}
 SLEEP_FAMILY = {"nanosleep", "clock_nanosleep", "clock_nanosleep_time64"}
 READ_FAMILY = {"read", "readv", "pread64"}
 OUTPUT_FAMILY = {"write", "writev"}
@@ -394,18 +400,25 @@ def extract_write_payload(args: str) -> str:
 
 
 def wait_timeout_ms(name: str, args: str) -> float | None:
-    """Extract the timeout of a wait-family call in ms (None = unknown).
+    """Extract the timeout of an epoll-family call in ms (None = unknown).
 
-    epoll_wait(fd, events, maxevents, timeout_ms): the last integer
-    argument is the timeout in ms (-1 = infinite). The other families
-    have timespec timeouts; the engine uses epoll_wait exclusively
-    (proven by the wait-family census row), so unknown shapes do not
-    silently classify - they return None and the census handles them.
+    Both shapes share the argument order (fd, events, maxevents,
+    timeout[, sigmask]): the timeout is the FOURTH field, never the
+    last integer - epoll_pwait carries a fifth (the sigmask pointer,
+    whose digits would otherwise masquerade as the timeout and
+    classify every wait as blocking; the CI catch that forced this
+    parser law). epoll_wait has no fifth field, so the same positional
+    read serves both. The other families have timespec timeouts; the
+    engine uses the epoll family exclusively (proven by the census
+    row), so unknown shapes do not silently classify - they return
+    None and the census handles them.
     """
-    if name in ("epoll_wait", "epoll_pwait"):
-        nums = re.findall(r"(-?\d+)\)?\s*$", args)
-        if nums:
-            return float(nums[-1])
+    if name in EPOLL_FAMILY:
+        m = re.match(
+            r"(-?\d+)\s*,\s*\[?[^,]*\]?\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*(?:,|$)", args
+        )
+        if m:
+            return float(m.group(3))
     return None
 
 
@@ -492,9 +505,11 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
     )
     ok = ok and ok_p
 
-    # 4. The wait-family census: epoll_wait only; anything else is a
+    # 4. The wait-family census: the epoll family (epoll_wait or
+    # epoll_pwait - the same mechanism, per-target shape, both pinned)
+    # is the ONLY legal mechanism; anything outside the family is a
     # mechanism swap and a re-derivation, never a silent drift.
-    foreign = {k: v for k, v in wait_families.items() if k not in ("epoll_wait",)}
+    foreign = {k: v for k, v in wait_families.items() if k not in EPOLL_FAMILY}
     ok_f = not foreign
     append_row(
         args.mass,
@@ -552,7 +567,7 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
     # law), so the wait may undershoot by up to the spin budget; the
     # bound is generous by intent.
     for i, e in enumerate(window):
-        if e["tid"] != render_tid or e["name"] != "epoll_wait":
+        if e["tid"] != render_tid or e["name"] not in EPOLL_FAMILY:
             continue
         tmo = wait_timeout_ms(e["name"], e["args"])
         if tmo is None or tmo <= 0 or tmo > 100:
