@@ -58,7 +58,7 @@ from pathlib import Path
 # crate: terminal input and raw-mode output (crossterm), argument
 # parsing (clap), random sequences (rand), compact containers
 # (bitvec, smallvec), glyph metrics (unicode-width), filesystem
-# watching (notify, also re-declared per-target for backend
+# watching (notify, also redeclared per-target for backend
 # features), signal handling (signal-hook, ctrlc), the libc binding
 # layer, and hashing (sha2, blake3). loom and proptest are test-only
 # dev dependencies and never ship in the binary. None of them speaks
