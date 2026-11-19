@@ -201,7 +201,7 @@ pub(crate) struct PhysarumRain {
     /// network emerges from the engine's existing phosphor decay
     /// system. This is the substrate contract: the terminal's
     /// discrete cell grid IS the slime-mold substrate.
-    trail_field: Vec<f32>,
+    pub(crate) trail_field: Vec<f32>,
     trail_cols: u16,
     trail_lines: u16,
     /// Global motion clock. dt = now - last_step clamped by
@@ -254,16 +254,6 @@ impl PhysarumRain {
 
     pub(crate) fn active_count(&self) -> usize {
         self.active_count
-    }
-
-    #[cfg(test)]
-    /// The trail field snapshot for the conservation ledger
-    /// (night-frontier-Z8, INV-20): the mass-balance contract reads
-    /// the field's total and verifies the closed-form
-    /// deposit-minus-decay budget per frame. Read-only, test-only,
-    /// zero runtime surface.
-    pub(crate) fn trail_field_for_test(&self) -> &[f32] {
-        &self.trail_field
     }
 
     /// Palette transition completion: all active particles adopt the

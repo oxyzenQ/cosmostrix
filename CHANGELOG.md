@@ -98,11 +98,12 @@ when the version line closes.
 - Teeth, proven: the kepler drift helper detects a deliberately
   injected non-central kick - a ledger that cannot see a violation
   cannot enforce one.
-- Honest scope: the ledgers read state through the existing test
-  accessors plus one new cfg(test) read-only accessor
-  (physarum's trail_field_for_test, the house *_for_test pattern);
-  the runtime render path is untouched (entries 32 and 36 see no new
-  surface); the bounds are physics bounds, not bit-exact pins.
+- Honest scope: the ledgers read state through the family's existing
+  pub(crate) surface (flux motes, lorenz motes, birds, dragons were
+  already exposed; physarum's trail field joins the same convention -
+  it was the style family's only private state); the runtime render
+  path is untouched (entries 32 and 36 see no new surface); the
+  bounds are physics bounds, not bit-exact pins.
 - Doc truth sync: entry 24's FABRIK mapping read `dna_helix` while
   the solver lives in the dragon style's body chain - the code is
   the truth, corrected in the same landing (INNOVATIONS entry 53

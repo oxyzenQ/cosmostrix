@@ -1654,15 +1654,16 @@ want:
 Teeth, the house pattern: the kepler drift helper must DETECT a
 deliberately injected non-central kick — a ledger that cannot see a
 violation cannot enforce one. Honest scope: the ledgers read state
-through the existing test accessors plus one new cfg(test) read-only
-accessor (physarum's trail_field_for_test, the house *_for_test
-pattern); the runtime render path is untouched, so entries 32 and 36
+through the family's existing pub(crate) surface (flux motes, lorenz
+motes, birds, dragons were already exposed; physarum's trail field
+joins the same convention — it was the style family's only private
+state); the runtime render path is untouched, so entries 32 and 36
 see no new surface; the bounds are physics bounds (f32, libm, and
 codegen tolerant — they hold on the musl shards and the arm64 parity
 lane by form), not bit-exact pins. Truth:
 `test/engine/cosmic_dragon_engine/cloud/tests/tests_conservation_z8.rs`
 (the family), `src/engine/cosmic_dragon_engine/cloud/type_rain/physarum/physarum.rs`
-(the cfg(test) accessor). Verifier: `cargo test --locked lock_inv20`
+(the field-visibility join). Verifier: `cargo test --locked lock_inv20`
 — the eight family pins plus the chroma suite's own INV-20 riding
 the same filter; the MSRV lane, the musl shards, and the arm64
 parity lane run the filter on every push.

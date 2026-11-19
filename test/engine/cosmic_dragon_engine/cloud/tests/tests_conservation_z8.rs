@@ -15,8 +15,9 @@
 //!      The infall velocity update is CENTRAL (the gravity blend and
 //!      the influence falloff scale only the magnitude; the direction
 //!      stays radial), so under the semi-implicit Euler ordering the
-//!      specific angular momentum L = x*vy - y*vx is conserved
-//!      EXACTLY per substep wherever the accretion brake is absent:
+//!      specific angular momentum L (the planar cross product:
+//!      x times vy minus y times vx) is conserved EXACTLY per
+//!      substep wherever the accretion brake is absent:
 //!      v' = v + a*dt with a parallel to x gives
 //!      L' = (x + v'*dt) x v' = x x v' + dt (v' x v') = x x v', and
 //!      L' - L = x x (v' - v) = dt (x x a) = 0. The accretion brake
@@ -88,11 +89,12 @@ const KEPLER_L_REL_TOL: f32 = 1.0e-3;
 
 /// The kepler angular-momentum ledger for one mote snapshot.
 ///
-/// L = x*vy - y*vx, the specific angular momentum in the hole's
-/// orbital plane (outer radii per sim-second, signed by orbit
-/// direction). Shared by the exactness test and the teeth: the
-/// same function measures both the honest orbit and the corrupted
-/// one.
+/// L is the specific angular momentum in the hole's orbital plane:
+/// x times vy minus y times vx (outer radii per sim-second, signed
+/// by orbit direction). Shared by the exactness test and the teeth:
+/// the same function measures both the honest orbit and the
+/// corrupted one.
+#[must_use]
 fn kepler_angular_momentum(x: f32, y: f32, vx: f32, vy: f32) -> f32 {
     x * vy - y * vx
 }
@@ -259,7 +261,7 @@ fn lock_inv20_physarum_deposit_budget_mass_balance() {
     for _ in 0..300 {
         let mass_before: f64 = cloud
             .physarum_rain
-            .trail_field_for_test()
+            .trail_field
             .iter()
             .map(|v| f64::from(*v))
             .sum();
@@ -271,7 +273,7 @@ fn lock_inv20_physarum_deposit_budget_mass_balance() {
 
         let mass_after: f64 = cloud
             .physarum_rain
-            .trail_field_for_test()
+            .trail_field
             .iter()
             .map(|v| f64::from(*v))
             .sum();
