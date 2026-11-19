@@ -10,7 +10,8 @@ whole machine in one sitting. Each entry names the problem it kills,
 the mechanism in one breath, and the file where the truth lives. This
 page is the map, not the ledger — the source tree is the ledger, and
 every claim below yields to it (see [DOC_AUDIT.md](DOC_AUDIT.md) for
-the ruleset this page obeys).
+the ruleset this page obeys); the [Proof Atlas](PROOF_ATLAS.md)
+(entry 48) routes each claim's evidence chain in one page.
 
 One law runs through everything below: **CPU-only, single-threaded,
 no daemon, no GPU** — the rain is diff-based ANSI text in a terminal
@@ -37,7 +38,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty-seven, in dependency order
+## The forty-eight, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1391,6 +1392,41 @@ exit 0, RSS verdict SHORT as designed), the regression unit check
 the lane itself on its Sunday schedule — the artifact
 (`soak-census-run-*`) carries the census + both anchor lines as the
 audit record.
+
+### 48. The Proof Atlas (the one-page evidence chain, night-frontier-Z6)
+
+Problem killed: the evidence lived EVERYWHERE — a lock suite here, a
+ci.yml job there, a bench-labs record in a third place, an audit doc
+in docs/research/ — so a buyer, an acquirer, or an AI evaluator who
+wanted to verify any claim had to know the tree well enough to find
+the artifact without a map, and nothing structural stopped a doc
+claim from drifting away from its evidence. Mechanism
+(night-frontier-Z6, S6): [PROOF_ATLAS.md](PROOF_ATLAS.md) — one
+master page routing every innovation entry (1 through 47) to its
+proof artifact(s) — the test file, the CI lane, the bench-labs A/B
+record, the research/audit doc — with the verifier command or the
+verdict line to look for, plus the standing-lanes table (what every
+workflow pins and on which cadence) and the one-sitting audit recipe
+(full suite, gate-keepers, the offline replay re-verification,
+spot-check any row). The atlas is DOCS-ONLY by construction: no
+version bump rides it, no A/B campaign applies, it changes no code
+and no lane. The honesty law it carries: every row names at least
+one artifact that exists in the tree today (the docs-audit gate
+sweeps all 113 relative refs on every push, so a rotting link fails
+the build); where the strongest evidence is historical (a dated
+research doc, an A/B snapshot) the row labels it as the past; and a
+doc claim that cannot trace to an atlas row is a FINDING, not a
+fact. The atlas routes — it never becomes the truth itself; `src/`
+outranks it, exactly as the Innovation Ledger's own intro says of
+this page.
+Truth: `docs/PROOF_ATLAS.md` (the atlas, the honesty law, the lanes
+table, the audit recipe), `scripts/gates/docs-audit.py` (the link
+sweep that keeps every row alive).
+Verifier: the link sweep (113 refs, all resolve — the audit output
+below the docs-audit run is empty), the docs-audit gate on every
+push, and the one-sitting recipe itself: `cargo test` green,
+`./scripts/gate-keepers.sh` green, the replay digest re-verified
+offline.
 
 ## Retired by verdict
 
