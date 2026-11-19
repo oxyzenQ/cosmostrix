@@ -1775,7 +1775,7 @@ style-parameterized rig — one window shape, three ledger axes),
 
 Verifier: `cargo test --locked lock_inv21` — the 14-style band sweep,
 the port-sync cross-check, the collapse control, and the horizon law
-must all pass; the full suite (3105 tests) stays green, and the
+must all pass; the full suite (3104 tests) stays green, and the
 MSRV lane, the musl shards, and the arm64 parity lane run the filter
 on every push.
 
