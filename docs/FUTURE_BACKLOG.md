@@ -10,7 +10,34 @@
 > (2026-09-20, dead-script sweep — 27 one-off harnesses removed),
 > NIGHT-cleanup-2 (2026-09-20, engine lock-protocol retirement),
 > NIGHT-hunt-5 (2026-09-20, this pass), NIGHT-boost-6 (2026-09-24,
-> post-reorg flat-path citation sweep + NIGHT-perf-1 HUD.md drift).
+> post-reorg flat-path citation sweep + NIGHT-perf-1 HUD.md drift),
+> night-depth-cleanup-2 (2026-11-20, the end-to-end living-corpus
+> depth pass — outcome below).
+>
+> **night-depth-cleanup-2 outcome** (2026-11-20) — the owner's
+> directive was an end-to-end total master depth cleaning of all docs
+> and commented code, archive excluded, tell-once preserved. The
+> mechanical floor was already at peak: docs-audit, stale-hunt,
+> emoji-audit, check-comment-style, check-hype-words and
+> language_audit all ran green before any edit, and the stale-hunt
+> duplicate-comment groups triaged as the intentional per-file SAFETY
+> contracts and provenance stamps they are. The depth hunt fixed what
+> the gates cannot parse: the ghost `--update` flag name in
+> SECURITY_AUDIT.md (the surface says `--check-update`), the retired
+> `pro-linux-v3` alias + gnu target path in HIST_BENCH.md's living
+> reproduce/release-rule sections (dated records stay verbatim), the
+> chroma lock count 19 → 22 in THREE_DRAGON_ENGINES.md
+> (lock_inv20_z4a + lock_inv22_z5b joined the family; incubator 17
+> confirmed), the drifted dependency census in MAINTENANCE.md (12
+> runtime deps, 2 dev, 124 lock packages), MAINTENANCE.md's second
+> telling of the workflow table replaced by a link to its home (rule
+> 1: it had lost four of fifteen workflows and still showed retired
+> path-filtered triggers), the missing `soak.yml` row + the stale
+> five-lane Sunday count + the brittle 38-job parenthetical in
+> ABOUT_CI.md, the docs-audit truth notes (3138 / 547 / 22), section
+> 3's recount below, and ten registry-orphan rows added to
+> docs/README.md (rule 3). Verified zero residual on the sweep
+> classes the gates already own; the accepted-set below is unchanged.
 >
 > **NIGHT-boost-6 outcome** — 23 flat `scripts/*.sh|py` citations in
 > the live corpus repointed at the post-reorg homes (8 docs-audit
@@ -111,12 +138,13 @@ removal/retirement/move/example framing on the line, in the preceding
 
 The era files and dated records quote test counts and theme counts that
 were accurate at their time; they stay verbatim. Current numbers for
-anyone triaging (recounted 2026-09-26, NIGHT-improve-2): 2998 `#[test]`
-fns across the tracked tree (2436 in `test/` + 562 in `src/`), 44
-builtin themes (`THEME_COUNT`, `src/theme/mod.rs`), 515 tracked `.rs`
-files, 43 scripts in `scripts/`. The chroma engine sits at Phase 9-D
-(the locked final form). Historical entries are never retroactively
-updated.
+anyone triaging (recounted 2026-11-20, night-depth-cleanup-2): 3138
+`#[test]` fns across the tracked tree (2518 in `test/`, 609 in
+`src/`, 11 in `build.rs`), 44 builtin themes (`THEME_COUNT`,
+`src/theme/mod.rs`), 547 tracked `.rs` files, 68 tracked shell/python
+scripts in `scripts/` (41 `.sh` + 27 `.py`, plus the `entropy_seed.rs`
+microvm payload). The chroma engine sits at Phase 9-D (the locked
+final form). Historical entries are never retroactively updated.
 
 ## 4. Standing verification (run after any doc pass)
 
