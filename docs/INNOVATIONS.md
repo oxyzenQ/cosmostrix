@@ -76,7 +76,10 @@ safe under adversarial input; the supermassive PTY byte-log assertions
 (`scripts/supermassive/pty_assert.py`) observe the emitted control
 sequences on a real terminal, where the batching result is visible,
 and the syscall-floor ledger (entry 35) proves the batching lands in
-exactly one kernel write() per frame.
+exactly one kernel write() per frame. night-frontier-Z9 (entry 57)
+turns the "minimal cursor movement and style-change overhead" claim
+itself into an enforced contract - the emission-minimality
+certificate.
 
 ### 3. The three-layer parallax depth system
 
@@ -1778,7 +1781,7 @@ style-parameterized rig — one window shape, three ledger axes),
 
 Verifier: `cargo test --locked lock_inv21` — the 14-style band sweep,
 the port-sync cross-check, the collapse control, and the horizon law
-must all pass; the full suite (3104 tests) stays green, and the
+must all pass; the full suite (3111 tests) stays green, and the
 MSRV lane, the musl shards, and the arm64 parity lane run the filter
 on every push.
 
@@ -1910,6 +1913,97 @@ Verifier: `cargo test soak_state_digest` — the chain test must pass;
 locally, a short premium run prints the pair and the soak smoke
 (`--minutes 2`) reports legs 1b and 5 PASS; the scheduled lane
 enforces the full law on its Sunday slot plus manual dispatch.
+
+### 57. The emission-minimality certificate (the shipped solver bound to the law reference, night-frontier-Z9)
+
+Problem killed: the terminal module's own docs said the differential
+render path "produces minimal cursor movement and style-change
+overhead" - prose the benchmark could vibe-check (bytes/frame in a
+report) but nothing could prove or enforce; a future change that split
+the runs, emitted a redundant style bridge per cell, or re-addressed
+the cursor where the natural advance already sat would ship while
+every functional test stayed green, because the claim had no
+measurable contract at all. Entry 2's batching story, entry 35's
+one-write floor, and entry 39's consumer model each proved a NEIGHBOR
+of the claim; the claim itself was naked.
+
+Mechanism (night-frontier-Z9, INV-22): the certificate runs on two
+surfaces, both driving the EXACT shipped code. First, the seam: the
+differential-path body moved verbatim out of `Terminal::draw` into
+`terminal/emit_diff.rs::encode_diff_emission` - pure computation over
+(frame, previous screen, quantizer, cache), no I/O, no clock; draw
+calls it and debug-asserts the returned accounting equals the queued
+bytes. Second, the law reference: an independent cost walker derived
+from the solver's NAMED LAW LIST - no overpaint (a cell whose content
+already matches the screen is never emitted: the HUNT-27 invisibility
+law), row-boundary cursor resync (the bug-12 law), the bridge grammar
+(the task-17 emission-boundary quantizer through write_sgr_colors_buf
+plus the BOLT bold escapes) - computes the byte minimum any plan
+within those laws can achieve, cell by cell, from the same two screen
+states. The contract: the solver paints EXACTLY the changed cells
+(payload identity, asserted exact) and lands inside [reference,
+1.05 x reference] (the approved band) on every scenario, every wire
+mode, every real rig frame. Adversarial surface: a 20x6 grid with
+hand-built scenarios (a sparse single cell, contiguous runs, gapped
+same-style runs, alternating styles, row boundaries, a
+twenty-distinct-color sweep, multibyte glyphs, a bold cadence,
+persistent-and-changed mixes, a dirty-only no-change frame) across
+five wire variants (truecolor raw and cached, mono, 256-index,
+classic-16) plus the real 180-frame ledger rig window. The lean
+writer (the bench-parity emission) carries its own byte-exact
+identity across the 14-style rig: the writer's private counter must
+equal an independent recomposition of its deterministic emission
+shape over every write_frame call - warmup included, idle frames
+included (an idle frame emits nothing, not even the reset). Runtime
+half: the supermassive `emission_floor` leg runs the release-shape
+binary on a real pty, splits the captured stream into the
+synchronized frames the combined flush writes, reconstructs the
+screen with a minimal ANSI model (unparsable bytes inside a frame are
+findings, never skipped - the parser law), and asserts
+`frame_bytes >= payload + 3 x crossings + 4` on EVERY real frame
+(481/481 locally, worst margin 27 bytes) plus calibrated overhead
+bands (median in [20x, 62x], worst under 300x; observed 41-43x
+median, 62-128x worst - the ratio is inherently large because the
+payload counts only glyph bytes while every frame also carries its
+cursor addresses, bridges, and reset). Teeth, proven three ways:
+per-cell cursor, per-cell bridge, and law-violating overpaint
+pessimizers must FAIL the band the solver passes; the runtime leg's
+injections (a hundred-redundant-SGR frame, a reset-less frame) must
+FAIL the same checker; and the harness itself is load-bearing - the
+scenarios build on ONE persistent frame object because a fresh Frame
+is dirty_all by construction (the first frame is a full redraw), so a
+cell cleared back to blank is charged to the dirty list by the
+equality check against the real previous content, exactly like the
+rain loop. Honest scope: the certificate binds optimality WITHIN the
+named law set - the laws are correctness contracts (the no-overpaint
+law is what keeps an idle resync byte-silent), not perf choices;
+residuals outside the named grammar are named and measured, not
+exploited: a 4-byte `ESC[0m` bridge where the grammar emits the
+8-byte `ESC[39;49m`, and mono wire-redundant bridges whose wire state
+did not move - adopting either is a deliberate solver retune that
+re-derives this certificate in the same commit. And under-emission is
+invisible to the runtime leg by construction (the stream cannot know
+the intended screen) - the paint accounting that catches it lives in
+the suite.
+
+Truth: `src/engine/cosmic_dragon_engine/terminal/emit_diff.rs` (the
+shipped solver, the seam),
+`test/cosmic_dragon_incubator/tests/emission_ledger.rs` (INV-22: the
+law reference, the scenarios, the bands, the controls, the lean
+identity), `scripts/supermassive/emission_floor.py` (the runtime
+leg), `.github/workflows/supermassive.yml` (the `emission_floor`
+job), `src/engine/cosmic_dragon_engine/terminal/draw.rs` (the
+caller).
+
+Verifier: `cargo test lock_inv22` - the scenario x variant sweep, the
+rig window, the lean identity, and the three controls must all pass
+(3111-test suite green); the CI `emission_floor` job must end
+`MASS-VERDICT: PASS` with `frames=... changed-cells-floor PASS=...`,
+`overhead median=...x worst=...x` inside the bands, both injection
+rows PASS, and `worst-floor-margin >= 0`; locally the leg reproduces
+with `python3 scripts/supermassive/emission_floor.py --binary
+<release-shape> --log /tmp/ef-capture.log --mass /tmp/mass-ef.log
+--label emission-floor-8s --duration 8 --budget 30`.
 
 ## Retired by verdict
 

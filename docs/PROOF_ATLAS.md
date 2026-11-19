@@ -85,14 +85,16 @@ inherits its number's truth from
 | 54 | The control-loop resonance census (the no-limit-cycle proof) | [tests_resonance_z8.rs](../test/central_control_power_dragon/power_manager/tests_resonance_z8.rs), [power_manager/mod.rs](../src/central_control_power_dragon/power_manager/mod.rs) (the coupled axes) | `cargo test --locked lock_resonance` — boundedness, release, non-amplification, and the load-bearing clamp |
 | 55 | The information ledger (the field's named entropy and Gini bands) | [info_ledger.rs](../test/cosmic_dragon_incubator/tests/info_ledger.rs), [bench_visual.rs](../src/bench/bench_visual.rs) (the production math the port syncs to) | `cargo test --locked lock_inv21` — the 14-style band sweep, the port-sync cross-check, the collapse control, the PRNG horizon law |
 | 56 | The wakeup-floor ledger (the whole-frame syscall budget) | [wakeup_budget.py](../scripts/supermassive/wakeup_budget.py), [event_loop.rs](../src/interactive/event_loop.rs) (the spin-sleep pacing it measures) | the CI `wakeup_floor` job - `MASS-VERDICT: PASS` with writes/frame=1.000, blocking-waits in bounds, zero sleeps/yields/inputs |
+| 57 | The emission-minimality certificate (the shipped solver bound to the law reference) | [emit_diff.rs](../src/engine/cosmic_dragon_engine/terminal/emit_diff.rs) (the shipped solver, the seam), [emission_ledger.rs](../test/cosmic_dragon_incubator/tests/emission_ledger.rs) (INV-22), [emission_floor.py](../scripts/supermassive/emission_floor.py) | `cargo test lock_inv22` + the CI `emission_floor` job - `MASS-VERDICT: PASS` with every frame inside the identity floor and the calibrated overhead bands, both injections rejected |
+| 58 | The in-process state-digest canary (the soaked process's own anchor) | [premium.rs](../src/bench/premium.rs) (the two anchors, the canary line), [soak_determinism.sh](../scripts/depth/soak_determinism.sh) (pass-law legs 1b/5), [replay_tests.rs](../test/bench/replay_tests.rs) (the chain test) | `cargo test soak_state_digest` + the soak lane's four-way anchor chain and leg 5 (t0 == end inside the soaked process) |
 
 ## The standing lanes (the always-on half of the chain)
 
 | Lane | Cadence | What it pins |
 |---|---|---|
 | [ci.yml](../.github/workflows/ci.yml) | every push | the full suite partitions, the replay-oracle double run, the two-host reproducible release chain, fmt + clippy, cargo-audit, cargo-deny, MSRV, the multi-OS builds |
-| [supermassive.yml](../.github/workflows/supermassive.yml) | push + scheduled | the PTY contract on a real terminal: byte-log assertions, the syscall-floor ledger, the torture battery, the arch-parity legs (sig oracle parity on both silicons, the arm64 musl lock suite) |
-| [soak.yml](../.github/workflows/soak.yml) | Sunday + dispatch | the determinism-anchored soak (entry 47): digest drift, RSS plateau, fd census |
+| [supermassive.yml](../.github/workflows/supermassive.yml) | push + scheduled | the PTY contract on a real terminal: byte-log assertions, the syscall-floor ledger, the wakeup-floor ledger, the emission-floor ledger (the stream identity), the torture battery, the arch-parity legs (sig oracle parity on both silicons, the arm64 musl lock suite) |
+| [soak.yml](../.github/workflows/soak.yml) | Sunday + dispatch | the determinism-anchored soak (entry 47 + entry 58): digest drift, the four-way anchor chain, the in-process state digest, RSS plateau, fd census |
 | [miri.yml](../.github/workflows/miri.yml) | push + Sunday | no undefined behavior in the audited pointer/alloc families |
 | [kani.yml](../.github/workflows/kani.yml) | Sunday | bounded model checking of the audited proof harnesses |
 | [fuzz.yml](../.github/workflows/fuzz.yml) | push + Sunday | the fuzz targets (emission stays safe under adversarial input) |
