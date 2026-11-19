@@ -100,10 +100,9 @@ impl super::Cloud {
                 // pause duration (was "safe by accident" via resume_blend=0).
                 self.monolith_rain.shift_active_streams_last_time(elapsed);
                 self.last_phosphor_time += elapsed;
-                self.last_quantum_update_time += elapsed;
                 // S-master-HUNT-22: shift the msg-fill particle clocks
                 // (engrave sparks / scorch smoke) too — same §8.5 family
-                // as last_quantum_update_time above. Their dt is now real
+                // as last_phosphor_time above. Their dt is now real
                 // time bounded by PARTICLE_MAX_FRAME_DT_SECS, so a stale
                 // last_update would burn up to 250ms of the anti-teleport
                 // budget on the first post-unpause frame for any sparks
@@ -164,14 +163,6 @@ impl super::Cloud {
                 // paused, so the wave freezes mid-flight and continues
                 // exactly where it froze (the old slot-birth shift is
                 // obsolete: there are no Instant births anymore).
-                // v30 fix: shift active quantum particle births too. Without
-                // this, particles spawned before pause instantly expire on
-                // unpause (age includes pause duration, exceeding 0.8s life).
-                for p in &mut self.quantum_particles {
-                    if p.active {
-                        p.birth += elapsed;
-                    }
-                }
                 self.resume_blend_start = 0.0;
                 self.resume_blend = 0.0;
                 self.resume_start = Some(now);

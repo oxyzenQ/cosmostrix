@@ -230,56 +230,6 @@ pub(crate) const BENCH_WARMUP_MIN_FRAMES: u64 = 10;
 /// realistic CPU / allocator to reach steady state.
 pub(crate) const BENCH_WARMUP_MAX_FRAMES: u64 = 200;
 
-// ── Shared particle pool (QuantumParticle) ──
-//
-// night-moonlight-1: the Quantum Ripple mouse-click burst that gave
-// this pool its name is removed. The remaining constants still tune
-// the shared pre-allocated particle pool and its render path, which
-// the border-touch splash crown spark keeps using. The whole block
-// retires with that feature.
-//
-// v30 masterclass: render-time tone-down
-//
-// `QUANTUM_BODY_TONE_DOWN` is applied at render time in
-// `cloud::rain::apply_quantum_ripple` so the snapshot stored on each
-// particle stays equal to the palette body stop exactly (preserving
-// the crossfade contract), while the rendered pixel is dimmed to
-// match the rain's perceived average brightness rather than the
-// saturated body stop alone.
-
-/// Maximum concurrent pool particles. Pre-allocated once at Cloud
-/// init; reused via free-list.
-pub(crate) const QUANTUM_RIPPLE_POOL_SIZE: usize = 96;
-
-// ── Border-Touch Splash Crown Spark (F2) ─────────────────────────────────
-// See docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md §3.2.
-// "Rain drop hitting a glass ceiling" — 6 particles, 350ms, 1-cell trail,
-// upward semicircle fan. Shares the QuantumParticle pool with quantum
-// ripples (zero new allocation). Triggered by detect_border_touch on
-// non-corner border cells only (LTS invariant: no lone bright heads at
-// top corners).
-
-/// Particles per border-touch spark (F2 Splash Crown).
-/// 6 particles = visible "plash" without competing with message text.
-pub(crate) const BORDER_SPARK_PARTICLE_COUNT: usize = 6;
-
-/// Spark particle lifetime in seconds. 350ms = brief but visible.
-pub(crate) const BORDER_SPARK_LIFETIME_SECS: f32 = 0.35;
-
-/// Spark particle speed in cells/second. 12.0 = 40% of quantum ripple
-/// (30.0) — sparks are smaller/faster than click bursts.
-pub(crate) const BORDER_SPARK_SPEED: f32 = 12.0;
-
-/// Upward semicircle fan: -180° (left) through -90° (up) to 0° (right).
-/// In terminal coords, negative Y = upward. The border is a ceiling,
-/// so sparks deflect up + sideways (crown splash pattern).
-pub(crate) const BORDER_SPARK_ANGLE_MIN_RAD: f32 = -std::f32::consts::PI; // -180°
-pub(crate) const BORDER_SPARK_ANGLE_MAX_RAD: f32 = 0.0; // 0°
-
-/// Max trail entries per spark particle. 1 = single-cell streak
-/// (vs quantum ripple's 6). Gives "spray" feel without trailing noise.
-pub(crate) const BORDER_SPARK_TRAIL_LEN: usize = 1;
-
 // ── msg-fill-style "engrave" spark (v80.0.0-beta.1) ─────────────────────────────────
 // The engrave spark tuning constants (ENGRAVE_SPARK_POOL_SIZE /
 // ENGRAVE_SPARKS_PER_HEAD / ENGRAVE_SPARK_LIFETIME_SECS /
@@ -288,160 +238,10 @@ pub(crate) const BORDER_SPARK_TRAIL_LEN: usize = 1;
 // with the rest of the engrave style, not in the shared engine
 // constants.
 
-/// Brand purple RGB (same as logo color) for Quantum effects.
-pub(crate) const QUANTUM_BRAND_PURPLE_R: u8 = 168;
-pub(crate) const QUANTUM_BRAND_PURPLE_G: u8 = 85;
-pub(crate) const QUANTUM_BRAND_PURPLE_B: u8 = 247;
-
-/// v30 masterclass: render-time tone-down applied to each particle's
-/// snapshot of the palette body color.
-///
-/// Owner visual testing reported that ripple particles read as "too
-/// bright" — a click on the Green scheme produced saturated
-/// `(0, 220, 0)`-class pixels that visually out-shone the surrounding
-/// rain (whose droplets are mostly head→body→tail gradient, so the
-/// average cell the eye sees is much dimmer than the body stop alone).
-///
-/// Rather than change the snapshot itself (the snapshot must stay
-/// equal to `palette.colors[len/2]` because the crossfade tests assert
-/// that exact invariant), this constant is applied at RENDER time in
-/// `apply_quantum_ripple`: the per-particle RGB used for blending is
-/// `p.r * QUANTUM_BODY_TONE_DOWN`, etc.
-///
-/// `0.72` was chosen empirically: on Green it dims `(0, 220, 0)` to
-/// `(0, 158, 0)` — still clearly green and well above the trail floor
-/// (~131), but no longer competing with the head stop for visual
-/// dominance. On Red it dims `(220, 0, 0)` to `(158, 0, 0)`. On dark
-/// themes like Cosmos the dimmed body still sits comfortably above the
-/// Phase 7 floor, so no theme regresses on visibility.
-///
-/// The snapshot stored on the particle (`p.r/g/b`) is unchanged —
-/// palette-switch crossfade and the "snapshot matches the body stop"
-/// regression tests still hold. Only the rendered pixel is dimmed.
-///
-/// Lower values (0.5–0.65) make ripples read as ambient sparks rather
-/// than a hue burst — fine on bright themes but too dim on dark themes
-/// like Cosmos/Nebula where the body is already low-luminance. Higher
-/// values (0.85–1.0) restore the "too bright" complaint.
-pub(crate) const QUANTUM_BODY_TONE_DOWN: f32 = 0.72;
-
-/// Velocity retention factor applied to a quantum ripple particle each
-/// time it bounces off a screen edge.
-///
-/// Owner-requested behavior (v50 stabilization): ripple particles used
-/// to die as soon as they crossed the screen border (`col >= cols` or
-/// `line >= lines`). On small viewports — or when the user clicks near
-/// an edge — most of the 20-particle cohort would expire in the first
-/// few frames, making the burst feel clipped instead of radiating
-/// outward. The requested fix is to make the particles bounce off
-/// the four screen edges, so a click anywhere produces a visible shower
-/// that ricochets around the viewport until the age-based lifespan
-/// (`QUANTUM_RIPPLE_LIFETIME_SECS`) expires.
-///
-/// To keep the visual organic and avoid a perpetual elastic ping-pong,
-/// each bounce multiplies the velocity component by this damping
-/// factor. The factor applies only to the axis that bounced — the
-/// perpendicular component is untouched, so the post-bounce direction
-/// is the mirror of the pre-bounce direction (true specular reflection)
-/// scaled by `DAMPING`.
-///
-/// `0.78` was chosen so that (with the v50 masterclass 2.5s lifespan):
-///  - After 1 bounce, 78% speed retained — still clearly energetic.
-///  - After 3 bounces, ~47% — slowing down enough that the eye reads
-///    the trajectory as decaying without it abruptly stopping.
-///  - After 5 bounces, ~29% — combined with the smoothstep+tail
-///    brightness fade over the 2.5s lifespan, the particle is both
-///    dim AND slow, naturally fading out by end-of-life.
-///
-/// The previous value (0.85) was tuned for the old 0.8s lifespan —
-/// with 2.5s the cohort would ricochet too elastically, masking the
-/// underlying rain. 0.78 keeps the ricochet visible but visibly
-/// decelerating across the longer lifespan.
-///
-/// Lower values (0.6–0.7) make bounces die too quickly — the second
-/// bounce already reads as a stop, wasting the 2.5s lifespan budget.
-/// Higher values (0.9–1.0) make the cohort ricochet nearly elastically
-/// for the full 2.5s, which feels chaotic and can mask the rain on
-/// small viewports.
-///
-/// See `cloud::rain_post::apply_quantum_ripple` for the bounce math.
-pub(crate) const QUANTUM_RIPPLE_BOUNCE_DAMPING: f32 = 0.78;
-
-/// Brightness curve segment boundary — end of the "head" segment where
-/// the particle is at full brightness, start of the smoothstep ramp-down.
-///
-/// v50 masterclass retune (owner feedback 8/10): the original fade
-/// curve was `fade * fade` (quadratic from 1.0 → 0 across the full
-/// lifespan). At 0.8s lifespan this was acceptable — the cohort was
-/// only visible for ~0.4s anyway. At 2.5s lifespan the quadratic
-/// curve spends 50% of its time below 25% brightness, making the
-/// particle effectively invisible for the second half of its life —
-/// the "smoothness" complaint.
-///
-/// The new curve has three segments:
-///  1. HEAD (0 → HEAD_END_FRAC of life): full brightness (1.0). The
-///     particle is at peak visibility during the initial burst outward.
-///  2. BODY (HEAD_END_FRAC → TAIL_START_FRAC): smoothstep from 1.0
-///     down to ~0.35. The particle visibly dims but stays clearly
-///     visible — the "drifting" phase.
-///  3. TAIL (TAIL_START_FRAC → 1.0): linear fade from ~0.35 → 0. The
-///     particle gracefully fades out — the "fade out gone" the owner
-///     requested.
-///
-/// `0.15` means: the first 15% of life (0.375s at 2.5s lifespan) is
-/// full brightness. After that the smoothstep ramp begins.
-/// v50 masterclass: 0.10 — shorter peak (10% of life) so particles
-/// start fading sooner, giving a longer BODY+TAIL for smooth decay.
-pub(crate) const QUANTUM_RIPPLE_HEAD_END_FRAC: f32 = 0.10;
-
-/// Brightness curve segment boundary — start of the TAIL segment
-/// (linear fade to zero). See `QUANTUM_RIPPLE_HEAD_END_FRAC` for the
-/// full curve description.
-///
-/// v50 masterclass: 0.50 — TAIL starts at 50% of life (was 70%),
-/// giving a much longer linear fade-out. Combined with lower
-/// TAIL_FLOOR (0.25), the fade from BODY to invisible is smoother
-/// and more gradual. The previous 0.70 made the TAIL segment only 30%
-/// of life, causing particles to disappear too quickly.
-pub(crate) const QUANTUM_RIPPLE_TAIL_START_FRAC: f32 = 0.50;
-
-/// v50 masterclass: velocity decay per second. Particles decelerate
-/// exponentially: v *= (1 - decay * dt) each frame. At 0.35/sec,
-/// particles lose ~35% velocity per second — they coast to a natural
-/// stop over ~3s (fitting the 4.0s lifespan). This replaces the
-/// previous behavior where particles maintained full speed until
-/// they expired (only bounce damping slowed them).
-pub(crate) const QUANTUM_RIPPLE_VELOCITY_DECAY: f32 = 0.35;
-
-// ── v50 (2026-08-17) trail particles masterclass effect ──
-//
-// Owner-approved alternative masterclass effect for the quantum ripple:
-// each particle leaves a "comet trail" of its last N positions, rendered
-// with diminishing brightness + cycled color (from C7). The trail is
-// pushed every frame in apply_quantum_ripple, creating a streaking
-// effect behind the moving particle.
-
-/// Number of past positions stored per particle for the trail effect.
-/// 6 positions at 60 FPS = ~100ms of trail history — enough to read as
-/// a streak without being so long that it clutters the screen during
-/// rapid multi-click bursts. Larger values (8-10) make the trail
-/// dominate the visual; smaller values (3-4) read as a "ghost" rather
-/// than a streak.
-pub(crate) const QUANTUM_RIPPLE_TRAIL_LEN: usize = 6;
-
-/// Per-step brightness decay for trail positions. Each trail position i
-/// (0 = most recent past, TRAIL_LEN-1 = oldest) renders at
-/// `brightness * TRAIL_DECAY^(i+1)`. A value of 0.55 produces a clear
-/// streak that fades smoothly to invisible by the trail's oldest entry.
-/// Higher values (0.7+) make the trail too uniform; lower values (0.35)
-/// make it disappear too quickly to read as a streak.
-pub(crate) const QUANTUM_RIPPLE_TRAIL_DECAY: f32 = 0.55;
-
 // ── S-master-HUNT-22: real-time particle physics clock ──
 //
-// All transient particle systems (QuantumParticle mouse-click ripples +
-// border-touch sparks, EngraveSpark, ScorchSmoke) integrate physics on
-// REAL elapsed time, capped by this single anti-teleport bound. This
+// All transient particle systems (EngraveSpark, ScorchSmoke) integrate
+// physics on REAL elapsed time, capped by this single anti-teleport bound. This
 // replaces the old `min(dt_raw, 1/30, sim_cap)` chain, which silently
 // dilated particle time on slow terminals (see the constant's doc
 // comment below for the full failure analysis).
@@ -454,22 +254,18 @@ pub(crate) const QUANTUM_RIPPLE_TRAIL_DECAY: f32 = 0.55;
 /// real frame interval is 67-200ms while the cap chain admits only
 /// 15-33ms — so each frame advanced particles a fraction of the wall
 /// clock that actually passed. The effects ran in permanent slow
-/// motion: a 4.0s quantum ripple stretched to 20-40 real seconds of
-/// barely-visible drift ("snow ice"), border-touch sparks lingered
-/// ~2.3s instead of 350ms, and the velocity decay froze mid-air
-/// particles that only vanished once their diluted `sim_age` finally
-/// crossed the lifetime — the exact "slow, then stuck, then vanishes
-/// by itself" symptom reported on VTE.
+/// motion: msg-fill sparks and smoke lingered far past their intended
+/// lifetimes and drifted visibly behind the wall clock — the exact
+/// "slow, then stuck, then vanishes by itself" symptom reported on
+/// VTE.
 ///
 /// The fix: particles integrate REAL time (like the co-spawned flash
 /// wave, the border-touch pulse, and ghost events, which already age
 /// by `now - birth`), with this generous anti-teleport bound for the
 /// pathological cases the 1/30 clamp was originally aimed at:
 /// focus loss, SIGSTOP, and the first frame after a stall. 250ms
-/// bounds a worst-case single-frame position hop to ~8 cells at
-/// QUANTUM_RIPPLE_SPEED — invisible next to the burst radius — while
-/// letting a 10 FPS terminal advance a full 100ms of physics per
-/// frame, so effects complete in their intended wall-clock duration.
+/// lets a 10 FPS terminal advance a full 100ms of physics per frame,
+/// so effects complete in their intended wall-clock duration.
 ///
 /// Pause safety is unaffected: fully-paused runs never call the
 /// particle update (rain_at early-returns), the pause/resume easing
@@ -477,8 +273,7 @@ pub(crate) const QUANTUM_RIPPLE_TRAIL_DECAY: f32 = 0.55;
 /// shifts the per-system `last_update` timestamps forward on unpause.
 /// Rain/monolith keep the separate `max_sim_delta` dilated clock on
 /// purpose: the rain is an ambient field where slow motion reads as
-/// calm, while click sparks are interaction impulses whose perceived
-/// latency is a responsiveness signal.
+/// calm.
 pub(crate) const PARTICLE_MAX_FRAME_DT_SECS: f32 = 0.25;
 
 // Message overlay limits

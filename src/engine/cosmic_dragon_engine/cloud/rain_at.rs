@@ -1956,13 +1956,6 @@ impl super::Cloud {
             self.apply_crt_vignette(frame);
         }
 
-        // ── Quantum Ripple particle update + render (v25 masterclass) ──
-        //
-        // Update active particles (move outward, expire by lifespan),
-        // then render each as a brand-purple glyph with fade based on
-        // age. Runs O(active_particles) per frame — typically 0-20.
-        self.apply_quantum_ripple(frame, now);
-
         // --- Phosphor persistence post-process ---
         // Scale phosphor decay elapsed by resume_blend so afterglow fades at
         // the same rate as the rain wakes up. Without this, phosphor trails

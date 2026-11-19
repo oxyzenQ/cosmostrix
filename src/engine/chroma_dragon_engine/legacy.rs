@@ -89,9 +89,10 @@ pub(crate) fn scale_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
 ///
 /// This is the verbatim equation that previously lived inline in
 /// `droplet.rs::CellShader::shade` for the mouse-click flash wave
-/// (blending toward pure white `(255, 255, 255)`) and in
-/// `cloud/rain.rs::apply_quantum_ripple` for the ripple particle
-/// blend toward the snapshot color.
+/// (blending toward pure white `(255, 255, 255)`) and in the removed
+/// quantum-ripple particle renderer for the blend toward the snapshot
+/// color (the effect was removed in night-moonlight-1; the flash-wave
+/// path keeps using it).
 ///
 /// # Arguments
 /// * `r, g, b` - input (starting) sRGB channel values
@@ -111,8 +112,7 @@ pub(crate) fn scale_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
 ///
 /// # Caller status ( P8 migration)
 /// Transitively wired via `blend_toward_white` (which calls this with
-/// target (255, 255, 255)). Direct callers will land in P9 (quantum
-/// ripple blend toward snapshot color).
+/// target (255, 255, 255)).
 #[inline]
 #[must_use]
 pub(crate) fn blend_toward_rgb(

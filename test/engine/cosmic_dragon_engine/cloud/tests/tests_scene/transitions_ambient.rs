@@ -272,19 +272,19 @@ fn apply_startup_ambient_with_real_cfg_applies_custom_scene() {
     );
 }
 
-// ── Quantum ripple consistency: same-palette scene cycle ──
+// ── Click effect consistency: same-palette scene cycle ──
 //
 // Bug: pressing `x` to cycle cinematic → monolith (both energy-zen, both
 // zen charset) triggered a spurious 300ms palette transition wave because
 // set_color_scheme and transition_chars were called unconditionally. During
-// that 300ms window, apply_quantum_ripple's blend with cell.fg (which could
+// that 300ms window, the click shockwave's blend with cell.fg (which could
 // be mid-transition old/new palette mix) produced inconsistent click effect
 // colors — the "snow ice vs spark fire" bug.
 //
 // Fix: set_color_scheme has an internal no-op guard for same-scheme calls;
 // transition_chars is guarded at the scene-runtime call site. Together they
 // ensure same-palette + same-charset scene cycles do NOT start transition
-// waves, keeping the quantum ripple blend base stable.
+// waves, keeping the click effect blend base stable.
 
 #[test]
 fn same_palette_scene_cycle_does_not_trigger_color_transition() {
@@ -430,35 +430,27 @@ fn scene_switch_clears_phosphor_bitvecs() {
 }
 
 #[test]
-fn scene_switch_clears_wave_field_and_quantum_particles() {
-    // ME-03 + ME-04: stale mouse-click state (the shockwave field +
-    // quantum_particles) must be cleared on scene switch so the new scene
-    // starts clean. Without this, in-flight shockwave energy from the
-    // previous scene would render in the new scene with the previous
-    // palette's snapshot color until the damping decays it.
+fn scene_switch_clears_wave_field() {
+    // ME-03: stale mouse-click state (the shockwave field) must be
+    // cleared on scene switch so the new scene starts clean. Without
+    // this, in-flight shockwave energy from the previous scene would
+    // render in the new scene with the previous palette's colors until
+    // the damping decays it.
     let mut cloud = make_cinematic_like_cloud();
-    // Simulate a mouse click — inject into the wave field + quantum particles.
+    // Simulate a mouse click — inject into the wave field.
     cloud.set_mouse_click(10, 5);
     assert!(
         !cloud.wave_field.is_settled(),
         "precondition: the wave field must carry energy after a click"
     );
-    assert!(
-        cloud.quantum_active_count > 0,
-        "precondition: quantum particles must be active after click"
-    );
 
     // Scene switch cinematic → monolith.
     cloud.apply_scene_runtime("monolith", "zen", &[], false);
 
-    // The fix: wave field + quantum_particles cleared.
+    // The fix: wave field cleared.
     assert!(
         cloud.wave_field.is_settled(),
         "the shockwave field must be cleared (settled) on scene switch (ME-03)"
-    );
-    assert_eq!(
-        cloud.quantum_active_count, 0,
-        "quantum_active_count must be reset on scene switch (ME-04)"
     );
 }
 

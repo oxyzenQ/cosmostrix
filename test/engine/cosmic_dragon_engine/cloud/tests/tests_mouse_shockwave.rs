@@ -161,28 +161,6 @@ fn no_effects_disables_mouse_click_shockwave() {
         cloud.wave_field.is_settled(),
         "no shockwave energy should be injected under --no-effects"
     );
-    // Quantum ripple pool must also stay empty (separate gate on
-    // spawn_quantum_ripple, but click path now early-returns before
-    // even calling it — so this is a defense-in-depth check).
-    let particles = cloud.quantum_particles.iter().filter(|p| p.active).count();
-    assert_eq!(
-        particles, 0,
-        "no quantum particles should be active under --no-effects (got {particles})"
-    );
-}
-
-/// --no-effects must suppress border spark activation.
-/// Pre-existing gate (PERF-4 original) — lock test prevents regression.
-#[test]
-fn no_effects_disables_border_spark() {
-    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
-    cloud.set_effects_enabled(false);
-    cloud.spawn_border_spark(5, 0, (255, 255, 255));
-    let particles = cloud.quantum_particles.iter().filter(|p| p.active).count();
-    assert_eq!(
-        particles, 0,
-        "no border-spark particles should be active under --no-effects (got {particles})"
-    );
 }
 
 /// --no-effects must suppress anomaly zone spawning.

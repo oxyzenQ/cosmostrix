@@ -26,20 +26,17 @@
 //! the END of `draw_message` (after the halo row) so sparks render ON
 //! TOP of the overlay text: the "engraving head throws debris" look.
 //!
-//! ## Why a dedicated pool instead of reusing the quantum pool
+//! ## Why a dedicated pool
 //!
-//! The obvious reuse — `spawn_border_spark` into the shared
-//! `quantum_particles` pool — is architecturally wrong here:
-//! `apply_quantum_ripple` runs in `rain_at` BEFORE
-//! `post_rain_processing` → `draw_message`, and `draw_message`
-//! `set_force`-paints every overlay cell (glyph or space) on top. A
-//! pool-shared spark would be overdrawn inside the message box —
-//! invisible exactly where the engraving head lives. The border-touch
-//! spark does not hit this because its particles spawn ON the top
-//! border and immediately fly UP, out of the overlay region.
+//! `draw_message` `set_force`-paints every overlay cell (glyph or
+//! space) on top. A particle riding a render pass that runs before
+//! `draw_message` would be overdrawn inside the message box —
+//! invisible exactly where the engraving head lives. A dedicated
+//! pool renders in `engrave_spark_pass` at the END of `draw_message`,
+//! on top of the overlay text.
 //!
 //! A dedicated pool also keeps the engrave effect from competing with
-//! mouse-click ripples for the 96 shared slots, and vice versa.
+//! the scorch smoke pool for slots, and vice versa.
 //!
 //! ## Bounds and cost (LTS contract)
 //!
@@ -172,14 +169,14 @@ pub(crate) struct EngraveSpark {
     pub(crate) vx: f32,
     pub(crate) vy: f32,
     pub(crate) birth: Instant,
-    /// S-master-HUNT-21/22: accumulated simulation age (seconds). See
-    /// QuantumParticle.sim_age for the full rationale — same real-time
-    /// clock fix for the "stuck then disappears" bug on slow terminals.
+    /// S-master-HUNT-21/22: accumulated simulation age (seconds). The
+    /// age advances with the same real-time dt that drives motion — the
+    /// fix for the "stuck then disappears" bug on slow terminals.
     pub(crate) sim_age: f32,
     /// Glyph: '·' (debris, ~70%) or '*' (bright fleck, ~30%).
     pub(crate) ch: char,
     /// Palette head color snapshotted at burst time (white-hot on most
-    /// schemes; follows the active theme like the border spark does).
+    /// schemes; follows the active theme).
     pub(crate) r: u8,
     pub(crate) g: u8,
     pub(crate) b: u8,
@@ -293,8 +290,8 @@ impl crate::cloud::Cloud {
     /// Activate up to `ENGRAVE_SPARKS_PER_HEAD` inactive pool slots at
     /// `(col, line)`, flying outward on a full circle (engraving
     /// ejects debris in all directions — downward embers included).
-    /// Pool-full → burst silently truncated (same pattern as
-    /// `spawn_quantum_ripple` / `spawn_border_spark`).
+    /// Pool-full → burst silently truncated (same pattern as the
+    /// scorch puff).
     fn spawn_engrave_burst(&mut self, col: u16, line: u16, head_rgb: (u8, u8, u8), now: Instant) {
         let cx = col as f32 + 0.5;
         let cy = line as f32 + 0.5;
@@ -306,9 +303,8 @@ impl crate::cloud::Cloud {
             if p.active {
                 continue;
             }
-            // Full-circle fan + masterclass ±10% speed variance (the
-            // same 0.9..1.1 band quantum ripples and border sparks use
-            // — enough for organic feel, no visible stratification).
+            // Full-circle fan + masterclass ±10% speed variance —
+            // enough for organic feel, no visible stratification.
             let angle: f32 = self.rand_chance.sample(&mut self.mt) * std::f32::consts::TAU;
             let speed = ENGRAVE_SPARK_SPEED * (0.9 + self.rand_chance.sample(&mut self.mt) * 0.2);
             // Debris mix: mostly middle dots, occasional bright flecks.
@@ -341,15 +337,13 @@ impl crate::cloud::Cloud {
     fn draw_engrave_sparks(&mut self, frame: &mut Frame, now: Instant) {
         if self.engrave.active_count == 0 {
             // Keep the timestamp fresh so the first frame after a burst
-            // does not integrate a huge dt (mirrors
-            // apply_quantum_ripple's early-out).
+            // does not integrate a huge dt (zero-cost early-out).
             self.engrave.last_update = now;
             return;
         }
 
-        // S-master-HUNT-22: real-time particle physics (same contract as
-        // apply_quantum_ripple). Sparks integrate the ACTUAL delta since
-        // the last update, bounded only by the
+        // S-master-HUNT-22: real-time particle physics. Sparks integrate
+        // the ACTUAL delta since the last update, bounded only by the
         // PARTICLE_MAX_FRAME_DT_SECS anti-teleport cap, and scaled by
         // resume_blend so sparks decelerate together with the rain
         // during the pause coast-down. While FULLY paused draw_message
@@ -379,11 +373,11 @@ impl crate::cloud::Cloud {
                 continue;
             }
             // S-master-HUNT-21/22: use accumulated simulation age
-            // instead of real-time age (now - birth). Same real-time
-            // clock as apply_quantum_ripple — motion and aging stay
-            // in lockstep, and the shared dt is real time (HUNT-22),
-            // so sparks complete their trajectory AND their drift in
-            // the intended wall-clock duration on slow terminals.
+            // instead of real-time age (now - birth). Motion and aging
+            // stay in lockstep, and the shared dt is real time
+            // (HUNT-22), so sparks complete their trajectory AND their
+            // drift in the intended wall-clock duration on slow
+            // terminals.
             s.sim_age += dt;
             if s.sim_age >= ENGRAVE_SPARK_LIFETIME_SECS {
                 s.active = false;

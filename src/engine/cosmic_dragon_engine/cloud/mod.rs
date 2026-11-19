@@ -122,7 +122,7 @@ use neural::NeuralRain;
 use physarum::PhysarumRain;
 use quasar::QuasarRain;
 use solar_flare::SolarFlareRain;
-use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle, SlideCell};
+use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, SlideCell};
 use vortex::VortexRain;
 
 use flux::FluxRain;
@@ -441,10 +441,6 @@ pub struct Cloud {
 
     pub(crate) wave_field: WaveField,
 
-    pub(crate) quantum_particles: Vec<QuantumParticle>,
-    /// Active quantum particle count (incremental, O(1) early-out).
-    pub(crate) quantum_active_count: usize,
-
     pub(crate) last_reseed_time: Instant,
     /// NIGHT-depth-hardening-2: count of ladder reseeds taken; part of
     /// the deterministic replay contract (reset on restart).
@@ -457,7 +453,6 @@ pub struct Cloud {
     pub(crate) phosphor_fresh: BitVec,
     pub(crate) phosphor_in_active: BitVec,
     pub(crate) last_phosphor_time: Instant,
-    pub(crate) last_quantum_update_time: Instant,
     pub(crate) phosphor_active: SmallVec<[usize; 256]>,
     pub(crate) phosphor_last_fresh: SmallVec<[usize; 256]>,
     pub(crate) crt_vignette_candidates: Vec<(u16, u16, f32)>, // T1.1-real: hoisted scratch (was per-frame SmallVec)
@@ -703,30 +698,6 @@ impl Cloud {
             mouse_line: u16::MAX,
             mouse_enabled: false,
             wave_field: WaveField::empty(),
-            quantum_particles: vec![
-                QuantumParticle {
-                    active: false,
-                    x: 0.0,
-                    y: 0.0,
-                    vx: 0.0,
-                    vy: 0.0,
-                    birth: now,
-                    ch: '*',
-                    r: QUANTUM_BRAND_PURPLE_R,
-                    g: QUANTUM_BRAND_PURPLE_G,
-                    b: QUANTUM_BRAND_PURPLE_B,
-                    trail_x: [0.0; QUANTUM_RIPPLE_TRAIL_LEN],
-                    trail_y: [0.0; QUANTUM_RIPPLE_TRAIL_LEN],
-                    trail_count: 0,
-                    max_trail: QUANTUM_RIPPLE_TRAIL_LEN as u8,
-                    // 0.0 is the inactive-slot placeholder; every spawn
-                    // assigns the real per-effect lifetime.
-                    lifetime: 0.0,
-                    sim_age: 0.0,
-                };
-                QUANTUM_RIPPLE_POOL_SIZE
-            ],
-            quantum_active_count: 0,
             engrave: crate::msg_fill_style::engrave::EngraveState::new(now),
             scorch: crate::msg_fill_style::scorch::ScorchState::new(now),
             last_reseed_time: now,
@@ -751,7 +722,6 @@ impl Cloud {
             alive_pulses_scratch: Vec::new(),
             slide_cells_scratch: Vec::with_capacity(8),
             last_phosphor_time: now,
-            last_quantum_update_time: now,
             anomaly_zones: Vec::new(),
             profile: BehaviorProfile::Monolith,
             bench_mode: false,

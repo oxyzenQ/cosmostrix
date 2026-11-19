@@ -181,7 +181,6 @@ fn anchor_moves_every_wall_clock_state_field() {
     assert_eq!(cloud.last_spawn_time, origin);
     assert_eq!(cloud.last_reseed_time, origin);
     assert_eq!(cloud.last_phosphor_time, origin);
-    assert_eq!(cloud.last_quantum_update_time, origin);
     assert_eq!(cloud.start_anchor, origin);
 }
 

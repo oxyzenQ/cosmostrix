@@ -1,14 +1,18 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Border-touch detection + F2 splash crown spark — extracted from
+//! Border-touch detection — extracted from
 //! `cloud/rain.rs` to keep that file under the 800-LOC hard cap
 //! (see `src/RULES_LOC.md`).
 //!
 //! Owns `Cloud::detect_border_touch()` — the RAIN_BORDER_TOUCH_GLOW
 //! helper that detects when a droplet's head crosses into the message
-//! overlay border + spawns the F2 splash crown spark on non-corner
-//! touches. LTS-bounded pulse pool (dedup by msg_idx).
+//! overlay border. LTS-bounded pulse pool (dedup by msg_idx).
+//!
+//! night-moonlight-1: the F2 splash crown spark that used to co-spawn
+//! on non-corner touches is removed (archived at
+//! docs/archive/specs/BORDER_SPARK_SPLASH_CROWN.md); the glow pulse is
+//! an independent feature and stays.
 //!
 //! Implemented as a separate `impl Cloud` block (Rust allows multiple
 //! impl blocks across files for the same type).
@@ -65,12 +69,9 @@ impl super::Cloud {
     #[inline]
     pub(crate) fn detect_border_touch(&mut self, col: u16, prev_hp: u16, hp: u16, now: Instant) {
         // PERF-4: --no-effects gate. The border-touch glow (halo above
-        // the message box) and the F2 splash crown spark are both
-        // cosmetic effects. spawn_border_spark is already gated, but
-        // the border_pulses push (the glow itself) was not — this gate
-        // closes that leak. Early-return here means no new pulses are
-        // pushed; existing pulses fade out on their own expiry tick
-        // (draw_message prunes expired pulses every frame).
+        // the message box) is a cosmetic effect. Early-return here means
+        // no new pulses are pushed; existing pulses fade out on their own
+        // expiry tick (draw_message prunes expired pulses every frame).
         if !self.effects_enabled {
             return;
         }
@@ -109,9 +110,6 @@ impl super::Cloud {
             .position(|mc| mc.line == top && mc.col == col);
 
         if let Some(idx) = msg_idx {
-            // F2 Splash Crown: check corner-skip BEFORE mutable borrows.
-            // LTS invariant: no lone bright heads at top corners.
-            let is_corner = matches!(self.message[idx].val, '╭' | '╮' | '╰' | '╯');
             // LTS dedup: if a pulse for this msg_idx is still alive,
             // refresh it in place (re-arm birth + re-snapshot head_rgb)
             // instead of pushing a duplicate. Bounds the pool to
@@ -126,12 +124,6 @@ impl super::Cloud {
                     head_rgb,
                     birth: now,
                 });
-            }
-            // F2 Splash Crown spark: spawn 6-particle upward splash on
-            // non-corner border touches. See
-            // docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md §3.2.
-            if !is_corner {
-                self.spawn_border_spark(col, top, head_rgb);
             }
         }
     }

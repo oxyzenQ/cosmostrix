@@ -389,9 +389,8 @@ impl super::Cloud {
         self.last_spawn_time = origin;
         // Deterministic reseed ladder (counter-based) origin.
         self.last_reseed_time = origin;
-        // Phosphor decay and quantum particle integration clocks.
+        // Phosphor decay integration clock.
         self.last_phosphor_time = origin;
-        self.last_quantum_update_time = origin;
         // The density-noise 10s bucket reads
         // `now.saturating_duration_since(start_anchor)`.
         self.start_anchor = origin;

@@ -48,14 +48,13 @@
 //! wired per style) so smoke renders ON TOP of the overlay text:
 //! the "scorching head throws smoke" look.
 //!
-//! ## Why a dedicated pool instead of reusing the engrave spark pool
+//! ## Why a dedicated pool
 //!
-//! Same reasoning as engrave: the shared quantum pool renders in
-//! `apply_quantum_ripple` BEFORE `draw_message`, and `draw_message`
-//! `set_force`-paints every overlay cell — a quantum-pool smoke
-//! particle inside the box would be overdrawn. A dedicated pool also
-//! keeps scorch smoke from competing with engrave sparks for the 48
-//! shared slots, and vice versa.
+//! `draw_message` `set_force`-paints every overlay cell — a
+//! smoke particle on a shared render pool that runs before the
+//! overlay draw would be overdrawn inside the box. A dedicated pool
+//! also keeps scorch smoke from competing with engrave sparks for the
+//! 48 shared slots, and vice versa.
 //!
 //! ## Bounds and cost (LTS contract)
 //!
@@ -223,9 +222,9 @@ pub(crate) struct ScorchSmoke {
     pub(crate) vx: f32,
     pub(crate) vy: f32,
     pub(crate) birth: Instant,
-    /// S-master-HUNT-21/22: accumulated simulation age (seconds). See
-    /// QuantumParticle.sim_age for the full rationale — same
-    /// real-time clock fix.
+    /// S-master-HUNT-21/22: accumulated simulation age (seconds). The
+    /// age advances with the same real-time dt that drives motion, so
+    /// aging and movement never desync.
     pub(crate) sim_age: f32,
 }
 
@@ -320,7 +319,7 @@ impl crate::cloud::Cloud {
     /// Activate up to `SCORCH_SMOKE_PER_HEAD` inactive pool slots at
     /// `(col, line)`, drifting upward with slight horizontal
     /// variance. Pool-full → puff silently truncated (same pattern
-    /// as `spawn_engrave_burst` / `spawn_quantum_ripple`).
+    /// as `spawn_engrave_burst`).
     fn spawn_scorch_puff(&mut self, col: u16, line: u16, now: Instant) {
         let cx = col as f32 + 0.5;
         // Spawn the smoke half a cell ABOVE the head (cy = line - 0.5)
@@ -364,15 +363,13 @@ impl crate::cloud::Cloud {
     fn draw_scorch_smoke(&mut self, frame: &mut Frame, now: Instant) {
         if self.scorch.active_count == 0 {
             // Keep the timestamp fresh so the first frame after a puff
-            // does not integrate a huge dt (mirrors
-            // apply_quantum_ripple's early-out).
+            // does not integrate a huge dt (zero-cost early-out).
             self.scorch.last_update = now;
             return;
         }
 
-        // S-master-HUNT-22: real-time particle physics (same contract as
-        // apply_quantum_ripple). Smoke integrates the ACTUAL delta since
-        // the last update, bounded only by the
+        // S-master-HUNT-22: real-time particle physics. Smoke integrates
+        // the ACTUAL delta since the last update, bounded only by the
         // PARTICLE_MAX_FRAME_DT_SECS anti-teleport cap, and scaled by
         // resume_blend so smoke decelerates together with the rain
         // during the pause coast-down. While FULLY paused draw_message
@@ -402,11 +399,10 @@ impl crate::cloud::Cloud {
                 continue;
             }
             // S-master-HUNT-21/22: use accumulated simulation age
-            // instead of real-time age (now - birth). Same real-time
-            // clock as apply_quantum_ripple — motion and aging stay
-            // in lockstep, and the shared dt is real time (HUNT-22),
-            // so smoke completes its drift in the intended wall-clock
-            // duration on slow terminals.
+            // instead of real-time age (now - birth). Motion and aging
+            // stay in lockstep, and the shared dt is real time
+            // (HUNT-22), so smoke completes its drift in the intended
+            // wall-clock duration on slow terminals.
             s.sim_age += dt;
             if s.sim_age >= SCORCH_SMOKE_LIFETIME_SECS {
                 s.active = false;

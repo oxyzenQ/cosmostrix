@@ -148,9 +148,10 @@ impl Cloud {
         // current scheme. This prevents a spurious 300ms palette transition
         // wave when cycling between scenes that share the same palette
         // (e.g. cinematic → monolith, both neon-purple). Without this guard,
-        // the transition wave destabilizes apply_quantum_ripple's blend base
-        // (cell.fg is mid-transition old/new palette mix), producing
-        // inconsistent click effect colors — the "snow ice vs spark fire" bug.
+        // the transition wave destabilizes the wave-field blend base the
+        // click shockwave renders on (cell.fg is mid-transition old/new
+        // palette mix), producing inconsistent click effect colors — the
+        // "snow ice vs spark fire" bug.
         // v80.0.0-beta.2 (S-master-LOGIC-3): the guard must ALSO fire when a
         // custom palette is active — the ambient scene owns color, so a
         // lingering config/CLI palette shadowing the same scheme is cleared
@@ -561,27 +562,16 @@ impl Cloud {
             }
         }
         self.reset_phosphor_state();
-        // ME-03..ME-05 (mouse-effect state leak fix): clear mouse-click /
-        // quantum-ripple state on scene switch. Stale shockwave energy +
-        // quantum particles from the previous scene would otherwise render
-        // in the new scene with the previous palette's snapshot color
-        // (the wave decays by its own damping inside reset_phosphor_state's
-        // field clear; quantum by the 0.8s life). Refreshing the timing
-        // anchors
-        // (`last_phosphor_time`, `last_quantum_update_time`) prevents the
-        // first post-switch frame from computing a stale `dt` that
-        // teleports particles.
-        for p in &mut self.quantum_particles {
-            p.active = false;
-        }
-        self.quantum_active_count = 0;
-        // Z4b: the shockwave field is cleared with the scene too (reset_phosphor_state
+        // ME-03..ME-05 (mouse-effect state leak fix): the scene switch
+        // clears the phosphor field (reset_phosphor_state above), which
+        // voids the wave field with it — stale shockwave energy from the
+        // previous scene cannot render into the new scene. Z4b: the
+        // shockwave field is cleared with the scene too (reset_phosphor_state
         // resizes + clears it on this path — the wave's world is voided
         // exactly like the pre-Z4b slot deactivate).
         let now = Instant::now();
         self.last_spawn_time = now;
         self.last_phosphor_time = now;
-        self.last_quantum_update_time = now;
         self.semantic_invalidate = true;
         self.force_draw_everything = true;
     }
