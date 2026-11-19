@@ -57,7 +57,7 @@ pub(crate) static TERMINAL_RESTORED_BY_PANIC: AtomicBool = AtomicBool::new(false
 
 use crossterm::{
     ExecutableCommand, cursor, event,
-    style::{Attribute, Color, ResetColor, SetAttribute},
+    style::{Attribute, ResetColor, SetAttribute},
     terminal as crossterm_terminal,
 };
 
@@ -68,7 +68,6 @@ use crate::constants::{
     SHUTDOWN_TIMEOUT_SECS,
 };
 use crate::palette::{SgrMode, SgrQuantizer};
-use crate::sgr_format::write_sgr_colors_buf;
 use crate::termdetect::TerminalCaps;
 use crate::tier2::ByteWindow;
 
@@ -80,6 +79,11 @@ use crate::tier2::ByteWindow;
 mod cbg34_tests;
 mod cleanup;
 mod draw;
+// night-frontier-Z9-C: the differential-frame emission core — the
+// shipped steady-state solver, extracted verbatim from draw.rs so the
+// emission-minimality certificate (INNOVATIONS entry 57) can execute
+// the exact shipped algorithm in tests. See the module docs.
+mod emit_diff;
 mod io_recovery;
 mod last_frame;
 #[cfg(test)]
@@ -601,37 +605,6 @@ impl Terminal {
             self.term_caps.ghost_brightness_cap,
             self.term_caps.speed_mult,
         )
-    }
-
-    /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
-    /// Uses the color cache when available, falling back to on-the-fly
-    /// formatting via `write_sgr_colors_buf`.
-    ///
-    /// task-17: when a boundary quantizer is present (non-truecolor
-    /// session), (fg, bg) are quantized into the session's wire space
-    /// FIRST — the cache lookup then matches wire-space palette entries
-    /// and the fallback formats already-quantized colors, so no `38;2`
-    /// truecolor sequence can leave the boundary on a Color16/Color256/
-    /// Mono session.
-    #[inline]
-    fn emit_sgr(
-        quant: Option<&mut SgrQuantizer>,
-        cache: Option<&ColorCache>,
-        buf: &mut Vec<u8>,
-        fg: Option<Color>,
-        bg: Option<Color>,
-    ) {
-        let (fg, bg) = match quant {
-            Some(q) => (q.quantize_fg(fg), q.quantize_bg(bg)),
-            None => (fg, bg),
-        };
-        if let Some(cache) = cache
-            && let Some(cached) = cache.sgr_for_cell(fg, bg)
-        {
-            buf.extend_from_slice(cached);
-            return;
-        }
-        write_sgr_colors_buf(buf, fg, bg);
     }
 }
 

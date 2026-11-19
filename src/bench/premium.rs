@@ -29,7 +29,6 @@ pub(crate) use crate::bench_helpers::{
 };
 
 use super::bench_replay::compute_replay;
-use super::frame_digest::hex32;
 use super::peak_fps::compute_peak_fps;
 
 pub(crate) const FRAME_TIME_SAMPLES: usize = 10_000;
@@ -780,23 +779,10 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     crate::bench_cosmetics::emit_report_output(cfg, &report_data);
 
     // night-frontier-Z9-D: the canary line the soak harness parses
-    // (pass-law leg 5). Text report only — `--json` mode keeps its
-    // stdout contract of exactly one JSON document, and the baseline
-    // save/compare consumers above are untouched. A DRIFT verdict is
-    // not an exit failure here (the benchmark is a measurement tool);
-    // the enforcement point is the soak lane, same as the RSS law.
+    // (pass-law leg 5) - printed by the oracle's own helper beside the
+    // pure computation it measures. Text report only.
     if !cfg.json {
-        let verdict = if state_digest_t0 == state_digest_end {
-            "IDENTICAL"
-        } else {
-            "DRIFT"
-        };
-        crate::output::println_safe!(
-            "state-digest: t0=b3:{} end=b3:{} verdict={}",
-            hex32(&state_digest_t0),
-            hex32(&state_digest_end),
-            verdict
-        );
+        super::bench_replay::print_state_digest_line(&state_digest_t0, &state_digest_end);
     }
     Ok(())
 }

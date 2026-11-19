@@ -28,6 +28,7 @@ use crate::constants::DIRTY_THRESHOLD_RATIO;
 use crate::frame::Frame;
 use crate::sgr_format::{push_u16, write_sgr_colors_buf};
 
+use super::emit_diff::emit_sgr;
 use super::{LastFrame, Terminal};
 
 impl Terminal {
@@ -40,7 +41,6 @@ impl Terminal {
         let mut cur_fg: Option<Color> = None;
         let mut cur_bg: Option<Color> = None;
         let mut cur_bold: bool = false;
-        let mut cur_pos: Option<(u16, u16)> = None;
 
         // Separate dimension-change detection from semantic-change detection.
         // Clear(All) is ONLY issued when the terminal dimensions changed, because
@@ -284,7 +284,7 @@ impl Terminal {
                     // session is not truecolor (see emit_sgr).
                     let color_changed = cell.fg != cur_fg || cell.bg != cur_bg;
                     if color_changed {
-                        Self::emit_sgr(
+                        emit_sgr(
                             self.sgr_quantizer.as_mut(),
                             self.color_cache.as_ref(),
                             ansi_buf,
@@ -333,182 +333,34 @@ impl Terminal {
 
         let last = self.last.as_mut().expect("checked above");
 
-        let dirty = frame.dirty_indices();
-        let width_usize = frame.width as usize;
-        let height_usize = frame.height as usize;
-        let run_buf = &mut self.run_buf;
-        let ansi_buf = &mut self.ansi_buf;
-        let cache_ref = self.color_cache.as_ref();
-        ansi_buf.clear();
-
-        // PERF: flat dirty-index buffer replaces the previous Vec<Vec<usize>>
-        // nested structure. Collect all dirty indices into a single Vec,
-        // sort once (row-major index sort groups by row AND orders within
-        // row in one pass), then iterate contiguous runs. This eliminates
-        // per-row Vec allocations on resize and improves cache locality.
-        //
-        // (perf audit): the previous `dirty_flat.extend(dirty.iter()
-        // .copied().filter(|&idx| idx < height * width))` had an O(N) bounds
-        // filter that ran every frame. The filter is redundant — every entry
-        // in `frame.dirty_indices()` was pushed by `Frame::set()` /
-        // `set_force()`, both of which call `self.index(x, y)` first and
-        // only push `Some(i)` results. So every dirty index is already
-        // guaranteed in-bounds.
-        //
-        // Replaced the filter with a `debug_assert!` that verifies the
-        // invariant in debug builds (zero cost in release). If a future
-        // caller bypasses `index()` and pushes an OOB index, the debug
-        // build will catch it immediately instead of silently masking it.
-        let dirty_flat = &mut self.dirty_flat;
-        dirty_flat.clear();
-        dirty_flat.extend(dirty.iter().copied());
-        dirty_flat.sort_unstable();
-        // (perf polish): the previous O(N) `dirty_flat.iter().all()`
-        // checked every index every frame in debug builds (~4800
-        // comparisons on a 200×40 terminal). Since `dirty_flat` is now
-        // sorted ascending (we just called `sort_unstable()`), only the
-        // LAST (largest) index needs to be checked — if it's in bounds,
-        // all smaller indices are too. This drops the debug-build cost
-        // from O(N) to O(1) per frame, with zero release-build impact
-        // (debug_assert! is elided in release).
-        //
-        // SAFETY: `Frame::set()` / `set_force()` both call
-        // `self.index(x, y)` first and only push `Some(i)` results,
-        // so every dirty index is guaranteed in-bounds. This assert
-        // catches the unlikely case where a future caller bypasses
-        // `index()` and pushes an OOB index.
-        debug_assert!(
-            dirty_flat
-                .last()
-                .is_none_or(|&idx| idx < height_usize * width_usize),
-            "dirty_indices must be in-bounds — Frame::set guarantees this"
+        // night-frontier-Z9-C: the differential body moved VERBATIM to
+        // `emit_diff::encode_diff_emission` — the emission-minimality
+        // certificate's seam. It was previously fused behind a live
+        // stdout here, so no test could execute the exact shipped
+        // solver; now the certificate drives this exact code against an
+        // independent law-DP reference per push. Byte-for-byte behavior
+        // is preserved: same statements, same order, and the debug
+        // assert below ties the returned accounting to the queued
+        // bytes on every debug frame.
+        let stats = super::emit_diff::encode_diff_emission(
+            frame,
+            &mut last.cells,
+            self.sgr_quantizer.as_mut(),
+            self.color_cache.as_ref(),
+            &mut self.ansi_buf,
+            &mut self.run_buf,
+            &mut self.dirty_flat,
+        );
+        debug_assert_eq!(
+            stats.bytes,
+            self.ansi_buf.len(),
+            "the diff emission accounting must equal the queued bytes"
         );
 
-        // Iterate the flat sorted array, detecting row boundaries and
-        // contiguous horizontal runs for RLE batching.
-        // (bug #12): track the current row to force a MoveTo at
-        // each row boundary. This prevents cursor desync where the terminal
-        // autowraps or drifts at row boundaries (especially the bottom rows
-        // where phosphor decay writes many ghost cells). Without this, a
-        // single-cell "row shift right" glitch can appear transiently at
-        // the bottom of the screen and self-correct only when the periodic
-        // full-redraw kicks in (~5 minutes). Forcing MoveTo at each row
-        // start costs ~6 bytes/row (negligible) and eliminates the desync.
-        let mut i = 0usize;
-        let mut last_row: u16 = u16::MAX;
-        while i < dirty_flat.len() {
-            let idx0 = dirty_flat[i];
-            // Borrow instead of copy: compare with last frame without allocating.
-            // Most dirty cells are unchanged (set to blank by tail pass);
-            // this avoids copying ~24 bytes per Cell for early-exit.
-            let cell0_ref = frame.cell_at_index_ref(idx0);
-            // Cosmic Dragon egg #2: direct indexing — dirty_flat was filtered to
-            // idx < height*width, so idx0 is guaranteed in bounds.
-            // BEFORE: last.cells.get(idx0) == Some(cell0_ref)
-            // AFTER:  &last.cells[idx0] == cell0_ref
-            if &last.cells[idx0] == cell0_ref {
-                i += 1;
-                continue;
-            }
-
-            let cell0 = *cell0_ref;
-            last.cells[idx0] = cell0;
-
-            let x0 = (idx0 % width_usize) as u16;
-            let y0 = (idx0 / width_usize) as u16;
-            let fg0 = cell0.fg;
-            let bg0 = cell0.bg;
-            let bold0 = cell0.bold;
-
-            // (bug #12): force cursor resync at each row boundary.
-            // When we cross from one row to the next, invalidate cur_pos so
-            // a MoveTo is always emitted for the first dirty cell in the
-            // new row. This corrects any terminal-side autowrap or cursor
-            // drift that accumulated during the previous row's run.
-            if y0 != last_row {
-                cur_pos = None;
-                last_row = y0;
-            }
-
-            run_buf.clear();
-            run_buf.push(cell0.ch);
-            let mut run_len: u16 = 1;
-            let mut last_idx_in_run = idx0;
-            let mut j = i + 1;
-
-            while j < dirty_flat.len() {
-                let idx1 = dirty_flat[j];
-                // Must be the next column on the same row (contiguous).
-                if idx1 != last_idx_in_run + 1 {
-                    break;
-                }
-                // Row boundary check: if we wrapped to the next row, the
-                // x-coordinate resets, so the run must flush here.
-                if idx1 / width_usize != idx0 / width_usize {
-                    break;
-                }
-
-                let cell1_ref = frame.cell_at_index_ref(idx1);
-                // Cosmic Dragon egg #3: direct indexing — idx1 from dirty_flat (filtered).
-                if &last.cells[idx1] == cell1_ref {
-                    break;
-                }
-                if cell1_ref.fg != fg0 || cell1_ref.bg != bg0 || cell1_ref.bold != bold0 {
-                    break;
-                }
-
-                run_buf.push(cell1_ref.ch);
-                let cell1 = *cell1_ref;
-                last.cells[idx1] = cell1;
-                run_len = run_len.saturating_add(1);
-                last_idx_in_run = idx1;
-                j += 1;
-            }
-
-            if cur_pos != Some((x0, y0)) {
-                // MoveTo(x0, y0) directly into ansi_buf
-                ansi_buf.push(0x1b);
-                ansi_buf.push(b'[');
-                push_u16(ansi_buf, y0 + 1);
-                ansi_buf.push(b';');
-                push_u16(ansi_buf, x0 + 1);
-                ansi_buf.push(b'H');
-            }
-
-            // Combined fg+bg SGR — cached when possible
-            // task-17: quantized at the emission boundary when the
-            // session is not truecolor (see emit_sgr).
-            let style_changed = fg0 != cur_fg || bg0 != cur_bg;
-            if style_changed {
-                Self::emit_sgr(self.sgr_quantizer.as_mut(), cache_ref, ansi_buf, fg0, bg0);
-                cur_fg = fg0;
-                cur_bg = bg0;
-            }
-
-            if bold0 != cur_bold {
-                // BOLT: branchless bold escape via table lookup (see above).
-                let bold_idx = bold0 as usize;
-                let bold_len = BOLD_ESCAPE_LENS[bold_idx];
-                ansi_buf.extend_from_slice(&BOLD_ESCAPES[bold_idx][..bold_len]);
-                cur_bold = bold0;
-            }
-
-            // Print run directly into ANSI buffer (UTF-8 bytes).
-            ansi_buf.extend_from_slice(run_buf.as_bytes());
-            let next_x = x0.saturating_add(run_len);
-            cur_pos = if next_x < frame.width {
-                Some((next_x, y0))
-            } else {
-                None
-            };
-
-            i = j;
-        }
-
-        // Reset attributes + flush all buffered ANSI bytes in one write_all.
-        // HUNT-23: flush through flush_stdout_timed so the (potentially
-        // blocking) syscall latency feeds last_write_ns.
-        ansi_buf.extend_from_slice(b"\x1b[0m");
+        // Flush all buffered ANSI bytes in one write_all (the reset
+        // rides inside the encoded frame; see emit_diff). HUNT-23:
+        // flush through flush_stdout_timed so the (potentially blocking)
+        // syscall latency feeds last_write_ns.
         self.flush_ansi()?;
         self.flush_stdout_timed()?;
         frame.clear_dirty();

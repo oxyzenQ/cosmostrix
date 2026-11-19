@@ -189,6 +189,21 @@ pub(crate) fn compute_replay(cfg: &CloudConfig) -> ReplayReport {
     }
 }
 
+/// night-frontier-Z9-D: print the in-process state-digest canary line
+/// the soak pass law parses (leg 5). Text report only - the --json wire
+/// contract stays one JSON document. A DRIFT verdict is a measurement,
+/// not an exit failure: the enforcement point is the soak lane, the
+/// same division as the RSS law.
+pub(crate) fn print_state_digest_line(t0: &[u8; 32], end: &[u8; 32]) {
+    let verdict = if t0 == end { "IDENTICAL" } else { "DRIFT" };
+    println_safe!(
+        "state-digest: t0=b3:{} end=b3:{} verdict={}",
+        hex32(t0),
+        hex32(end),
+        verdict
+    );
+}
+
 /// Run the replay oracle and print the parseable report.
 pub(crate) fn run_replay(cfg: &CloudConfig) -> std::io::Result<()> {
     let report = compute_replay(cfg);
