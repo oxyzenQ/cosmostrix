@@ -8,6 +8,7 @@ Naive full-screen redraw Matrix rain renderer.
 Simulates cmatrix's approach: write every cell every frame via ANSI escapes.
 Used as a baseline competitor for cell-write comparison.
 """
+
 import sys
 import os
 import random
@@ -56,6 +57,8 @@ while time.time() - start < DURATION:
     frame_count += 1
 
 elapsed = time.time() - start
-print(f"\nNAIVE: frames={frame_count}, elapsed={elapsed:.3f}s, fps={frame_count/elapsed:.1f}, "
-      f"bytes_written={sys.stdout.buffer.tell() if hasattr(sys.stdout, 'buffer') else 'N/A'}",
-      file=sys.stderr)
+print(
+    f"\nNAIVE: frames={frame_count}, elapsed={elapsed:.3f}s, fps={frame_count / elapsed:.1f}, "
+    f"bytes_written={sys.stdout.buffer.tell() if hasattr(sys.stdout, 'buffer') else 'N/A'}",
+    file=sys.stderr,
+)

@@ -1035,22 +1035,22 @@ you're still in the masterclass envelope (or deliberately outside
 it, if that's your target):
 
 ```python
-BRIGHT  = [0.48, 0.80, 1.10]  # your values
-SAT     = [0.50, 0.84, 1.12]
-CONTRAST= [0.55, 0.18, 0.00]
+BRIGHT = [0.48, 0.80, 1.10]  # your values
+SAT = [0.50, 0.84, 1.12]
+CONTRAST = [0.55, 0.18, 0.00]
 DENSITY = [0.45, 0.62, 0.85]
 layer_dist = [0.35, 0.30, 0.35]
 
-vis = [BRIGHT[i]*SAT[i]*(1-CONTRAST[i]) for i in range(3)]
-spawn_rate = [layer_dist[i]*DENSITY[i] for i in range(3)]
-field_energy = [vis[i]*spawn_rate[i] for i in range(3)]
+vis = [BRIGHT[i] * SAT[i] * (1 - CONTRAST[i]) for i in range(3)]
+spawn_rate = [layer_dist[i] * DENSITY[i] for i in range(3)]
+field_energy = [vis[i] * spawn_rate[i] for i in range(3)]
 total = sum(field_energy)
 front_share = field_energy[2] / total
 
-print(f"Visibility:        {[round(v,3) for v in vis]}")
-print(f"Field energy:      {[round(f,3) for f in field_energy]}")
-print(f"Layer share:       {[round(f/total*100,1) for f in field_energy]}%")
-print(f"Front share:       {front_share*100:.1f}%  (masterclass: 60-75%)")
+print(f"Visibility:        {[round(v, 3) for v in vis]}")
+print(f"Field energy:      {[round(f, 3) for f in field_energy]}")
+print(f"Layer share:       {[round(f / total * 100, 1) for f in field_energy]}%")
+print(f"Front share:       {front_share * 100:.1f}%  (masterclass: 60-75%)")
 ```
 
 If `front_share` is in 60–75%, you're in the cinematic envelope.

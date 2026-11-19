@@ -11,6 +11,7 @@ and compares against cosmostrix's diff-based rendering.
 
 Usage: python3 benchmark/compare_renderers.py
 """
+
 import subprocess
 import sys
 import os
@@ -24,7 +25,11 @@ DURATION = 3  # seconds per renderer
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COSMOSTRIX_V4 = os.path.join(
-    REPO_ROOT, "target", "x86_64-unknown-linux-musl", "pro-linux-amd64-v4-musl", "cosmostrix"
+    REPO_ROOT,
+    "target",
+    "x86_64-unknown-linux-musl",
+    "pro-linux-amd64-v4-musl",
+    "cosmostrix",
 )
 COSMOSTRIX_DEBUG = os.path.join(REPO_ROOT, "target", "debug", "cosmostrix")
 NAIVE_SCRIPT = os.path.join(REPO_ROOT, "benchmark", "naive_matrix.py")
@@ -32,13 +37,19 @@ NAIVE_SCRIPT = os.path.join(REPO_ROOT, "benchmark", "naive_matrix.py")
 RENDERERS = {
     "cosmostrix (v4)": {
         "cmd": [COSMOSTRIX_V4],
-        "env": {"COSMOSTRIX_BENCH_COLS": str(COLS), "COSMOSTRIX_BENCH_LINES": str(LINES)},
+        "env": {
+            "COSMOSTRIX_BENCH_COLS": str(COLS),
+            "COSMOSTRIX_BENCH_LINES": str(LINES),
+        },
         "mode": "bench-frames",
         "args": ["--bench-frames", "10000"],
     },
     "cosmostrix (debug)": {
         "cmd": [COSMOSTRIX_DEBUG],
-        "env": {"COSMOSTRIX_BENCH_COLS": str(COLS), "COSMOSTRIX_BENCH_LINES": str(LINES)},
+        "env": {
+            "COSMOSTRIX_BENCH_COLS": str(COLS),
+            "COSMOSTRIX_BENCH_LINES": str(LINES),
+        },
         "mode": "bench-frames",
         "args": ["--bench-frames", "5000"],
     },
@@ -62,7 +73,11 @@ RENDERERS = {
     },
     "naive-full-redraw": {
         "cmd": [sys.executable, NAIVE_SCRIPT],
-        "env": {"BENCH_COLS": str(COLS), "BENCH_LINES": str(LINES), "BENCH_DURATION": str(DURATION)},
+        "env": {
+            "BENCH_COLS": str(COLS),
+            "BENCH_LINES": str(LINES),
+            "BENCH_DURATION": str(DURATION),
+        },
         "mode": "timed",
         "args": [],
     },
@@ -90,7 +105,12 @@ def run_bench_frames(cmd, env, args):
             frames = int(line.split(":")[1].strip())
         elif line.startswith("elapsed_s:"):
             elapsed = float(line.split(":")[1].strip())
-    return {"fps": fps, "frames": frames, "elapsed": elapsed, "stdout_bytes": len(result.stdout)}
+    return {
+        "fps": fps,
+        "frames": frames,
+        "elapsed": elapsed,
+        "stdout_bytes": len(result.stdout),
+    }
 
 
 def run_timed(cmd, env, duration):
@@ -123,7 +143,9 @@ def run_timed(cmd, env, duration):
         "fps": est_fps,
         "total_bytes": total_bytes,
         "est_cell_writes": est_cell_writes,
-        "est_cell_writes_per_frame": est_cell_writes / (est_fps * duration) if est_fps > 0 else 0,
+        "est_cell_writes_per_frame": est_cell_writes / (est_fps * duration)
+        if est_fps > 0
+        else 0,
         "duration": duration,
     }
 
@@ -147,7 +169,9 @@ def main():
 
     # Print comparison table
     print("\n=== Results ===\n")
-    print(f"{'Renderer':<25} {'FPS':>12} {'Bytes/sec':>12} {'Est cell-writes/frame':>25}")
+    print(
+        f"{'Renderer':<25} {'FPS':>12} {'Bytes/sec':>12} {'Est cell-writes/frame':>25}"
+    )
     print("-" * 78)
     for name, r in results.items():
         if "error" in r:
@@ -164,12 +188,16 @@ def main():
             frames = r.get("frames", 0)
             # cosmostrix dirty-cell ratio: ~7.5%
             est_dirty = int(COLS * LINES * 0.075)
-            print(f"{name:<25} {fps:>12.1f} {'(dry)':>12} {est_dirty:>25} (~7.5% dirty)")
+            print(
+                f"{name:<25} {fps:>12.1f} {'(dry)':>12} {est_dirty:>25} (~7.5% dirty)"
+            )
 
     print("\nNote: cosmostrix runs in headless dry-I/O mode (--bench-frames).")
     print("Competitors run in interactive mode with stdout captured.")
     print("cosmostrix cell-writes/frame = dirty-cell ratio (~7.5% of total cells).")
-    print("Competitor cell-writes/frame estimated from total stdout bytes / ~10 bytes per ANSI cell-write.")
+    print(
+        "Competitor cell-writes/frame estimated from total stdout bytes / ~10 bytes per ANSI cell-write."
+    )
 
 
 if __name__ == "__main__":
