@@ -106,9 +106,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Prove the emission identity on the real pty stream."
     )
-    parser.add_argument(
-        "--binary", required=True, help="cosmostrix executable to run"
-    )
+    parser.add_argument("--binary", required=True, help="cosmostrix executable to run")
     parser.add_argument(
         "--log", required=True, help="file to write captured pty bytes to"
     )
@@ -227,9 +225,7 @@ def run_child(args: argparse.Namespace) -> int:
         handle.write(bytes(captured))
 
     exit_code = os.waitstatus_to_exitcode(status) if status not in (None, -1) else -1
-    append_row(
-        args.mass, args.label, f"captured={len(captured)} bytes"
-    )
+    append_row(args.mass, args.label, f"captured={len(captured)} bytes")
     append_row(args.mass, args.label, f"exit={exit_code} expected=0")
 
     if fail_reason is not None:
@@ -289,7 +285,24 @@ class ScreenModel:
                 self.bg = None
             elif n in (30, 31, 32, 33, 34, 35, 36, 37, 90, 91, 92, 93, 94, 95, 96, 97):
                 self.fg = ("named", n)
-            elif n in (40, 41, 42, 43, 44, 45, 46, 47, 100, 101, 102, 103, 104, 105, 106, 107):
+            elif n in (
+                40,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+                47,
+                100,
+                101,
+                102,
+                103,
+                104,
+                105,
+                106,
+                107,
+            ):
                 self.bg = ("named", n)
             elif n == 38 and i + 1 < len(nums) and nums[i + 1] == 5:
                 self.fg = ("idx", nums[i + 2] if i + 2 < len(nums) else -1)
@@ -334,7 +347,11 @@ def interpret_frame(data: bytes, model: ScreenModel) -> list[str]:
     while pos < len(data):
         ch = data[pos : pos + 1]
         if ch == b"\x1b":
-            if data[pos : pos + 1] == b"\x1b" and pos + 1 < len(data) and data[pos + 1 : pos + 2] == b"[":
+            if (
+                data[pos : pos + 1] == b"\x1b"
+                and pos + 1 < len(data)
+                and data[pos + 1 : pos + 2] == b"["
+            ):
                 # find the final byte
                 end = pos + 2
                 while end < len(data) and data[end : end + 1] not in b"mH":
@@ -503,14 +520,13 @@ def injection_controls(args: argparse.Namespace, ok: bool) -> bool:
     # wrapped in a hundred redundant SGR bridges. The overhead checker
     # must reject it against the worst ceiling.
     base_style = b"\x1b[38;5;46m"
-    bloated = (
-        b"\x1b[3;4H" + base_style + base_style * 100 + b"x" + RESET_TAIL
-    )
+    bloated = b"\x1b[3;4H" + base_style + base_style * 100 + b"x" + RESET_TAIL
     model = ScreenModel(LEDGER_COLS, LEDGER_ROWS)
     before = dict(model.cells)
     interpret_frame(bloated, model)
     changed = [
-        k for k in (before.keys() | model.cells.keys())
+        k
+        for k in (before.keys() | model.cells.keys())
         if before.get(k) != model.cells.get(k)
     ]
     payload = sum(utf8_len(model.cells[k][0]) for k in changed if k in model.cells)
