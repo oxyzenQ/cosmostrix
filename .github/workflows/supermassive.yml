@@ -1247,3 +1247,91 @@ jobs:
             cat /tmp/mass-wakeup.log
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  # night-frontier-Z9-C: the emission-floor ledger - the runtime half of
+  # the emission-minimality certificate. The INV-22 Rust certificate
+  # binds the shipped diff solver to the law reference in-process; this
+  # leg runs the release-shape binary on a real pty, splits the captured
+  # stream into the synchronized frames the combined flush writes, and
+  # asserts the emission identity (bytes >= payload + bridges + reset)
+  # on every real frame, the trailing-reset structure on every frame,
+  # and the calibrated overhead bands. Teeth by injection: a bloated
+  # synthetic frame and a reset-less synthetic frame must both FAIL the
+  # same checker. No strace: the ledger reads the emitted bytes, not
+  # the kernel.
+  emission_floor:
+    name: supermassive test - emission floor ledger (the stream identity)
+    runs-on: ubuntu-24.04
+    needs: [build_musl]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the built battery binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cosmostrix-pro-v3-musl
+          path: /tmp/mass-bin
+
+      # upload-artifact does not preserve the exec bit; the consumers
+      # restore it after download (the syscall_floor precedent).
+      - name: Restore the exec bit
+        run: chmod 755 /tmp/mass-bin/cosmostrix
+
+      - name: Run the emission-floor ledger on a real pty
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-emission.log"
+          rm -f "${MASS}"
+          python3 scripts/supermassive/emission_floor.py \
+            --binary /tmp/mass-bin/cosmostrix \
+            --log /tmp/ef-capture.log \
+            --mass "${MASS}" \
+            --label emission-floor-8s \
+            --duration 8 \
+            --budget 30
+
+      # The pty capture is the dataset row: uploaded on every run so a
+      # residual (if the ledger ever trips) is analyzable from the raw
+      # stream, not reconstructed from summaries.
+      - name: Upload the pty capture (the dataset row)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: emission-floor-capture-${{ github.run_id }}
+          path: /tmp/ef-capture.log
+          if-no-files-found: ignore
+
+      - name: Verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-emission.log"
+          echo "--- MASS-RESULT relay (emission floor) ---"
+          cat "${MASS}"
+          if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
+            echo "MASS-VERDICT: FAIL"
+            exit 1
+          fi
+          echo "MASS-VERDICT: PASS"
+          echo "OK: the real stream proves the emission identity - every frame carries at least its changed cells' payload, the style bridges, and the reset, inside the calibrated overhead bands"
+
+      - name: Emission floor summary (the longitudinal dataset row)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Supermassive watch - emission floor ledger"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### relay rows"
+            echo
+            echo '```'
+            cat /tmp/mass-emission.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
