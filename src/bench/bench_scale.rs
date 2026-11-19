@@ -168,11 +168,8 @@ fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
     println_safe!("    • Higher FPS at small sizes = fixed overhead dominates");
     println_safe!("    • IPC > 2.0 = excellent pipeline utilization");
     println_safe!("    • Gini near 0 = uniform density; near 1 = concentrated");
-    println_safe!();
-    // The helper-output canon (night-T-1): the bench-all summary closes
-    // with the one-line way back to the CLI, in the calm grey tier on a
-    // TTY.
-    crate::report::print_usage_note(crate::config::color_enabled_stdout());
+    // night-moonlight-1: the bench-all summary closes a screen session
+    // — it ends after its last insight line, with zero residual.
 }
 
 /// Format an f64 as a JSON-safe string. Returns "null" for NaN/inf so the

@@ -23,6 +23,13 @@
 //!   the `--check-update` report does NOT close with the pointer —
 //!   the sibling's update check ends on its Source line, and this
 //!   surface rides the zelynic shape field-for-field.
+//!   night-moonlight-1 exemption (owner bug report, 2026-11-20):
+//!   surfaces that close a screen session — `--reset-terminal` after
+//!   the 5-layer reset, the interactive-exit performance report and
+//!   the benchmark reports printed after the alt-screen restore —
+//!   opt out via [`Report::without_usage_note`]: any trailing text
+//!   lands as residual dirt on the freshly restored screen, right
+//!   above the user's prompt.
 //!
 //! The render is machine-friendly by construction: piped surfaces lose
 //! every escape (the capability ladder returns plain text), and the
@@ -100,6 +107,10 @@ fn section_width(fields: &[Field]) -> usize {
 pub(crate) struct Report {
     title: String,
     sections: Vec<Section>,
+    /// night-moonlight-1: whether the closing night-T-1 usage pointer
+    /// rides at the end of the rendered lines. Defaults to true (the
+    /// helper-output canon); screen-session surfaces opt out.
+    usage_note: bool,
 }
 
 /// A named section within a report, containing key-value fields.
@@ -121,7 +132,23 @@ impl Report {
         Self {
             title: title.to_string(),
             sections: Vec::new(),
+            usage_note: true,
         }
+    }
+
+    /// Opt out of the closing usage pointer (night-moonlight-1).
+    ///
+    /// Surfaces that close a screen session — the `--reset-terminal`
+    /// 5-layer reset, the interactive-exit performance report and the
+    /// benchmark reports printed after the alt-screen restore — must
+    /// leave the restored screen completely clean: any trailing text
+    /// lands as residual dirt right above the user's prompt. The
+    /// night-T-1 pointer stays on the plain stdout helper surfaces
+    /// (`--doctor`, `--docs`, the discovery list printers) where it is
+    /// wanted content.
+    pub(crate) fn without_usage_note(mut self) -> Self {
+        self.usage_note = false;
+        self
     }
 
     /// Add a section and return a mutable reference for chaining fields.
@@ -185,17 +212,21 @@ impl Report {
 
         // night-T-1: the usage pointer closes every helper output —
         // one blank line, then the grammar-plus-example line in the
-        // calm grey grammar tier when ANSI is available.
-        lines.push(String::new());
-        lines.push(if ansi {
-            format!(
-                "{}{USAGE_NOTE}{}",
-                crate::output::grey_open(),
-                crate::output::reset()
-            )
-        } else {
-            USAGE_NOTE.to_string()
-        });
+        // calm grey grammar tier when ANSI is available. Surfaces that
+        // close a screen session opt out (night-moonlight-1): the
+        // pointer would land as residual dirt on the restored screen.
+        if self.usage_note {
+            lines.push(String::new());
+            lines.push(if ansi {
+                format!(
+                    "{}{USAGE_NOTE}{}",
+                    crate::output::grey_open(),
+                    crate::output::reset()
+                )
+            } else {
+                USAGE_NOTE.to_string()
+            });
+        }
 
         lines
     }
@@ -310,6 +341,19 @@ mod tests {
             value: "x".to_string(),
         }];
         assert_eq!(section_width(&fields), 24);
+    }
+
+    #[test]
+    fn without_usage_note_ends_the_report_after_the_last_field() {
+        // night-moonlight-1: a screen-session report (interactive exit,
+        // benchmark, --reset-terminal) must leave the restored screen
+        // completely clean — no closing usage pointer and no trailing
+        // blank line after the last field.
+        let mut report = Report::new("R").without_usage_note();
+        report.section("Build").field("build", "freebsd-amd64");
+        let lines = report.render_lines(false);
+        assert_eq!(lines.len(), 4); // banner, blank, header, field
+        assert!(!lines.iter().any(|l| l.contains("Usage:")));
     }
 
     #[test]

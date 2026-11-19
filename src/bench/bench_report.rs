@@ -66,7 +66,11 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| "(unset)".to_string());
 
-    let mut r = Report::new("COSMOSTRIX BENCHMARK");
+    // night-moonlight-1: the benchmark report prints after the
+    // alt-screen restore — the closing night-T-1 usage pointer would
+    // land as residual dirt right above the user's prompt. Screen
+    // session reports end after their last field.
+    let mut r = Report::new("COSMOSTRIX BENCHMARK").without_usage_note();
 
     if data.was_interrupted {
         r.section("Status")

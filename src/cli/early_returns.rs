@@ -240,9 +240,10 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
 
         Some(PreConfigCmd::ResetTerminal) => {
             reset_terminal_emergency();
-            // The helper-output canon (night-T-1): the recovery helper
-            // closes with the one-line way back to the CLI.
-            crate::report::print_usage_note(crate::config::color_enabled_stdout());
+            // night-moonlight-1: nothing prints after the reset. The
+            // 5-layer reset hands the user a clean screen; any trailing
+            // text — including the night-T-1 usage pointer — would land
+            // as residual dirt on the freshly restored terminal.
             Some(Ok(()))
         }
 

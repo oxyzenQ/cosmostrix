@@ -233,7 +233,10 @@ fn print_perf_report(
         "high"
     };
 
-    let mut r = Report::new("COSMOSTRIX PERFORMANCE REPORT");
+    // night-moonlight-1: this report is eprinted to stderr after the
+    // alt-screen restore — the closing night-T-1 usage pointer would
+    // land as residual dirt right above the user's prompt.
+    let mut r = Report::new("COSMOSTRIX PERFORMANCE REPORT").without_usage_note();
 
     {
         let s = r.section("Timing");
