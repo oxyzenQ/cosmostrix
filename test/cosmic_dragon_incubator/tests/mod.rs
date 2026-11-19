@@ -10,4 +10,6 @@
 #[cfg(test)]
 mod alloc_ledger;
 #[cfg(test)]
+mod fault_ledger;
+#[cfg(test)]
 mod lock;

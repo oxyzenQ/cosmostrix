@@ -47,6 +47,42 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### test: night-frontier-Z7 - the fault-floor ledger (INV-19): the lock suite now proves what the kernel grants, not only what Rust requests
+
+- `test/cosmic_dragon_incubator/tests/fault_ledger.rs` adds INV-19
+  over the SAME pinned steady-state window INV-18 uses (the rig is
+  shared verbatim): the calling thread's page-fault counters from
+  `/proc/thread-self/stat` (per-thread, no allocator hook, no unsafe)
+  must read EXACTLY ZERO minor and zero major faults across the 180
+  lean frames. The proof rises from "Rust requested nothing" (the
+  counting allocator, Kernel Floor 2b) to "the kernel granted
+  nothing" (Kernel Floor 2c) — a regression class the allocator
+  ledger is structurally blind to (stack growth past the warmup
+  high-water mark, arena growth outside the counted calls,
+  hook-bypassing allocations) now trips CI.
+- The reader is deliberately heap-free (one `File::read` into a
+  fixed stack buffer, parsed in place): the first landing's
+  `read_to_string` reader measured exactly one arena fault under
+  libtest's parallel shared-process execution — precisely the blind
+  spot the ledger closes — so the measuring path itself cannot fault
+  after the stack primes, and the window measures the frames, not
+  the measuring.
+- Teeth, proven both directions: the positive control touches 2 MiB
+  of fresh pages mid-window and requires the minor count to rise (a
+  floor bound, not an exact count — the exact page count of one
+  allocation is the kernel's and the allocator's to choose). Local
+  verification: the `lock_` filter passes clean end to end, both
+  INV-19 directions plus the INV-18 regression check on the shared
+  rig; the MSRV lock lane runs the same filter on every push, and
+  the supermassive arm64 lane runs it on real ARM silicon.
+- Honest scope: the LEAN path (INV-18's exact scope) on Linux; other
+  hosts keep the INV-18 allocator contract; exotic environments
+  (NUMA page balancing) can inject faults no allocator can cause,
+  and the failure message names the counters and the suspected cause.
+- No version bump, no dependency change, no runtime code touched:
+  the shipped binary is byte-identical. docs/INNOVATIONS.md grows
+  entry 51 (the fifty-one); docs/PROOF_ATLAS.md routes row 51.
+
 ### build: the release-ledger shape gate joins the push battery (gate-keepers check 22)
 
 - `scripts/gates/check-release-ledger.sh` asserts the writer's own

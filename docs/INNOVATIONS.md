@@ -38,7 +38,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The fifty, in dependency order
+## The fifty-one, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1512,6 +1512,50 @@ exactly the pinned graph, zero malicious-family crates) — plus the
 landing-time crates.io sweep (all 124 locked versions verified live
 and unyanked on 2026-11-19), and `cargo deny check all` in the
 `ci.yml` deny job enforcing the tightened policy upstream.
+
+### 51. The fault-floor ledger (the kernel-side memory mirror, night-frontier-Z7)
+
+Problem killed: the zero-alloc ledger (entry 36) proves what Rust
+ASKS for, and the counting allocator cannot see what the KERNEL
+actually grants. Stack growth past the warmup high-water mark,
+allocator arena growth outside the counted calls, and any allocation
+that bypasses the global allocator hook all surface as page faults —
+a regression class every existing ledger is blind to, shipping while
+INV-18 stayed green. Mechanism (night-frontier-Z7, Kernel Floor 2c):
+the Cosmic Dragon lock suite grows a second ledger over the SAME
+pinned window — the INV-18 rig shared verbatim (one window shape,
+two axes) — and asserts the calling thread's page-fault counters read
+EXACTLY ZERO minor and major faults across the 180 lean frames. The
+counters come from `/proc/thread-self/stat` (Linux 4.1+), which
+resolves to the CALLING THREAD's task entry: per-thread attribution
+with no allocator hook and no unsafe — the FreeBSD CI incident design
+read straight from the kernel instead of reconstructed from allocator
+calls, so concurrent test threads cannot pollute the delta. Zero
+minor faults says no new page of ANY class entered the thread's
+address space during the window ("Rust requested nothing" rises to
+"the kernel granted nothing"); zero major faults pins the no-paging
+clause. The reader is deliberately heap-free — one `File::read` into
+a fixed stack buffer, parsed in place — because the measuring path
+must not fault either (the first landing's `read_to_string` reader
+measured exactly one arena fault under libtest's parallel execution,
+the precise blind spot this ledger exists to close). Teeth, the
+house pattern: the positive control runs the identical window with
+one deliberate 2 MiB fresh-page touch mid-window and requires the
+minor count to rise; the bound is a floor, not an exact count,
+because the exact page count of one allocation is the kernel's and
+the allocator's to choose. Honest scope: the LEAN path (entry 36's
+exact scope) on Linux — the kernel-floor family is Linux-anchored
+(the strace syscall-floor lane is Linux-only too); other hosts keep
+the INV-18 allocator contract; and exotic environments (NUMA page
+balancing, memory scanners) can inject minor faults no allocator can
+cause — the failure message names the counters and the suspected
+environment cause. Truth: `test/cosmic_dragon_incubator/tests/fault_ledger.rs`
+(INV-19, both directions), `test/cosmic_dragon_incubator/tests/alloc_ledger.rs`
+(the shared pinned rig), `test/cosmic_dragon_incubator/tests/lock.rs`
+(the inventory row). Verifier: `cargo test --locked lock_inv19` —
+the zero window AND the fresh-page control; the MSRV lock lane runs
+the filter on every push, and the supermassive arm64 lane runs it on
+real ARM silicon.
 
 ## Retired by verdict
 

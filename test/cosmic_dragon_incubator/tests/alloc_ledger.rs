@@ -25,6 +25,11 @@
 //! commit that introduced it — the ledger has teeth, proven by the
 //! positive-control test at the bottom.
 //!
+//! The pinned rig below (the config, the cloud arms, the warmup and
+//! window constants) is shared verbatim by the fault-floor ledger
+//! (`tests/fault_ledger.rs`, INV-19) — one window shape, two ledger
+//! axes: what Rust requests (this file) and what the kernel grants.
+//!
 //! Honest scope, stated once: the window covers the LEAN path (sim +
 //! diff + lean emission), the same scope the 0.0 claim was measured on.
 //! The production-draw I/O path (`Terminal::draw` through the real
@@ -43,26 +48,26 @@ use crate::frame::Frame;
 
 /// The pinned ledger screen: the replay-oracle rectangle (Z1). Same
 /// rationale — never the env, never the host terminal.
-const LEDGER_COLS: u16 = 120;
-const LEDGER_LINES: u16 = 40;
+pub(crate) const LEDGER_COLS: u16 = 120;
+pub(crate) const LEDGER_LINES: u16 = 40;
 
 /// Warmup frames before the ledger window opens. Above the bench
 /// warmup ceiling (BENCH_WARMUP_MAX_FRAMES = 200 is the bench's
 /// largest window; the spawn ramp at 120x40 settles well inside it),
 /// so every pool, cache, and SmallVec spill has reached its
 /// steady-state capacity before the counter is read.
-const LEDGER_WARMUP_FRAMES: u64 = 200;
+pub(crate) const LEDGER_WARMUP_FRAMES: u64 = 200;
 
 /// Measured frames under the ledger window. 180 at the anchored 60 fps
 /// ladder = 3 virtual seconds of steady-state rain; long enough to
 /// cross spawn/reseed boundaries, short enough for the suite budget.
-const LEDGER_FRAMES: u64 = 180;
+pub(crate) const LEDGER_FRAMES: u64 = 180;
 
 /// The pinned ledger config — the same literal shape as the bench
 /// harness configs (see `test/bench/replay_tests.rs`), tuned to the
 /// lean-path contract: monolith style, Green/Mono, binary charset,
 /// fixed 60 fps, wet lean I/O on, no scene override.
-fn make_ledger_config() -> crate::app::CloudConfig {
+pub(crate) fn make_ledger_config() -> crate::app::CloudConfig {
     crate::app::CloudConfig {
         color_mode: crate::runtime::ColorMode::Mono,
         shading_mode: crate::runtime::ShadingMode::Random,
@@ -134,8 +139,10 @@ fn make_ledger_config() -> crate::app::CloudConfig {
 
 /// Build the pinned ledger rig: the cloud (bench-parity arms, Z1 clock
 /// anchor) and its frame. Shared by both ledger tests so the contract
-/// and its positive control measure the SAME path.
-fn build_ledger_rig() -> (Cloud, Frame, BenchIoWriter) {
+/// and its positive control measure the SAME path — and by the
+/// fault-floor ledger (INV-19), which measures the kernel-side view
+/// of the identical window.
+pub(crate) fn build_ledger_rig() -> (Cloud, Frame, BenchIoWriter) {
     let cfg = make_ledger_config();
     let density = crate::effective_density(cfg.base_density, LEDGER_COLS, cfg.density_auto);
 

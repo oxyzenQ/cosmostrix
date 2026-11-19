@@ -26,7 +26,7 @@ inherits its number's truth from
   campaign applies, and it must never become the truth itself —
   `src/` is the truth; the atlas only routes to it.
 
-## The atlas (entries 1-47 and 49-50)
+## The atlas (entries 1-47 and 49-51)
 
 | # | The innovation | Proof artifact(s) | The verifier |
 |---|---|---|---|
@@ -79,6 +79,7 @@ inherits its number's truth from
 | 47 | The determinism-anchored soak (the 24h canary lane) | [soak_determinism.sh](../scripts/depth/soak_determinism.sh), [soak.yml](../.github/workflows/soak.yml), [ENDURANCE.md](ENDURANCE.md) | the Sunday lane + the smoke run (`--minutes 2`) |
 | 49 | The never-be scope contract (the enforced non-goals) | [scope-census.py](../scripts/gates/scope-census.py), [README.md](../README.md) (the contract table) | the gate-keepers `scope-census: OK` verdict line |
 | 50 | The lock census (the pre-advisory graph tripwire) | [lock-census.py](../scripts/gates/lock-census.py), [deny.toml](../deny.toml) (yanked deny + the attack-family bans) | the gate-keepers `lock-census: OK` verdict line |
+| 51 | The fault-floor ledger (the kernel-side memory mirror, INV-19) | [fault_ledger.rs](../test/cosmic_dragon_incubator/tests/fault_ledger.rs), [alloc_ledger.rs](../test/cosmic_dragon_incubator/tests/alloc_ledger.rs) (the shared pinned rig) | `cargo test --locked lock_inv19` — the zero window and the fresh-page control |
 
 ## The standing lanes (the always-on half of the chain)
 

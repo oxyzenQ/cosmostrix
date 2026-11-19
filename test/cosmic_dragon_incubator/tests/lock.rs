@@ -46,10 +46,16 @@
 //! | INV-16| Lock report          | Sentinel test prints the engine report                 |
 //! | INV-17| Idle-frame fast path | `clear_dirty` on empty frame advances `dirty_gen`      |
 //! | INV-18| Zero-alloc ledger    | lean frame path performs exactly 0 allocations        |
+//! | INV-19| Fault-floor ledger   | lean frame window takes exactly 0 kernel page faults  |
 //!
 //! INV-18 lives in `tests/alloc_ledger.rs` (the counting-global-allocator
 //! window is a suite-sized fixture, not a Frame/ColorCache one) — same
 //! suite, same CI gate.
+//!
+//! INV-19 lives in `tests/fault_ledger.rs` (the kernel-side memory
+//! mirror, night-frontier-Z7: the same pinned window read from
+//! `/proc/thread-self/stat` — what the KERNEL grants, not what Rust
+//! requests) — same suite, same CI gate.
 //!
 //! ## Adding a new invariant
 //!
