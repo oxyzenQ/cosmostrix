@@ -131,7 +131,7 @@ behavior only.
 1. Run `cargo audit` weekly (automated in `gitbot-audit.yml`'s Sunday 10:00 WIB run).
 2. Run `cargo deny check all` before each release (already in `maintenance.yml`).
 3. Pin transitive deps when upstream `notify` v7 lands (currently 3 duplicate-version warnings, all Windows-only, documented in `deny.toml:47-64`).
-4. Consider replacing `curl` subprocess in `--update` with `ureq` (compiled-out by default) so users don't need to trust whatever `curl` binary is on `PATH`. Defense-in-depth, not a vulnerability.
+4. Consider replacing `curl` subprocess in `--check-update` with `ureq` (compiled-out by default) so users don't need to trust whatever `curl` binary is on `PATH`. Defense-in-depth, not a vulnerability.
 5. Re-audit `unsafe` sites when adding new FFI (the policy forbids new `unsafe` in renderer/core paths).
 
 ## 11. Running as Root — Wrong Use Case (NIGHT-security-4)
