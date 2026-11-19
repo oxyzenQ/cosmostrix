@@ -1275,14 +1275,14 @@ The default benchmark size is 120x40:
 
 ```bash
 COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
-  target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
+  target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix --benchmark
 ```
 
 Use 200x60 for a larger terminal-like stress case:
 
 ```bash
 COSMOSTRIX_BENCH_COLS=200 COSMOSTRIX_BENCH_LINES=60 \
-  target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
+  target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix --benchmark
 ```
 
 ## How to Reproduce
@@ -1290,13 +1290,13 @@ COSMOSTRIX_BENCH_COLS=200 COSMOSTRIX_BENCH_LINES=60 \
 Build an optimized profile:
 
 ```bash
-cargo pro-linux-v3
+cargo pro-linux-amd64-v3-musl
 ```
 
 Run the recommended benchmark:
 
 ```bash
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
+target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix --benchmark
 ```
 
 Run the legacy fixed-frame benchmark:
@@ -1332,8 +1332,8 @@ from the release-candidate binary.
 Required pre-tag flow:
 
 ```bash
-cargo pro-linux-v3
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
+cargo pro-linux-amd64-v3-musl
+target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix --benchmark
 ```
 
 Record at minimum:
@@ -1361,7 +1361,7 @@ Record at minimum:
 For long-run drift verification, also run once with a longer duration:
 
 ```bash
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-duration 60
+target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/cosmostrix --benchmark --bench-duration 60
 ```
 
 Record the `fps_drift_percent` and `drift_interpretation` from the DRIFT
