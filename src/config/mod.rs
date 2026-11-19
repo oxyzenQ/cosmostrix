@@ -679,11 +679,12 @@ pub struct Args {
     )]
     pub msg_mode: Option<bool>,
 
-    /// PERF-4: disable ALL particle effects (quantum ripple, border spark,
-    /// mouse-click flash waves, anomaly zones). CLI-only, no config. When set,
-    /// spawn_quantum_ripple + spawn_border_spark are no-ops, set_mouse_click
-    /// skips flash-wave activation, and spawn_anomaly returns early. Useful
-    /// for VTE terminals where particle effects cause lag.
+    /// PERF-4: disable ALL cosmetic particle effects (mouse-click flash
+    /// waves, anomaly zones, the border-touch glow, CRT vignette).
+    /// CLI-only, no config. When set, set_mouse_click skips flash-wave
+    /// activation, detect_border_touch returns early, and spawn_anomaly
+    /// returns early. Useful for VTE terminals where particle effects
+    /// cause lag.
     /// Default: false (effects on).
     ///
     /// Renamed from --disable-effects to --no-effects in v50.0.0-beta.7 for
@@ -692,7 +693,7 @@ pub struct Args {
     /// (enabled via the `suggestions` clap feature in Cargo.toml).
     #[arg(
         long = "no-effects",
-        help = "Disable all particle effects (quantum ripple, border spark, click flash, anomaly zones) — useful for slow terminals"
+        help = "Disable all cosmetic effects (click flash, anomaly zones, border-touch glow, CRT vignette) — useful for slow terminals"
     )]
     pub no_effects: bool,
 

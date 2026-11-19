@@ -117,35 +117,38 @@ entry).
 Verifier: [RENDER_ENGINE.md](RENDER_ENGINE.md) and the supermassive
 soak lane on a real PTY.
 
-### 6. The border-touch family (glow pulse and splash spark)
+### 6. The border-touch family (glow pulse)
 
 Problem killed: rain visibly hits the message border and nothing
 happens, because the overlay structurally occludes the contact.
 Mechanism: the touch event is synthesized at the moment a droplet head
-reaches the border row — classified by position, not by glyph — the
-border gradient pulses, and a six-particle splash crown spawns from the
-shared particle pool with zero new allocation.
+reaches the border row — classified by position, not by glyph — and
+the border gradient pulses.
 Truth: `src/engine/cosmic_dragon_engine/cloud/border_touch.rs`
-(`detect_border_touch`), `src/engine/cosmic_dragon_engine/cloud/spawn.rs`
-(`spawn_border_spark`).
+(`detect_border_touch`).
 Verifier:
 `test/engine/cosmic_dragon_engine/cloud/tests/tests_border_gradient.rs`;
-the research records are
-[research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md](research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md)
-and
-[research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md](research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md),
+the research record is
+[research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md](research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md),
 and the origin story is [INSIGHTS.md](../INSIGHTS.md), insights 1-2.
+Update (night-moonlight-1, 2026-11-20): the six-particle splash crown
+spark that completed this family is removed at the owner's decision;
+its record is archived at
+[archive/specs/BORDER_SPARK_SPLASH_CROWN.md](archive/specs/BORDER_SPARK_SPLASH_CROWN.md).
 
-### 7. The quantum particle pool
+### 7. The quantum particle pool (removed)
 
 Problem killed: input-driven effects that allocate per particle break
 the zero-alloc law and can spawn without bound. Mechanism: one bounded
-pool of particle values serves every effect — click ripple, shockwave
-shockwave, border spark — and spawning reuses pooled slots.
-Truth: `src/engine/cosmic_dragon_engine/cloud/state.rs` (the particle
-struct), `src/engine/cosmic_dragon_engine/cloud/mod.rs` (the pool).
-Verifier: the quantum tests
-`test/engine/cosmic_dragon_engine/cloud/tests/tests_quantum*.rs`.
+pool of particle values served every effect — click ripple and border
+spark — and spawning reused pooled slots. Update (night-moonlight-1,
+2026-11-20): the pool and both features it served are removed at the
+owner's decision (maintenance burden, recurring particle-clock bug
+family, low value per cost); the design records are archived at
+[archive/specs/QUANTUM_RIPPLE_MOUSE_CLICK_BURST.md](archive/specs/QUANTUM_RIPPLE_MOUSE_CLICK_BURST.md)
+and
+[archive/specs/BORDER_SPARK_SPLASH_CROWN.md](archive/specs/BORDER_SPARK_SPLASH_CROWN.md).
+The mouse click now drives only the wave-equation shockwave.
 
 ### 8. Ghost-kanji cinematic events
 

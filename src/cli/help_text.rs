@@ -143,8 +143,6 @@ Common options:
       Disable ALL cosmetic effects (default: effects on) — even the
       most valuable ones, per the owner peak-performance directive.
       When set, the following subsystems become no-ops:
-        - quantum ripple (mouse-click particle burst)
-        - border spark (splash crown on message-border touch)
         - mouse-click shockwave (the wave-equation field on the cell grid)
         - anomaly zones (LuminanceSurge / GlyphCorruption / PulseWave)
         - ghost events (cinematic glyph streaks)

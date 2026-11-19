@@ -217,7 +217,6 @@ The contract is [docs/INNOVATIONS.md](docs/INNOVATIONS.md) entry 49.
 - Per-layer contrast reduction for depth-of-field perceptual blur.
 - TrueColor gradients with luminous head glow.
 - **CRT vignette** — top/bottom edge dim for cinematic CRT-glow feel; auto-disabled under performance pressure.
-- **Quantum ripple** — click-triggered expanding particle burst at the click point; bounded pool prevents unbounded spawn.
 - **Ghost-kanji cinematic events** — probabilistic ghost characters that fade in/out during rain, palette-aware (match the active scene's color).
 - **Entropy drift + emergent storytelling** — slow autonomous luminance shifts, density migration, and anomaly pressure fluctuations that make the renderer feel atmospherically alive across long sessions.
 - Color ecosystem with luminance/saturation/hue climate drift (orthogonal to Crystal Dragon palette selection).
@@ -251,7 +250,7 @@ The contract is [docs/INNOVATIONS.md](docs/INNOVATIONS.md) entry 49.
 
 ### Interaction & UX
 
-- Always-on mouse glow + click wave effects (cursor halo + a real wave-equation shockwave solved on the cell grid + quantum ripple particles). Mouse reporting always active (blocks text selection).
+- Always-on mouse glow + click wave effects (cursor halo + a real wave-equation shockwave solved on the cell grid). Mouse reporting always active (blocks text selection).
 - Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`).
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 10×5, and on low terminals (raw console TTY, dumb, pure-CPU renderers — NIGHT-hunter-18) the default auto-skips; an explicit `--intro` overrides. Press `q` to skip mid-animation.
@@ -500,7 +499,7 @@ COMMON OPTIONS
                                       config key crystal-dragon-secs, live-reloadable)
       --power-dragon <true|false>     Power Dragon adaptive protection (default: true)
       --msg-mode <true|false>         Message overlay master switch (default: true)
-      --no-effects                    Disable ALL particle effects (quantum ripple, border spark, click flash waves, anomaly zones). Auto-enabled by --benchmark/--bench-all/--bench-frames (particles are input-driven, never spawn during bench)
+      --no-effects                    Disable ALL cosmetic effects (click flash waves, anomaly zones, border-touch glow, CRT vignette). Auto-enabled by --benchmark/--bench-all/--bench-frames (effects are input-driven, never fire during bench)
       --intro-color <name>            Intro color override for BOTH cosmic + logo styles
                                       (see --list-colors). When unset, the intro uses the
                                       brand energy-zen palette — -c/--color/--colors-custom

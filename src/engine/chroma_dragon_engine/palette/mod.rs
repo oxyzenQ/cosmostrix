@@ -294,10 +294,10 @@ pub(crate) fn blend_toward_white_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u
 /// RGB-tuple version of `blend_toward_bg`. Blends `(r, g, b)` toward the
 /// target `(tr, tg, tb)` by `factor` (0.0 = no change, 1.0 = full target).
 ///
-/// (chroma audit, A1): added for the quantum ripple render path.
-/// The particle carries its snapshot body color as `(r, g, b)` and blends
-/// the cell's current color toward that snapshot by `brightness`. The
-/// chroma path uses this helper; the legacy fallback uses
+/// (chroma audit, A1): originally added for the quantum ripple render
+/// path (the effect was removed in night-moonlight-1). The same blend
+/// now serves the live sRGB render paths (droplet draw, msg-fill
+/// styles). The chroma path uses this helper; the legacy fallback uses
 /// `chroma::legacy::blend_toward_rgb`. Both produce bit-identical
 /// output (same equation as `lerp_u8`).
 #[inline]
@@ -741,8 +741,8 @@ mod tests_c16_anchor;
 
 #[cfg(kani)]
 mod kani_proofs {
-    //! NIGHT-depth-hardening-3: bounded model checking of the quantum
-    //! ripple's background blend. Proves the fixed-point lerp contract
+    //! NIGHT-depth-hardening-3: bounded model checking of the sRGB
+    //! background blend. Proves the fixed-point lerp contract
     //! for EVERY channel pair and every factor in [0, 1]: the result
     //! never leaves the source/target hull and the endpoints are exact.
     use super::*;

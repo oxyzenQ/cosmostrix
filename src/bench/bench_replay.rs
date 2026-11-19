@@ -28,8 +28,8 @@
 //!   number a CI job compares across two runs (or two hosts).
 //!
 //! Determinism scope, stated honestly: the sequence pins the core
-//! render path (spawn lanes, movement, color, phosphor, quantum,
-//! climate drift) for a fixed configuration. Inputs that legitimately
+//! render path (spawn lanes, movement, color, phosphor, climate drift)
+//! for a fixed configuration. Inputs that legitimately
 //! change the render (scene, style, screen size, fps, density,
 //! charset, palette) are echoed on the header block, so a comparison
 //! is only meaningful between identical headers. Machine state that

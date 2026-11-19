@@ -6,8 +6,8 @@
 //!
 //! Owns `Cloud::draw_message()` — the cinematic message overlay
 //! renderer with progressive text reveal, clockwise border gradient
-//! (BC-01..05 chroma dragon), F2 splash crown sparks, and Z-5 zero-alloc
-//! scratch buffers.
+//! (BC-01..05 chroma dragon), the border-touch pulse halo, and Z-5
+//! zero-alloc scratch buffers.
 //!
 //! v80.0.0-beta.2 msg-fill-style: the text reveal is style-driven (see
 //! `msg_fill_style/` — one file per style, dispatch in

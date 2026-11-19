@@ -108,6 +108,14 @@ allocation. Corner-skip guard preserves LTS invariants.
 
 **Status**: Implemented (commit `ae995a4`). Owner-rated 9/10.
 
+**Update (2026-11-20, night-moonlight-1)**: the splash crown spark and
+the shared QuantumParticle pool are removed at the owner's decision
+(dirty to maintain, recurring bug source, low value per cost). The
+design record lives on at
+`docs/archive/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md` and
+`docs/archive/specs/BORDER_SPARK_SPLASH_CROWN.md`; the border-touch
+glow pulse (Insight 1) stays.
+
 ---
 
 ## Insight 3 — The "living project" realization

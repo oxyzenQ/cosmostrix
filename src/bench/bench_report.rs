@@ -174,8 +174,8 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("crystal_dragon", &data.crystal_dragon.to_string());
         s.field("msg_mode", &data.msg_mode.to_string());
         // PERF-2-Supreme: --no-effects state (owner-requested key).
-        // true = ALL particle subsystems are no-ops (quantum ripple,
-        // border spark, mouse-click flash waves, anomaly zones).
+        // true = ALL cosmetic particle subsystems are no-ops (mouse-click
+        // flash waves, anomaly zones).
         // Auto-enabled in bench mode (effects_enabled forced false at
         // CloudConfig construction when bench_mode is true).
         // Honest note: particles are mouse/click-driven, so this flag

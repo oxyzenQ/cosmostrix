@@ -58,7 +58,7 @@
 //! | Emergent storytelling    | Rare emergent visual moments                        |
 //! | Edge fade                | Viewport entry/exit taper                           |
 //! | Anomaly events           | Rare visual corruption events                       |
-//! | Quantum & ghost          | Quantum ripple + phosphor ghost spawn rates         |
+//! | Ghost events             | Phosphor ghost spawn rates                          |
 //! | Head self-bloom base     | Base white-blend for head self-bloom intensity      |
 //! | Monolith structure       | Core white-blend, boost cap, stream geometry        |
 //!

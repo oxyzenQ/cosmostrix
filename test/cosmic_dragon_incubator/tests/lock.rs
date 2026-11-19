@@ -400,7 +400,8 @@ fn lock_inv09_invalidate_semantic_bumps_gen_and_sets_dirty_all() {
 
 /// INV-10: `Frame::set_force` writes the cell without doing the equality
 /// comparison. This is used by callers who KNOW the cell changed (e.g.
-/// monolith cleanup, quantum particles) and want to skip the 16-byte Cell
+/// monolith cleanup, the msg-fill particle sidecars) and want to skip the
+/// 16-byte Cell
 /// `==` check.
 ///
 /// Test: set a cell, clear dirty, then `set_force` the SAME cell — the

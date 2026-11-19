@@ -12,10 +12,10 @@ active documentation set stays small and current.
 | Subdirectory | Contents | Origin |
 |--------------|----------|--------|
 | `audits/` | Closed one-shot audit reports (A1-A5 zombie kills, B1-B4 optimizations, Z1-Z5 LTS audits, config/deps/security/build audits, dragon engine lock audit, visual LTS, killer features, output mastery, docs audit, perf regression). All findings have been actioned or are no longer live concerns. | Moved from `docs/audits/` (25 files, v60 archive round) |
-| `research/` | Historical research docs whose conclusions have been absorbed into canonical docs or whose subject is closed (DRAGON_HUNT_V2, FLAGS_AUDIT_bench, IPC, MATRIX_1999, MATRIX_BOLD, MOUSE_EFFECTS, PLATFORM_EXPANSION, SELF_HEALING, THEME_CATALOG_SPLIT). | Moved from `docs/research/` (9 files, v60 archive round) |
+| `research/` | Historical research docs whose conclusions have been absorbed into canonical docs or whose subject is closed (DRAGON_HUNT_V2, FLAGS_AUDIT_bench, IPC, MATRIX_1999, MATRIX_BOLD, MOUSE_EFFECTS, PLATFORM_EXPANSION, SELF_HEALING, THEME_CATALOG_SPLIT; plus `RAIN_BORDER_TOUCH_SPARK_RESEARCH.md`, moved here in the night-moonlight-1 removal round when the splash crown spark was removed). | Moved from `docs/research/` (9 files, v60 archive round; 1 file, night-moonlight-1) |
 | `CONFIG_SYNC/` | 7 phase reports (Phase 1, 2, 3, 4, 5, 5_FINAL, 6) from the closed CONFIG_SYNC audit. | Moved from `docs/research/CONFIG_SYNC_AUDIT_PHASE*.md` |
 | `cosmic_dragon/` | Two design-exploration docs from the v13.3.0 Cosmic Dragon milestone. | Moved from `docs/COSMIC_DRAGON_EXPLORATION.md` + `docs/COSMIC_DRAGON_FINDINGS.md` |
-| `specs/` | Historical design specifications for eliminated subsystems (`ATMOSPHERE_ENGINE.md`, `CINEMATIC_BREATHING.md`). | Moved from `docs/` |
+| `specs/` | Historical design specifications for eliminated subsystems (`ATMOSPHERE_ENGINE.md`, `CINEMATIC_BREATHING.md`; plus the night-moonlight-1 feature removal records `QUANTUM_RIPPLE_MOUSE_CLICK_BURST.md` and `BORDER_SPARK_SPLASH_CROWN.md`). | Moved from `docs/` |
 | `*.md` (root) | Superseded/historical root docs: `LTS_AUDIT_*` (one-time audit results), `RAIN_DEPTH_AUDIT.md` (superseded by VISUAL_IDENTITY.md), `SIMD_FEASIBILITY.md` (rejected), `DESIGN_PROPOSAL_POWER_DRAGON_DENSITY.md` (design proposal), `STABILITY_AUDIT.md` (one-time audit), `CPU_USAGE_HONESTY.md` (historical), `SYSTEM_FEELING.md` (historical), `CHANGELOG_PRE_V13.md` (pre-v13 release history). | Moved from `docs/` root across the archive rounds |
 
 ## v60 Archive Round (Z-master-1X)
