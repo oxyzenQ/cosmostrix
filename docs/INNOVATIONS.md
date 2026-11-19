@@ -38,7 +38,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The fifty-one, in dependency order
+## The fifty-two, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1556,6 +1556,50 @@ environment cause. Truth: `test/cosmic_dragon_incubator/tests/fault_ledger.rs`
 the zero window AND the fresh-page control; the MSRV lock lane runs
 the filter on every push, and the supermassive arm64 lane runs it on
 real ARM silicon.
+
+### 52. The cross-architecture oracle parity (one rain, two silicons, night-frontier-Z7)
+
+Problem killed: the D4 engine-oracle vector (entry 34) was
+empirically cross-verified on the x86_64 axes only — debug-glibc vs
+the pro-linux-amd64-v3-musl release shape (the ci.yml cross-libm
+leg) — while the ARM release shapes shipped (pro-android-aarch64 for
+Termux, pro-native-arm64-musl for arm servers, pro-macos-aarch64 for
+Apple silicon) never recomputed the pinned vector on ARM silicon. If
+the arch's f32 codegen diverged, the determinism contract (the
+replay oracle, the soak, the D4 row a buyer quotes) would silently
+not extend to the machines it ships on — and "should hold (strict
+IEEE)" is not the house style. Mechanism (night-frontier-Z7): the
+supermassive battery grows two legs. `sig_parity` runs `sig` on the
+release shape on BOTH arches (x86_64 and the ubuntu-24.04-arm
+runner) and requires exit 0, the five-of-five `SIGNATURE: AUTHENTIC`
+verdict, and the D4 engine-oracle pass row — the same compile-time
+pinned vector recomputed on each silicon; a mismatch reports
+TAMPERED and fails the leg (either outcome is the moat working, and
+the report is uploaded so the recomputed digest is quotable per
+arch). `arm_lock_suite` runs the `lock_` invariant families (the
+cosmic locks including the zero-alloc ledger INV-18 and the
+fault-floor ledger INV-19, the chroma and crystal locks) under the
+SHIPPED aarch64-unknown-linux-musl target on the ARM runner — the
+deeper half `sig` cannot reach, since the oracle and replay module
+tests do not carry the `lock_` prefix (the D4 vector's in-suite
+cross-check stays with the ci.yml lanes). Honest scope: the android
+shape (pro-android-aarch64) cannot execute in CI — a bionic-linked
+binary does not run on a plain Linux arm host — so its parity
+inherits from the arm64-linux proof plus strict-IEEE, and any
+divergence surfaces on-device through `--doctor`'s engine-oracle row
+(entry 34's embedded proof the user can run themselves); the macOS
+arm shape builds in ci.yml while its runtime proof is the same
+strict-IEEE argument plus the doctor row. The same landing fixes a
+pre-existing workflow bug: musl_shards declared `needs: usl_compile]`
+(a stray bracket made the reference a nonexistent job name; the
+platform tolerated it, but the ordering was never guaranteed by
+spec) — the declared dependency is now the real one, `[musl_compile]`.
+Truth: `.github/workflows/supermassive.yml` (the `sig_parity` and
+`arm_lock_suite` jobs), `src/bench/engine_oracle.rs` (the pinned
+vector), `src/diagnostics/sig_report.rs` (the depth rows). Verifier:
+the supermassive legs on every push (the `sig-parity-aarch64
+exit=0 D4=pass` and `arm-lock-suite exit=0` MASS-RESULT rows), plus
+`cosmostrix sig` locally on any host.
 
 ## Retired by verdict
 

@@ -156,11 +156,40 @@
 # to 30 - the thirty-minute job the owner refused to wait on no
 # longer exists), musl_shards 5 min each (the target and the ceiling
 # now agree - the shards' execution windows measure in seconds and
-# even a cold archive download fits). The pty driver
+# even a cold archive download fits), sig_parity 5 min (a `sig`
+# invocation is milliseconds; the budget carries the artifact
+# download and the report upload), arm_lock_suite 15 min (the one
+# ARM compile under the musl_compile levers; the ARM runner is the
+# slower pole and the ceiling matches the one-compile precedent -
+# warm-cache runs land well under it). The pty driver
 # carries its own internal watchdog (--budget) so a wedged child can
 # never outlive the job's outer timeout - the same wedge-guard
 # relationship the zelynic envelopes keep between VM budget and job
 # budget.
+#
+# night-frontier-Z7 (the arch-parity law, 2026-11-19): the battery
+# grows two legs that close the architecture axis the Z1-Z6 proofs
+# never crossed. sig_parity runs `sig` on the release shape on BOTH
+# arches and requires the D4 engine-oracle row to report pass with
+# the five-of-five AUTHENTIC verdict - the same compile-time pinned
+# vector the x86_64 lanes cross-verified (debug-glibc vs the v3-musl
+# release shape, the ci.yml cross-libm leg) now recomputed on real
+# ARM silicon by the shipped aarch64 musl binary; a mismatch reports
+# TAMPERED and fails the leg, which is the moat working (either
+# outcome is the contract functioning). arm_lock_suite runs the
+# `lock_` invariant families (the cosmic locks including the
+# zero-alloc and fault-floor ledgers, the chroma and crystal locks)
+# under the SHIPPED aarch64-unknown-linux-musl target on the ARM
+# runner - the deeper half `sig` cannot reach, since the oracle and
+# replay tests do not carry the `lock_` prefix; the D4 vector's
+# in-suite cross-check stays with the ci.yml lanes, and `sig_parity`
+# pins the release shape directly.
+#
+# A pre-existing needs bug is fixed in the same landing: musl_shards
+# declared `needs: usl_compile]` (a stray bracket made the reference
+# a nonexistent job name; the platform tolerated it, but the ordering
+# was never guaranteed by spec). The declared dependency is now the
+# real one: [musl_compile].
 #
 # Every step below rides the owner's retry contract where it touches
 # the network (apt), and the dependency-version policy resolves
@@ -627,6 +656,190 @@ jobs:
             echo
             echo '```'
             cat /tmp/mass-musl.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # night-frontier-Z7 (the sig oracle parity leg, 2026-11-19): the
+  # release shape recomputes the D4 engine-oracle digest on BOTH
+  # arches - the same compile-time pinned vector the x86_64 lanes
+  # cross-verified (debug-glibc vs the v3-musl release shape, the
+  # ci.yml cross-libm leg) now verified on real ARM silicon by the
+  # shipped aarch64 musl binary. Exit 0 plus the five-of-five
+  # AUTHENTIC verdict plus the D4 pass row is the only pass; a
+  # mismatch reports TAMPERED and fails the leg, which is the moat
+  # working - either outcome is the contract functioning, and the
+  # report is uploaded so the recomputed digest is quotable per arch.
+  sig_parity:
+    name: supermassive test - sig oracle parity (the D4 vector, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [build_musl]
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            artifact: cosmostrix-pro-v3-musl
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            artifact: cosmostrix-pro-musl-aarch64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the built battery binary
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: /tmp/mass-bin
+
+      # upload-artifact does not preserve the exec bit; the consumers
+      # restore it after download.
+      - name: Restore the exec bit
+        run: chmod 755 /tmp/mass-bin/cosmostrix
+
+      - name: The engine-oracle parity leg (D4 recomputed on this silicon)
+        run: |
+          set -euo pipefail
+          BINARY="/tmp/mass-bin/cosmostrix"
+          MASS="/tmp/mass-sig-parity.log"
+          SIG="/tmp/mass-sig-report.txt"
+          rm -f "${MASS}" "${SIG}"
+          # `sig` exits 0 on AUTHENTIC and 2 on TAMPERED (the report is
+          # printed either way). The leg gates on the exit code, the
+          # exact verdict line, AND the D4 row status, so a truncated
+          # report cannot pass on a missing row.
+          set +e
+          "${BINARY}" sig > "${SIG}" 2>&1
+          sig_exit=$?
+          set -e
+          cat "${SIG}"
+          if [ "${sig_exit}" -ne 0 ]; then
+            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (exit ${sig_exit}, expected 0 = AUTHENTIC)" >> "${MASS}"
+          elif ! grep -q "SIGNATURE: AUTHENTIC (5/5 depths verified)" "${SIG}"; then
+            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (the five-of-five verdict line is missing)" >> "${MASS}"
+          elif ! grep -Eq "^D4 engine-oracle +pass " "${SIG}"; then
+            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (the D4 engine-oracle row is not pass)" >> "${MASS}"
+          else
+            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} exit=0 D4=pass" >> "${MASS}"
+          fi
+
+      - name: Verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-sig-parity.log"
+          echo "--- MASS-RESULT relay (sig oracle parity, ${{ matrix.arch }}) ---"
+          cat "${MASS}"
+          if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
+            echo "MASS-VERDICT: FAIL"
+            exit 1
+          fi
+          echo "MASS-VERDICT: PASS"
+          echo "OK: the ${{ matrix.arch }} release shape recomputes the pinned engine vector and reports AUTHENTIC five-of-five"
+
+      - name: Sig parity summary (the longitudinal dataset row)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Supermassive watch - sig oracle parity (${{ matrix.arch }})"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### the sig report on this silicon"
+            echo
+            echo '```'
+            cat /tmp/mass-sig-report.txt
+            echo '```'
+            echo "### relay rows"
+            echo
+            echo '```'
+            cat /tmp/mass-sig-parity.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # night-frontier-Z7 (the arch-parity compile, 2026-11-19): `sig`
+  # proves the release shape recomputes the pinned vector on ARM;
+  # this job proves the deeper half - the `lock_` invariant families
+  # (the cosmic locks including the zero-alloc and fault-floor
+  # ledgers, the chroma and crystal locks) pass on real ARM silicon
+  # under the SHIPPED aarch64-unknown-linux-musl target. The compile
+  # rides the musl_compile levers (line-tables-only, incremental
+  # off); its ceiling matches the one-compile precedent (the ARM
+  # runner is the slower pole) and caches warm on every later push.
+  arm_lock_suite:
+    name: supermassive test - arm64 lock suite (the arch parity, aarch64-musl)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: aarch64-unknown-linux-musl
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Tests (the lock suites on the shipped musl arm shape)
+        env:
+          RUSTFLAGS: "-D warnings -C debuginfo=line-tables-only"
+          CARGO_INCREMENTAL: "0"
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-arm-lock.log"
+          rm -f "${MASS}"
+          set +e
+          cargo test --all --locked --target aarch64-unknown-linux-musl lock_ > /tmp/arm-lock-tests.log 2>&1
+          test_exit=$?
+          set -e
+          tail -5 /tmp/arm-lock-tests.log
+          if [ "${test_exit}" -ne 0 ]; then
+            echo "MASS-RESULT: arm-lock-suite FAIL (exit ${test_exit})" >> "${MASS}"
+          else
+            echo "MASS-RESULT: arm-lock-suite exit=0" >> "${MASS}"
+          fi
+
+      - name: Verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-arm-lock.log"
+          echo "--- MASS-RESULT relay (arm64 lock suite) ---"
+          cat "${MASS}"
+          if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
+            echo "MASS-VERDICT: FAIL"
+            exit 1
+          fi
+          echo "MASS-VERDICT: PASS"
+          echo "OK: the lock invariant families pass on real ARM silicon under the shipped musl libc"
+
+      - name: Arm lock suite summary (the longitudinal dataset row)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Supermassive watch - arm64 lock suite"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### relay rows"
+            echo
+            echo '```'
+            cat /tmp/mass-arm-lock.log
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
 

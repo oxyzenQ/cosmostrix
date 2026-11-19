@@ -47,6 +47,47 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### ci: night-frontier-Z7 - the cross-architecture oracle parity: the pinned engine vector is recomputed on real ARM silicon, and a musl needs bug is fixed
+
+- supermassive.yml grows two legs that close the architecture axis
+  the Z1-Z6 proofs never crossed. `sig_parity` runs `sig` on the
+  release shape on BOTH arches (x86_64 and the ubuntu-24.04-arm
+  runner) and requires exit 0, the five-of-five
+  `SIGNATURE: AUTHENTIC` verdict, and the D4 engine-oracle pass row -
+  the same compile-time pinned vector the x86_64 lanes
+  cross-verified (debug-glibc vs the v3-musl release shape, the
+  ci.yml cross-libm leg) now recomputed on real ARM silicon by the
+  shipped aarch64 musl binary; a mismatch reports TAMPERED and fails
+  the leg, which is the moat working (either outcome is the contract
+  functioning), and the sig report uploads so the recomputed digest
+  is quotable per arch.
+- `arm_lock_suite` runs the `lock_` invariant families (the cosmic
+  locks including the zero-alloc ledger INV-18 and the fault-floor
+  ledger INV-19, the chroma and crystal locks) under the SHIPPED
+  aarch64-unknown-linux-musl target on the ARM runner - the deeper
+  half `sig` cannot reach, since the oracle and replay module tests
+  do not carry the `lock_` prefix (the D4 vector's in-suite
+  cross-check stays with the ci.yml lanes). The compile rides the
+  musl_compile levers (line-tables-only, incremental off) with a
+  15-minute ceiling (the ARM runner is the slower pole; the
+  five-minute law covers battery legs, not the one-compile job).
+- Honest scope, recorded in the workflow header and INNOVATIONS
+  entry 52: the android shape (pro-android-aarch64) cannot execute
+  in CI (a bionic-linked binary does not run on a plain Linux arm
+  host), so its parity inherits from the arm64-linux proof plus
+  strict-IEEE, and any divergence surfaces on-device through
+  `--doctor`'s engine-oracle row.
+- A pre-existing workflow bug is fixed in the same landing:
+  musl_shards declared `needs: usl_compile]` - a stray bracket made
+  the reference a nonexistent job name; the platform tolerated it,
+  but the ordering was never guaranteed by spec. The declared
+  dependency is now the real one, `musl_compile` (verified by the
+  workflow YAML parse: the job list and both `needs` edges).
+- Docs: INNOVATIONS.md grows entry 52 (the fifty-two);
+  PROOF_ATLAS.md routes row 52 and updates the supermassive
+  standing-lane row. No version bump, no dependency change; the
+  workflow is the change.
+
 ### test: night-frontier-Z7 - the fault-floor ledger (INV-19): the lock suite now proves what the kernel grants, not only what Rust requests
 
 - `test/cosmic_dragon_incubator/tests/fault_ledger.rs` adds INV-19

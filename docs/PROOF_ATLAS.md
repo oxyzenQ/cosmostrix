@@ -26,7 +26,7 @@ inherits its number's truth from
   campaign applies, and it must never become the truth itself —
   `src/` is the truth; the atlas only routes to it.
 
-## The atlas (entries 1-47 and 49-51)
+## The atlas (entries 1-47 and 49-52)
 
 | # | The innovation | Proof artifact(s) | The verifier |
 |---|---|---|---|
@@ -80,13 +80,14 @@ inherits its number's truth from
 | 49 | The never-be scope contract (the enforced non-goals) | [scope-census.py](../scripts/gates/scope-census.py), [README.md](../README.md) (the contract table) | the gate-keepers `scope-census: OK` verdict line |
 | 50 | The lock census (the pre-advisory graph tripwire) | [lock-census.py](../scripts/gates/lock-census.py), [deny.toml](../deny.toml) (yanked deny + the attack-family bans) | the gate-keepers `lock-census: OK` verdict line |
 | 51 | The fault-floor ledger (the kernel-side memory mirror, INV-19) | [fault_ledger.rs](../test/cosmic_dragon_incubator/tests/fault_ledger.rs), [alloc_ledger.rs](../test/cosmic_dragon_incubator/tests/alloc_ledger.rs) (the shared pinned rig) | `cargo test --locked lock_inv19` — the zero window and the fresh-page control |
+| 52 | The cross-architecture oracle parity (one rain, two silicons) | [supermassive.yml](../.github/workflows/supermassive.yml) (the `sig_parity` + `arm_lock_suite` legs), [engine_oracle.rs](../src/bench/engine_oracle.rs) (the pinned vector) | the supermassive `sig-parity-aarch64 exit=0 D4=pass` relay row + the arm64 musl lock suite `exit=0` |
 
 ## The standing lanes (the always-on half of the chain)
 
 | Lane | Cadence | What it pins |
 |---|---|---|
 | [ci.yml](../.github/workflows/ci.yml) | every push | the full suite partitions, the replay-oracle double run, the two-host reproducible release chain, fmt + clippy, cargo-audit, cargo-deny, MSRV, the multi-OS builds |
-| [supermassive.yml](../.github/workflows/supermassive.yml) | push + scheduled | the PTY contract on a real terminal: byte-log assertions, the syscall-floor ledger, the torture battery |
+| [supermassive.yml](../.github/workflows/supermassive.yml) | push + scheduled | the PTY contract on a real terminal: byte-log assertions, the syscall-floor ledger, the torture battery, the arch-parity legs (sig oracle parity on both silicons, the arm64 musl lock suite) |
 | [soak.yml](../.github/workflows/soak.yml) | Sunday + dispatch | the determinism-anchored soak (entry 47): digest drift, RSS plateau, fd census |
 | [miri.yml](../.github/workflows/miri.yml) | push + Sunday | no undefined behavior in the audited pointer/alloc families |
 | [kani.yml](../.github/workflows/kani.yml) | Sunday | bounded model checking of the audited proof harnesses |
