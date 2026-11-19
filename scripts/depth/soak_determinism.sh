@@ -53,26 +53,26 @@ SOAK_LOG_DIR="logs"
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
-		--minutes)
-			SOAK_MINUTES="${2:?--minutes needs a value}"
-			shift 2
-			;;
-		--bin)
-			SOAK_BIN="${2:?--bin needs a value}"
-			shift 2
-			;;
-		--interval)
-			SOAK_INTERVAL="${2:?--interval needs a value}"
-			shift 2
-			;;
-		--log-dir)
-			SOAK_LOG_DIR="${2:?--log-dir needs a value}"
-			shift 2
-			;;
-		*)
-			echo "usage: $0 [--minutes N] [--bin PATH] [--interval S] [--log-dir DIR]" >&2
-			exit 2
-			;;
+	--minutes)
+		SOAK_MINUTES="${2:?--minutes needs a value}"
+		shift 2
+		;;
+	--bin)
+		SOAK_BIN="${2:?--bin needs a value}"
+		shift 2
+		;;
+	--interval)
+		SOAK_INTERVAL="${2:?--interval needs a value}"
+		shift 2
+		;;
+	--log-dir)
+		SOAK_LOG_DIR="${2:?--log-dir needs a value}"
+		shift 2
+		;;
+	*)
+		echo "usage: $0 [--minutes N] [--bin PATH] [--interval S] [--log-dir DIR]" >&2
+		exit 2
+		;;
 	esac
 done
 
@@ -184,7 +184,7 @@ if [[ "$SAMPLES" -ge 1 && "$SOAK_MINUTES" -ge 30 ]]; then
 			growth_kb_per_hour = slope_per_sec * 3600
 			printf "%.4f %.4f\n", med, (growth_kb_per_hour / med) * 100
 		}' "$CSV_PATH")"
-	true  # MEDIAN_RSS + GROWTH_PERC_HOUR parsed from the awk above
+	true # MEDIAN_RSS + GROWTH_PERC_HOUR parsed from the awk above
 	if awk -v g="$GROWTH_PERC_HOUR" 'BEGIN { exit !(g < 2.0) }'; then
 		RSS_VERDICT="PASS"
 	else
