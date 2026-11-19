@@ -47,6 +47,34 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### test: night-frontier-Z8 - the control-loop resonance census: the Power Dragon's coupled backoff axes get their no-limit-cycle proof
+
+- `test/central_control_power_dragon/power_manager/tests_resonance_z8.rs`
+  drives the coupled controllers through the adversarial scenario
+  matrix (the pacing sawtooth entry 46 measured, the byte sawtooth
+  the reader model damps, the combined storm with a thermal pulse
+  train, and a clean release window) and asserts at every frame:
+  boundedness (both backoffs, the pressure accumulator, the visual
+  EMA inside their closed intervals; effective_fps between the
+  floor and the base; every signal finite), release (each axis
+  decays into the healthy band within the closed-form fall-rate
+  frame count; effective_fps returns to base), and
+  non-amplification (the ceiling ratchet rides a period-2 ripple
+  of exactly one fall step - the honest shape the census found and
+  pinned, instead of a pretended flat line).
+- Teeth, proven: the storm's raw unclamped accumulation exceeds the
+  ceiling (30 frames x 0.05 = 1.5) while the observed value reads
+  exactly 1.0 - the clamp is load-bearing, the assertions guard a
+  real edge.
+- One cfg(test) read-only accessor added
+  (reader_backoff_for_test, the visual_pressure precedent); the
+  runtime render path and the runtime behavior are untouched.
+- Local verification: the lock_ filter passes 153/0 (four census
+  scenarios plus the standing locks), fmt-clean, clippy-clean
+  across all targets. The filter rides the MSRV lane, the musl
+  shards, and the arm64 parity lane on every push. No version bump,
+  no dependency change.
+
 ### test: night-frontier-Z8 - the conservation-ledger family: six solvers, six named discrete contracts (INV-20)
 
 - `test/engine/cosmic_dragon_engine/cloud/tests/tests_conservation_z8.rs`

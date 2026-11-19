@@ -38,7 +38,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The fifty-three, in dependency order
+## The fifty-four, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1666,6 +1666,51 @@ lane by form), not bit-exact pins. Truth:
 — the eight family pins plus the chroma suite's own INV-20 riding
 the same filter; the MSRV lane, the musl shards, and the arm64
 parity lane run the filter on every push.
+
+### 54. The control-loop resonance census (the no-limit-cycle proof, night-frontier-Z8)
+
+Problem killed: entry 46 FOUND a real resonance — under alternating
+frame pacing the wave solver's amplification matrices composed a
+~15 percent growth per 4-frame cycle — and named the production
+reach: the Power Dragon's throttle cycles and adaptive pacing
+oscillate the frame delta. The solver got its Lyapunov functional;
+the CONTROLLERS did not. The measured drain backoff
+(S-master-HUNT-23), the predictive reader backoff (entry 39), and
+the perf-pressure accumulator rise and fall on the same cadence the
+resonance rides, and nothing asserted their interaction cannot
+compose a limit cycle. Mechanism (night-frontier-Z8): the census
+drives PowerManager through the adversarial scenario matrix — the
+measured pacing sawtooth (60 -> 45 -> 30 -> 90), the byte sawtooth
+the reader model damps, the combined storm (sawtooth + byte flood +
+a thermal pulse train), and a clean release window after each storm —
+and asserts the discrete-control contract at every frame:
+BOUNDEDNESS (both backoffs, the pressure accumulator, the visual EMA
+inside their documented closed intervals; effective_fps between the
+floor and the base; every signal finite), RELEASE (each axis decays
+into the healthy band within the closed-form frame count the
+documented fall rate gives, and effective_fps returns to the base
+cadence), and NO AMPLIFICATION (under sustained alternation the
+ratchet saturates into a period-2 ripple whose spread is exactly one
+fall step — a bounded controlled response at the ceiling, not a
+growing oscillation; the late window's spread must not exceed the
+step the input forces). The census's honest finding, recorded here
+so the shape is not re-derived: at the ceiling the rise clamps while
+the fall keeps stepping, so the axis RIDES a 0.002 ripple — that is
+the designed bounded response, and the contract pins its
+non-amplification instead of pretending a flat line. Teeth, the
+house pattern: the storm's raw unclamped accumulation must exceed
+the ceiling (30 frames x 0.05 = 1.5) while the observed value reads
+exactly 1.0 — the clamp is load-bearing, and the boundedness
+assertions guard a real edge, not a tautology. Honest scope: the
+census drives PowerManager at the unit level (deterministic,
+exact); the cloud-side consumers run in their own suites; one
+cfg(test) read-only accessor (reader_backoff_for_test, the
+visual_pressure precedent) exposes the predictive axis. Truth:
+`test/central_control_power_dragon/power_manager/tests_resonance_z8.rs`
+(the census), `src/central_control_power_dragon/power_manager/mod.rs`
+(the cfg(test) accessor). Verifier: `cargo test --locked
+lock_resonance` (the four scenarios); the lock_ filter rides the
+MSRV lane, the musl shards, and the arm64 parity lane on every push.
 
 ## Retired by verdict
 

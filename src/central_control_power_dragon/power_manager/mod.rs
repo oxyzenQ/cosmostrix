@@ -528,6 +528,18 @@ impl PowerManager {
         self.visual_pressure
     }
 
+    #[cfg(test)]
+    /// Read-only access to the PREDICTIVE reader-backoff axis for the
+    /// resonance census (night-frontier-Z8): the census asserts the
+    /// boundedness and release of both coupled backoff axes, and the
+    /// predictive one feeds effective_fps through the max() merge, so
+    /// the census reads it directly instead of inferring it.
+    /// Test-only, read-only, zero runtime surface.
+    #[must_use]
+    pub(crate) fn reader_backoff_for_test(&self) -> f32 {
+        self.reader_backoff
+    }
+
     /// NIGHT-hunter-2: the visual pressure the render path applies this
     /// frame, honoring the v80 power-dragon Option D contract.
     ///
@@ -594,3 +606,6 @@ impl PowerManager {
 #[cfg(test)]
 #[path = "../../../test/central_control_power_dragon/power_manager/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "../../../test/central_control_power_dragon/power_manager/tests_resonance_z8.rs"]
+mod tests_resonance_z8;
