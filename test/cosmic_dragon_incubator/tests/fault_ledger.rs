@@ -55,10 +55,7 @@
 use std::io::Read;
 use std::time::{Duration, Instant};
 
-use crate::cloud::Cloud;
-use crate::frame::Frame;
-
-use super::alloc_ledger::{build_ledger_rig, LEDGER_FRAMES, LEDGER_WARMUP_FRAMES};
+use super::alloc_ledger::{LEDGER_FRAMES, LEDGER_WARMUP_FRAMES, build_ledger_rig};
 
 /// The probe allocation for the positive control: 2 MiB, far above
 /// every allocator's mmap threshold, so the pages are fresh kernel
@@ -123,14 +120,12 @@ fn read_thread_fault_counters() -> Option<FaultSnapshot> {
     let rest = &raw[comm_close + 1..];
     let mut minor = None;
     let mut major = None;
-    let mut index = 0usize;
-    for token in rest.split_whitespace() {
+    for (index, token) in rest.split_whitespace().enumerate() {
         match index {
             7 => minor = token.parse::<u64>().ok(),
             9 => major = token.parse::<u64>().ok(),
             _ => {}
         }
-        index += 1;
         if major.is_some() {
             break;
         }
