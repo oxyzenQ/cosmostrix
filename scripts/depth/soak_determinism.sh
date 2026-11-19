@@ -119,7 +119,7 @@ while kill -0 "$SOAK_PID" 2>/dev/null; do
 		exit 1
 	fi
 	RSS_KB="$(awk '/^VmRSS:/ { print $2 }' "/proc/$SOAK_PID/status" 2>/dev/null || echo 0)"
-	FD_COUNT="$(ls "/proc/$SOAK_PID/fd" 2>/dev/null | wc -l || echo 0)"
+	FD_COUNT="$(find "/proc/$SOAK_PID/fd" -maxdepth 1 -mindepth 1 2>/dev/null | wc -l || echo 0)"
 	THREADS="$(awk '/^Threads:/ { print $2 }' "/proc/$SOAK_PID/status" 2>/dev/null || echo 0)"
 	printf '%s,%s,%s,%s,%s\n' \
 		"$(date +%Y-%m-%dT%H:%M:%S%z)" "$ELAPSED" "$RSS_KB" "$FD_COUNT" "$THREADS" \
