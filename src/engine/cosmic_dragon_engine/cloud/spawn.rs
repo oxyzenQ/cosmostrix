@@ -544,104 +544,6 @@ impl Cloud {
         }
     }
 
-    /// Spawn a quantum-ripple particle burst at the click point (v17 mastery).
-    ///
-    /// Called by `Cloud::set_mouse_click` alongside the wave-equation shockwave.
-    /// Up to `QUANTUM_RIPPLE_PARTICLE_COUNT` particles are activated per click
-    /// (each in the first inactive pool slot). The particle pool is
-    /// pre-allocated with `QUANTUM_RIPPLE_POOL_SIZE` slots — clicks beyond the
-    /// pool capacity are silently dropped (the flash wave still spawns).
-    pub(crate) fn spawn_quantum_ripple(&mut self, col: u16, line: u16) {
-        // PERF-4: --no-effects gate. No-op when effects are disabled.
-        // (set_mouse_click also early-returns under --no-effects, so this
-        // gate is a defense-in-depth no-op for production click paths —
-        // kept for direct test/spawn calls that bypass set_mouse_click.)
-        if !self.effects_enabled {
-            return;
-        }
-        let cx = col as f32 + 0.5;
-        let cy = line as f32 + 0.5;
-        let now = Instant::now();
-        let chars = ['*', '+', '·'];
-        // Snapshot the palette BODY color (mid-index of palette.colors)
-        // once at click time. Avoid the head stop (last index) — it's
-        // near-white across most schemes (gives droplets their bright
-        // leading edge; using it for ripples made every click look white).
-        // Each particle keeps this RGB even if the user switches palette
-        // mid-flight → natural crossfade between old & new cohorts.
-        //
-        // (chroma audit, A1 spawn): the primary path uses
-        // `palette::decode_color` -- a chroma engine helper that decodes
-        // any Color variant to its RGB triple. The fallback constants
-        // QUANTUM_BRAND_PURPLE_* are only hit when `palette.colors` is
-        // empty OR `decode_color` returns None (Color::Reset), which are
-        // degenerate cases that don't occur in production (build_palette
-        // always produces ≥8 stops, none of which are Color::Reset).
-        // The fallback is the legacy sRGB "purple brand color" and exists
-        // solely so a unit test that constructs a Cloud without calling
-        // build_palette doesn't panic on unwrap.
-        let body_idx = self.palette.colors.len() / 2;
-        let (body_r, body_g, body_b) = self
-            .palette
-            .colors
-            .get(body_idx)
-            .and_then(|c| crate::palette::decode_color(*c))
-            .unwrap_or((
-                QUANTUM_BRAND_PURPLE_R,
-                QUANTUM_BRAND_PURPLE_G,
-                QUANTUM_BRAND_PURPLE_B,
-            ));
-        let mut spawned = 0usize;
-        for p in &mut self.quantum_particles {
-            if spawned >= QUANTUM_RIPPLE_PARTICLE_COUNT {
-                break;
-            }
-            if p.active {
-                continue;
-            }
-            let angle: f32 = self.rand_chance.sample(&mut self.mt) * std::f32::consts::TAU;
-            // v50 masterclass retune: narrower speed variance (0.9..1.1
-            // instead of 0.8..1.2). At the old 0.8s lifespan the variance
-            // didn't matter — particles died before speed differences
-            // became visible. At the new 2.5s lifespan, particles with
-            // 1.2x speed would visibly outpace 0.8x peers, breaking the
-            // "coherent cohort" aesthetic. 0.9..1.1 keeps ±10% variance
-            // (enough for organic feel) without visible stratification.
-            let speed = QUANTUM_RIPPLE_SPEED * (0.9 + self.rand_chance.sample(&mut self.mt) * 0.2);
-
-            // Pre-clamp: rand_chance returns [0, 1), but float rounding
-            // on the multiply can theoretically reach chars.len(). The
-            // .min() below also guards, but clamping the random value
-            // first makes the intent explicit and avoids relying on the
-            // downstream guard.
-            let char_idx =
-                (self.rand_chance.sample(&mut self.mt).min(0.999) * chars.len() as f32) as usize;
-            p.active = true;
-            p.x = cx;
-            p.y = cy;
-            p.vx = angle.cos() * speed;
-            p.vy = angle.sin() * speed;
-            p.birth = now;
-            p.ch = chars[char_idx.min(chars.len() - 1)];
-            p.r = body_r;
-            p.g = body_g;
-            p.b = body_b;
-            // v50 (2026-08-17) trail particles: reset trail_count so the
-            // reused pool slot starts with no trail. trail_x/trail_y
-            // contents are stale from the previous spawn but will be
-            // overwritten as the particle moves — trail_count=0 ensures
-            // the trail render loop reads 0 entries on the first frame.
-            p.trail_count = 0;
-            p.max_trail = QUANTUM_RIPPLE_TRAIL_LEN as u8;
-            p.lifetime = QUANTUM_RIPPLE_LIFETIME_SECS;
-            p.sim_age = 0.0;
-            spawned += 1;
-        }
-        // Increment active count — tracked incrementally so
-        // apply_quantum_ripple can O(1) early-out when none are active.
-        self.quantum_active_count = self.quantum_active_count.saturating_add(spawned);
-    }
-
     /// Spawn a border-touch splash crown spark at `(col, line)`.
     ///
     /// F2 Splash Crown variant — see
@@ -654,9 +556,8 @@ impl Cloud {
     /// + fixed `·` (middle-dot) glyph + 1-cell trail (`max_trail = 1`)
     /// + 350ms lifetime.
     ///
-    /// Particles share the existing `quantum_particles` pool with quantum
-    /// ripples — zero new allocation. If the pool is full, the touch is
-    /// silently dropped (same pattern as `spawn_quantum_ripple`).
+    /// Particles use the pre-allocated shared particle pool — zero new
+    /// allocation. If the pool is full, the touch is silently dropped.
     ///
     /// Called from `detect_border_touch` on non-corner border cells only
     /// (corner-skip guard preserves the "no lone bright heads at top

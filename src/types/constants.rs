@@ -230,80 +230,26 @@ pub(crate) const BENCH_WARMUP_MIN_FRAMES: u64 = 10;
 /// realistic CPU / allocator to reach steady state.
 pub(crate) const BENCH_WARMUP_MAX_FRAMES: u64 = 200;
 
-// ── Quantum Ripple particle burst ──
+// ── Shared particle pool (QuantumParticle) ──
 //
-// Quantum Ripple constants tune the mouse-click particle burst — a v25
-// masterclass feature where each click spawns 20 outward-radiating glyphs
-// that snapshot the active palette's body color and fade out over 0.8s.
+// night-moonlight-1: the Quantum Ripple mouse-click burst that gave
+// this pool its name is removed. The remaining constants still tune
+// the shared pre-allocated particle pool and its render path, which
+// the border-touch splash crown spark keeps using. The whole block
+// retires with that feature.
 //
 // v30 masterclass: render-time tone-down
 //
 // `QUANTUM_BODY_TONE_DOWN` is applied at render time in
 // `cloud::rain::apply_quantum_ripple` so the snapshot stored on each
-// particle stays equal to the palette body stop exactly (preserving the
-// crossfade and "snapshot matches body stop" regression-test contracts),
-// while the rendered pixel is dimmed to match the rain's perceived
-// average brightness rather than the saturated body stop alone.
+// particle stays equal to the palette body stop exactly (preserving
+// the crossfade contract), while the rendered pixel is dimmed to
+// match the rain's perceived average brightness rather than the
+// saturated body stop alone.
 
-/// Maximum concurrent Quantum Ripple particles. Pre-allocated once at
-/// Cloud init; reused via free-list. 32 covers the peak case of 2-3
-/// rapid clicks (each spawns up to 25) with overlap.
-///
-/// v50 masterclass retune: lifespan extended from 0.8s → 2.5s. Three
-/// overlapping clicks (60 active) can now coexist with one extra click
-/// in flight (20) → 80 worst case. Pool raised from 64 → 96 to absorb
-/// this without silent drops during rapid multi-click bursts.
+/// Maximum concurrent pool particles. Pre-allocated once at Cloud
+/// init; reused via free-list.
 pub(crate) const QUANTUM_RIPPLE_POOL_SIZE: usize = 96;
-
-/// Particles spawned per click (fixed 20 for determinism).
-pub(crate) const QUANTUM_RIPPLE_PARTICLE_COUNT: usize = 20;
-
-/// Particle lifespan in seconds.
-///
-/// v50 masterclass retune (owner feedback 8/10): the original 0.8s
-/// lifespan was reported as "too fast dead" — the cohort vanished
-/// before the eye could register the ricochet trajectory. Raised to
-/// 2.5s so a click produces a multi-bounce shower that the eye reads
-/// as a deliberate visual effect, then fades out gracefully via the
-/// smoothstep + tail brightness curve (see `apply_quantum_ripple`).
-///
-/// 2.5s was chosen so that:
-///  - At the default speed (30 cells/sec) the particle travels ~75
-///    cells in its lifetime — enough to cross a wide viewport multiple
-///    times with ricochets, matching the "masterclass" aesthetic.
-///  - Three rapid clicks (60 active particles) all coexist for most
-///    of their lifespan without exhausting the 96-slot pool.
-///  - The fade curve's "tail" segment (last 30% of life = 0.75s) is
-///    long enough to read as a graceful decay rather than a flicker.
-///
-/// Lower values (1.0–1.5s) restore the "too fast dead" complaint.
-/// Higher values (3.5–5s) make the effect linger after the user has
-/// mentally moved on, becoming visual noise.
-/// v50 masterclass: 4.0s — longer life so particles coast to a natural
-/// stop and fade smoothly. Combined with QUANTUM_RIPPLE_VELOCITY_DECAY,
-/// particles decelerate exponentially and drift to a halt over ~3s,
-/// then fade out over the remaining ~1s. The previous 2.5s was too
-/// short — particles disappeared "gone fast" per owner feedback.
-pub(crate) const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 4.0;
-
-/// Particle outward radial speed (cells/sec).
-///
-/// v50 speed evolution: 18.0 (too fast/blur) -> 9.0 (too slow/snow)
-/// -> 12.0 (better but still stuttery at 0.2 cells/frame) -> 30.0.
-///
-/// 30.0 cells/sec was chosen because at 60 FPS the particle moves
-/// 0.5 cells/frame — it changes terminal cell every 2 frames instead
-/// of every 5 frames (12.0) or every 7 frames (9.0). This is the
-/// minimum speed where discrete cell-to-cell rendering feels smooth
-/// in a terminal emulator. Above 60 cells/sec (1 cell/frame) the
-/// motion reads as a blur again; below 12 cells/sec the stutter is
-/// visually distracting.
-///
-/// Combined with the narrower spawn-speed variance (0.9..1.1 instead
-/// of 0.8..1.2), this produces a visually coherent cohort where all
-/// particles travel at similar perceived speeds — the "masterclass"
-/// look the owner requested.
-pub(crate) const QUANTUM_RIPPLE_SPEED: f32 = 30.0;
 
 // ── Border-Touch Splash Crown Spark (F2) ─────────────────────────────────
 // See docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md §3.2.

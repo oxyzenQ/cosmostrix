@@ -42,9 +42,9 @@ mod tests_phosphor_adaptive;
 mod tests_phosphor_sweep;
 mod tests_phosphor_thaw_hunt2;
 mod tests_physarum;
-mod tests_quantum;
-mod tests_quantum_hunt22;
-mod tests_quantum_v50;
+// night-moonlight-1: tests_quantum, tests_quantum_hunt22 and
+// tests_quantum_v50 were removed with the Quantum Ripple mouse-click
+// burst feature (see docs/archive/specs/QUANTUM_RIPPLE_MOUSE_CLICK_BURST.md).
 mod tests_quasar;
 mod tests_restart_hunt15;
 mod tests_restart_lts3;

@@ -719,7 +719,9 @@ impl Cloud {
                     trail_y: [0.0; QUANTUM_RIPPLE_TRAIL_LEN],
                     trail_count: 0,
                     max_trail: QUANTUM_RIPPLE_TRAIL_LEN as u8,
-                    lifetime: QUANTUM_RIPPLE_LIFETIME_SECS,
+                    // 0.0 is the inactive-slot placeholder; every spawn
+                    // assigns the real per-effect lifetime.
+                    lifetime: 0.0,
                     sim_age: 0.0,
                 };
                 QUANTUM_RIPPLE_POOL_SIZE
@@ -902,12 +904,13 @@ impl Cloud {
         // PERF-4 strengthen: --no-effects gate. When effects are disabled,
         // skip the shockwave entirely. Without this gate the click wave
         // continued to spawn under --no-effects — a partial-disable leak
-        // (only the quantum-ripple particles were suppressed, the
-        // expanding overlay was not). Early-return here is the correct
-        // fix: no impulse is injected, and any in-flight wave decays
-        // naturally by its own damping physics. spawn_quantum_ripple
-        // (called below when effects are on) is also independently
-        // gated for safety.
+        // (cosmetic overlay output was suppressed while the expanding
+        // wave was not). Early-return here is the correct fix: no impulse
+        // is injected, and any in-flight wave decays naturally by its own
+        // damping physics.
+        // night-moonlight-1: the quantum-ripple particle burst that used
+        // to co-spawn here is removed — the click now drives only the
+        // wave-equation shockwave.
         if !self.effects_enabled {
             return;
         }
@@ -918,7 +921,6 @@ impl Cloud {
         // saturates instead of blowing up. The field's damping gives
         // each ripple its finite life; the solver settles itself.
         self.wave_field.inject(col, line);
-        self.spawn_quantum_ripple(col, line);
     }
 
     #[must_use]
