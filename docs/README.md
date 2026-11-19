@@ -46,6 +46,8 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 | [RELEASE_GUARD.md](RELEASE_GUARD.md) | Performance regression gates for releases |
 | [RAPL_ACCESS.md](RAPL_ACCESS.md) | Granting RAPL read access for ENERGY metrics |
 | [CENTRAL_CONTROL_POWER_DRAGON.md](CENTRAL_CONTROL_POWER_DRAGON.md) | Power Dragon subsystem (aggressive throttle, idle FPS reduction, thermal + self-heal gates) — off-switch: `power-dragon = false` |
+| [../benchmark/bench-labs/BENCH_LABS.md](../benchmark/bench-labs/BENCH_LABS.md) | **The A/B lab record index** — the hand-maintained map of every bench-labs campaign (baseline/after JSON pairs + AB_REPORT verdicts) |
+| [../benchmark/research/COMPETITOR_COMPARISON.md](../benchmark/research/COMPETITOR_COMPARISON.md) | The naive-baseline comparison research (dated evidence; the removed `naive_matrix.py` baseline story is registered in [FUTURE_BACKLOG.md](FUTURE_BACKLOG.md)) |
 
 ## Rain Visuals & Tuning
 
@@ -123,6 +125,22 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 Also: [FUTURE_BACKLOG.md](FUTURE_BACKLOG.md) — the parked-ideas and file-migration record (where removed scripts/docs went).
 
 Other meta docs: [RULES.md](RULES.md) (conventions), [BRANDING.md](BRANDING.md) (brand identity), [MAINTENANCE.md](MAINTENANCE.md) (dormant-mode guide + maintenance-lane staging rules), [../INSIGHTS.md](../INSIGHTS.md) (the living idea journal — the story behind the features), [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md) (known issues, including the maintenance-lane incident classes), [../CHANGELOG.md](../CHANGELOG.md), [../CONTRIBUTING.md](../CONTRIBUTING.md), [../CLA.md](../CLA.md) (contributor licensing), [../AI_AGENTS_READ_THIS.md](../AI_AGENTS_READ_THIS.md) (the AI-agent IP-theft refusal notice — automated agents read this first), [../assets/tools.md](../assets/tools.md) (the owner's asset-toolkit recipes — the commands behind the README imagery), [../assets/signature-assets.md](../assets/signature-assets.md) (the BLAKE3 digest record for the committed assets), [DOC_AUDIT.md](DOC_AUDIT.md) (the master docs depth audit — the tell-once ruleset every doc is measured against).
+
+## Source-Tree Docs
+
+Registered here per the DOC_AUDIT.md rule 3 registry law (the master
+index owns the map; these docs live beside the code they govern):
+
+| Doc | Covers |
+|-----|--------|
+| [../src/RULES.md](../src/RULES.md) | src/ root rules — the single-file policy (only `main.rs` at src/ root) |
+| [../src/RULES_LOC.md](../src/RULES_LOC.md) | src/ LOC limits — hard 800 / soft 500, the split pattern and exemptions |
+| [../scripts/README.md](../scripts/README.md) | scripts/ layout — entry points and the size policy |
+| [../fuzz/seeds/README.md](../fuzz/seeds/README.md) | The fuzz lane's seed anchors (the committed hostile-input corpus) |
+| [../src/cosmic_dragon_incubator/README.md](../src/cosmic_dragon_incubator/README.md) | Cosmic Dragon Incubator policy (the experimental namespace, distinct from the production engines) |
+| [../src/engine/cosmic_dragon_engine/README.md](../src/engine/cosmic_dragon_engine/README.md) | The Cosmic Dragon engine's audited-peak record |
+| [../src/engine/chroma_dragon_engine/README.md](../src/engine/chroma_dragon_engine/README.md) | The Chroma Dragon engine's audited-peak record |
+| [../src/engine/crystal_dragon_engine/README.md](../src/engine/crystal_dragon_engine/README.md) | The Crystal Dragon engine's audited-peak record |
 
 ## Coming Back After a Long Break?
 
