@@ -1,0 +1,109 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# night-frontier-Z6, S5: the 24h determinism-anchored soak lane.
+#
+# The renderer is a long-lived screensaver; the analytic ladder
+# (xenric-1) proves million-year-scale stability on paper, and this
+# lane is the EMPIRICAL closer: one long-lived process renders
+# headless while the whole window sits inside a determinism anchor —
+# the replay oracle's digest (INNOVATIONS entry 32) at t=0 must equal
+# the digest after the soak (determinism as the drift canary: a
+# wall-clock-independent replay must not move across the window) —
+# with the /proc census (RSS plateau + fd census) closing the leak
+# case. Full pass law: docs/ENDURANCE.md + scripts/depth/
+# soak_determinism.sh (the harness owns the law; this file only
+# schedules and budgets it).
+#
+# The 24h horizon, honestly scoped: the bench parser accepts up to
+# `24h` exactly, but GitHub-hosted runners cap a job at 6 hours, so
+# the scheduled lane runs the hosted profile (150 minutes — a bounded
+# leg of the anchor) and a self-hosted runner with a longer job cap
+# dispatches soak_minutes=1440 for the real 24-hour window. Both run
+# the SAME pass law; the hosted profile is not a weaker one — the RSS
+# trend verdict simply reports SHORT below the 30-minute minimum.
+#
+# Scheduled lane ONLY (Sunday 03:00 UTC, the estate-wide Sunday slot):
+# the 2-minute per-push law is untouched, and manual dispatch exists
+# for on-demand anchoring before a release.
+
+name: "Endurance Soak - determinism anchored"
+
+'on':
+  schedule:
+    # Sunday 10:00 WIB (03:00 UTC) — the estate-wide Sunday lane.
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      soak_minutes:
+        description: 'Soak window in minutes (150 hosted default; 1440 = the real 24h anchor on a self-hosted runner)'
+        required: false
+        default: '150'
+
+permissions:
+  contents: read
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+# A second scheduled/manual trigger supersedes a still-running soak
+# instead of queueing a duplicate multi-hour runner bill.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  soak:
+    name: Determinism-anchored soak (${{ github.event.inputs.soak_minutes || '150' }} min)
+    runs-on: ubuntu-24.04
+    # The fail-fast budget: build (~10 min) + two anchor replays + the
+    # soak window + the 120 s harness grace. 355 minutes covers the
+    # hosted maximum input (330) with headroom and stays inside the
+    # 6-hour hosted job cap; a longer window belongs on a self-hosted
+    # runner, not on a silently extended hosted bill.
+    timeout-minutes: 355
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: false
+
+      - name: Clamp the soak window to the hosted job cap
+        run: |
+          MINUTES="${{ github.event.inputs.soak_minutes || '150' }}"
+          if [ "$MINUTES" -gt 330 ]; then
+            echo "soak lane: soak_minutes=$MINUTES exceeds the hosted 6-hour job cap (330 min leg max)."
+            echo "Dispatch a self-hosted runner for the real 24h anchor (soak_minutes=1440)."
+            exit 1
+          fi
+          echo "SOAK_MINUTES=$MINUTES" >> "$GITHUB_ENV"
+
+      - name: Build the release binary
+        run: cargo build --profile release --locked --jobs 4
+
+      - name: Run the determinism-anchored soak
+        run: |
+          ./scripts/depth/soak_determinism.sh \
+            --minutes "$SOAK_MINUTES" \
+            --bin target/release/cosmostrix \
+            --interval 15
+
+      # The census + anchors are the lane's record: uploaded on ANY
+      # outcome (the ENDURANCE csv law keeps them out of git; the
+      # artifact is the designed channel for them).
+      - name: Upload the soak census and anchors
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: soak-census-run-${{ github.run_number }}
+          path: |
+            logs/soak_*.csv
+            logs/soak_*.log
+            logs/soak_*.stderr
+          retention-days: 30

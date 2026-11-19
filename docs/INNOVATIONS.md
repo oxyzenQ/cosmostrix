@@ -37,7 +37,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty-six, in dependency order
+## The forty-seven, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1339,6 +1339,58 @@ Z6), all asserting the laws; the full suite must stay green; the
 replay digest is unchanged by the ledger (the render surface is
 untouched — pinned by the CI replay-oracle step and by the A/B
 report).
+
+### 47. The determinism-anchored soak (the 24h canary lane, night-frontier-Z6)
+
+Problem killed: the endurance methodology had been RETIRED — the
+sampling helpers were removed as dead scripts in 936c7ba and
+`docs/ENDURANCE.md` became a historical record — so the screensaver's
+headline claim (stable for sessions exceeding 24 hours, no memory
+growth, no handle leaks) had no standing enforcement anywhere, and the
+analytic ladder (xenric-1) proved the million-year horizon on paper
+with nothing empirical closing behind it. Mechanism
+(night-frontier-Z6, S5): `scripts/depth/soak_determinism.sh` soaks ONE
+long-lived headless process — the bench loop at `--bench-duration` up
+to the parser's exact `24h` ceiling — with the WHOLE window wrapped in
+a determinism anchor: the replay oracle's digest (entry 32) is taken
+at t=0 and again after the soak, and the two must be byte-identical —
+determinism used as the state-drift canary, the pattern this repo owns
+outright: a wall-clock-independent replay that moves across a
+multi-hour window names the drift nobody measured. Inside the window
+the harness censuses /proc (RSS, fd count, threads) into a gitignored
+CSV and enforces the pass law on all four legs: digest identical, RSS
+plateau (linear regression over the final 80% of the window — the
+first 20% carries allocator warm-up — below 2%/hour of the median,
+the ENDURANCE acceptance line, verdict SHORT under 30-minute windows
+because a trend needs a trend's worth of data), fd flat (span <= 2,
+transient tolerance), and a clean exit with no panic in the logs.
+Scheduled lane ONLY (`.github/workflows/soak.yml`, the estate-wide
+Sunday 03:00 UTC slot plus manual dispatch) — the 2-minute per-push
+law is untouched. The 24h horizon, honestly scoped: GitHub-hosted
+runners cap a job at 6 hours, so the scheduled profile runs a bounded
+150-minute leg while a self-hosted runner dispatches
+`soak_minutes=1440` for the real 24-hour anchor — both run the SAME
+pass law, the hosted profile is not a weaker one, and the lane fails
+loudly on a dispatch that would exceed the hosted cap instead of
+silently eating the bill. The lineage is kept honest: the removed
+19-column extended CSV is named as the ancestor of the focused
+5-column census, `docs/ENDURANCE.md` carries the current methodology
+first and the historical record below it. Honest scope: the anchors
+prove cross-process determinism across the window, not within-process
+state identity at t=24h (the bench loop's own drift section
+`first_half_fps`/`second_half_fps` carries the in-process half), and
+the RSS law needs the window long enough to pin a trend — the lane
+reports SHORT, never fakes a verdict.
+Truth: `scripts/depth/soak_determinism.sh` (the harness, the pass
+law), `.github/workflows/soak.yml` (the scheduled lane, the hosted
+cap guard, the artifact upload on any outcome), `docs/ENDURANCE.md`
+(the current methodology + the pass law table).
+Verifier: the smoke run (`--minutes 2`: anchors identical, fd span 0,
+exit 0, RSS verdict SHORT as designed), the regression unit check
+(synthetic flat CSV 1.3%/h PASS vs a 500 kB/h leak 9.8%/h FAIL), and
+the lane itself on its Sunday schedule — the artifact
+(`soak-census-run-*`) carries the census + both anchor lines as the
+audit record.
 
 ## Retired by verdict
 

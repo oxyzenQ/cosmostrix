@@ -16,6 +16,39 @@ leaks, or crashes.
 > methodology record; for current measurements use `--benchmark` output
 > and `benchmark/benchmark.sh sweep`.
 
+### The scheduled lane (current methodology, 2026-11-19)
+
+The endurance methodology returned as a scheduled CI lane, rebuilt
+around a determinism anchor (night-frontier-Z6, S5 — INNOVATIONS entry
+47): `scripts/depth/soak_determinism.sh` soaks ONE long-lived
+headless process (the bench loop, `--bench-duration` up to the 24h
+parser ceiling) while wrapping the whole window between two
+determinism anchors — the replay oracle's digest (entry 32) at t=0
+must equal the digest after the soak, byte-identical, so determinism
+itself becomes the state-drift canary. Inside the window the harness
+censuses `/proc` (RSS, fd count, threads) into the same gitignored
+CSV shape this document describes, and the pass law is:
+
+| Criterion | Threshold | Rationale |
+|---|---|---|
+| Replay digest | t=0 == post-soak, byte-identical | A wall-clock-independent replay must not move across the window |
+| RSS growth | < 2% per hour (regression over the final 80% of the window) | Permits allocator warm-up; rejects leaks — verdict SHORT under 30-minute windows |
+| FD count | max-min across the census <= 2 | Detects handle leaks with a transient tolerance |
+| Panic | None in the soak logs | The renderer must run the window clean |
+| Exit code | 0 | Confirms graceful shutdown on duration expiry |
+
+The lane is `scheduled` only (`.github/workflows/soak.yml`, Sunday
+03:00 UTC — the per-push 2-minute law is untouched) with manual
+dispatch. The 24h horizon, honestly scoped: hosted runners cap a job
+at 6 hours, so the scheduled profile runs a bounded 150-minute leg and
+a self-hosted runner dispatches `soak_minutes=1440` for the real
+24-hour anchor — both run the same pass law.
+
+The historical helper record below is retained as the methodology
+lineage; the removed scripts' sampling fields (19-column extended CSV)
+are the ancestor of the lane's focused 5-column census
+(`timestamp,elapsed_sec,rss_kb,fd_count,threads`).
+
 A cosmostrix binary is launched in headless mode with a configurable duration
 cap. The historical sampling script `scripts/monitor-cosmostrix.sh` read
 `/proc/<pid>/status`, `/proc/<pid>/stat`, `/proc/<pid>/smaps_rollup`,
