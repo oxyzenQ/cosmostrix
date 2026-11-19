@@ -1387,7 +1387,10 @@ silently eating the bill. The lineage is kept honest: the removed
 first and the historical record below it. Honest scope: the anchors
 prove cross-process determinism across the window, not within-process
 state identity at t=24h (the bench loop's own drift section
-`first_half_fps`/`second_half_fps` carries the in-process half), and
+`first_half_fps`/`second_half_fps` carries the in-process half) — the
+residue night-frontier-Z9 closed (entry 58: the soaked process now
+re-derives the replay digest inside itself at t=0 and t=end, and the
+pass law's leg 5 enforces the pair), and
 the RSS law needs the window long enough to pin a trend — the lane
 reports SHORT, never fakes a verdict.
 Truth: `scripts/depth/soak_determinism.sh` (the harness, the pass
@@ -1843,6 +1846,70 @@ with the rows `writes/frame=1.000 PASS`, `blocking-waits/frame` in
 <release-shape> --trace /tmp/wf-trace.log --log /tmp/wf-capture.log
 --mass /tmp/mass-wakeup.log --label wakeup-floor-8s --duration 8
 --budget 30` on a real tty reproduces the same rows.
+
+### 58. The in-process state-digest canary (the soaked process's own anchor, night-frontier-Z9)
+
+Problem killed: entry 47's honest scope named the residue itself: the
+soak's two determinism anchors are taken from FRESH processes
+(`--bench-replay` before and after the window), so they prove a fresh
+process still renders the pinned sequence — they say nothing about the
+SOAKED process's internal state machinery. A static LUT rewritten
+lazily, a thread-local accumulator drifting, a once-built cache
+corrupted after hour 40, an RNG bookkeeping field that only degrades
+inside one long-lived process: none of it can move a fresh process's
+digest, and nothing else measured it — the bench loop's drift section
+(`first_half_fps`/`second_half_fps`) watches throughput, not state
+identity.
+
+Mechanism (night-frontier-Z9): `compute_replay` (entry 32) is pure
+computation — no printing, no I/O, a fresh Cloud and RNG stream per
+call — and its own docs name the design: "the in-process determinism
+test calls this twice." The premium bench loop now does exactly that:
+the replay digest is derived INSIDE the benchmark process at t=0
+(before warmup) and again after the measurement window, both outside
+the measured window (two ~300-frame pinned renders, tens of
+milliseconds — no bench metric pays for them), and the pair prints on
+one line of the text report: `state-digest: t0=b3:<hex> end=b3:<hex>
+verdict=IDENTICAL|DRIFT` (`--json` mode keeps its one-JSON-document
+stdout contract, so no baseline consumer moves). The soak harness's
+pass law gains leg 5: the pair must be present (a missing line is a
+canary bypass and a finding, never a silent pass) and byte-identical;
+leg 1 is strengthened into the four-way anchor chain: fresh-process
+t=0 == fresh-process post-soak == soaked-process t=0 == soaked-process
+t=end. The fresh anchors pass `--scene monolith` EXPLICITLY, because
+the premium bench defaults to the monolith benchmark scene while a
+bare `--bench-replay` renders the global default scene (cinematic) —
+the two dispatch surfaces must pin the same sequence for the chain to
+be exact (measured on the release shape: the bare-anchor digest and
+the in-process digest diverged exactly as this reasoning predicts,
+and the explicit scene pin restored the identity), and a future
+default change fails leg 1b loudly and is re-derived on purpose. The
+teeth test proves the bench-only config surface (benchmark mode, wet
+I/O, a pinned duration) cannot move the digest, so the chain is exact
+once the scene is pinned; any future field that leaks into the replay
+surface fails the test first and forces a re-derivation on purpose).
+Teeth, proven by construction: the canary's sensitivity
+rests on the already-proven layers — the canonical serializer flips
+on one bold bit of one cell, the fold binds length and order, and the
+two-run identity test pins in-process determinism (the same suite the
+CI replay-oracle job backs cross-process). Honest scope: the canary
+watches the STATE the replay renders — solver-visible state, palette,
+RNG streams, serializers; it does not watch memory layout (the RSS
+law's job) or kernel-side state (INV-19's job); the premium bench is
+the only carrier (the silent/bench-all path keeps its own shape — the
+soak lane runs the premium loop by construction); a DRIFT verdict on
+the line is a measurement, not an exit failure — the enforcement
+point is the soak lane, the same division as the RSS law.
+
+Truth: `src/bench/premium.rs` (the two anchors, the canary line),
+`scripts/depth/soak_determinism.sh` (pass-law legs 1b and 5),
+`test/bench/replay_tests.rs` (the chain test),
+`src/bench/bench_replay.rs` (the pure oracle the canary re-derives).
+
+Verifier: `cargo test soak_state_digest` — the chain test must pass;
+locally, a short premium run prints the pair and the soak smoke
+(`--minutes 2`) reports legs 1b and 5 PASS; the scheduled lane
+enforces the full law on its Sunday slot plus manual dispatch.
 
 ## Retired by verdict
 

@@ -237,3 +237,33 @@ fn fold_binds_length_and_order() {
     assert_ne!(whole, reordered);
     assert_ne!(whole, truncated);
 }
+
+/// The soak's in-process state-digest canary (night-frontier-Z9-D)
+/// computes the SAME digest the cross-process anchor computes. The
+/// soak harness chains its fresh-process `--bench-replay` anchors to
+/// the soaked bench process's in-process `state-digest:` pair (the
+/// pass law's leg 1b), which is only meaningful if the premium bench's
+/// config surface (benchmark mode, wet I/O, a pinned duration) cannot
+/// move the pinned sequence. If a future bench field leaks into the
+/// replay surface, this test fails first and the harness must be
+/// re-derived on purpose.
+#[test]
+fn soak_state_digest_canary_matches_the_cross_process_anchor() {
+    // The premium bench's config surface is the replay-shaped literal
+    // with the soak invocation's fields set: benchmark mode on, a
+    // pinned duration (the hosted profile's 150 minutes), wet I/O on,
+    // and no explicit frame count (the oracle's 300-frame default).
+    let mut bench_cfg = make_replay_config(REPLAY_DEFAULT_FRAMES, None);
+    bench_cfg.benchmark = true;
+    bench_cfg.bench_duration = Some(150 * 60);
+    bench_cfg.bench_io = true;
+
+    let in_process = compute_replay(&bench_cfg);
+    let anchor = compute_replay(&make_replay_config(REPLAY_DEFAULT_FRAMES, None));
+
+    assert_eq!(
+        in_process.sequence_digest, anchor.sequence_digest,
+        "the soak's in-process canary digest must equal the cross-process \
+         anchor digest - the bench config surface moved the pinned sequence"
+    );
+}

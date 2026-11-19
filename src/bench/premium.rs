@@ -28,6 +28,8 @@ pub(crate) use crate::bench_helpers::{
     median_sorted, resolve_bench_duration, validate_bench_scene,
 };
 
+use super::bench_replay::compute_replay;
+use super::frame_digest::hex32;
 use super::peak_fps::compute_peak_fps;
 
 pub(crate) const FRAME_TIME_SAMPLES: usize = 10_000;
@@ -81,6 +83,24 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.set_max_sim_delta(target_period);
 
     progress.init_done();
+
+    // ── In-process state-digest canary, t=0 anchor (night-frontier-Z9-D) ─
+    // The determinism-anchored soak (entry 47) took its two replay
+    // digests from FRESH processes (`--bench-replay` before and after
+    // the window) and its own honest scope named the residue: nothing
+    // proved the SOAKED process's internal state machinery stayed
+    // drift-free. This closes that residue: the same pure replay
+    // computation (`compute_replay` — no printing, no I/O, a fresh
+    // Cloud and RNG stream per call) runs INSIDE the benchmark process
+    // at t=0, runs again after the measurement window, and the two
+    // digests must be byte-identical. Any static, thread-local, or
+    // once-initialized state the long-lived window mutated shows up as
+    // a digest drift on the `state-digest:` line the soak pass law
+    // parses. The anchor runs OUTSIDE the measured window (before
+    // warmup; after the loop's samplers finalize), so no bench metric
+    // pays for it; the cost is two ~300-frame pinned renders, tens of
+    // milliseconds on any bench window.
+    let state_digest_t0 = compute_replay(cfg).sequence_digest;
 
     // ── Phase 2: Initialize wet I/O writer if --bench-io ──────────────
     // T2.1: pass palette so BenchIoWriter can build a ColorCache and mirror
@@ -387,6 +407,14 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     };
 
     let was_interrupted = interrupted.load(Ordering::Relaxed);
+
+    // ── In-process state-digest canary, end anchor (night-frontier-Z9-D) ─
+    // The second replay digest of the SAME process, after the whole
+    // measurement window. Equality with `state_digest_t0` is the
+    // in-process drift canary the soak pass law (leg 5) enforces; the
+    // pair is printed only on the text report so the --json wire
+    // contract (and every baseline consumer of it) stays byte-stable.
+    let state_digest_end = compute_replay(cfg).sequence_digest;
 
     // ── Clean up live UI ─────────────────────────────────────────────────
     progress.finish();
@@ -750,5 +778,25 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // cosmetics harness shares the exact same emission path; premium.rs
     // was at its 800-LOC cap and this is a net code-motion out.
     crate::bench_cosmetics::emit_report_output(cfg, &report_data);
+
+    // night-frontier-Z9-D: the canary line the soak harness parses
+    // (pass-law leg 5). Text report only — `--json` mode keeps its
+    // stdout contract of exactly one JSON document, and the baseline
+    // save/compare consumers above are untouched. A DRIFT verdict is
+    // not an exit failure here (the benchmark is a measurement tool);
+    // the enforcement point is the soak lane, same as the RSS law.
+    if !cfg.json {
+        let verdict = if state_digest_t0 == state_digest_end {
+            "IDENTICAL"
+        } else {
+            "DRIFT"
+        };
+        crate::output::println_safe!(
+            "state-digest: t0=b3:{} end=b3:{} verdict={}",
+            hex32(&state_digest_t0),
+            hex32(&state_digest_end),
+            verdict
+        );
+    }
     Ok(())
 }

@@ -25,13 +25,17 @@ headless process (the bench loop, `--bench-duration` up to the 24h
 parser ceiling) while wrapping the whole window between two
 determinism anchors — the replay oracle's digest (entry 32) at t=0
 must equal the digest after the soak, byte-identical, so determinism
-itself becomes the state-drift canary. Inside the window the harness
-censuses `/proc` (RSS, fd count, threads) into the same gitignored
-CSV shape this document describes, and the pass law is:
+itself becomes the state-drift canary. night-frontier-Z9 (INNOVATIONS
+entry 58) closed the scope entry 47 named honestly: the SOAKED process
+now re-derives the replay digest inside itself at t=0 and t=end (the
+premium bench's `state-digest:` line), so the long-lived process's own
+internal state machinery is watched too, and the pass law is:
 
 | Criterion | Threshold | Rationale |
 |---|---|---|
 | Replay digest | t=0 == post-soak, byte-identical | A wall-clock-independent replay must not move across the window |
+| Anchor chain | fresh-process t=0 == in-process t=0 digest | The soaked process must render the pinned sequence exactly like a fresh one (Z9-D leg 1b) |
+| In-process state digest | t0 == end inside the soaked process, line must be present | Catches drift of the long-lived process's own statics, thread-locals, and once-built caches (Z9-D leg 5); a missing line is a canary bypass |
 | RSS growth | < 2% per hour (regression over the final 80% of the window) | Permits allocator warm-up; rejects leaks — verdict SHORT under 30-minute windows |
 | FD count | max-min across the census <= 2 | Detects handle leaks with a transient tolerance |
 | Panic | None in the soak logs | The renderer must run the window clean |

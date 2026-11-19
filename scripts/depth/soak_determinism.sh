@@ -16,8 +16,11 @@
 # replay must not move across the window). Inside the window the
 # harness censuses /proc: RSS samples, fd count, thread count.
 #
-# Pass law (all four, no exceptions):
-#   1. digest:   t=0 and post-soak replay digests byte-identical.
+# Pass law (all five, no exceptions):
+#   1. digest:   t=0 and post-soak replay digests byte-identical
+#                (cross-process anchors), AND the t=0 anchor equals the
+#                soaked process's own in-process t=0 digest (the
+#                four-way anchor chain, night-frontier-Z9-D).
 #   2. rss:      linear-regression growth over the final 80% of the
 #                window below 2%/hour of the median RSS (the
 #                docs/ENDURANCE.md acceptance line). Verdict SHORT on
@@ -26,6 +29,12 @@
 #   3. fd:       max-min across the census <= 2 (transient tolerance).
 #   4. exit:     the soak process exits 0 and its log carries no
 #                panic.
+#   5. state:    the soaked process's IN-PROCESS state-digest pair
+#                (t=0 vs t=end, night-frontier-Z9-D) is byte-identical
+#                - the scope entry 47 named honestly (cross-process
+#                anchors say nothing about the long-lived process's
+#                own internal state machinery) is closed here. A missing
+#                state-digest line is a canary bypass and a finding.
 #
 # The 24h horizon: the bench parser accepts up to `24h` exactly (the
 # DURATION_MAX_SECS ceiling, src/cli/cli_parse.rs), so a self-hosted
@@ -96,7 +105,13 @@ LOG_PATH="$SOAK_LOG_DIR/soak_${STAMP}.log"
 # The replay oracle renders its pinned sequence in a fresh process and
 # prints one folded digest line; anything that drifts the render output
 # (libm state, environment, time-dependent code) shows up here.
-DIGEST_T0="$("$SOAK_BIN" --bench-replay 2>/dev/null | grep -o 'replay-digest: b3:[0-9a-f]*' || true)"
+# --scene monolith is EXPLICIT because the premium bench the soak leg
+# runs defaults to the monolith benchmark scene while a bare
+# --bench-replay renders the global default scene (cinematic) - the
+# two dispatch surfaces must pin the same sequence for the four-way
+# anchor chain (leg 1b) to be exact. A future default change fails
+# leg 1b loudly and is re-derived on purpose.
+DIGEST_T0="$("$SOAK_BIN" --bench-replay --scene monolith 2>/dev/null | grep -o 'replay-digest: b3:[0-9a-f]*' || true)"
 if [[ -z "$DIGEST_T0" ]]; then
 	echo "soak-determinism: FAIL - the t=0 anchor produced no replay digest" >&2
 	exit 1
@@ -135,21 +150,48 @@ echo "soak-determinism: soak leg finished: exit=$SOAK_EXIT samples=$SAMPLES"
 echo "soak-determinism: census: $CSV_PATH"
 
 # ── The post-soak determinism anchor ─────────────────────────────────────
-DIGEST_TEND="$("$SOAK_BIN" --bench-replay 2>/dev/null | grep -o 'replay-digest: b3:[0-9a-f]*' || true)"
+DIGEST_TEND="$("$SOAK_BIN" --bench-replay --scene monolith 2>/dev/null | grep -o 'replay-digest: b3:[0-9a-f]*' || true)"
 if [[ -z "$DIGEST_TEND" ]]; then
 	echo "soak-determinism: FAIL - the post-soak anchor produced no replay digest" >&2
 	exit 1
 fi
 echo "soak-determinism: anchor end: $DIGEST_TEND"
 
+# ── The in-process state digest (night-frontier-Z9-D) ────────────────────
+# The premium bench inside the soaked process re-derived the replay
+# digest at t=0 and again after the measurement window and printed the
+# pair on one state-digest line (text report only). Leg 5 enforces the
+# in-process pair; leg 1 additionally chains the in-process t=0 digest
+# to this harness's fresh-process anchors (same machine, same binary,
+# same pinned sequence - all four anchors must agree).
+SD_LINE="$(grep -o 'state-digest: t0=b3:[0-9a-f]* end=b3:[0-9a-f]*' "$LOG_PATH" | tail -1 || true)"
+SD_T0="$(printf '%s' "$SD_LINE" | sed -n 's/.*t0=b3:\([0-9a-f]*\).*/\1/p')"
+SD_END="$(printf '%s' "$SD_LINE" | sed -n 's/.*end=b3:\([0-9a-f]*\).*/\1/p')"
+DIGEST_T0_HEX="${DIGEST_T0#replay-digest: b3:}"
+
 # ── The pass law ──────────────────────────────────────────────────────────
 VERDICT="PASS"
 
-# 1. Digest equality (the drift canary).
+# 1. Digest equality (the drift canary), cross-process.
 if [[ "$DIGEST_T0" == "$DIGEST_TEND" ]]; then
 	echo "soak-determinism: digest drift: NONE (anchors identical)"
 else
 	echo "soak-determinism: digest drift: PRESENT - determinism broke across the window"
+	VERDICT="FAIL"
+fi
+
+# 1b. The anchor chain (night-frontier-Z9-D): the soaked process's
+#     in-process t=0 digest must equal this harness's fresh-process
+#     anchor. A mismatch means the bench-loop process renders the
+#     pinned sequence differently from a fresh process - exactly the
+#     in-process residue entry 47 named.
+if [[ -z "$SD_T0" ]]; then
+	echo "soak-determinism: anchor chain: MISSING - no state-digest line in the soak log"
+	VERDICT="FAIL"
+elif [[ "$DIGEST_T0_HEX" == "$SD_T0" ]]; then
+	echo "soak-determinism: anchor chain: NONE (fresh-process t0 == in-process t0, b3:$SD_T0)"
+else
+	echo "soak-determinism: anchor chain: PRESENT - fresh-process and in-process t0 digests diverge"
 	VERDICT="FAIL"
 fi
 
@@ -230,6 +272,26 @@ else
 	echo "soak-determinism: panic scan: CLEAN"
 fi
 echo "soak-determinism: exit: $SOAK_EXIT - $EXIT_VERDICT"
+
+# 5. The in-process state-digest pair (night-frontier-Z9-D): the
+#    SOAKED process re-derived the replay digest inside itself at t=0
+#    and t=end. Byte-identical means the long-lived process's internal
+#    state machinery (statics, thread-locals, once-built caches, RNG
+#    bookkeeping) did not drift across the window - the half entry 47
+#    honestly scoped out is now enforced. A missing line is a canary
+#    bypass and a finding, never a silent pass.
+SD_VERDICT="FAIL"
+if [[ -z "$SD_LINE" ]]; then
+	echo "soak-determinism: in-process digest: MISSING - the soak log carries no state-digest line (canary bypass)"
+elif [[ "$SD_T0" == "$SD_END" ]]; then
+	SD_VERDICT="PASS"
+	echo "soak-determinism: in-process digest: NONE (t0 == end, b3:$SD_T0) - $SD_VERDICT"
+else
+	echo "soak-determinism: in-process digest: PRESENT - the soaked process's internal state drifted"
+fi
+if [[ "$SD_VERDICT" != "PASS" ]]; then
+	VERDICT="FAIL"
+fi
 
 echo "soak-determinism: verdict: $VERDICT"
 [[ "$VERDICT" == "PASS" ]]
