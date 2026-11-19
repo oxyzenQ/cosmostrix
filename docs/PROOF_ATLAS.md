@@ -26,7 +26,7 @@ inherits its number's truth from
   campaign applies, and it must never become the truth itself —
   `src/` is the truth; the atlas only routes to it.
 
-## The atlas (entries 1-47 and 49)
+## The atlas (entries 1-47 and 49-50)
 
 | # | The innovation | Proof artifact(s) | The verifier |
 |---|---|---|---|
@@ -78,6 +78,7 @@ inherits its number's truth from
 | 46 | The wave-field energy ledger (the named Lyapunov bound) | [wave_field.rs](../src/engine/cosmic_dragon_engine/cloud/wave_field.rs) (EnergyLedger + the quantum clock), the Z6 [AB_REPORT.md](../benchmark/bench-labs/night_frontier_z6/AB_REPORT.md) | `cargo test wave_field` (16 pins: 10 Z4b + 6 Z6) |
 | 47 | The determinism-anchored soak (the 24h canary lane) | [soak_determinism.sh](../scripts/depth/soak_determinism.sh), [soak.yml](../.github/workflows/soak.yml), [ENDURANCE.md](ENDURANCE.md) | the Sunday lane + the smoke run (`--minutes 2`) |
 | 49 | The never-be scope contract (the enforced non-goals) | [scope-census.py](../scripts/gates/scope-census.py), [README.md](../README.md) (the contract table) | the gate-keepers `scope-census: OK` verdict line |
+| 50 | The lock census (the pre-advisory graph tripwire) | [lock-census.py](../scripts/gates/lock-census.py), [deny.toml](../deny.toml) (yanked deny + the attack-family bans) | the gate-keepers `lock-census: OK` verdict line |
 
 ## The standing lanes (the always-on half of the chain)
 

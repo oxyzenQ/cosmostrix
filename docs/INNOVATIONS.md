@@ -38,7 +38,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty-nine, in dependency order
+## The fifty, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1472,6 +1472,46 @@ Verifier: the gate-keepers sweep on every push — the
 dependencies exactly, zero capability markers in src/, the two-site
 command census) — and the contract table in the README, which the
 docs-audit gate keeps linked.
+
+### 50. The lock census (the pre-advisory graph tripwire, night-frontier-Z6)
+
+Problem killed: cargo-audit and cargo-deny are reactive — they catch
+a crate once an advisory exists in RustSec or once a name lands a
+ban list. The 2026-08-20 arrayref attack proved the gap that leaves:
+a compromised maintainer republished arrayref 0.3.10 with a NEW
+dependency on a freshly-published payload crate (proc-macro1, whose
+build script downloaded a second stage), and the family lived on
+crates.io for 86–107 minutes — inside the window where no advisory
+exists to scan for. Any project running a routine `cargo update`
+inside that window swallowed the payload with every check green.
+
+Mechanism (night-frontier-Z6): the lock census —
+`scripts/gates/lock-census.py` (gate-keepers check 25) pins the
+STRUCTURE of Cargo.lock: the 121-name crate set and the 124-entry
+package count, generated at the pin SHA. A new name (the payload
+crate's entry move), a second version line of a known name (the
+duplicate-entry move), or any member of the named attack family (the
+belt for seats without cargo-deny) is a finding the moment it
+reaches the lock — advisory or no advisory. Version drift inside the
+pinned structure is deliberately not a finding: the lock pins exact
+versions with checksums, every CI build is --locked, and routine
+updates are how advisories get consumed. The census landed alongside
+the deny.toml tightening of the same commit: yanked = deny (the
+attack's republish shape), the nine-name attack family banned
+name-wide, wildcard requirements denied, unknown git and registry
+sources denied. The graph's structure can only change on purpose.
+
+Truth: `scripts/gates/lock-census.py` (the name census, the entry
+count, the kill list), `deny.toml` (yanked deny, the attack-family
+bans, wildcard and source deny), docs/SUPPLY_CHAIN.md (§1 rule 5,
+the census law).
+
+Verifier: the gate-keepers sweep on every push — the
+`lock-census: OK` verdict line (121 names across 124 entries,
+exactly the pinned graph, zero malicious-family crates) — plus the
+landing-time crates.io sweep (all 124 locked versions verified live
+and unyanked on 2026-11-19), and `cargo deny check all` in the
+`ci.yml` deny job enforcing the tightened policy upstream.
 
 ## Retired by verdict
 

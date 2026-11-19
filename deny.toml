@@ -16,6 +16,11 @@ feature-depth = 1
 # dependency graph, and the v50.0.0-beta.7-era ignore entry is retired.
 # `cargo deny check advisories` now runs clean with no ignores.
 ignore = []
+# The 2026-08-20 arrayref attack shipped as a malicious republish
+# (arrayref 0.3.10, live for 86 minutes, then yanked). A yanked
+# version must never enter a build here, advisory or no advisory:
+# yanked is deny, not warn.
+yanked = "deny"
 
 [licenses]
 allow = [
@@ -44,7 +49,12 @@ registries = []
 
 [bans]
 multiple-versions = "warn"
-wildcards = "allow"
+# No manifest requirement in this repo uses a wildcard (`*`), and none
+# ever should: a wildcard requirement delegates the version decision to
+# whoever publishes next, which is exactly the trust the 2026-08-20
+# arrayref attack weaponized. A wildcard entering the manifest is a
+# finding, not a style note.
+wildcards = "deny"
 highlight = "all"
 workspace-default-features = "allow"
 external-default-features = "allow"
@@ -54,9 +64,29 @@ allow = []
 # src/bench/bench_json.rs (manual serializer, zero dependencies) and
 # the derive stack is not in the graph - Cargo.lock carries zero
 # serde crates.
+#
+# 2026-11-19 (the lock census, night-frontier-Z6): the 2026-08-20
+# arrayref attack family is banned name-wide (Rust security response,
+# blog.rust-lang.org/2026/08/20): proc-macro1 was a fresh payload
+# crate with a build script that downloaded a second-stage payload;
+# the compromised author's republishes (arrayref 0.3.10, internment
+# 0.8.7, append-only-vec 0.1.9) smuggled it into trusted graphs; the
+# typosquat kin (proc-macro-en, aovine, arone, aronenao, tinymember)
+# harvested the rest. None of them has a legitimate route into this
+# graph - the ban turns any future resolution that pulls one into a
+# named, non-negotiable failure.
 deny = [
     { crate = "serde", reason = "hand-written JSON lane in src/bench/bench_json.rs; the derive stack is not in the graph" },
     { crate = "serde_json", reason = "hand-written JSON parser + writer replace it" },
+    { crate = "proc-macro1", reason = "2026-08-20 arrayref attack payload crate (build-script download); banned name-wide, any version" },
+    { crate = "proc-macro-en", reason = "2026-08-20 arrayref attack typosquat kin; banned name-wide, any version" },
+    { crate = "aovine", reason = "2026-08-20 arrayref attack typosquat kin; banned name-wide, any version" },
+    { crate = "arone", reason = "2026-08-20 arrayref attack typosquat kin; banned name-wide, any version" },
+    { crate = "aronenao", reason = "2026-08-20 arrayref attack typosquat kin; banned name-wide, any version" },
+    { crate = "tinymember", reason = "2026-08-20 arrayref attack typosquat kin; banned name-wide, any version" },
+    { crate = "arrayref", reason = "compromised-author republish 0.3.10 smuggled proc-macro1 into the graph; banned name-wide, any version" },
+    { crate = "internment", reason = "compromised-author republish 0.8.7 (same author as arrayref); banned name-wide, any version" },
+    { crate = "append-only-vec", reason = "compromised-author republish 0.1.9 (same author as arrayref); banned name-wide, any version" },
 ]
 # Transitive dependency duplicates that cannot be resolved without upstream
 # changes. These are caused by the dependency tree pulling in different
@@ -104,8 +134,13 @@ skip = [
 skip-tree = []
 
 [sources]
-unknown-registry = "warn"
-unknown-git = "warn"
+# The graph carries zero git dependencies and zero non-crates.io
+# registry sources (verified at the lock census landing, 2026-11-19).
+# Unknown sources are therefore deny, not warn: an attacker who
+# lands a git source or a custom registry into the resolution fails
+# the gate outright instead of trading a warning for a payload.
+unknown-registry = "deny"
+unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = []
 

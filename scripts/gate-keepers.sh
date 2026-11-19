@@ -145,6 +145,17 @@ export PYTHONDONTWRITEBYTECODE=1
 #       A dependency, capability marker or child-process site that
 #       crosses the README's never-be contract is a finding - the
 #       contract can only change on purpose.
+#  25.  Lock census pin (night-frontier-Z6 —
+#       scripts/gates/lock-census.py): the 2026-08-20 arrayref attack
+#       landed as a trusted crate growing a NEW dependency on a
+#       freshly-published payload crate, inside the window before any
+#       advisory existed. The census closes that gap structurally:
+#       Cargo.lock's crate-name surface (121 names across 124 package
+#       entries at the pin SHA) is a closed, audited list - a new
+#       crate name, a new version line of a known name, or any member
+#       of the named attack family is a finding the moment it reaches
+#       the lock, advisory or no advisory. The lock's structure can
+#       only change on purpose.
 # Exit codes:
 #   0 = all checks passed
 #   1 = one or more checks failed
@@ -841,6 +852,27 @@ if [ -f scripts/gates/scope-census.py ] && command -v python3 >/dev/null 2>&1; t
 	fi
 else
 	skip "scope-census.py or python3 not found — skipping (tree fault: the gate script itself is missing)"
+fi
+
+# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─# ── 25. Lock census pin (night-frontier-Z6) ─
+# The 2026-08-20 arrayref supply-chain attack landed as a trusted
+# crate growing a NEW dependency on a freshly-published payload
+# crate, inside the ~90-minute window before an advisory exists.
+# cargo-audit and cargo-deny catch a crate once the advisory is
+# written; this gate closes that gap structurally. The crate-name
+# surface of Cargo.lock is a closed, audited list: a new name, a
+# new version line of a known name, or any member of the named
+# attack family is a finding the moment it reaches the lock.
+# The lock's structure can only change on purpose.
+header "Lock Census Pin (lock-census.py)"
+if [ -f scripts/gates/lock-census.py ] && command -v python3 >/dev/null 2>&1; then
+	if python3 scripts/gates/lock-census.py 2>&1; then
+		PASS=$((PASS + 1))
+	else
+		fail "lock-census: the dependency graph drifted from the pinned census (see the census report above)"
+	fi
+else
+	skip "lock-census.py or python3 not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────
