@@ -83,9 +83,7 @@
 
 use std::time::{Duration, Instant};
 
-use super::alloc_ledger::{
-    build_ledger_rig_for_style, LEDGER_COLS, LEDGER_WARMUP_FRAMES,
-};
+use super::alloc_ledger::{LEDGER_COLS, LEDGER_WARMUP_FRAMES, build_ledger_rig_for_style};
 use crate::bench::bench_visual::VisualSampler;
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
@@ -112,6 +110,7 @@ const INFO_FRAMES: u64 = 300;
 ///   - average Gini: measured +/- 0.05, clamped to [0, 1];
 ///   - per-frame entropy floor: measured minimum minus 0.15 bit;
 ///   - sample floor: measured sample count minus 10 frames.
+///
 /// The bands are physics bounds (the replay makes the sequence
 /// exactly reproducible; the margins absorb f64 libm variance across
 /// arches, per the conservation family's precedent). A retune of any
@@ -154,20 +153,62 @@ impl InfoBands {
 /// without a row is unreachable code the reviewer sees, and the
 /// row count assert below enforces the pairing).
 const BANDS: &[(RainStyle, InfoBands)] = &[
-    (RainStyle::Glyph, InfoBands::new(4.408, 5.387, 0.753, 0.853, 4.293, 290)),
-    (RainStyle::Monolith, InfoBands::new(1.626, 2.126, 0.920, 1.000, 0.000, 288)),
-    (RainStyle::Vortex, InfoBands::new(4.991, 6.100, 0.623, 0.723, 4.741, 290)),
-    (RainStyle::Flux, InfoBands::new(2.997, 3.663, 0.869, 0.969, 1.692, 290)),
-    (RainStyle::Lorenz, InfoBands::new(4.193, 5.125, 0.750, 0.850, 3.671, 290)),
-    (RainStyle::Dragon, InfoBands::new(3.022, 3.694, 0.869, 0.969, 1.102, 290)),
-    (RainStyle::Physarum, InfoBands::new(4.362, 5.332, 0.739, 0.839, 3.989, 290)),
-    (RainStyle::BlackHole, InfoBands::new(5.142, 6.285, 0.569, 0.669, 3.534, 290)),
-    (RainStyle::Aeolian, InfoBands::new(1.831, 2.331, 0.895, 0.995, 0.000, 248)),
-    (RainStyle::SolarFlare, InfoBands::new(4.539, 5.548, 0.689, 0.789, 3.757, 290)),
-    (RainStyle::DnaHelix, InfoBands::new(2.999, 3.665, 0.867, 0.967, 1.435, 290)),
-    (RainStyle::Murmuration, InfoBands::new(4.193, 5.124, 0.777, 0.877, 4.096, 290)),
-    (RainStyle::Quasar, InfoBands::new(2.818, 3.445, 0.884, 0.984, 1.652, 290)),
-    (RainStyle::Neural, InfoBands::new(2.504, 3.061, 0.891, 0.991, 1.772, 290)),
+    (
+        RainStyle::Glyph,
+        InfoBands::new(4.408, 5.387, 0.753, 0.853, 4.293, 290),
+    ),
+    (
+        RainStyle::Monolith,
+        InfoBands::new(1.626, 2.126, 0.920, 1.000, 0.000, 288),
+    ),
+    (
+        RainStyle::Vortex,
+        InfoBands::new(4.991, 6.100, 0.623, 0.723, 4.741, 290),
+    ),
+    (
+        RainStyle::Flux,
+        InfoBands::new(2.997, 3.663, 0.869, 0.969, 1.692, 290),
+    ),
+    (
+        RainStyle::Lorenz,
+        InfoBands::new(4.193, 5.125, 0.750, 0.850, 3.671, 290),
+    ),
+    (
+        RainStyle::Dragon,
+        InfoBands::new(3.022, 3.694, 0.869, 0.969, 1.102, 290),
+    ),
+    (
+        RainStyle::Physarum,
+        InfoBands::new(4.362, 5.332, 0.739, 0.839, 3.989, 290),
+    ),
+    (
+        RainStyle::BlackHole,
+        InfoBands::new(5.142, 6.285, 0.569, 0.669, 3.534, 290),
+    ),
+    (
+        RainStyle::Aeolian,
+        InfoBands::new(1.831, 2.331, 0.895, 0.995, 0.000, 248),
+    ),
+    (
+        RainStyle::SolarFlare,
+        InfoBands::new(4.539, 5.548, 0.689, 0.789, 3.757, 290),
+    ),
+    (
+        RainStyle::DnaHelix,
+        InfoBands::new(2.999, 3.665, 0.867, 0.967, 1.435, 290),
+    ),
+    (
+        RainStyle::Murmuration,
+        InfoBands::new(4.193, 5.124, 0.777, 0.877, 4.096, 290),
+    ),
+    (
+        RainStyle::Quasar,
+        InfoBands::new(2.818, 3.445, 0.884, 0.984, 1.652, 290),
+    ),
+    (
+        RainStyle::Neural,
+        InfoBands::new(2.504, 3.061, 0.891, 0.991, 1.772, 290),
+    ),
 ];
 
 /// The one measured window: drives the style through the shared rig
@@ -180,9 +221,7 @@ const BANDS: &[(RainStyle, InfoBands)] = &[
 /// before `clear_dirty`, mirroring where the benchmark reads the
 /// frame. Idle frames (empty dirty list, no dirty_all) are skipped
 /// from the averages exactly like the production sampler skips them.
-fn measure_style_window(
-    style: RainStyle,
-) -> (f64, f64, f64, f64, u32) {
+fn measure_style_window(style: RainStyle) -> (f64, f64, f64, f64, u32) {
     let (mut cloud, mut frame, mut writer) = build_ledger_rig_for_style(style);
     let target_period = Duration::from_secs_f64(1.0 / 60.0);
 
@@ -333,7 +372,12 @@ fn lock_inv21_info_bands_hold_for_all_styles() {
              (a dropped noise octave, a reshaped decay, a density \
              drift) — or a deliberate retune, which must re-derive \
              this row in the same commit, visibly.",
-            style, bands.ent_lo, bands.ent_hi, bands.gini_lo, bands.gini_hi, bands.min_ent
+            style,
+            bands.ent_lo,
+            bands.ent_hi,
+            bands.gini_lo,
+            bands.gini_hi,
+            bands.min_ent
         );
     }
 }
@@ -345,8 +389,7 @@ fn lock_inv21_info_bands_hold_for_all_styles() {
 /// without this file following, this test names the divergence.
 #[test]
 fn lock_inv21_info_port_matches_production_sampler() {
-    let (mut cloud, mut frame, mut writer) =
-        build_ledger_rig_for_style(RainStyle::Monolith);
+    let (mut cloud, mut frame, mut writer) = build_ledger_rig_for_style(RainStyle::Monolith);
     let target_period = Duration::from_secs_f64(1.0 / 60.0);
     let mut sampler = VisualSampler::new(1);
     let mut entropy_sum = 0.0_f64;
@@ -493,4 +536,3 @@ fn lock_inv21_prng_cycle_horizon_exceeds_lts_budget() {
          margin under the 2^128 period"
     );
 }
-

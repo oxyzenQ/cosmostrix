@@ -162,16 +162,21 @@ def run_child(args: argparse.Namespace) -> int:
     strace_argv = [
         "strace",
         "-f",  # follow the auxiliary threads (the watchdog is by-design)
-        "-e", f"trace={TRACE_SET}",
+        "-e",
+        f"trace={TRACE_SET}",
         "-xx",  # every payload byte as \xNN - uniform parsing
-        "-s", "64",  # payload prefix for classification; the length arg is authoritative
+        "-s",
+        "64",  # payload prefix for classification; the length arg is authoritative
         "-ttt",  # absolute timestamps: the wake-precision dataset
-        "-o", args.trace,
+        "-o",
+        args.trace,
         "--",
         args.binary,
-        "--duration", str(int(args.duration)),
+        "--duration",
+        str(int(args.duration)),
         "--perf-stats",
-        "--intro", "none",  # the window is pure rain steady state (an existing flag)
+        "--intro",
+        "none",  # the window is pure rain steady state (an existing flag)
     ]
 
     pid, master = pty.fork()
@@ -239,7 +244,9 @@ def run_child(args: argparse.Namespace) -> int:
 
     exit_code = os.waitstatus_to_exitcode(status) if status not in (None, -1) else -1
     elapsed = time.monotonic() - started
-    append_row(args.mass, args.label, f"captured={len(captured)} bytes in {elapsed:.1f}s")
+    append_row(
+        args.mass, args.label, f"captured={len(captured)} bytes in {elapsed:.1f}s"
+    )
     append_row(args.mass, args.label, f"exit={exit_code} expected=0")
 
     if fail_reason is not None:
@@ -408,12 +415,16 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
 
     if problems:
         ok = False
-        append_row(args.mass, args.label, f"FAIL reason={len(problems)} unparsable lines")
+        append_row(
+            args.mass, args.label, f"FAIL reason={len(problems)} unparsable lines"
+        )
         for p in problems[:5]:
             append_row(args.mass, args.label, f"problem {p}")
 
     frame_idx = [
-        i for i, e in enumerate(events) if e["name"] == "write" and extract_frame_marker(e["args"])
+        i
+        for i, e in enumerate(events)
+        if e["name"] == "write" and extract_frame_marker(e["args"])
     ]
     if not frame_idx:
         append_row(args.mass, args.label, "FAIL reason=no sync-markered frame writes")
@@ -424,9 +435,7 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
     window_start = float(events[first]["tstamp"])
     window_end = float(events[last]["tstamp"])
     elapsed = max(window_end - window_start, 1e-9)
-    append_row(
-        args.mass, args.label, f"window frames={frames} span={elapsed:.2f}s"
-    )
+    append_row(args.mass, args.label, f"window frames={frames} span={elapsed:.2f}s")
 
     # Per-TID attribution: the render thread performed the frame writes.
     write_tids = Counter(e["tid"] for e in window if e["name"] in OUTPUT_FAMILY)
@@ -439,8 +448,9 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
     ratio = writes / frames
     ok_w = abs(ratio - 1.0) <= WRITE_RATIO_TOL and write_tids[render_tid] == frames
     append_row(
-        args.mass, args.label,
-        f"{'PASS' if ok_w else 'FAIL'} writes/frame={ratio:.3f} (writes={writes} frames={frames})"
+        args.mass,
+        args.label,
+        f"{'PASS' if ok_w else 'FAIL'} writes/frame={ratio:.3f} (writes={writes} frames={frames})",
     )
     ok = ok and ok_w
 
@@ -464,9 +474,10 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
     b_ratio = blocking / frames
     ok_b = BLOCKING_WAITS_PER_FRAME_LO <= b_ratio <= BLOCKING_WAITS_PER_FRAME_HI
     append_row(
-        args.mass, args.label,
+        args.mass,
+        args.label,
         f"{'PASS' if ok_b else 'FAIL'} blocking-waits/frame={b_ratio:.3f} "
-        f"(blocking={blocking} bound=[{BLOCKING_WAITS_PER_FRAME_LO}, {BLOCKING_WAITS_PER_FRAME_HI}])"
+        f"(blocking={blocking} bound=[{BLOCKING_WAITS_PER_FRAME_LO}, {BLOCKING_WAITS_PER_FRAME_HI}])",
     )
     ok = ok and ok_b
 
@@ -474,9 +485,10 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
     p_ratio = probe / frames
     ok_p = p_ratio <= PROBE_WAITS_PER_FRAME_HI
     append_row(
-        args.mass, args.label,
+        args.mass,
+        args.label,
         f"{'PASS' if ok_p else 'FAIL'} probe-waits/frame={p_ratio:.3f} "
-        f"(probes={probe} ceiling={PROBE_WAITS_PER_FRAME_HI})"
+        f"(probes={probe} ceiling={PROBE_WAITS_PER_FRAME_HI})",
     )
     ok = ok and ok_p
 
@@ -485,9 +497,10 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
     foreign = {k: v for k, v in wait_families.items() if k not in ("epoll_wait",)}
     ok_f = not foreign
     append_row(
-        args.mass, args.label,
+        args.mass,
+        args.label,
         f"{'PASS' if ok_f else 'FAIL'} wait-census={dict(wait_families)} "
-        f"foreign={dict(foreign)}"
+        f"foreign={dict(foreign)}",
     )
     ok = ok and ok_f
 
@@ -496,8 +509,9 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
     yields = sum(1 for e in render if e["name"] == "sched_yield")
     ok_s = sleeps == 0 and yields == 0
     append_row(
-        args.mass, args.label,
-        f"{'PASS' if ok_s else 'FAIL'} render-sleeps={sleeps} render-yields={yields} (must be 0/0)"
+        args.mass,
+        args.label,
+        f"{'PASS' if ok_s else 'FAIL'} render-sleeps={sleeps} render-yields={yields} (must be 0/0)",
     )
     ok = ok and ok_s
 
@@ -522,10 +536,11 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
     tel_rate = telemetry / elapsed
     ok_r = input_reads == 0 and tel_rate <= TELEMETRY_READS_PER_SEC_HI
     append_row(
-        args.mass, args.label,
+        args.mass,
+        args.label,
         f"{'PASS' if ok_r else 'FAIL'} input-reads={input_reads} "
         f"telemetry={telemetry} ({tel_rate:.2f}/s, ceiling={TELEMETRY_READS_PER_SEC_HI}) "
-        f"fds={dict(read_fds)}"
+        f"fds={dict(read_fds)}",
     )
     ok = ok and ok_r
 
@@ -551,13 +566,18 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
         p95 = wake_errors[int(len(wake_errors) * 0.95) - 1]
         ok_wake = p95 <= WAKE_PRECISION_MS_HI
         append_row(
-            args.mass, args.label,
+            args.mass,
+            args.label,
             f"{'PASS' if ok_wake else 'FAIL'} wake-precision-p95={p95:.2f}ms "
-            f"(n={len(wake_errors)}, ceiling={WAKE_PRECISION_MS_HI})"
+            f"(n={len(wake_errors)}, ceiling={WAKE_PRECISION_MS_HI})",
         )
         ok = ok and ok_wake
     else:
-        append_row(args.mass, args.label, "INFO wake-precision n=0 (no blocking waits measured)")
+        append_row(
+            args.mass,
+            args.label,
+            "INFO wake-precision n=0 (no blocking waits measured)",
+        )
 
     # 8. The auxiliary-thread ledger: named, not criminalized. The
     # watchdog sleeps one second per interval by design; the row pins
@@ -574,9 +594,10 @@ def ledger(events: list[dict], problems: list[str], args: argparse.Namespace) ->
                     sleep_secs += float(sm.group(1))
         rate = sleep_secs / elapsed
         append_row(
-            args.mass, args.label,
+            args.mass,
+            args.label,
             f"INFO aux-tid={tid} events={len(aux)} vocabulary={dict(c)} "
-            f"sleep-sec/sec={rate:.2f} (watchdog design: ~1.0)"
+            f"sleep-sec/sec={rate:.2f} (watchdog design: ~1.0)",
         )
 
     return ok

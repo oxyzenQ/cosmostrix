@@ -77,7 +77,7 @@ pub(crate) const LEDGER_FRAMES: u64 = 180;
 pub(crate) fn make_ledger_config_for_style(
     style: crate::rain_style::RainStyle,
 ) -> crate::app::CloudConfig {
-    let cfg = crate::app::CloudConfig {
+    crate::app::CloudConfig {
         rain_style: style,
         color_mode: crate::runtime::ColorMode::Mono,
         shading_mode: crate::runtime::ShadingMode::Random,
@@ -143,8 +143,7 @@ pub(crate) fn make_ledger_config_for_style(
         ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
         ambient_snapback_secs: None,
         crystal_dragon_secs: None,
-    };
-    cfg
+    }
 }
 
 /// Build the pinned ledger rig: the cloud (bench-parity arms, Z1 clock
