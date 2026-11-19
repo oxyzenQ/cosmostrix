@@ -23,6 +23,16 @@
 # even with warning. High quality and clean build because warning
 # is not ignored.
 #
+# The post-hoc diagnostic scan is a BUILD-lane check. A TEST lane
+# (the test / nextest subcommands) is verdict-by-exit-code: the test
+# harness echoes captured test output verbatim, and a hostile-input
+# battery legitimately prints diagnostic-looking lines (the binary's
+# own "error: ..." rejections), so a line-scan would fail a fully
+# green suite (observed: the maintenance lane killed "3111 passed;
+# 0 failed" on the snapback battery's own rejection lines). Compile
+# warnings on a test lane stay hard-denied by the RUSTFLAGS env;
+# cargo's exit code is the verdict.
+#
 # Usage:
 #   bash scripts/ci/ci-strict-build.sh -- build --profile dev --locked
 #   bash scripts/ci/ci-strict-build.sh -- test --all --locked
@@ -30,7 +40,8 @@
 #
 # The "--" separator is required: everything after it is the cargo
 # subcommand and its arguments. The wrapper itself adds NO flags to
-# cargo — strictness comes from RUSTFLAGS + post-hoc warning scan.
+# cargo — strictness comes from RUSTFLAGS + the post-hoc scan on
+# build lanes / the exit code on test lanes.
 #
 # Exit codes:
 #   0  Clean build: zero warnings, zero errors, cargo exited 0.
@@ -51,6 +62,19 @@ if [[ $# -lt 1 ]]; then
 	echo "Error: no cargo subcommand provided after --" >&2
 	exit 2
 fi
+
+# The lane switch (night-dragon-maintenance-12): test lanes are
+# verdict-by-exit-code, build lanes carry the post-hoc diagnostic
+# scan. See the header for the why. An alias invocation (the first
+# argument is an alias name, e.g. pro-linux-amd64-v3-musl) defaults
+# to the build lane - an alias expands to a build, and build
+# diagnostics remain decisive.
+SCAN_DIAGNOSTICS=1
+case "$1" in
+test | nextest)
+	SCAN_DIAGNOSTICS=0
+	;;
+esac
 
 # Temp log file for post-mortem analysis. mktemp with no args uses
 # $TMPDIR (or /tmp) — works identically on Linux, macOS, and FreeBSD
@@ -88,7 +112,12 @@ ERR_COUNT="${ERR_COUNT// /}"
 [[ -z "${ERR_COUNT}" ]] && ERR_COUNT=0
 
 # Strict policy: any warning OR any error OR non-zero cargo exit = failure.
-if [[ -n "${WARN_LINES}" || ${CARGO_EXIT} -ne 0 ]]; then
+# Build lanes: the diagnostic lines are decisive even at exit 0 - a
+# warning is a failed build. Test lanes: only the exit code is
+# decisive, because captured test output legitimately contains
+# diagnostic-looking lines (see the header); when a test lane does
+# fail, the banner below still prints those lines as the context.
+if [[ ${CARGO_EXIT} -ne 0 ]] || { [[ "${SCAN_DIAGNOSTICS}" = 1 ]] && [[ -n "${WARN_LINES}" ]]; }; then
 	echo ""
 	echo "================================================"
 	echo "FAILED CI BUILD - strict policy triggered"
@@ -106,5 +135,9 @@ if [[ -n "${WARN_LINES}" || ${CARGO_EXIT} -ne 0 ]]; then
 	exit 1
 fi
 
-echo "Clean build: 0 warnings, 0 errors."
+if [[ "${SCAN_DIAGNOSTICS}" = 1 ]]; then
+	echo "Clean build: 0 warnings, 0 errors."
+else
+	echo "Clean test run: cargo exited 0; captured test output is not scanned (compile warnings stay denied by RUSTFLAGS)."
+fi
 exit 0

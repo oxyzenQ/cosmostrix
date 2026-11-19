@@ -251,6 +251,12 @@ not "later" (later never comes).
    - pwsh-shell build steps (windows) cannot use the bash wrapper, so
      they rely on `RUSTFLAGS` alone — strictness is still enforced,
      just without the pretty summary block.
+   - The scan is a build-lane check only: a `test`/`nextest` lane is
+     verdict-by-exit-code (night-dragon-maintenance-12) — the harness
+     echoes captured test output verbatim and a hostile-input battery
+     legitimately prints diagnostic-looking `error: ...` lines, so a
+     line-scan would fail a fully green suite. Compile warnings on a
+     test lane stay hard-denied by the `RUSTFLAGS` env.
 
 ### What this means for contributors
 
