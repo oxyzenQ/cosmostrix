@@ -9,6 +9,12 @@
 
 #[cfg(test)]
 mod alloc_ledger;
+// The emission-minimality certificate (INV-22, night-frontier-Z9-C):
+// the shipped diff solver and the lean writer bound against an
+// independent law reference — pure frame math, cross-architecture-safe
+// by construction (no OS surface) — compiled on every host.
+#[cfg(test)]
+mod emission_ledger;
 // The fault-floor ledger reads /proc/thread-self/stat - a Linux 4.1+
 // contract surface (the kernel-floor family is Linux-anchored; see
 // the module docs). The gate IS the honest scope: other hosts keep

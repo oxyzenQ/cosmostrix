@@ -83,7 +83,7 @@ mod draw;
 // shipped steady-state solver, extracted verbatim from draw.rs so the
 // emission-minimality certificate (INNOVATIONS entry 57) can execute
 // the exact shipped algorithm in tests. See the module docs.
-mod emit_diff;
+pub(crate) mod emit_diff;
 mod io_recovery;
 mod last_frame;
 #[cfg(test)]
