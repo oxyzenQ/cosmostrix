@@ -473,7 +473,7 @@ creates a feedback delay that prevents perfect stabilization under
 sustained fullscreen load") is killed proactively instead of chased
 reactively. What remains is a TERMINAL property, not a cosmostrix
 defect: a CPU-rendered terminal still renders at its own speed, and the
-documented place for that is [TERMINAL_COMPATIBILITY.md](TERMINAL_COMPATIBILITY.md),
+documented place for that is [docs/TERMINAL_COMPATIBILITY.md](docs/TERMINAL_COMPATIBILITY.md),
 not this file.
 
 ---
