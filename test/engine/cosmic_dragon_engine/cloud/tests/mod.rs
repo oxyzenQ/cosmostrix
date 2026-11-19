@@ -10,6 +10,7 @@ mod tests_border_gradient;
 mod tests_charset_transition;
 mod tests_color_stability;
 mod tests_compounded_brightness;
+mod tests_conservation_z8;
 mod tests_crystal_cadence;
 mod tests_dim_bench;
 mod tests_dna_helix;

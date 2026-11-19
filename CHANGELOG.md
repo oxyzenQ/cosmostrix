@@ -47,6 +47,44 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### test: night-frontier-Z8 - the conservation-ledger family: six solvers, six named discrete contracts (INV-20)
+
+- `test/engine/cosmic_dragon_engine/cloud/tests/tests_conservation_z8.rs`
+  gives every original motion-math system its honest contract, named
+  and closed-form: Keplerian orbits get the angular-momentum ledger
+  (the infall velocity update is central, so the semi-implicit Euler
+  ordering conserves L = x*vy - y*vx EXACTLY per substep outside the
+  accretion brake - asserted to f32 rounding on a near-circular orbit
+  plus a cloud-level bounded-drift pass; the brake stays disclosed as
+  the designed L sink); PIC/FLIP gets the pool ledger (the active
+  count is the bookkeeping truth and the speed clamp a hard ceiling,
+  every frame); Physarum gets the mass-balance budget (the trail
+  total sits inside the closed-form deposit/decay window every
+  frame); boids get the flight-band ledger (every active bird inside
+  the documented band, no teleport beyond the band's step allowance);
+  Lorenz RK4 gets the absorbing-set contract (the honest scope - a
+  chaotic system has no monotone energy ledger, so the measured
+  envelope plus absorption promptness IS the contract); FABRIK chains
+  get the spacing ledger (every segment lands EXACTLY at
+  DRAGON_SEGMENT_SPACING from its predecessor, every frame).
+- Teeth, proven: the kepler drift helper detects a deliberately
+  injected non-central kick - a ledger that cannot see a violation
+  cannot enforce one.
+- Honest scope: the ledgers read state through the existing test
+  accessors plus one new cfg(test) read-only accessor
+  (physarum's trail_field_for_test, the house *_for_test pattern);
+  the runtime render path is untouched (entries 32 and 36 see no new
+  surface); the bounds are physics bounds, not bit-exact pins.
+- Doc truth sync: entry 24's FABRIK mapping read `dna_helix` while
+  the solver lives in the dragon style's body chain - the code is
+  the truth, corrected in the same landing (INNOVATIONS entry 53
+  records the fix).
+- Local verification: the lock_ filter passes 149/0 (eight new family
+  pins plus the standing locks), fmt-clean, clippy-clean across all
+  targets. The MSRV lane, the musl shards, and the arm64 parity lane
+  run the filter on every push. No version bump, no dependency
+  change; the cfg(test) accessor is the only src touch.
+
 ### ci: night-frontier-Z7 - the cross-architecture oracle parity: the pinned engine vector is recomputed on real ARM silicon, and a musl needs bug is fixed
 
 - supermassive.yml grows two legs that close the architecture axis

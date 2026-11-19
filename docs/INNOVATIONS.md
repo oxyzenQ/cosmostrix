@@ -38,7 +38,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The fifty-two, in dependency order
+## The fifty-three, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -370,8 +370,11 @@ Problem killed: cinematic variety needs real motion models, not speed
 hacks over one cascade math. Mechanism: fourteen rain styles, six of
 them original motion-math systems — Navier-Stokes PIC/FLIP (`flux`),
 Lorenz RK4 (`lorenz`), Physarum stigmergy (`physarum`), boids spatial
-hash (`murmuration`), FABRIK chain dynamics (`dna_helix`), Keplerian
+hash (`murmuration`), FABRIK chain dynamics (`dragon`), Keplerian
 orbits (`black_hole`) — each in its own module under the cloud.
+(The FABRIK mapping originally read `dna_helix`; the solver lives in
+the dragon style's body chain — the code is the truth, corrected by
+the conservation-ledger family landing, entry 53.)
 Truth: `src/engine/cosmic_dragon_engine/cloud/type_rain/` (one
 directory per style).
 Verifier: the style research records in
@@ -1600,6 +1603,69 @@ vector), `src/diagnostics/sig_report.rs` (the depth rows). Verifier:
 the supermassive legs on every push (the `sig-parity-aarch64
 exit=0 D4=pass` and `arm-lock-suite exit=0` MASS-RESULT rows), plus
 `cosmostrix sig` locally on any host.
+
+### 53. The conservation-ledger family (six solvers, six named contracts, night-frontier-Z8)
+
+Problem killed: the wave field carried the only named discrete
+quantity (entry 46) — the other five original motion-math systems
+(plus the FABRIK chains, which entry 24's mapping mislabeled as
+dna_helix when the solver lives in the dragon style; the code is the
+truth and this landing corrects the mapping) were "original motion
+math" by authorship alone: no named quantity, no measured bound,
+nothing to catch a solver regression that stays inside the visual
+noise. Mechanism (night-frontier-Z8, INV-20, one suite-sized fixture
+beside the per-style rigs): each solver gets its honest contract —
+the form the math actually supports, not the form a headline would
+want:
+
+- Keplerian orbits (black_hole): the angular-momentum ledger. The
+  infall velocity update is CENTRAL (the gravity blend and the
+  influence falloff scale only the magnitude; the direction stays
+  radial), so under the semi-implicit Euler ordering the specific
+  angular momentum L = x*vy - y*vx is conserved EXACTLY per substep
+  wherever the accretion brake is absent — the closed form:
+  L' = (x + v'*dt) x v' = x x v', so L' - L = x x (v' - v) =
+  dt (x x a) = 0. Asserted to f32 rounding on a near-circular orbit
+  seeded above the capture radius (the window guard keeps the scope
+  honest), plus a cloud-level bounded-drift pass over the real pool.
+  The accretion brake is the designed L sink and stays disclosed.
+- PIC/FLIP (flux): the pool ledger — the active count IS the
+  bookkeeping truth (spawn +1, retire -1, nothing else) and the
+  velocity clamp is a hard ceiling; both asserted every frame.
+- Physarum stigmergy (physarum): the mass-balance budget — the trail
+  total must sit inside the closed-form window every frame (growth
+  bounded by the per-agent deposit budget at pace_max, shrink
+  bounded by the documented decay floor); a breach names unaccounted
+  mass creation or a decay that broke the frame-rate-independence
+  law (NIGHT-hunter-10).
+- Boids (murmuration): the flight-band ledger — every ACTIVE bird
+  sits inside the documented speed band after every frame, and no
+  bird moves farther in one step than the band allows (active
+  frames paired only; dormant slots carry no flight contract).
+- Lorenz RK4 (lorenz): the absorbing-set contract — the honest
+  scope: a chaotic system has NO monotone energy ledger; the
+  contract is the measured state envelope (with margin) plus
+  absorption promptness (no mote outlives its lifetime).
+- FABRIK chains (dragon): the spacing ledger — the constraint pass
+  lands every segment at EXACTLY DRAGON_SEGMENT_SPACING from its
+  predecessor (closed-form projection), so chain integrity is an
+  exact per-frame invariant, not an aesthetic.
+
+Teeth, the house pattern: the kepler drift helper must DETECT a
+deliberately injected non-central kick — a ledger that cannot see a
+violation cannot enforce one. Honest scope: the ledgers read state
+through the existing test accessors plus one new cfg(test) read-only
+accessor (physarum's trail_field_for_test, the house *_for_test
+pattern); the runtime render path is untouched, so entries 32 and 36
+see no new surface; the bounds are physics bounds (f32, libm, and
+codegen tolerant — they hold on the musl shards and the arm64 parity
+lane by form), not bit-exact pins. Truth:
+`test/engine/cosmic_dragon_engine/cloud/tests/tests_conservation_z8.rs`
+(the family), `src/engine/cosmic_dragon_engine/cloud/type_rain/physarum/physarum.rs`
+(the cfg(test) accessor). Verifier: `cargo test --locked lock_inv20`
+— the eight family pins plus the chroma suite's own INV-20 riding
+the same filter; the MSRV lane, the musl shards, and the arm64
+parity lane run the filter on every push.
 
 ## Retired by verdict
 

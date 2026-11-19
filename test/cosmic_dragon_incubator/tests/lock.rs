@@ -47,6 +47,7 @@
 //! | INV-17| Idle-frame fast path | `clear_dirty` on empty frame advances `dirty_gen`      |
 //! | INV-18| Zero-alloc ledger    | lean frame path performs exactly 0 allocations        |
 //! | INV-19| Fault-floor ledger   | lean frame window takes exactly 0 kernel page faults  |
+//! | INV-20| Conservation family  | six solvers carry their named discrete contract        |
 //!
 //! INV-18 lives in `tests/alloc_ledger.rs` (the counting-global-allocator
 //! window is a suite-sized fixture, not a Frame/ColorCache one) — same
@@ -56,6 +57,15 @@
 //! mirror, night-frontier-Z7: the same pinned window read from
 //! `/proc/thread-self/stat` — what the KERNEL grants, not what Rust
 //! requests) — same suite, same CI gate.
+//!
+//! INV-20 lives in `cloud/tests/tests_conservation_z8.rs` (the
+//! conservation-ledger family, night-frontier-Z8: six solvers, six
+//! named discrete contracts — kepler angular momentum, the flux pool
+//! ledger, the physarum mass budget, the boids flight band, the
+//! lorenz absorbing set, the FABRIK spacing ledger — plus the family
+//! teeth; a suite-sized fixture like INV-18/19, riding the `lock_`
+//! filter from its home beside the per-style rigs) — same suite, same
+//! CI gate.
 //!
 //! ## Adding a new invariant
 //!

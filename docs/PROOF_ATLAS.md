@@ -26,7 +26,7 @@ inherits its number's truth from
   campaign applies, and it must never become the truth itself —
   `src/` is the truth; the atlas only routes to it.
 
-## The atlas (entries 1-47 and 49-52)
+## The atlas (entries 1-47 and 49-53)
 
 | # | The innovation | Proof artifact(s) | The verifier |
 |---|---|---|---|
@@ -81,6 +81,7 @@ inherits its number's truth from
 | 50 | The lock census (the pre-advisory graph tripwire) | [lock-census.py](../scripts/gates/lock-census.py), [deny.toml](../deny.toml) (yanked deny + the attack-family bans) | the gate-keepers `lock-census: OK` verdict line |
 | 51 | The fault-floor ledger (the kernel-side memory mirror, INV-19) | [fault_ledger.rs](../test/cosmic_dragon_incubator/tests/fault_ledger.rs), [alloc_ledger.rs](../test/cosmic_dragon_incubator/tests/alloc_ledger.rs) (the shared pinned rig) | `cargo test --locked lock_inv19` — the zero window and the fresh-page control |
 | 52 | The cross-architecture oracle parity (one rain, two silicons) | [supermassive.yml](../.github/workflows/supermassive.yml) (the `sig_parity` + `arm_lock_suite` legs), [engine_oracle.rs](../src/bench/engine_oracle.rs) (the pinned vector) | the supermassive `sig-parity-aarch64 exit=0 D4=pass` relay row + the arm64 musl lock suite `exit=0` |
+| 53 | The conservation-ledger family (six named contracts) | [tests_conservation_z8.rs](../test/engine/cosmic_dragon_engine/cloud/tests/tests_conservation_z8.rs), [wave_field.rs](../src/engine/cosmic_dragon_engine/cloud/wave_field.rs) (entry 46, the family's seventh member) | `cargo test --locked lock_inv20` — the six contracts and the family teeth |
 
 ## The standing lanes (the always-on half of the chain)
 

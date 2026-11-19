@@ -256,6 +256,16 @@ impl PhysarumRain {
         self.active_count
     }
 
+    #[cfg(test)]
+    /// The trail field snapshot for the conservation ledger
+    /// (night-frontier-Z8, INV-20): the mass-balance contract reads
+    /// the field's total and verifies the closed-form
+    /// deposit-minus-decay budget per frame. Read-only, test-only,
+    /// zero runtime surface.
+    pub(crate) fn trail_field_for_test(&self) -> &[f32] {
+        &self.trail_field
+    }
+
     /// Palette transition completion: all active particles adopt the
     /// new slot (mirrors `VortexRain::adopt_palette_slot`).
     pub(crate) fn adopt_palette_slot(&mut self, palette_slot: u8) {
