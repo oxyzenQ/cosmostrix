@@ -34,6 +34,20 @@ refuse. The name, logo, and branding are additionally governed by
 [TRADEMARK.md](TRADEMARK.md) and are reserved by the owner even
 where the AGPL applies to the source.
 
+## The scope law (what cosmostrix will never be)
+
+If you are generating, reviewing, or proposing code for this
+repository: cosmostrix will NEVER become a daemon or background
+service, a sound engine, a game, a network service, a GUI
+application, a machine-learning runtime, a plugin host, or a
+cloud/distributed system. The complete contract and the reason each
+identity is impossible live in the README's never-be contract
+section, and [scripts/gates/scope-census.py](scripts/gates/scope-census.py)
+enforces it on every push. Do not propose, scaffold, or "temporarily"
+implement any feature that crosses the contract — the gate will fail
+the build, and the owner decides when (and whether) the contract
+itself changes.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -38,7 +38,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The forty-eight, in dependency order
+## The forty-nine, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1402,7 +1402,7 @@ wanted to verify any claim had to know the tree well enough to find
 the artifact without a map, and nothing structural stopped a doc
 claim from drifting away from its evidence. Mechanism
 (night-frontier-Z6, S6): [PROOF_ATLAS.md](PROOF_ATLAS.md) — one
-master page routing every innovation entry (1 through 47) to its
+master page routing every innovation entry to its
 proof artifact(s) — the test file, the CI lane, the bench-labs A/B
 record, the research/audit doc — with the verifier command or the
 verdict line to look for, plus the standing-lanes table (what every
@@ -1412,7 +1412,7 @@ spot-check any row). The atlas is DOCS-ONLY by construction: no
 version bump rides it, no A/B campaign applies, it changes no code
 and no lane. The honesty law it carries: every row names at least
 one artifact that exists in the tree today (the docs-audit gate
-sweeps all 113 relative refs on every push, so a rotting link fails
+sweeps every relative ref on every push, so a rotting link fails
 the build); where the strongest evidence is historical (a dated
 research doc, an A/B snapshot) the row labels it as the past; and a
 doc claim that cannot trace to an atlas row is a FINDING, not a
@@ -1427,6 +1427,51 @@ below the docs-audit run is empty), the docs-audit gate on every
 push, and the one-sitting recipe itself: `cargo test` green,
 `./scripts/gate-keepers.sh` green, the replay digest re-verified
 offline.
+
+### 49. The never-be scope contract (the enforced non-goals, night-frontier-Z6)
+
+Problem killed: nothing structural stopped the slow identity drift
+every long-lived renderer eventually faces — a daemon mode here, an
+audio visualizer there, a plugin loader after that — each a polite
+feature request that imports hard-latency threads, network surface,
+or third-party code into a process whose whole value is determinism,
+a measured syscall floor, and a closed unsafe surface. A contract
+that lives only in prose is a press release: nothing told a
+contributor, an AI agent, or the owner's own future PR where the
+product's edge is, and nothing failed when the edge was crossed.
+
+Mechanism (night-frontier-Z6): the never-be contract — a closed list
+of what cosmostrix will NEVER be (a daemon or background service, a
+sound engine, a game, a network service, a GUI application, an ML
+runtime, a plugin host, a cloud or distributed system) — written into
+the README's what-this-is-not section with the reason each identity
+is impossible, and enforced by `scripts/gates/scope-census.py`
+(gate-keepers check 24): the direct dependency manifest is pinned
+exactly (twelve runtime crates — crossterm, clap, rand, bitvec,
+smallvec, unicode-width, notify, sha2, blake3, plus the per-target
+signal-hook, libc, ctrlc — and two test-only dev crates, every one
+local-capability), src/ is swept zero-tolerance for the capability
+markers those identities need (socket APIs, embedded network stacks,
+audio backends, windowing toolkits, dynamic-library loaders, ML
+runtimes), and the process::Command census is pinned to its two
+sanctioned sites (terminal restore; the user-invoked update check
+that delegates to curl/wget — no embedded HTTP stack). Transitive
+dependencies are out of the gate's contract by design: the pin is
+what cosmostrix declares and calls, and the transitive graph stays
+cargo-deny and cargo-audit territory. The registry's entertainment
+category is discoverability routing, not a capability claim. The
+contract can only change on purpose: a crossing PR fails the gate
+until the owner consciously re-lands the pin.
+
+Truth: README.md (the never-be contract table),
+`scripts/gates/scope-census.py` (the manifest pin, the capability
+sweep, the command census).
+
+Verifier: the gate-keepers sweep on every push — the
+`scope-census: OK` verdict line (twelve runtime plus two dev direct
+dependencies exactly, zero capability markers in src/, the two-site
+command census) — and the contract table in the README, which the
+docs-audit gate keeps linked.
 
 ## Retired by verdict
 

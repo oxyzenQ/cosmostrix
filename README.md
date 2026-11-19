@@ -178,6 +178,34 @@ aesthetic. If you want a screensaver, any Matrix-rain tool will do.
 If you want a diff-based renderer with locked engines and original
 motion math, that is what you are reading.
 
+### The never-be contract
+
+Scope is a design decision, and it is written down so it cannot be
+eroded one polite feature request at a time. cosmostrix will never
+become any of these — not in a minor release, not behind a flag, not
+"just as an option":
+
+| Never be | Why it can never be that |
+|---|---|
+| A daemon or background service | A daemon keeps running when nobody is watching; the rain exists to be watched. cosmostrix renders to the foreground terminal it was launched from and dies with it (the terminal-gone quarantine, the kill-cleanup contract). No service mode, no tray, no boot hook. |
+| A sound engine or audio system | The rain is silent by design — it speaks in glyphs. No audio backend, no waveform synthesis, no visualizer-sync API; an audio identity would import a hard-latency real-time thread into a process whose innovation is the measured syscall floor. |
+| A game | No gameplay loop, no scoring, no win or lose — the rain is watched, not played. (The registry's entertainment category is where people browse, not what the binary does.) |
+| A network service | No listening socket, no embedded HTTP stack, no remote control, no telemetry. The dependency manifest carries zero network crates; the single outbound touch is the user-invoked update check, which delegates to curl/wget and reads one URL. Everything else is the tty and local config files. |
+| A GUI application | The terminal is the medium. No windowing toolkit, no GPU framebuffer — GPU image-mode was evaluated and retired because it breaks the character-grid aesthetic (see [docs/INNOVATIONS.md](docs/INNOVATIONS.md), Retired by verdict). |
+| A machine-learning runtime | The ambient intelligence is deterministic heuristics locked by invariant suites. No model inference, no bundled weights, no nondeterministic drift — determinism is a shipped contract (the replay oracle, the 24-hour soak), and a model inside the rain would break it. |
+| A plugin host | No dynamic-library loading, no script interpreter in the render path, no third-party capability injection. The supply-chain posture (cargo-deny, cargo-audit, the pinned toolchain) assumes the binary does exactly what the source says — a plugin surface would void that. |
+| A cloud or distributed system | One process, one machine, one terminal. No cluster orchestration, no SaaS, no accounts. The product is a binary you own, not a subscription you rent. |
+
+This is not a list of refusals — it is enforced.
+[scripts/gates/scope-census.py](scripts/gates/scope-census.py) pins
+the direct dependency manifest (twelve runtime and two test-only
+crates, all local-capability) and sweeps the source tree for the
+capability markers each forbidden identity would need: sockets,
+embedded network stacks, audio backends, windowing toolkits,
+dynamic-library loaders, ML runtimes. A pull request that crosses the
+contract fails the gate until the owner consciously re-lands the pin.
+The contract is [docs/INNOVATIONS.md](docs/INNOVATIONS.md) entry 49.
+
 ## Features
 
 ### Rendering

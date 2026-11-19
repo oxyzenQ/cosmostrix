@@ -133,6 +133,18 @@ export PYTHONDONTWRITEBYTECODE=1
 #       forbid(unsafe_code) at build time. Growth, shrinkage or a new
 #       file on the surface is a finding - the surface can only change
 #       on purpose.
+#  24.  Scope census pin (night-frontier-Z6 —
+#       scripts/gates/scope-census.py): the never-be contract is
+#       enforced, not declared. The direct dependency manifest is
+#       pinned exactly (twelve runtime crates and two test-only dev
+#       crates, all local-capability), src/ is swept zero-tolerance
+#       for the capability markers each forbidden identity needs
+#       (sockets, embedded network stacks, audio backends, windowing
+#       toolkits, dynamic-library loaders, ML runtimes), and the
+#       process::Command census is pinned to its two sanctioned sites.
+#       A dependency, capability marker or child-process site that
+#       crosses the README's never-be contract is a finding - the
+#       contract can only change on purpose.
 # Exit codes:
 #   0 = all checks passed
 #   1 = one or more checks failed
@@ -806,6 +818,29 @@ if [ -f scripts/gates/unsafe-census.py ] && command -v python3 >/dev/null 2>&1; 
 	fi
 else
 	skip "unsafe-census.py or python3 not found — skipping (tree fault: the gate script itself is missing)"
+fi
+
+# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─# ── 24. Scope census pin (night-frontier-Z6) ─
+# The README's never-be contract, enforced. cosmostrix will never be a
+# daemon, a sound engine, a game, a network service, a GUI application,
+# an ML runtime, a plugin host, or a cloud system - and a contract
+# nobody enforces is a press release. The gate pins the direct
+# dependency manifest (twelve runtime + two dev crates, all
+# local-capability), sweeps src/ zero-tolerance for the capability
+# markers those identities need (sockets, embedded network stacks,
+# audio backends, windowing toolkits, dynamic-library loaders, ML
+# runtimes), and pins the process::Command census to its two
+# sanctioned sites. Any drift is a finding - the contract can only
+# change on purpose.
+header "Scope Census Pin (scope-census.py)"
+if [ -f scripts/gates/scope-census.py ] && command -v python3 >/dev/null 2>&1; then
+	if python3 scripts/gates/scope-census.py 2>&1; then
+		PASS=$((PASS + 1))
+	else
+		fail "scope-census: the dependency or capability surface drifted from the never-be pin (see the census report above)"
+	fi
+else
+	skip "scope-census.py or python3 not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────
