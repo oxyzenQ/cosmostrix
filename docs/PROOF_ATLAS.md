@@ -26,7 +26,7 @@ inherits its number's truth from
   campaign applies, and it must never become the truth itself —
   `src/` is the truth; the atlas only routes to it.
 
-## The atlas (entries 1-47 and 49-55)
+## The atlas (entries 1-47 and 49-56)
 
 | # | The innovation | Proof artifact(s) | The verifier |
 |---|---|---|---|
@@ -84,6 +84,7 @@ inherits its number's truth from
 | 53 | The conservation-ledger family (six named contracts) | [tests_conservation_z8.rs](../test/engine/cosmic_dragon_engine/cloud/tests/tests_conservation_z8.rs), [wave_field.rs](../src/engine/cosmic_dragon_engine/cloud/wave_field.rs) (entry 46, the family's seventh member) | `cargo test --locked lock_inv20` — the six contracts and the family teeth |
 | 54 | The control-loop resonance census (the no-limit-cycle proof) | [tests_resonance_z8.rs](../test/central_control_power_dragon/power_manager/tests_resonance_z8.rs), [power_manager/mod.rs](../src/central_control_power_dragon/power_manager/mod.rs) (the coupled axes) | `cargo test --locked lock_resonance` — boundedness, release, non-amplification, and the load-bearing clamp |
 | 55 | The information ledger (the field's named entropy and Gini bands) | [info_ledger.rs](../test/cosmic_dragon_incubator/tests/info_ledger.rs), [bench_visual.rs](../src/bench/bench_visual.rs) (the production math the port syncs to) | `cargo test --locked lock_inv21` — the 14-style band sweep, the port-sync cross-check, the collapse control, the PRNG horizon law |
+| 56 | The wakeup-floor ledger (the whole-frame syscall budget) | [wakeup_budget.py](../scripts/supermassive/wakeup_budget.py), [event_loop.rs](../src/interactive/event_loop.rs) (the spin-sleep pacing it measures) | the CI `wakeup_floor` job - `MASS-VERDICT: PASS` with writes/frame=1.000, blocking-waits in bounds, zero sleeps/yields/inputs |
 
 ## The standing lanes (the always-on half of the chain)
 

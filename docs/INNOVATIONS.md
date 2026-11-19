@@ -38,7 +38,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The fifty-five, in dependency order
+## The fifty-six, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -793,9 +793,14 @@ state are OS-mandatory resize telemetry - the renderer polls the
 winsize for resize detection - and are ledgered informationally,
 not criminalized. Scope, stated
 honestly: the input/wait/signal/timer vocabulary (read, poll,
-epoll, nanosleep, signal delivery, futex) stays untraced by design
-- it is OS-mandatory transport residue, ptracing it slows the
-traced child, and it pins no renderer claim.
+epoll, nanosleep, signal delivery, futex) stays untraced HERE by
+design - it is OS-mandatory transport residue, ptracing it slows the
+traced child, and it pins no output claim. The residue is no longer
+unledgered: the wakeup-floor ledger (entry 56, night-frontier-Z9)
+traces exactly that vocabulary in its own leg and pins the render
+thread's whole-frame budget - one blocking wait, one bounded
+zero-timeout probe, one write, zero sleeps, zero yields, zero input
+reads per frame.
 Honest scope: strace is Linux-only by definition, so the ledger
 proves the x86_64 release lane (the syscall contract is
 arch-shared; the ptrace tool is not); the 8-second leg renders one
@@ -1774,6 +1779,72 @@ the port-sync cross-check, the collapse control, and the horizon law
 must all pass; the full suite (3105 tests) stays green, and the
 MSRV lane, the musl shards, and the arm64 parity lane run the filter
 on every push.
+
+
+### 56. The wakeup-floor ledger (the whole-frame syscall budget, night-frontier-Z9)
+
+Problem killed: entry 35 proved the OUTPUT floor — exactly one
+write() per frame — and its own honest scope left the
+input/wait/signal/timer vocabulary untraced ("OS-mandatory transport
+residue"). The energy claim actually lives there: between frames the
+process must sleep, and a regression that swapped the pacing wait for
+a busy loop, added a stray per-frame sleep, or started reading the
+input fd every frame would ship invisibly while every unit test and
+every lock suite stayed green — the C-states story (the process
+spends most of its wall time asleep) had no kernel-visible proof at
+all.
+
+Mechanism (night-frontier-Z9, Kernel Floor 2d):
+`scripts/supermassive/wakeup_budget.py` runs the release-shape binary
+under `strace -f -ttt` on a real pty (80x24, xterm-256color, 60 fps,
+`--intro none` so the window is pure rain steady state — an existing
+flag, no new surface) and pins the RENDER THREAD's measured per-frame
+budget with per-TID attribution: exactly one write() (entry 35's
+floor, re-pinned inside this window), exactly one blocking wait (the
+pacing epoll_wait with a nonzero timeout), at most 1.5 zero-timeout
+probes per frame (the designed near-deadline/drain probe, bounded not
+free), ZERO sleeps and ZERO sched_yields, and ZERO reads on the tty
+input fd — every in-window read is the Power Dragon's /proc
+telemetry, counted informationally at its named cadence (measured
+8.01/s, ceiling 20/s). The wait-family census pins epoll_wait as THE
+mechanism: any ppoll/poll/select inside the window is a finding — the
+wait mechanism changed under the ledger and the budget must be
+re-derived on purpose. Wake precision is measured from the -ttt
+timestamps: each blocking wait sleeps its requested timeout to a
+p95 of 1.61 ms locally (ceiling 5 ms; the final half-millisecond is
+the designed spin-wait, the pacing law, not a defect). The auxiliary
+threads are NAMED, not criminalized: the watchdog thread's one-second
+clock_nanosleep per interval (measured 1.00 sleep-sec/sec, by design,
+entry 17's self-healing stack) is ledgered informationally — the
+residue entry 35 left untraced is now a measured, named row. Teeth,
+proven by injection: a synthetic window plus a render-thread sleep,
+a foreign wait family, an input read, a busy-loop of extra blocking
+waits, and an unparsable line each FAIL the ledger — a clean window
+passes; unparsable lines are findings, never skipped (the entry-35
+parser law). Honest scope: the budget pins the lean steady state of
+the release lane on Linux (strace is Linux-only by definition, same
+as entry 35); input-driven windows (a user typing) and the pause/
+resume paths are out of scope — the leg renders one pinned
+configuration with no input; the watchdog's cadence is pinned
+informationally because auxiliary threads are OS-mandatory by
+design.
+
+Truth: `scripts/supermassive/wakeup_budget.py` (the transport, the
+per-TID parser, the ledger, the bounds),
+`.github/workflows/supermassive.yml` (the `wakeup_floor` job),
+`src/interactive/event_loop.rs` (the spin-sleep pacing the ledger
+measures), `src/engine/cosmic_dragon_engine/terminal/io_recovery.rs`
+(the combined flush whose fingerprint the window keys on).
+
+Verifier: the CI `wakeup_floor` job must end `MASS-VERDICT: PASS`
+with the rows `writes/frame=1.000 PASS`, `blocking-waits/frame` in
+[0.90, 1.25] PASS, `probe-waits/frame` under 1.5 PASS,
+`render-sleeps=0 render-yields=0 PASS`, `input-reads=0 PASS`, and
+`wake-precision-p95` under the 5 ms ceiling; locally,
+`python3 scripts/supermassive/wakeup_budget.py --binary
+<release-shape> --trace /tmp/wf-trace.log --log /tmp/wf-capture.log
+--mass /tmp/mass-wakeup.log --label wakeup-floor-8s --duration 8
+--budget 30` on a real tty reproduces the same rows.
 
 ## Retired by verdict
 

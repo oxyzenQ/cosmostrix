@@ -1141,3 +1141,109 @@ jobs:
             cat /tmp/mass-syscall.log
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  # night-frontier-Z9, Kernel Floor 2d: the whole-frame wakeup budget.
+  # The syscall-floor ledger (2a) proved the output floor and left the
+  # wait/timer vocabulary untraced by design; this leg closes that
+  # residue. It pins the render thread's measured per-frame budget -
+  # one blocking wait, one bounded zero-timeout probe, one write, zero
+  # sleeps, zero yields, zero input reads, /proc telemetry at its
+  # named cadence, the watchdog's 1 Hz ledgered informationally - so
+  # a busy loop, a stray sleep, an input-read storm, or a wait
+  # mechanism swap fails CI with the kernel counts in the message.
+  wakeup_floor:
+    name: supermassive test - wakeup floor ledger (the whole-frame budget)
+    runs-on: ubuntu-24.04
+    needs: [build_musl]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the built battery binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cosmostrix-pro-v3-musl
+          path: /tmp/mass-bin
+
+      # upload-artifact does not preserve the exec bit; the consumers
+      # restore it after download (the syscall_floor precedent).
+      - name: Restore the exec bit
+        run: chmod 755 /tmp/mass-bin/cosmostrix
+
+      # strace is preinstalled on the ubuntu-24.04 runner image; the
+      # fallback keeps the leg honest if that ever changes. Retry
+      # contract for the network touch, per the workflow header.
+      - name: Ensure strace
+        run: |
+          set -euo pipefail
+          if ! command -v strace >/dev/null 2>&1; then
+            for attempt in 1 2 3; do
+              if sudo apt-get update && sudo apt-get install -y strace; then
+                break
+              fi
+              echo "apt attempt ${attempt} failed; retrying" >&2
+              sleep 5
+            done
+          fi
+          strace -V
+
+      - name: Run the wakeup-floor ledger under strace
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-wakeup.log"
+          rm -f "${MASS}"
+          python3 scripts/supermassive/wakeup_budget.py \
+            --binary /tmp/mass-bin/cosmostrix \
+            --trace /tmp/wf-trace.log \
+            --log /tmp/wf-capture.log \
+            --mass "${MASS}" \
+            --label wakeup-floor-8s \
+            --duration 8 \
+            --budget 30
+
+      # The kernel trace is the dataset row: uploaded on every run so a
+      # residual (if the ledger ever trips) is analyzable from the raw
+      # strace output, not reconstructed from summaries.
+      - name: Upload the kernel trace (the dataset row)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: wakeup-floor-trace-${{ github.run_id }}
+          path: |
+            /tmp/wf-trace.log
+            /tmp/wf-capture.log
+          if-no-files-found: ignore
+
+      - name: Verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          MASS="/tmp/mass-wakeup.log"
+          echo "--- MASS-RESULT relay (wakeup floor) ---"
+          cat "${MASS}"
+          if [ ! -f "${MASS}" ] || grep -q 'FAIL' "${MASS}"; then
+            echo "MASS-VERDICT: FAIL"
+            exit 1
+          fi
+          echo "MASS-VERDICT: PASS"
+          echo "OK: the kernel proves the whole-frame budget - one blocking wait, one bounded probe, one write, zero sleeps, zero yields per frame on the render thread"
+
+      - name: Wakeup floor summary (the longitudinal dataset row)
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Supermassive watch - wakeup floor ledger"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### relay rows"
+            echo
+            echo '```'
+            cat /tmp/mass-wakeup.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
