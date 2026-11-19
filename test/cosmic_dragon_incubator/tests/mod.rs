@@ -15,5 +15,11 @@ mod alloc_ledger;
 // the INV-18 allocator ledger only.
 #[cfg(all(test, target_os = "linux"))]
 mod fault_ledger;
+// The information ledger (INV-21, night-frontier-Z9): the field's
+// per-style entropy and Gini bands, cross-architecture-safe by
+// construction (no OS surface, pure frame math) — compiled on every
+// host.
+#[cfg(test)]
+mod info_ledger;
 #[cfg(test)]
 mod lock;

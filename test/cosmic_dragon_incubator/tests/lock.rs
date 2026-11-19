@@ -48,6 +48,7 @@
 //! | INV-18| Zero-alloc ledger    | lean frame path performs exactly 0 allocations        |
 //! | INV-19| Fault-floor ledger   | lean frame window takes exactly 0 kernel page faults  |
 //! | INV-20| Conservation family  | six solvers carry their named discrete contract        |
+//! | INV-21| Information ledger   | per-style entropy/Gini bands hold + PRNG horizon law  |
 //!
 //! INV-18 lives in `tests/alloc_ledger.rs` (the counting-global-allocator
 //! window is a suite-sized fixture, not a Frame/ColorCache one) — same
@@ -66,6 +67,14 @@
 //! teeth; a suite-sized fixture like INV-18/19, riding the `lock_`
 //! filter from its home beside the per-style rigs) — same suite, same
 //! CI gate.
+//!
+//! INV-21 lives in `tests/info_ledger.rs` (the information ledger,
+//! night-frontier-Z9: the field's per-style dirty-distribution
+//! entropy and Gini bands — the benchmark's `frame_entropy` and
+//! `density_gini` telemetry promoted to a named contract, measured
+//! on the shared INV-18 window shape with one variable varied, plus
+//! the port-sync cross-check, the collapse positive control, and the
+//! PRNG cycle-horizon law) — same suite, same CI gate.
 //!
 //! ## Adding a new invariant
 //!

@@ -27,8 +27,11 @@
 //!
 //! The pinned rig below (the config, the cloud arms, the warmup and
 //! window constants) is shared verbatim by the fault-floor ledger
-//! (`tests/fault_ledger.rs`, INV-19) — one window shape, two ledger
-//! axes: what Rust requests (this file) and what the kernel grants.
+//! (`tests/fault_ledger.rs`, INV-19) and by the style-parameterized
+//! information ledger (`tests/info_ledger.rs`, INV-21,
+//! night-frontier-Z9) — one window shape, three ledger axes: what
+//! Rust requests (this file), what the kernel grants (INV-19), and
+//! what the field's information shape is (INV-21).
 //!
 //! Honest scope, stated once: the window covers the LEAN path (sim +
 //! diff + lean emission), the same scope the 0.0 claim was measured on.
@@ -63,12 +66,19 @@ pub(crate) const LEDGER_WARMUP_FRAMES: u64 = 200;
 /// cross spawn/reseed boundaries, short enough for the suite budget.
 pub(crate) const LEDGER_FRAMES: u64 = 180;
 
-/// The pinned ledger config — the same literal shape as the bench
-/// harness configs (see `test/bench/replay_tests.rs`), tuned to the
-/// lean-path contract: monolith style, Green/Mono, binary charset,
-/// fixed 60 fps, wet lean I/O on, no scene override.
-pub(crate) fn make_ledger_config() -> crate::app::CloudConfig {
-    crate::app::CloudConfig {
+/// The style-parameterized ledger config — the identical literal
+/// shape (see `test/bench/replay_tests.rs`) with exactly ONE field
+/// varied (the rain style), so the information ledger (INV-21,
+/// night-frontier-Z9) measures each style family on the same window
+/// the alloc/fault ledgers proved. Every other field stays the
+/// INV-18 rig literal: changing a second field here changes two
+/// variables at once and both ledgers lose their one-window-shape
+/// guarantee.
+pub(crate) fn make_ledger_config_for_style(
+    style: crate::rain_style::RainStyle,
+) -> crate::app::CloudConfig {
+    let cfg = crate::app::CloudConfig {
+        rain_style: style,
         color_mode: crate::runtime::ColorMode::Mono,
         shading_mode: crate::runtime::ShadingMode::Random,
         bold_mode: crate::runtime::BoldMode::Off,
@@ -77,7 +87,6 @@ pub(crate) fn make_ledger_config() -> crate::app::CloudConfig {
         color_scheme: crate::runtime::ColorScheme::Green,
         custom_palette: None,
         custom_palette_name: None,
-        rain_style: crate::rain_style::RainStyle::Monolith,
         glitch_enabled: false,
         glitch_level: crate::config::GlitchLevel::None,
         glitch_pct: 0.0,
@@ -134,7 +143,8 @@ pub(crate) fn make_ledger_config() -> crate::app::CloudConfig {
         ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
         ambient_snapback_secs: None,
         crystal_dragon_secs: None,
-    }
+    };
+    cfg
 }
 
 /// Build the pinned ledger rig: the cloud (bench-parity arms, Z1 clock
@@ -143,7 +153,19 @@ pub(crate) fn make_ledger_config() -> crate::app::CloudConfig {
 /// fault-floor ledger (INV-19), which measures the kernel-side view
 /// of the identical window.
 pub(crate) fn build_ledger_rig() -> (Cloud, Frame, BenchIoWriter) {
-    let cfg = make_ledger_config();
+    build_ledger_rig_for_style(crate::rain_style::RainStyle::Monolith)
+}
+
+/// The style-parameterized rig — the INV-18 window shape with the
+/// rain style swapped (the single varied variable; see
+/// `make_ledger_config_for_style`). The INV-21 information ledger
+/// drives one rig per style family through the same arms, clock
+/// anchor, and writer, so every style's bands sit on identical
+/// ground. Arms are the bench-parity set (run_bench.rs).
+pub(crate) fn build_ledger_rig_for_style(
+    style: crate::rain_style::RainStyle,
+) -> (Cloud, Frame, BenchIoWriter) {
+    let cfg = make_ledger_config_for_style(style);
     let density = crate::effective_density(cfg.base_density, LEDGER_COLS, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);

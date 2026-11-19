@@ -542,8 +542,8 @@ post-fix points are the styles' true structure signatures.
 | `heap_retained` | bytes | Bytes allocated and never freed. Non-zero = investigate. |
 | `energy_per_frame` | µJ | Energy per frame (Linux + RAPL only). Lower = more efficient. |
 | `IPC` | ratio | Instructions per cycle (Linux + perf_event_open). >2.0 = healthy; >3.0 = excellent. |
-| `frame_entropy` | bits | Information entropy of frame content. Higher = more visual variety. |
-| `density_gini` | 0..1 | Gini coefficient of cell density. 0 = uniform; 1 = maximally concentrated. |
+| `frame_entropy` | bits | Information entropy of frame content. Higher = more visual variety. Since night-frontier-Z9 this metric is also a CONTRACT: per-style bands are pinned by the information ledger (INNOVATIONS.md entry 55). |
+| `density_gini` | 0..1 | Gini coefficient of cell density. 0 = uniform; 1 = maximally concentrated. Since night-frontier-Z9 this metric is also a CONTRACT: per-style bands are pinned by the information ledger (INNOVATIONS.md entry 55). |
 
 Wet (`--bench-io`) = writes ANSI to `/dev/null`; dry = no I/O (pure engine throughput). `lean` = dirty-cell-only emission (fastest); `production-draw` = full `Terminal::draw` path.
 

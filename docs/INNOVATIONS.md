@@ -38,7 +38,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The fifty-four, in dependency order
+## The fifty-five, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -1712,6 +1712,68 @@ visual_pressure precedent) exposes the predictive axis. Truth:
 (the cfg(test) accessor). Verifier: `cargo test --locked
 lock_resonance` (the four scenarios); the lock_ filter rides the
 MSRV lane, the musl shards, and the arm64 parity lane on every push.
+
+
+### 55. The information ledger (the field's named entropy and Gini bands, night-frontier-Z9)
+
+Problem killed: the benchmark's two visual metrics — `frame_entropy_bits`
+and `density_gini` (`src/bench/bench_visual.rs`) — were TELEMETRY: a
+solver regression that stayed inside the visual noise (one noise octave
+silently dropped by a refactor, a decay LUT reshaped by a retune, a
+spawn drift that slowly concentrates the rain into a few columns)
+passed every functional test and every lane, because nothing asserted
+the INFORMATION SHAPE of the rendered field; long-session drift — the
+exact class the screensaver claim and the entropy drift ecosystem
+(entry 9) live or die by — was guarded only by a human eye.
+
+Mechanism (night-frontier-Z9, INV-21): each of the fourteen rain
+styles is driven through the shared ledger rig (the INV-18 window
+shape, one variable varied — the style) on the anchored virtual clock
+(the Z1 replay law), and its dirty-cell column distribution is
+measured per frame with the EXACT math the production sampler uses.
+Four named quantities are pinned per style and asserted both
+directions: the window-average entropy band, the window-average Gini
+band, the per-frame minimum-entropy floor, and the sampled-frame
+floor (a solver that stops emitting diffs — a dead field, the worst
+long-session failure — cannot hide inside the averages; Aeolian
+legitimately idles 42 of 300 anchored frames, and that count is
+pinned too). The bands are re-derived from the same measurement the
+rig reruns anywhere — the replay law makes the entropy sequence
+exactly reproducible, so these are derivable contracts, not sampled
+statistics; margins are physics bounds (+/- max(10 percent, 0.25
+bit) on the averages, 0.05 on the Gini, 0.15 bit on the per-frame
+floor), the conservation family's cross-arch precedent. Teeth: the
+port-sync cross-check asserts the ledger's math equals the production
+sampler's finalize output to f64 rounding (a `bench_visual` drift
+from the ledger is named, not silent), and the collapse positive
+control feeds a single-column distribution and a uniform distribution
+through the same checker the contract runs — one must REJECT, one
+must PASS. The landing's bonus micro-pin: the PRNG cycle-horizon law
+— every random stream draws from rand 0.10 StdRng (ChaCha12,
+documented 2^128 period), the worst-case LTS year (bench-max screen,
+FPS cap, 24/7) consumes 60.77 bits of it, and the named 2^66 margin
+is asserted; determinism cannot degrade into visible repetition over
+any service lifetime. Honest scope: the bands pin the LEAN
+bench-parity window (Green/Mono, binary charset, 120x40, 60 fps
+anchored, Crystal Dragon off) — the same scope every ledger in the
+suite pins; Monolith and Aeolian carry zero per-frame entropy floors
+by measurement (their motion math legitimately concentrates every
+change into one column at some anchored frames), so their average
+bands are the load-bearing contract; a deliberate solver retune is a
+visible band-table re-derivation in the same commit, never a silent
+drift.
+
+Truth: `test/cosmic_dragon_incubator/tests/info_ledger.rs` (the band
+table, the port, the checker, the horizon law),
+`test/cosmic_dragon_incubator/tests/alloc_ledger.rs` (the
+style-parameterized rig — one window shape, three ledger axes),
+`test/cosmic_dragon_incubator/tests/lock.rs` (the INV-21 row).
+
+Verifier: `cargo test --locked lock_inv21` — the 14-style band sweep,
+the port-sync cross-check, the collapse control, and the horizon law
+must all pass; the full suite (3105 tests) stays green, and the
+MSRV lane, the musl shards, and the arm64 parity lane run the filter
+on every push.
 
 ## Retired by verdict
 
