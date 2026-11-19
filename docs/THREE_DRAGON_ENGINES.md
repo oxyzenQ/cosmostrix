@@ -93,9 +93,12 @@ was retired 2026-09-20 by owner decision — it was too strict a
 maintenance burden. The engines stay at LTS quality the simple way:
 the CI invariant lock suites assert each engine's public contract on
 every commit — Chroma at
-`test/engine/chroma_dragon_engine/tests/lock.rs` (19 invariants) and
+`test/engine/chroma_dragon_engine/tests/` (the lock family:
+`lock.rs`, `lock_inv13_19.rs`, `lock_inv20_z4a.rs`,
+`lock_inv22_z5b.rs` — 22 invariants, recounted 2026-11-20) and
 the Cosmic Dragon renderer at
-`test/cosmic_dragon_incubator/tests/lock.rs` (17 invariants); the
+`test/cosmic_dragon_incubator/tests/lock.rs` (17 invariants,
+recounted 2026-11-20); the
 Crystal Dragon scheduler is held by its per-subsystem test suites
 under `test/engine/crystal_dragon_engine/`. Each engine's `README.md`
 records its audited-peak state.
