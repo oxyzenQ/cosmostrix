@@ -34,19 +34,19 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 
 ## 3. CI/CD Pipeline
 
-| Workflow | File | Trigger | Purpose |
-|----------|------|---------|---------|
-| CI | `ci.yml` | push + PR (`src/**` + `test/**` + Cargo/toolchain/build/scripts config) | Build + test + clippy + fmt + deny + MSRV |
-| Cosmic Dragon Guard - Gate-keepers | `cosmic-dragon-guard.yml` | push + PR | Gate-keepers: bash -n + shellcheck + shfmt (all installed in CI, none skipped), yamllint, actionlint, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
-| Miri | `miri.yml` | push (main, Rust paths) + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual | Undefined behavior detection (6 audited modules) |
-| Security Audit | `gitbot-audit.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB, night-consistent-1) + push/PR (Rust paths) | Security advisory + dependency policy |
-| CodeQL | `codeql.yml` | push + PR (Rust + scripts paths) + weekly cron (Sun 03:00 UTC / 10:00 WIB) | GitHub CodeQL semantic analysis |
-| AUR | `aur.yml` | `repository_dispatch` (aur-sync) posted by `release.yml` after a release publishes | Update AUR package |
-| crates.io | `crates-io.yml` | tag push (v*, stable + pre-release) | `cargo publish --locked` to crates.io (idempotent, tag/version guard) |
-| Release | `release.yml` | tag push (v*) | Build 7 release archives across 7 OS/arch targets (linux amd64 v3/v4 musl, darwin aarch64, windows x64/arm64, freebsd amd64, android aarch64) + checksums + GPG sign; the PGO nitro release packages are retired (night-dragon-maintenance-T1) |
-| Kani | `kani.yml` | push + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual | Bounded model checking: one micro job per proof harness, 30-minute cap each (NIGHT-depth-hardening-3) |
-| Loom | `loom.yml` | push + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual | Exhaustive interleaving proof of the shutdown handshake (NIGHT-depth-hardening-3) |
-| Maintenance | `maintenance.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | Dependency update + validate + commit |
+The complete workflow table — every workflow, its trigger, and its
+purpose — has a single home:
+[workflow/ABOUT_CI.md](workflow/ABOUT_CI.md) (docs/DOC_AUDIT.md
+rule 1, tell once: a second telling of that table lived here and had
+already drifted behind the estate — path-filtered trigger
+descriptions the 2026-10-27 unfiltered law retired, and four of the
+fifteen workflows missing). The dormant-mode shape in one line:
+every push burns the full battery (strict build + test + clippy +
+fmt + deny + MSRV, the gate-keepers, Miri, CodeQL, Kani, Loom, fuzz,
+supermassive, supermassive-kernel, soak), the scheduled back-stop
+lanes share the estate-wide Sunday 10:00 WIB slot, and the publish
+channels (release.yml, crates-io.yml, aur.yml) fire on tags and
+release events only.
 
 **Bot lane staging rule (night-zen-1 hotfix)**: the commit job stages an explicit path list derived from the manifest walk, never a glob, and the download-artifact staging directory lives under `runner.temp`, outside the work tree (`.auto-update/` is gitignored as a second wall). Incident class write-up: [KNOWN_ISSUES.md](../KNOWN_ISSUES.md).
 
