@@ -21,6 +21,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | `cosmic-dragon-guard.yml` | every push + every PR (unfiltered) | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer, actions-pin health |
 | `supermassive.yml` | every push (unfiltered) + manual dispatch | Runtime E2E on the five-minute law (night-T-1): one artifact build, then pty smoke (six real-pty legs), 4-shard musl workspace nextest, render soak, hostile torture — every battery leg targets ≤5 minutes |
 | `supermassive-kernel.yml` | every push (unfiltered) + manual dispatch | KVM micro-VM lanes on the five-minute law (night-T-1): two artifact builds (baseline-musl floor payload, pro-v3-musl best payload), then the REAL 2.6.27 minimum-kernel floor battery + the latest-mainline best-specs pty battery (night-dragon-maintenance-2) |
+| `soak.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | The 24h determinism-anchored soak (night-frontier-Z6, S5): one long-lived headless render inside the replay-digest anchor (INNOVATIONS entry 32) + the /proc RSS/fd leak census; hosted profile 150 min, `soak_minutes=1440` dispatches the real 24h window on a self-hosted runner — the harness law lives in `scripts/depth/soak_determinism.sh`, this file only schedules and budgets it |
 
 Job naming: the ci.yml keystone job (id `build_test`, the strict debug
 build gate every downstream job depends on) is displayed as
@@ -62,7 +63,7 @@ release publish can never ride a blind trigger:
   successful GitHub Release) + manual dispatch only.
 
 The scheduled and manual lanes keep their schedules
-(all five scheduled lanes share the estate-wide Sunday 10:00 WIB slot,
+(all eight scheduled lanes share the estate-wide Sunday 10:00 WIB slot,
 night-consistent-1) as back-stops for network-dependent checks.
 
 Incident (2026-09-13, commit 5553174): a push touching only
@@ -192,7 +193,7 @@ Current pins (all proven green in the estate's own runs):
 
 | Label | Image | Used by |
 | --- | --- | --- |
-| `ubuntu-24.04` | Ubuntu 24.04 x64 | every Linux lane (38 jobs) |
+| `ubuntu-24.04` | Ubuntu 24.04 x64 | every Linux lane |
 | `ubuntu-24.04-arm` | Ubuntu 24.04 ARM64 | supermassive ARM battery |
 | `macos-26` | macOS 26 (Arm64) | ci.yml + release.yml darwin legs |
 | `windows-2025` | Windows Server 2025 | ci.yml + release.yml MSVC legs |
