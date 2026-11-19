@@ -1718,7 +1718,6 @@ visual_pressure precedent) exposes the predictive axis. Truth:
 lock_resonance` (the four scenarios); the lock_ filter rides the
 MSRV lane, the musl shards, and the arm64 parity lane on every push.
 
-
 ### 55. The information ledger (the field's named entropy and Gini bands, night-frontier-Z9)
 
 Problem killed: the benchmark's two visual metrics — `frame_entropy_bits`
@@ -1779,7 +1778,6 @@ the port-sync cross-check, the collapse control, and the horizon law
 must all pass; the full suite (3105 tests) stays green, and the
 MSRV lane, the musl shards, and the arm64 parity lane run the filter
 on every push.
-
 
 ### 56. The wakeup-floor ledger (the whole-frame syscall budget, night-frontier-Z9)
 

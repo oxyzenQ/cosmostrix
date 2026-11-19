@@ -12,3 +12,8 @@ self-hosted-runner:
     # matrix). Older actionlint label databases do not know it and
     # fail the runner-label check without this declaration.
     - windows-11-arm
+    # macos-26 is a real GitHub-hosted runner label (used by ci.yml's
+    # and release.yml's macOS matrix). Older actionlint label
+    # databases do not know it and fail the runner-label check
+    # without this declaration - same reason as windows-11-arm above.
+    - macos-26
