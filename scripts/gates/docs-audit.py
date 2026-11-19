@@ -241,12 +241,12 @@ count_patterns = [
         r"\b43 themes\b|\b43 builtin\b|themes\*? == 43",
         "44 themes (src/theme/mod.rs THEME_COUNT)",
     ),
-    (r"\b18 invariants\b", "19 invariants (chroma lock suite)"),
-    (r"\b1[45]\d\d\+? tests\b", "2952 test fns (current static count)"),
-    (r"~1,?500 tests\b", "2952 test fns (current static count)"),
-    (r"\b220\+ source files\b|\b226 source\b", "508 tracked .rs files (current)"),
-    (r"~2,?500 tests\b|\b252[0-9] tests\b", "2952 test fns (current static count)"),
-    (r"\b43[0-9] \.rs files\b", "508 tracked .rs files (current)"),
+    (r"\b18 invariants\b", "22 invariants (chroma lock family, recounted 2026-11-20)"),
+    (r"\b1[45]\d\d\+? tests\b", "3138 test fns (current static count, recounted 2026-11-20)"),
+    (r"~1,?500 tests\b", "3138 test fns (current static count, recounted 2026-11-20)"),
+    (r"\b220\+ source files\b|\b226 source\b", "547 tracked .rs files (current, recounted 2026-11-20)"),
+    (r"~2,?500 tests\b|\b252[0-9] tests\b", "3138 test fns (current static count, recounted 2026-11-20)"),
+    (r"\b43[0-9] \.rs files\b", "547 tracked .rs files (current, recounted 2026-11-20)"),
     (r"Phase 9-B", "Phase 9-D (final form, CHROMA_DRAGON_ENGINE_VERSION)"),
 ]
 count_hits = defaultdict(list)
