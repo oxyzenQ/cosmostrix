@@ -1194,9 +1194,9 @@ determinism, inject clamping),
 (Cloud wiring: injection, superposition, click storm, --no-effects
 gates).
 Verifier: `cargo test wave_field` and `cargo test mouse_shockwave`
-— 20 pins, all asserting the physics (the superposition test is the
+— 25 pins, all asserting the physics (the superposition test is the
 linearity proof: two clicks' field equals the sum of the single-click
-fields to 1e-4); the full suite (3072 tests) must stay green, and the
+fields to 1e-4); the full suite (3080 tests) must stay green, and the
 zero-alloc ledger (entry 36) is untouched — the solver allocates
 nothing in the frame path.
 

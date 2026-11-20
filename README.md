@@ -499,7 +499,7 @@ COMMON OPTIONS
                                       config key crystal-dragon-secs, live-reloadable)
       --power-dragon <true|false>     Power Dragon adaptive protection (default: true)
       --msg-mode <true|false>         Message overlay master switch (default: true)
-      --no-effects                    Disable ALL cosmetic effects (click flash waves, anomaly zones, border-touch glow, CRT vignette). Auto-enabled by --benchmark/--bench-all/--bench-frames (effects are input-driven, never fire during bench)
+      --no-effects                    Disable ALL cosmetic effects (the click shockwave, anomaly zones, ghost events, storytelling moments, msg-fill sidecars, border-touch pulse, CRT vignette, hover glow). Auto-enabled by --benchmark/--bench-all/--bench-frames (effects are input-driven, never fire during bench)
       --intro-color <name>            Intro color override for BOTH cosmic + logo styles
                                       (see --list-colors). When unset, the intro uses the
                                       brand energy-zen palette — -c/--color/--colors-custom

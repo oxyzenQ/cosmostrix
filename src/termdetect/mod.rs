@@ -223,8 +223,8 @@ pub(crate) struct TerminalCaps {
     /// S-master-HUNT-24: true when the terminal is KNOWN to render its
     /// cell grid on the CPU — the VTE family (VTE_VERSION env), KDE
     /// Konsole (KONSOLE_VERSION env), foot, xterm.js Electron hosts, or
-    /// the raw Linux console. Cosmetic effects (particles, flash waves,
-    /// anomaly zones, ghost events, hover glow, CRT vignette) are
+    /// the raw Linux console. Cosmetic effects (the click shockwave,
+    /// particles, anomaly zones, ghost events, hover glow, CRT vignette) are
     /// auto-disabled at startup on these terminals (owner directive):
     /// a CPU renderer cannot drain the effects' ANSI volume at
     /// fullscreen cell counts, which was the sustained breeding ground

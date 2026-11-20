@@ -664,7 +664,7 @@ impl super::Cloud {
 /// Factor semantics: 1.0 = settled (returns the base color as-is,
 /// zero-cost fast path), < 1.0 = dim (fade-in), > 1.0 = boosted
 /// (pulse scanner head — routed through `apply_brightness_rgb_unclamped`,
-/// the same boost path droplet's CellShader uses for parallax scaling;
+/// the same boost path the droplet draw path uses for parallax scaling;
 /// per-channel clamp at 255).
 /// A23: chroma first, `legacy::scale_rgb` fallback.
 fn scale_msg_content_fg(

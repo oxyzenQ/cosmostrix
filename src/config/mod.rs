@@ -679,10 +679,10 @@ pub struct Args {
     )]
     pub msg_mode: Option<bool>,
 
-    /// PERF-4: disable ALL cosmetic particle effects (mouse-click flash
-    /// waves, anomaly zones, the border-touch glow, CRT vignette).
-    /// CLI-only, no config. When set, set_mouse_click skips flash-wave
-    /// activation, detect_border_touch returns early, and spawn_anomaly
+    /// PERF-4: disable ALL cosmetic effects — every subsystem in the
+    /// --no-effects inventory (enumerated once in `cli/help_text.rs`).
+    /// CLI-only, no config. When set, set_mouse_click skips wave
+    /// injection, detect_border_touch returns early, and spawn_anomaly
     /// returns early. Useful for VTE terminals where particle effects
     /// cause lag.
     /// Default: false (effects on).

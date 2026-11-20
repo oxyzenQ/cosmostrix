@@ -43,7 +43,7 @@ mechanical: `scripts/gates/check-symbol-only-output.sh` runs in
 
 | Terminal | Expected result | Notes |
 | --- | --- | --- |
-| Alacritty | Excellent | Truecolor is expected. `color-bg = default-background` follows Alacritty's configured background and opacity. Full cosmetic effects (particles, flash waves) stay on — GPU renderer. |
+| Alacritty | Excellent | Truecolor is expected. `color-bg = default-background` follows Alacritty's configured background and opacity. Full cosmetic effects (particles, the click shockwave) stay on — GPU renderer. |
 | Konsole | Good | Truecolor is expected on modern Konsole. CPU-rendered (QPainter): cosmetic effects auto-disabled (HUNT-24) and 60 FPS default tier. **Known issue:** `Super+C` (Windows-key + c) still cycles color — Konsole's kitty keyboard encoder does not set the `SUPER` bit. See [Known Issues](#known-issues) below. |
 | Kitty | Excellent | Truecolor and Unicode rendering are expected. Full cosmetic effects stay on — GPU renderer. |
 | Ghostty | Excellent | Truecolor and Unicode rendering are expected. Full cosmetic effects stay on — GPU renderer. |

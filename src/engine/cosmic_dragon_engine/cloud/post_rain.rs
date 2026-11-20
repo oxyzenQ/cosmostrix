@@ -5,7 +5,7 @@
 //! that file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
 //! Owns `Cloud::post_rain_processing()` — the anomaly events + glitch
-//! timing + cinematic event engine + flash wave sweep block that runs
+//! timing + cinematic event engine that runs
 //! AFTER the droplet draw pass + phosphor decay, but BEFORE the message
 //! overlay + periodic full redraw.
 //!

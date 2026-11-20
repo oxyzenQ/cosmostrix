@@ -843,8 +843,9 @@ impl Cloud {
         self.event_manager.enable_events();
     }
 
-    /// PERF-4: when false, ALL particle subsystems become no-ops (click
-    /// flash waves, anomaly zones). --no-effects.
+    /// PERF-4: when false, every cosmetic subsystem in the --no-effects
+    /// inventory (enumerated once in `cli/help_text.rs`) becomes a
+    /// no-op. --no-effects.
     pub fn set_effects_enabled(&mut self, enabled: bool) {
         self.effects_enabled = enabled;
     }

@@ -51,9 +51,10 @@ pub(crate) struct ConfigEnrichment {
     pub msg_mode: bool,
     /// PERF-2: intro type label (not rendered in bench, config parity).
     pub intro: &'static str,
-    /// PERF-2-Supreme: particle effects disabled state (--no-effects).
-    /// `true` = ALL cosmetic particle subsystems are no-ops
-    /// (effects_enabled = false): mouse-click flash waves, anomaly zones.
+    /// PERF-2-Supreme: cosmetic effects disabled state (--no-effects).
+    /// `true` = every cosmetic subsystem in the --no-effects inventory
+    /// (enumerated once in cli/help_text.rs) is a no-op
+    /// (effects_enabled = false).
     /// Auto-enabled in bench mode (--benchmark/--bench-all/--bench-frames):
     /// particles are input-driven and never spawn during a benchmark
     /// anyway, so effects_enabled is forced false at CloudConfig
@@ -168,8 +169,8 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
 
     // PERF-2-Supreme: --no-effects state (inverted into the
     // owner-requested `no_effects` naming: true = effects OFF).
-    // `effects_enabled` gates all cosmetic particle subsystems — the
-    // mouse-click flash waves and the anomaly zones — all input-driven
+    // `effects_enabled` gates every cosmetic subsystem in the
+    // --no-effects inventory (cli/help_text.rs) — all input-driven
     // and never fire during a benchmark run, so the value never changes
     // bench numbers.
     // Auto-enabled in bench mode: effects_enabled is forced false at

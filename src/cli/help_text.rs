@@ -149,6 +149,7 @@ Common options:
         - emergent storytelling moments (LuminanceSwell/DensityPulse)
         - msg-fill-style particle sidecars (engrave spark,
           hologram scanline, scorch smoke)
+        - border-touch glow pulse (the halo over border-hit columns)
         - CRT vignette (top/bottom edge dim post-process)
         - cursor hover glow (elliptical brightening near the mouse)
       v80.0.0-alpha.1 audit closed the last two leaks: the CRT

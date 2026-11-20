@@ -26,8 +26,8 @@
 //! Every function in this module is `#[inline]` and compiles to the
 //! exact same machine code as the inlined version it replaces. There
 //! is no perf cost to routing the legacy path through here -- the
-//! optimizer sees through the call. Verified by `cargo asm` on
-//! `droplet::CellShader::shade` (the hot path).
+//! optimizer sees through the call. Verified by `cargo asm` on the
+//! droplet draw hot path (`droplet::Droplet::draw`).
 //!
 //! ## Parity contract.
 //!
@@ -51,9 +51,9 @@
 /// `[0, 255]`.
 ///
 /// This is the verbatim equation that previously lived inline in
-/// `droplet.rs::CellShader::shade` for: edge fade, radial vignette,
-/// rain shadow, head brightness, and in `cloud/rain.rs::apply_crt_dim_cell`
-/// for the CRT vignette cell dim.
+/// the droplet draw path (`droplet/draw.rs`) for: edge fade, radial
+/// vignette, rain shadow, head brightness, and in
+/// `cloud/rain_post.rs::apply_crt_dim_cell` for the CRT vignette cell dim.
 ///
 /// # Arguments
 /// * `r, g, b` - input sRGB channel values
@@ -70,7 +70,7 @@
 /// docs on the parity contract.
 ///
 /// # Caller status ( P6 migration)
-/// Wired into `cloud::rain::apply_crt_dim_cell` for the legacy fallback
+/// Wired into `cloud::rain_post::apply_crt_dim_cell` for the legacy fallback
 /// path. The chroma path uses `chroma::palette::apply_brightness_rgb`
 /// (same equation, owned by the chroma engine).
 #[inline]
@@ -88,11 +88,11 @@ pub(crate) fn scale_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
 /// `out = (r, g, b) + ((tr, tg, tb) - (r, g, b)) * factor`.
 ///
 /// This is the verbatim equation that previously lived inline in
-/// `droplet.rs::CellShader::shade` for the mouse-click flash wave
-/// (blending toward pure white `(255, 255, 255)`) and in the removed
+/// the droplet draw path for the white-blend effects (blending toward
+/// pure white `(255, 255, 255)`) and in the removed
 /// quantum-ripple particle renderer for the blend toward the snapshot
-/// color (the effect was removed in night-moonlight-1; the flash-wave
-/// path keeps using it).
+/// color (the effect was removed in night-moonlight-1; the
+/// transition-energy path keeps using it).
 ///
 /// # Arguments
 /// * `r, g, b` - input (starting) sRGB channel values
@@ -135,9 +135,9 @@ pub(crate) fn blend_toward_rgb(
 /// Linear-sRGB blend toward pure white. Convenience wrapper around
 /// `blend_toward_rgb` with target `(255, 255, 255)`.
 ///
-/// Used by the mouse-click flash wave (the wave boosts every cell it
-/// touches toward white, simulating an energy discharge flash). The
-/// chroma path uses `chroma::palette::blend_toward_white` which
+/// Used by the transition energy boost (each cell brightens toward
+/// white while the transition wavefront passes). The chroma path uses
+/// `chroma::palette::blend_toward_white` which
 /// performs the same per-channel blend (the chroma engine's
 /// `blend_toward_bg` is also linear-sRGB; the difference is that the
 /// chroma path's palette construction is OKLab, not the blend math).
@@ -147,8 +147,9 @@ pub(crate) fn blend_toward_rgb(
 /// `(c as i32 + ((255 - c as i32) * wf + 128) / 256).clamp(0, 255) as u8`.
 ///
 /// # Caller status ( P8 migration)
-/// Wired into `droplet::CellShader::shade` flash-wave loop for the legacy
-/// fallback path. The chroma path uses `chroma::palette::blend_toward_white_rgb`
+/// Wired into the droplet draw path's white-blend sites (the
+/// transition energy boost) for the legacy fallback path. The chroma
+/// path uses `chroma::palette::blend_toward_white_rgb`
 /// (same equation, owned by the chroma engine, tuple-in/tuple-out to avoid
 /// the Color wrap + decode round-trip on the hot path).
 #[inline]
@@ -161,7 +162,7 @@ pub(crate) fn blend_toward_white(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u
 /// clamped to `[0, 255]`.
 ///
 /// This is the verbatim equation that previously lived inline in
-/// `droplet.rs::CellShader::shade` for the head self-bloom effect
+/// the droplet draw path for the head self-bloom effect
 /// (the head glyph gets a multiplicative brightness boost whose
 /// strength is scaled by the parallax layer's self-bloom multiplier).
 ///
@@ -188,7 +189,7 @@ pub(crate) fn blend_toward_white(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u
 /// engine's copy of the same renormalized scale).
 ///
 /// # Caller status ( P11 migration)
-/// Wired into `droplet::CellShader::shade` head self-bloom for the
+/// Wired into the droplet draw path's head self-bloom for the
 /// legacy fallback path. The chroma path uses `chroma::palette::boost_rgb`
 /// (same equation, owned by the chroma engine). The audit proposed a
 /// future perceptual OKLab L lift variant for the chroma path, but that

@@ -65,8 +65,8 @@ pub(super) fn handle_runtime_event(
             );
             // Hover/click visual effects are ALWAYS ON (--mouse deleted).
             // BUT: when paused OR decelerating, skip click wave
-            // effects to prevent queued flash waves from
-            // accumulating and causing "stuck particles" on
+            // effects to prevent queued wave injections from
+            // accumulating and causing stuck effects on
             // resume (owner-reported bug: rapid pause/unpause
             // cycles left effects hanging).
             //

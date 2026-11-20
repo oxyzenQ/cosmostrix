@@ -140,14 +140,14 @@ pub struct CloudConfig {
     /// message-border config key. CLI -m/-mb always wins (handled in
     /// main.rs). Default: true (message overlay active).
     pub msg_mode: bool,
-    /// PERF-4: particle effects enabled flag. When false, ALL cosmetic
-    /// subsystems are disabled — even the most valuable ones (owner
-    /// v80.0.0-alpha.1 directive: "disable all cosmetic effects to peak
-    /// optimize performance"): mouse-click
-    /// flash waves, anomaly zones, ghost events, emergent storytelling
-    /// moments, msg-fill-style particle sidecars (engrave spark /
-    /// hologram scanline / scorch smoke), the CRT vignette post-process,
-    /// and the cursor hover glow. Set from CLI --no-effects. Default:
+    /// PERF-4: cosmetic effects enabled flag. When false, EVERY
+    /// cosmetic subsystem in the --no-effects inventory (enumerated
+    /// once in `cli/help_text.rs`: the click shockwave, anomaly zones,
+    /// ghost events, storytelling moments, msg-fill sidecars,
+    /// border-touch pulse, CRT vignette, hover glow) is disabled —
+    /// even the most valuable ones (owner v80.0.0-alpha.1 directive:
+    /// "disable all cosmetic effects to peak optimize performance").
+    /// Set from CLI --no-effects. Default:
     /// true (effects on). Auto-forced false in benchmark mode.
     /// Rain-core visuals (droplet trails, phosphor fade, palette wave
     /// transitions, climate drift) are NOT cosmetics — they stay on.

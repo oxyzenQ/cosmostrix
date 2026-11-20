@@ -274,10 +274,11 @@ pub(crate) fn apply_brightness_rgb(r: u8, g: u8, b: u8, factor: f32) -> Color {
 /// decode + `Color::Reset` check when the caller already has the
 /// pre-decoded (r, g, b) values. Returns the blended (r, g, b) triple.
 ///
-/// (chroma audit, A2): added for the mouse-click flash wave hot
-/// path. The equation is identical to `blend_toward_white` -- the
+/// (chroma audit, A2): added for the hot white-blend path (the
+/// transition energy boost). The equation is identical to
+/// `blend_toward_white` -- the
 /// difference is the input/output shape (tuple vs Color). Used by
-/// droplet.rs::CellShader::shade when the chroma pipeline is active;
+/// `droplet/draw.rs` when the chroma pipeline is active;
 /// the legacy fallback uses `chroma::legacy::blend_toward_white`.
 #[inline]
 #[must_use]
@@ -432,7 +433,7 @@ pub(crate) fn blend_toward_bg_rgb_unclamped(
 /// two is module ownership (chroma engine vs. legacy fallback).
 ///
 /// # Caller status ( A16 migration)
-/// Wired into `droplet::CellShader::shade` for the parallax brightness
+/// Wired into the droplet draw path for the parallax brightness
 /// + glyph dim multiplicative scale. The chroma path uses this helper;
 ///
 /// the legacy fallback uses `chroma::legacy::scale_rgb`.
