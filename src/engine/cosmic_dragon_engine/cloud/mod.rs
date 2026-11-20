@@ -843,8 +843,8 @@ impl Cloud {
         self.event_manager.enable_events();
     }
 
-    /// PERF-4: when false, ALL particle subsystems become no-ops (quantum
-    /// ripple, border spark, click flash waves, anomaly zones). --no-effects.
+    /// PERF-4: when false, ALL particle subsystems become no-ops (click
+    /// flash waves, anomaly zones). --no-effects.
     pub fn set_effects_enabled(&mut self, enabled: bool) {
         self.effects_enabled = enabled;
     }

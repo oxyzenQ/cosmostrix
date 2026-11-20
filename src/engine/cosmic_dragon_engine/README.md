@@ -121,7 +121,7 @@ changing toolchain.
 | Subsystem                                  | Role                                                                  |
 |--------------------------------------------|-----------------------------------------------------------------------|
 | `cosmic_dragon_engine/cloud/`              | Rain simulation, monolith, render pipeline, ecosystem, phosphor, ghost events (production) |
-| `cosmic_dragon_engine/cloud/tests/`        | Comprehensive test suite: scene, monolith, quantum, phosphor, edge fade, anomaly, visual depth, color stability |
+| `cosmic_dragon_engine/cloud/tests/`        | Comprehensive test suite: scene, monolith, phosphor, edge fade, anomaly, visual depth, color stability |
 | `cosmic_dragon_engine/frame.rs`           | Differential frame buffer with double-buffered generation-based dirty tracking |
 | `cosmic_dragon_engine/terminal/`           | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, `/dev/tty` fallback (production) |
 | `cosmic_dragon_engine/runtime.rs`          | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`, `ColorPipeline` |

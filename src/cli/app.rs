@@ -143,7 +143,7 @@ pub struct CloudConfig {
     /// PERF-4: particle effects enabled flag. When false, ALL cosmetic
     /// subsystems are disabled — even the most valuable ones (owner
     /// v80.0.0-alpha.1 directive: "disable all cosmetic effects to peak
-    /// optimize performance"): quantum ripple, border spark, mouse-click
+    /// optimize performance"): mouse-click
     /// flash waves, anomaly zones, ghost events, emergent storytelling
     /// moments, msg-fill-style particle sidecars (engrave spark /
     /// hologram scanline / scorch smoke), the CRT vignette post-process,

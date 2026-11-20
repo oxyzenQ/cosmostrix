@@ -95,7 +95,7 @@ lifetime) was too big. The border pulse was too small. What was missing
 was the **middle ground**: a small particle burst, sized for a single
 rain drop, not a click.
 
-**Feature**: `docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md` —
+**Feature**: the rain-border-touch spark research —
 Option F (Particle Spark) with 3 sub-variants:
 - F1 Micro-Spark: 3 particles, 250ms, no trail ("tic")
 - F2 Splash Crown: 6 particles, 350ms, 1-cell trail ("plash") — **owner-selected**

@@ -462,7 +462,11 @@ no anti-teleport budget is burned after a pause. The rain and
 monolith deliberately keep the dilated `max_sim_delta` clock: the
 rain is an ambient field where slow motion reads as calm, while
 click sparks are interaction impulses whose latency is a
-responsiveness signal.
+responsiveness signal. night-moonlight-1 (2026-11-20) update: the
+QuantumParticle click ripples and border-touch sparks described above
+are removed outright at the owner's decision; the real-time clock
+discipline stays for the surviving particle systems (the flash wave,
+the border-touch pulse, and the msg-fill sidecars).
 
 The VTE ANSI throughput bottleneck itself (slow frame rate on CPU-rendered
 terminals) was closed as a RENDERER-side tail in night-frontier-Z3 (3c,

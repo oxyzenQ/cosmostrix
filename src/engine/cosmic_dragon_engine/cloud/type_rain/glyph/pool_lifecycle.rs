@@ -20,9 +20,8 @@
 //! consolidation started in NIGHT-enhanced-1-fixup.
 //!
 //! The other methods in `cloud/spawn.rs` (reset, init_chars,
-//! transition_chars, glitch management, quantum ripple, border
-//! spark) are general Cloud lifecycle methods shared across all
-//! rain styles and stay where they are.
+//! transition_chars, glitch management) are general Cloud lifecycle
+//! methods shared across all rain styles and stay where they are.
 
 use std::time::Instant;
 

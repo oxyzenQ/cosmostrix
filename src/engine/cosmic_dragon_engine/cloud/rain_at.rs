@@ -1961,7 +1961,7 @@ impl super::Cloud {
         // the same rate as the rain wakes up. Without this, phosphor trails
         // vanish at full speed while droplets move in slow motion — creating
         // temporal inconsistency that feels "spiky" during resume.
-        // clamp dt to 1/30 sec (matches droplet/quantum/spawn caps).
+        // clamp dt to 1/30 sec (matches the droplet and rain-sim caps).
         // Without this, a frame timing spike (GC pause, OS stall) could
         // make phosphor decay up to 3x faster than droplets move in the
         // same frame — visible as a "brightness dip" on trails.

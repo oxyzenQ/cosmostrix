@@ -257,7 +257,7 @@ impl crate::cloud::Cloud {
         } else {
             // Palette head color (near-white on most schemes):
             // the scanline follows the active theme like the
-            // border spark and engrave head do.
+            // engrave head does.
             self.palette.colors.last().copied()
         };
         for mc in &self.message {

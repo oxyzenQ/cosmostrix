@@ -633,8 +633,8 @@ impl super::Cloud {
         // throws slow upward gray puffs above the freshly burned-in
         // chars). Runs only for scorch; the pass itself early-outs
         // in O(1) when the pool is idle. Same dedicated-pool pattern
-        // as engrave (see `msg_fill_style/scorch.rs` for why the
-        // shared quantum pool cannot be reused).
+        // as engrave (see `msg_fill_style/scorch.rs` for why each
+        // sidecar owns a dedicated pool).
         if style == MsgFillStyle::Scorch {
             self.scorch_smoke_pass(frame, now, head_pos, head_idx, message_elapsed_ms);
         }

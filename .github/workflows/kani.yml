@@ -14,7 +14,7 @@
 # Harness roster (one job per harness; add a job when adding a harness):
 #   - kani-cloud-density: living_rain density modifier band
 #   - kani-cloud-reseed-ladder: the deterministic reseed ladder
-#   - kani-chroma-blend: the quantum ripple background blend hull
+#   - kani-chroma-blend: the chroma background blend hull
 
 name: "Kani - Bounded Model Checking"
 
