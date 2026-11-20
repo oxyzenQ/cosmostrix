@@ -9,8 +9,11 @@
 # proving a fired shutdown can never be lost by a racing read - the
 # property the Release/Acquire pair is relied on for at ultra scale.
 #
-# The 30-minute law (the zelynic micro-split rule): one proof per job,
-# capped at 30 minutes. New loom models join as their own job.
+# The 15-minute law (night-depth-cleanup-2, the owner's micro-split
+# rule — tightened from the 30-minute law): one proof per job, capped
+# at 15 minutes. New loom models join as their own job. Measured
+# 2026-11-20: the handshake model proves in ~1 minute, so 15 is pure
+# ceiling.
 
 name: "Loom - Concurrency Proof"
 
@@ -36,7 +39,7 @@ jobs:
   loom-shutdown-handshake:
     name: Loom - shutdown handshake
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,12 +64,12 @@ jobs:
           set -euo pipefail
           # Bounded preemptions: exhaustive coverage of every
           # interleaving the schedule bound allows, in well under the
-          # 30-minute law. A future model that inflates the schedule
+          # 15-minute law. A future model that inflates the schedule
           # dies loudly inside the job timeout instead of hanging.
           LOOM_MAX_PREEMPTIONS=2 cargo test --locked loom_proofs -- --nocapture
 
-# night-zen-lts-2: join the estate-wide cancel-in-progress law. The
-# other eleven workflows serialize per-ref; these heavy lanes ran
+# night-zen-lts-2: join the estate-wide cancel-in-progress law (now
+# estate-wide: every workflow carries it). These heavy lanes ran
 # every push to completion, so a rapid push pair paid for two full
 # model-checking sweeps with the first one discarded unread.
 concurrency:

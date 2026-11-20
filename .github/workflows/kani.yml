@@ -5,11 +5,13 @@
 #
 # The proven datapath: every proof harness lives under `#[cfg(kani)]`
 # `kani_proofs` modules in the engine sources, and `cargo kani` verifies
-# each one over EVERY symbolic input instead of sampling. The 30-minute
-# law (the zelynic micro-split rule): one harness per micro job, each
-# job capped at 30 minutes - a future harness that inflates the run is
-# isolated to its own job instead of hanging a monolithic lane, and the
-# failing harness is named by the job title on the Actions tab.
+# each one over EVERY symbolic input instead of sampling. The 15-minute
+# law (night-depth-cleanup-2, the owner's micro-split rule — tightened
+# from the 30-minute law): one harness per micro job, each job capped
+# at 15 minutes - a future harness that inflates the run is isolated to
+# its own job instead of hanging a monolithic lane, and the failing
+# harness is named by the job title on the Actions tab. Measured
+# 2026-11-20: each harness proves in ~1 minute, so 15 is pure ceiling.
 #
 # Harness roster (one job per harness; add a job when adding a harness):
 #   - kani-cloud-density: living_rain density modifier band
@@ -38,7 +40,7 @@ jobs:
   kani-cloud-density:
     name: Kani - cloud density band
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -47,13 +49,13 @@ jobs:
       - name: Verify density modifier band
         uses: model-checking/kani-github-action@v1
         with:
-          runtime: 30
+          runtime: 15
           args: --output-format terse --harness density_modifier_stays_in_band_for_any_input
 
   kani-cloud-reseed-ladder:
     name: Kani - reseed ladder totality
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -62,13 +64,13 @@ jobs:
       - name: Verify reseed ladder
         uses: model-checking/kani-github-action@v1
         with:
-          runtime: 30
+          runtime: 15
           args: --output-format terse --harness reseed_ladder_is_total_and_fresh_per_rung
 
   kani-chroma-blend:
     name: Kani - chroma blend hull
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -77,11 +79,11 @@ jobs:
       - name: Verify background blend hull
         uses: model-checking/kani-github-action@v1
         with:
-          runtime: 30
+          runtime: 15
           args: --output-format terse --harness blend_toward_bg_rgb_stays_in_channel_hull
 
-# night-zen-lts-2: join the estate-wide cancel-in-progress law. The
-# other eleven workflows serialize per-ref; these heavy lanes ran
+# night-zen-lts-2: join the estate-wide cancel-in-progress law (now
+# estate-wide: every workflow carries it). These heavy lanes ran
 # every push to completion, so a rapid push pair paid for two full
 # model-checking sweeps with the first one discarded unread.
 concurrency:

@@ -9,7 +9,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 |----------|---------|---------|
 | `ci.yml` | every push + every PR (unfiltered) | fmt, clippy, test, build, security audit, version sync |
 | `release.yml` | tag push `v*` (CI-gated: waits for the `ci.yml` run on the tagged SHA — NIGHT-improve-1) | 7-platform binaries + checksums + GPG sign + GitHub Release (PGO nitro release packages retired — night-dragon-maintenance-T1) |
-| `kani.yml` | every push + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | Bounded model checking over the proof harnesses (`#[cfg(kani)] kani_proofs`): density band, reseed ladder, blend hull - one micro job per harness, 30-minute cap (NIGHT-depth-hardening-3) |
+| `kani.yml` | every push + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | Bounded model checking over the proof harnesses (`#[cfg(kani)] kani_proofs`): density band, reseed ladder, blend hull - one micro job per harness, 15-minute cap (night-depth-cleanup-2; tightened from the 30-minute cap of NIGHT-depth-hardening-3) |
 | `loom.yml` | every push + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | Exhaustive interleaving model of the two-flag shutdown handshake under `--cfg loom` (NIGHT-depth-hardening-3) |
 | `maintenance.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | `cargo update` in every committed workspace (root, `fuzz/`, `pgo-runner/` — night-zen-1) + audit + commit if validation passes |
 | `gitbot-audit.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB, night-consistent-1) + every push/PR (unfiltered) | `cargo audit` + `cargo deny` (observation-only) |
@@ -33,12 +33,17 @@ build gate every downstream job depends on) is displayed as
 Every `ci.yml` job carries an explicit `timeout-minutes` and must
 finish within 10 minutes — most legs run 5, the heaviest get 10, and
 the supermassive lanes target the five-minute law of night-T-1
-(every battery leg <= 5 minutes). A job that legitimately needs more
-than 10 minutes is a build-health problem to fix, not a cap to raise:
-split the job, cache the toolchain, or move the work to a release
-lane. The publish pipelines (`release.yml`, `crates-io.yml`) are the
-deliberate exception — they build every release platform in one job
-and carry their own larger caps.
+(every battery leg <= 5 minutes), and the model-checking micro jobs
+(`kani.yml`, `loom.yml`) carry the 15-minute cap of the owner's
+micro-split rule (night-depth-cleanup-2: anything that would run
+past 15 minutes must be split into micro runs, never raised). A job
+that legitimately needs more than 10 minutes is a build-health
+problem to fix, not a cap to raise: split the job, cache the
+toolchain, or move the work to a release lane. The publish pipelines
+(`release.yml`, `crates-io.yml`) are the deliberate exception — they
+build every release platform in one job and carry their own larger
+caps, and the Sunday soak lane is the other (its long window IS the
+test).
 
 ## Unfiltered triggers (what fires a CI run)
 
