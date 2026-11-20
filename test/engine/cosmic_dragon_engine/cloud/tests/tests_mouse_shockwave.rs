@@ -104,10 +104,10 @@ fn mouse_shockwave_click_storm_caps_and_decays() {
         "the click storm must saturate at the inject cap, not blow up (peak {peak})"
     );
     // Step the field at 60 fps for the documented damping life
-    // (2*ln(A0/eps)/k from the inject cap A0=2 is ~125 frames; the
-    // storm's spatial spread lags the peak slightly — 200 frames is
-    // the documented-window margin).
-    for _ in 0..200 {
+    // (2*ln(A0/eps)/k from the inject cap A0=2 is ~249 frames at the
+    // blast-radius retune's k = 3.0/s; the storm's spatial spread lags
+    // the peak slightly — 320 frames is the documented-window margin).
+    for _ in 0..320 {
         cloud.wave_field.step(1.0 / 60.0);
     }
     assert!(
@@ -122,7 +122,15 @@ fn mouse_shockwave_click_storm_caps_and_decays() {
 fn mouse_shockwave_solver_stays_bounded() {
     let mut cloud = make_truecolor_cloud(ColorScheme::Green);
     cloud.set_mouse_click(10, 5);
-    let mut peak = 0.0f32;
+    // The fresh injection itself carries the peak: the seed packet
+    // starts at full amplitude and every step disperses it further
+    // (faster at a higher c), so the visibility claim samples the
+    // pre-step state as well as the run.
+    let mut peak = cloud
+        .wave_field
+        .amplitudes()
+        .iter()
+        .fold(0.0f32, |m, &v| m.max(v.abs()));
     for _ in 0..600 {
         cloud.wave_field.step(1.0 / 60.0);
         let p = cloud

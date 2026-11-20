@@ -1122,9 +1122,10 @@ terminal (cells are twice as tall as wide). Mechanism
 (night-frontier-Z4b, Lapis 4b): `cloud/wave_field.rs` solves the 2D
 wave equation on the CELL GRID — the telegraph form
 `u_tt + k*u_t + (k/2)^2*u = c^2*laplacian(u)` — with a leapfrog FDTD
-scheme whose Courant numbers are pinned 11x inside the von Neumann
-bound (`rx^2 + ry^2 = 0.089 <= 1` at the `MOUSE_FLASH_DT_MAX` = 1/120
-sub-step ceiling; slow frames split into more sub-steps, capped at 8,
+scheme whose Courant numbers sit 5x inside the von Neumann
+bound (`rx^2 + ry^2 = 0.2 <= 1` at the `MOUSE_FLASH_DT_MAX` = 1/120
+sub-step ceiling since the 2026-11-20 blast-radius retune; slow
+frames split into more sub-steps, capped at 8,
 so a stall advances the wave instead of destabilizing it — and since
 night-frontier-Z6 every sub-step is EXACTLY one `MOUSE_FLASH_DT_MAX`
 quantum, see entry 46). A click
@@ -1135,9 +1136,9 @@ the inject amplitude caps so a click storm saturates instead of
 blowing up. The grid is PHYSICAL: `dy = 2*dx` (the cell aspect), so
 the front advances half as many rows as columns and the ripple
 renders as a CIRCLE (measured: horizontal 10-column and vertical
-5-row arrivals land in the same window, ~15-16 frames for an
-18.75-frame expectation — the residual gap is the coarse-grid
-dispersion, documented, tolerance-pinned). First-order Mur absorbing
+5-row arrivals land in the same window — the expectation is computed
+from `MOUSE_FLASH_SPEED` and re-pinned within 35% on every test run;
+the residual gap is the coarse-grid dispersion, documented). First-order Mur absorbing
 edges swallow the front at the screen border (no reflected ring), the
 edges ride the same telegraph envelope as the interior (Mur alone
 leaves a slow-decaying boundary reservoir — measured before the fix:
@@ -1146,9 +1147,13 @@ is what makes the life PROVABLE: in the pure damped wave equation the
 spatial-mean mode converges to a nonzero constant (a visible residue
 that never settles); the telegraph form rides `exp(-k*t/2)` on EVERY
 mode, so the field provably crosses the settle floor at
-`2*ln(A0/eps)/k` = 1.84 s (matching the synthetic era's 1.8 s life)
-and the solver then clears itself — post-settle frames cost ZERO
-work. The renderer's hot path strictly shrinks: one bounds-checked
+`2*ln(A0/eps)/k` — ~3.7 s single click, ~4.1 s storm cap since the
+2026-11-20 blast-radius retune (c = 48 cells/s, k = 3.0/s: the crest
+still carries ~16% amplitude at the 115-col screen edge ~1.2 s after
+the click, restoring the synthetic ring's edge-to-edge reach that
+Z4b's match-the-1.8 s-life calibration had decayed to a ~20-column
+visible radius) — and the solver then clears itself: post-settle
+frames cost ZERO work. The renderer's hot path strictly shrinks: one bounds-checked
 amplitude lookup per cell replaces the per-wave distance math
 (no sqrt, no loop over 4 ctx waves). Costs, kept honest: two
 preallocated f32 grids (~15 KiB at 80x24), single-threaded, ~10 flops

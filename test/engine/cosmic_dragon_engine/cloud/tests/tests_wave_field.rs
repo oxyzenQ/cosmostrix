@@ -95,7 +95,7 @@ fn wave_field_front_arrival_speed_and_isotropy() {
         }
         landed_at.expect("the wave front never reached the probe")
     };
-    let expected_frames = (10.0 / MOUSE_FLASH_SPEED) * 60.0; // 18.75
+    let expected_frames = (10.0 / MOUSE_FLASH_SPEED) * 60.0; // 12.5 at c = 48
 
     // Horizontal: 10 columns.
     let mut f = WaveField::empty();
@@ -209,8 +209,9 @@ fn wave_field_settle_lifecycle_and_zero_cost() {
     assert!(f.is_settled());
     f.inject(40, 12);
     assert!(!f.is_settled());
-    // Documented life: 2*ln(1/eps)/k = 1.84 s = ~111 frames; 200 for margin.
-    for _ in 0..200 {
+    // Documented life: 2*ln(1/eps)/k = 3.68 s = ~221 frames (the
+    // blast-radius retune's k = 3.0/s); 300 for margin.
+    for _ in 0..300 {
         f.step(1.0 / 60.0);
         if f.is_settled() {
             break;

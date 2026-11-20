@@ -47,10 +47,14 @@
 //! First-order Mur absorbing conditions on all four edges swallow the
 //! front at the screen border (no reflected ring), and the volume
 //! damping `k = MOUSE_FLASH_WAVE_DAMPING` gives the field its finite
-//! life: the amplitude envelope decays as `exp(-k*t/2)`, calibrated so
-//! the visible life (~1.8 s, amplitude to the settle floor) matches
-//! the synthetic wave's `MOUSE_FLASH_DURATION_SECS` era. When the
-//! whole field falls below `MOUSE_FLASH_SETTLE_EPS` the solver marks
+//! life: the amplitude envelope decays as `exp(-k*t/2)`, calibrated to
+//! the owner's blast-radius law (2026-11-20 retune) — the crest still
+//! carries ~16% amplitude when the front reaches the horizontal edge
+//! of a 115-col terminal ~1.2 s after the click (the synthetic ring's
+//! edge-to-edge reach, restored on the real solver) — and the field
+//! provably crosses `MOUSE_FLASH_SETTLE_EPS` at `2*ln(A0/eps)/k`
+//! (~3.7 s single click, ~4.1 s storm cap). When the whole field
+//! falls below the floor the solver marks
 //! itself settled and subsequent frames cost ZERO work until the next
 //! click re-arms it.
 //!
