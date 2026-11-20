@@ -79,6 +79,13 @@ pub(crate) struct VerboseCtx<'a> {
     /// timing spikes, breaks p99/max determinism). Pass bench_mode so
     /// verbose can disclose the override BEFORE the benchmark report.
     pub bench_mode: bool,
+    /// The --no-effects flag input. Paired with bench_mode and the
+    /// terminal caps through `resolve_effects_enabled` — the same
+    /// resolver the engine wires into CloudConfig — so the printed
+    /// effects state can never disagree with the runtime (owner bug:
+    /// --no-effects was invisible in verbose; the effects_gate line
+    /// only reports the terminal-class auto-gate).
+    pub no_effects: bool,
     /// Power Dragon: when false, disables aggressive_throttle + idle FPS
     /// reduction. Default: true (protection enabled). Config-only toggle.
     pub power_dragon: bool,
@@ -187,6 +194,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         intro_type_label,
         commit_sha,
         bench_mode,
+        no_effects,
         power_dragon,
         intro_color,
         scene_custom,
@@ -512,6 +520,29 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
             caps.sync_output
         ),
     );
+    // The resolved cosmetic-effects state. The effects_gate line below
+    // only reports the terminal-class auto-gate decision; the --no-effects
+    // flag and the benchmark-mode decision were invisible on it (owner
+    // bug: a --no-effects run printed the same gate line as a default
+    // run). This line resolves through the engine's own resolver, so
+    // the report cannot disagree with the wiring.
+    let effects_on =
+        crate::cli::build_cloud_cfg::resolve_effects_enabled(*no_effects, *bench_mode, &caps);
+    let effects_label = if !effects_on {
+        if *no_effects {
+            " off (--no-effects flag)".to_string()
+        } else if *bench_mode {
+            " off (benchmark mode)".to_string()
+        } else {
+            format!(
+                " off (terminal-class auto gate: {})",
+                caps.effects_gate_source
+            )
+        }
+    } else {
+        " on (default; runtime congestion gate armed)".to_string()
+    };
+    output::eprintln_verbose("effects:", &effects_label);
     // S-master-HUNT-24: surface the effects auto-gate decision so the
     // user can verify WHY effects are (not) disabled — the same
     // [auto-fx] runtime diagnostic pushed at startup.

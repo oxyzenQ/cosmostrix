@@ -213,6 +213,7 @@ pub(crate) fn run_verbose_startup(vi: VerboseInputs<'_>) {
         intro_type_label: intro_label,
         commit_sha,
         bench_mode,
+        no_effects: args.no_effects,
         power_dragon: args.power_dragon.unwrap_or(true),
         intro_color: args.intro_color.as_deref(),
         scene_custom: args.scene_custom.as_deref(),
