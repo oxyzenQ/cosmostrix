@@ -103,11 +103,14 @@ fn mouse_shockwave_click_storm_caps_and_decays() {
         peak <= 2.0 + 1e-3,
         "the click storm must saturate at the inject cap, not blow up (peak {peak})"
     );
-    // Step the field at 60 fps for the documented damping life
-    // (2*ln(A0/eps)/k from the inject cap A0=2 is ~249 frames at the
-    // blast-radius retune's k = 3.0/s; the storm's spatial spread lags
-    // the peak slightly — 320 frames is the documented-window margin).
-    for _ in 0..320 {
+    // Step the field at 60 fps for the documented damping life. The
+    // blast seed lands at the A0 = 2 cap, and a storm that saturates
+    // the whole 20x10 grid leaves its energy in the spatial-mean (DC)
+    // mode — the provable SLOW tail, critically damped:
+    // `(1 + k*t/2)*exp(-k*t/2)`. Crossing the settle floor from A0 = 2
+    // at the water-ripple retune's k = 1.8/s takes ~10.6 s (~640
+    // frames); 800 frames gives the law margin.
+    for _ in 0..800 {
         cloud.wave_field.step(1.0 / 60.0);
     }
     assert!(

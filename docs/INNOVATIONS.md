@@ -1147,12 +1147,21 @@ is what makes the life PROVABLE: in the pure damped wave equation the
 spatial-mean mode converges to a nonzero constant (a visible residue
 that never settles); the telegraph form rides `exp(-k*t/2)` on EVERY
 mode, so the field provably crosses the settle floor at
-`2*ln(A0/eps)/k` — ~3.7 s single click, ~4.1 s storm cap since the
-2026-11-20 blast-radius retune (c = 48 cells/s, k = 3.0/s: the crest
-still carries ~16% amplitude at the 115-col screen edge ~1.2 s after
-the click, restoring the synthetic ring's edge-to-edge reach that
-Z4b's match-the-1.8 s-life calibration had decayed to a ~20-column
-visible radius) — and the solver then clears itself: post-settle
+`2*ln(A0/eps)/k` — ~6.9 s at the A0 = 2 cap the blast seed lands at
+(the pure-envelope ceiling; real grids settle far earlier, ~1.9 s
+measured at 80x24 where the Mur edges bleed the ring). The visible
+strength is the owner's water-ripple calibration (2026-11-20 retune):
+the click seeds a 13-cell BLAST packet (the center at the 2.0 inject
+cap, half of it at manhattan ring 1, a quarter at ring 2) whose
+splash lands saturated, `MOUSE_FLASH_INTENSITY` = 2.0 makes the
+brightness mapping crest-saturating (any |u| >= 0.5 clamps to the
+full palette-HEAD band at the draw path's clamp), and k = 1.8/s at
+c = 48 cells/s keeps the solved crest at factor >= 0.15 out to ~85
+columns of a 115-col screen and ~0.05 at the edge ~1.0 s after the
+click (measured on an exact solver replica — the v1 envelope-only
+retune missed the 2D geometric spreading `~1/sqrt(r)`, which had
+left the crest physically present but perceptually invisible) — and
+the solver then clears itself: post-settle
 frames cost ZERO work. The renderer's hot path strictly shrinks: one bounds-checked
 amplitude lookup per cell replaces the per-wave distance math
 (no sqrt, no loop over 4 ctx waves). Costs, kept honest: two

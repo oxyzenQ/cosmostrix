@@ -69,20 +69,23 @@ fn wave_field_long_run_stays_bounded() {
     }
 }
 
-/// Propagation speed + isotropy: the front's first arrival at a probe
-/// point matches `distance / c` in PHYSICAL units — horizontally (10
-/// columns) and vertically (5 rows = 10 column-widths of travel, the
-/// same time). The measured far-field arrival is ~15-16 frames for a
-/// 18.75-frame expectation: the coarse-grid numerical dispersion makes
-/// the leading edge slightly late/near-field slightly fast, so the
-/// tolerance is 35% (a documented property of the discretization, not
-/// a defect). The ISOTROPY pin is the sharper claim: horizontal and
-/// vertical arrivals must land in the same window — that is the
-/// "the ripple renders as a circle" law (dy = 2*dx).
+/// Propagation speed + isotropy: the front's significant arrival at a
+/// probe point matches `distance / c` in PHYSICAL units — horizontally
+/// (10 columns) and vertically (5 rows = 10 column-widths of travel,
+/// the same time). The arrival threshold samples the SIGNIFICANT wave
+/// (the crest at these probes carries 0.09-0.22): a tiny threshold
+/// would fire on the blast seed's sub-visible dispersive precursor,
+/// whose leading tail crosses milli-amplitudes frames before the
+/// front (the coarse-grid numerical dispersion makes the leading edge
+/// slightly late/near-field slightly fast, so the tolerance is 35% —
+/// a documented property of the discretization, not a defect). The
+/// ISOTROPY pin is the sharper claim: horizontal and vertical
+/// arrivals must land in the same window — that is the "the ripple
+/// renders as a circle" law (dy = 2*dx).
 #[test]
 fn wave_field_front_arrival_speed_and_isotropy() {
     let arrival = |field: &mut WaveField, probe: (usize, usize), frames: usize| -> usize {
-        const ARRIVAL_THRESHOLD: f32 = 0.01;
+        const ARRIVAL_THRESHOLD: f32 = 0.05;
         let mut landed_at = None;
         for k in 0..frames {
             field.step(1.0 / 60.0);
@@ -209,8 +212,13 @@ fn wave_field_settle_lifecycle_and_zero_cost() {
     assert!(f.is_settled());
     f.inject(40, 12);
     assert!(!f.is_settled());
-    // Documented life: 2*ln(1/eps)/k = 3.68 s = ~221 frames (the
-    // blast-radius retune's k = 3.0/s); 300 for margin.
+    // Documented life: the blast seed lands at the A0 = 2 cap, so the
+    // provable settle ceiling is 2*ln(2/eps)/k ~ 6.9 s at the
+    // water-ripple retune's k = 1.8/s (~415 frames) — the
+    // pure-envelope bound. On THIS 80x24 grid the Mur edges bleed the
+    // ring and the geometric spreading collapses the peak, so the
+    // field settles far earlier (measured ~110 frames on the exact
+    // solver replica); 300 frames stays a comfortable margin.
     for _ in 0..300 {
         f.step(1.0 / 60.0);
         if f.is_settled() {
@@ -351,20 +359,23 @@ fn assert_ledger_identity(f: &WaveField) {
     );
 }
 
-/// The closed-form deposit: one interior click's seed packet (center
-/// 1.0, four neighbors 0.5, zero initial velocity) raises the
-/// functional by exactly `rx^2 * 2 + ry^2 * 2` over two (the seed
-/// touches 8 horizontal and 8 vertical edges of 0.25 squared units
-/// each — 2.0 squared units per direction; kinetic is exactly zero
-/// since cur == prev). The 1e-7 slack is the f32 rounding of the
-/// Courant product (16/225 and 4/225 are the exact f64 values).
+/// The closed-form deposit: one interior click's blast packet (center
+/// 2.0 = the cap, four neighbors 1.0, eight manhattan-2 cells 0.5,
+/// zero initial velocity) raises the functional by exactly
+/// `0.5*rx^2*6 + 0.5*ry^2*6`: per direction the packet touches 18
+/// edges — two across the 1.0 center-to-ring step and sixteen across
+/// the 0.5 steps, summing 6.0 squared units (two of 1.0 squared,
+/// sixteen of 0.25 squared), and the two directions are symmetric.
+/// Kinetic is exactly zero since cur == prev. The 1e-7 slack is the
+/// f32 rounding of the Courant product (16/225 and 4/225 are the
+/// exact f64 values).
 #[test]
 fn wave_field_energy_inject_deposit_matches_closed_form() {
     let mut f = WaveField::empty();
     f.resize(80, 24);
     f.inject(40, 12);
     let l = f.ledger();
-    let expected = 0.5 * LEDGER_RX * LEDGER_RX * 2.0 + 0.5 * LEDGER_RY * LEDGER_RY * 2.0;
+    let expected = 0.5 * LEDGER_RX * LEDGER_RX * 6.0 + 0.5 * LEDGER_RY * LEDGER_RY * 6.0;
     assert!(
         (l.injected() - expected).abs() <= 1e-7,
         "the click's energy deposit drifted from the closed form: {} vs {}",
@@ -468,8 +479,12 @@ fn wave_field_energy_click_storm_stays_under_cap() {
     assert!(l.peak() <= cap, "the session peak must respect the cap");
     assert!(l.injected() > 0.0, "a storm must deposit energy");
     assert!(l.energy() > 0.0, "the storm's field is still alive");
-    // The decay: 500 more frames must land exactly zero, fully balanced.
-    for _ in 0..500 {
+    // The decay: 900 more frames must land exactly zero, fully
+    // balanced (the water-ripple retune's k = 1.8/s tail is longer
+    // than v1's — the provable settle ceiling is 2*ln(2/eps)/k ~ 6.9 s
+    // ~ 415 frames, and the saturated storm's DC residue rides the
+    // critically damped mode, so 900 gives the sweep margin).
+    for _ in 0..900 {
         f.step(1.0 / 60.0);
     }
     let l = f.ledger();

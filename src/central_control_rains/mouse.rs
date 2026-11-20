@@ -35,15 +35,30 @@ pub(crate) const MOUSE_GLOW_INTENSITY: f32 = 0.25;
 /// owner's "100 m" reach). c = 48 cells/s puts the front on the
 /// horizontal edge of a 115-col terminal ~1.2 s after the click and
 /// the vertical edge (20.5 rows at 24 rows/s) at ~0.85 s — with the
-/// crest still clearly visible on arrival (see MOUSE_FLASH_WAVE_DAMPING
-/// for the envelope math). CFL stays 5x inside the von Neumann bound
+/// crest still visible on arrival under the water-ripple calibration
+/// (see MOUSE_FLASH_WAVE_DAMPING for the envelope math and the measured
+/// crest curve). CFL stays 5x inside the von Neumann bound
 /// (rx = 48/120 = 0.4, rx^2 + ry^2 = 0.2 <= 1, also under the Z6
 /// ledger law's 0.25 pin).
 pub(crate) const MOUSE_FLASH_SPEED: f32 = 48.0;
 
-/// Peak intensity of the mouse-click shockwave (the brightness factor
-/// a full-amplitude wave crest contributes, pre-clamp).
-pub(crate) const MOUSE_FLASH_INTENSITY: f32 = 0.85;
+/// Peak intensity of the mouse-click shockwave: the brightness factor
+/// a wave crest of amplitude `u` contributes is `min(|u| * this, 1.0)`
+/// (the clamp lives at the draw path's single read site).
+///
+/// Water-ripple retune (2026-11-20, v2): 0.85 -> 2.0. The 1D envelope
+/// retune (v1) fixed the wave's REACH but ignored the 2D geometric
+/// spreading — on a real solve the crest amplitude falls ~1/sqrt(r)
+/// while it travels, so at the v1 gain the crest factor was ~0.018 at
+/// half a 115-col screen and ~0.004 at the edge: physically correct,
+/// perceptually invisible (the owner's "still not felt"). At 2.0 the
+/// mapping is crest-SATURATING: any |u| >= 0.5 clamps to the full
+/// palette-HEAD band, the 13-cell blast seed lands as a solid splash,
+/// and the measured crest curve (exact solver replica, 115x24, seed
+/// 2.0/1.0/0.5, k = 1.8) holds factor >= 0.15 out to ~85 columns and
+/// ~0.05 at the horizontal edge — the owner's water analogy: touch a
+/// calm surface, the ripple is FELT across the screen.
+pub(crate) const MOUSE_FLASH_INTENSITY: f32 = 2.0;
 
 /// Volume damping of the click shockwave field (the wave equation's
 /// `k`, per second): the solver integrates the telegraph form
@@ -54,22 +69,34 @@ pub(crate) const MOUSE_FLASH_INTENSITY: f32 = 0.85;
 /// nonzero constant (a visible residue that never settles); the
 /// telegraph form rides the same envelope `exp(-k*t/2)` on EVERY mode,
 /// so the field provably crosses the settle floor
-/// (`MOUSE_FLASH_SETTLE_EPS` = 0.004, ~0.5% brightness — invisible)
-/// at `2*ln(A0/eps)/k` — ~3.7 s for a single click (A0 = 1), ~4.1 s
-/// for the A0 = 2 storm cap — and the solver marks itself settled
+/// (`MOUSE_FLASH_SETTLE_EPS` = 0.004, a brightness factor of ~0.008 —
+/// invisible) at `2*ln(A0/eps)/k` — since the water-ripple retune the
+/// seed lands AT the A0 = 2 inject cap, so single click and storm cap
+/// share the same ~6.9 s provable ceiling (real grids settle far
+/// earlier; see below) — and the solver marks itself settled
 /// (zero-cost frames) at the floor. The field does not EXPIRE by
 /// clock anymore — the physics decays it.
 ///
 /// Owner blast-radius retune (2026-11-20): Z4b calibrated k = 6.0 to
 /// match the synthetic era's 1.8 s life, which decayed the crest
 /// below visibility by ~20 columns (the "100 m" reach the owner
-/// reported). k = 3.0/s recalibrates to the reach law instead: at the
-/// 115-col screen edge (~1.2 s of travel at c = 48) the crest still
-/// carries `exp(-1.5*1.2)` = 16.5% amplitude — a ~14% brightness
-/// factor at MOUSE_FLASH_INTENSITY, clearly visible. The tradeoff is
-/// honest: ~1 s of extra sub-1% tail per click; the settle is still
-/// provable, visually silent, and post-settle frames cost ZERO work.
-pub(crate) const MOUSE_FLASH_WAVE_DAMPING: f32 = 3.0;
+/// reported). The v1 retune (k = 3.0) fixed the reach but measured
+/// the DAMPING envelope only — the 2D geometric spreading (~1/sqrt(r))
+/// still collapsed the crest below visibility (see
+/// MOUSE_FLASH_INTENSITY).
+///
+/// Water-ripple retune (2026-11-20, v2): k = 1.8/s. Measured on the
+/// exact solver replica (115x24, blast seed): the crest factor stays
+/// above 0.15 out to ~85 columns and ~0.05 at the 115-col edge (~1.0 s
+/// of travel at c = 48), the field drops below the ~0.02-factor
+/// visibility floor after ~1.5 s, and the settle still lands well
+/// inside the provable ceiling `2*ln(A0/eps)/k` = ~6.9 s at A0 = 2
+/// (the pure-envelope bound; on real grids the Mur edges and the
+/// geometric spreading settle it far earlier — measured ~1.9 s at
+/// 80x24). The tradeoff is honest: the sub-visibility tail is ~1 s
+/// longer than v1's; the settle is still provable, visually silent,
+/// and post-settle frames cost ZERO work.
+pub(crate) const MOUSE_FLASH_WAVE_DAMPING: f32 = 1.8;
 
 /// The shockwave solver's sub-step ceiling (seconds). The leapfrog
 /// scheme's CFL bound is `rx^2 + ry^2 <= 1`; at DT_MAX = 1/120 s the
@@ -83,6 +110,7 @@ pub(crate) const MOUSE_FLASH_DT_MAX: f32 = 1.0 / 120.0;
 /// The shockwave field's settle floor: when the peak |displacement|
 /// falls below this, the solver clears the field and subsequent
 /// frames cost zero work until the next click. 0.004 amplitude = a
-/// brightness factor of ~0.0034 at MOUSE_FLASH_INTENSITY — far below
-/// any visible threshold, so the settle is visually silent.
+/// brightness factor of ~0.008 at the water-ripple
+/// MOUSE_FLASH_INTENSITY — far below any visible threshold, so the
+/// settle is visually silent.
 pub(crate) const MOUSE_FLASH_SETTLE_EPS: f32 = 0.004;

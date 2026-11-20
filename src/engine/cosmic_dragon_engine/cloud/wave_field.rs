@@ -47,14 +47,19 @@
 //! First-order Mur absorbing conditions on all four edges swallow the
 //! front at the screen border (no reflected ring), and the volume
 //! damping `k = MOUSE_FLASH_WAVE_DAMPING` gives the field its finite
-//! life: the amplitude envelope decays as `exp(-k*t/2)`, calibrated to
-//! the owner's blast-radius law (2026-11-20 retune) — the crest still
-//! carries ~16% amplitude when the front reaches the horizontal edge
-//! of a 115-col terminal ~1.2 s after the click (the synthetic ring's
-//! edge-to-edge reach, restored on the real solver) — and the field
-//! provably crosses `MOUSE_FLASH_SETTLE_EPS` at `2*ln(A0/eps)/k`
-//! (~3.7 s single click, ~4.1 s storm cap). When the whole field
-//! falls below the floor the solver marks
+//! life: the amplitude envelope decays as `exp(-k*t/2)`. The visible
+//! calibration is the owner's water-ripple law (2026-11-20 retune):
+//! the crest factor (`|u| * MOUSE_FLASH_INTENSITY`, clamped at the
+//! draw path) stays >= 0.15 out to ~85 columns and ~0.05 at the
+//! horizontal edge of a 115-col terminal ~1.0 s after the click
+//! (measured on an exact solver replica — the 2D geometric spreading
+//! `~1/sqrt(r)` decays the crest far faster than the damping envelope
+//! alone, the v1 retune's blind spot). The field provably crosses
+//! `MOUSE_FLASH_SETTLE_EPS` at `2*ln(A0/eps)/k` — ~6.9 s at the
+//! A0 = 2 cap the blast seed lands at (the pure-envelope ceiling;
+//! real grids settle far earlier — measured ~1.9 s at 80x24, where
+//! the Mur edges bleed the ring). When the whole field falls below
+//! the floor the solver marks
 //! itself settled and subsequent frames cost ZERO work until the next
 //! click re-arms it.
 //!
@@ -139,10 +144,18 @@ pub(crate) const CELL_ASPECT: f32 = 2.0;
 /// field up.
 const INJECT_CAP: f32 = 2.0;
 
-/// The seed packet half-width: the impulse spreads over the clicked
-/// cell and its 4-neighbors (a compact symmetric packet — a
-/// single-cell delta would ring harshly on the coarse grid).
-const SEED_NEIGHBOR_FRACTION: f32 = 0.5;
+/// The blast packet's ring profile, as fractions of `INJECT_CAP`: the
+/// clicked cell seeds AT the cap, its 4-neighbors (manhattan ring 1)
+/// at half of it, and its manhattan-2 ring at a quarter — a 13-cell
+/// splash that lands SATURATED (the owner's water-ripple brief: the
+/// touch is felt the frame it lands) and carries ~5x the old 5-cell
+/// packet's launch energy, so the solved crest stays bright out to
+/// the screen edge (the water-ripple calibration in mouse.rs).
+const SEED_NEAR_FRACTION: f32 = 0.5;
+
+/// The manhattan-2 ring's fraction of `INJECT_CAP` (see
+/// `SEED_NEAR_FRACTION` for the packet contract).
+const SEED_FAR_FRACTION: f32 = 0.25;
 
 /// The energy ledger's reference Courant number (columns): the
 /// sub-step-ceiling scale `c * MOUSE_FLASH_DT_MAX`. At the pinned
@@ -379,12 +392,14 @@ impl WaveField {
     }
 
     /// Inject a click impulse at `(col, line)` — the wave equation's
-    /// initial condition. The seed is a compact symmetric packet on
-    /// the clicked cell and its 4-neighbors, additive up to the cap
-    /// (superposition without blowup). Out-of-range clicks clamp into
-    /// the grid. The energy ledger takes the exact touched-set delta
-    /// (closed form over the seed cells and their incident edges — no
-    /// grid pass, zero allocation).
+    /// initial condition. The seed is the 13-cell BLAST PACKET: the
+    /// clicked cell at the `INJECT_CAP` ceiling, its manhattan-1 ring
+    /// at half and its manhattan-2 ring at a quarter of it (see the
+    /// seed constants), additive up to the cap (superposition without
+    /// blowup). Out-of-range clicks clamp into the grid and the packet
+    /// clips at the edges. The energy ledger takes the exact
+    /// touched-set delta (closed form over the seed cells and their
+    /// incident edges — no grid pass, zero allocation).
     pub(crate) fn inject(&mut self, col: u16, line: u16) {
         if self.cols < 1 || self.lines < 1 {
             return;
@@ -392,10 +407,11 @@ impl WaveField {
         let col = (col as usize).min(self.cols - 1);
         let line = (line as usize).min(self.lines - 1);
         let idx = line * self.cols + col;
-        // The touched set: the seed cell + in-range 4-neighbors (at
-        // most 5), sorted ascending so the edge-delta pass can dedup
+        // The touched set: the seed cell + the in-range packet cells
+        // (4-neighbors at manhattan 1, 8 cells at manhattan 2 — at
+        // most 13), sorted ascending so the edge-delta pass can dedup
         // shared edges by endpoint order.
-        let mut touched = [idx; 5];
+        let mut touched = [idx; 13];
         let mut n = 1usize;
         if col > 0 {
             touched[n] = idx - 1;
@@ -413,33 +429,62 @@ impl WaveField {
             touched[n] = idx + self.cols;
             n += 1;
         }
+        // The manhattan-2 ring: the cross arms (two cells out) and the
+        // four diagonals, each guarded against its own edges.
+        if col > 1 {
+            touched[n] = idx - 2;
+            n += 1;
+        }
+        if col + 2 < self.cols {
+            touched[n] = idx + 2;
+            n += 1;
+        }
+        if line > 1 {
+            touched[n] = idx - 2 * self.cols;
+            n += 1;
+        }
+        if line + 2 < self.lines {
+            touched[n] = idx + 2 * self.cols;
+            n += 1;
+        }
+        if line > 0 && col > 0 {
+            touched[n] = idx - self.cols - 1;
+            n += 1;
+        }
+        if line > 0 && col + 1 < self.cols {
+            touched[n] = idx - self.cols + 1;
+            n += 1;
+        }
+        if line + 1 < self.lines && col > 0 {
+            touched[n] = idx + self.cols - 1;
+            n += 1;
+        }
+        if line + 1 < self.lines && col + 1 < self.cols {
+            touched[n] = idx + self.cols + 1;
+            n += 1;
+        }
         touched[..n].sort_unstable();
         let e_before = self.inject_local_energy(&touched[..n]);
-        // Zero initial velocity: prev carries the seed too.
+        // Zero initial velocity: prev carries the seed too. The packet
+        // profile derives from each cell's manhattan distance to the
+        // click — one source of truth for the write pass and the
+        // ledger's touched set (0 -> the cap, 1 -> half, 2 -> a
+        // quarter).
+        let near = INJECT_CAP * SEED_NEAR_FRACTION;
+        let far = INJECT_CAP * SEED_FAR_FRACTION;
         let add = |v: &mut f32, a: f32| {
             *v = (*v + a).min(INJECT_CAP);
         };
-        add(&mut self.cur[idx], 1.0);
-        add(&mut self.prev[idx], 1.0);
-        if col > 0 {
-            let i = idx - 1;
-            add(&mut self.cur[i], SEED_NEIGHBOR_FRACTION);
-            add(&mut self.prev[i], SEED_NEIGHBOR_FRACTION);
-        }
-        if col + 1 < self.cols {
-            let i = idx + 1;
-            add(&mut self.cur[i], SEED_NEIGHBOR_FRACTION);
-            add(&mut self.prev[i], SEED_NEIGHBOR_FRACTION);
-        }
-        if line > 0 {
-            let i = idx - self.cols;
-            add(&mut self.cur[i], SEED_NEIGHBOR_FRACTION);
-            add(&mut self.prev[i], SEED_NEIGHBOR_FRACTION);
-        }
-        if line + 1 < self.lines {
-            let i = idx + self.cols;
-            add(&mut self.cur[i], SEED_NEIGHBOR_FRACTION);
-            add(&mut self.prev[i], SEED_NEIGHBOR_FRACTION);
+        for &i in &touched[..n] {
+            let (c, l) = (i % self.cols, i / self.cols);
+            let ring = (c.abs_diff(col) + l.abs_diff(line)) as u32;
+            let a = match ring {
+                0 => INJECT_CAP,
+                1 => near,
+                _ => far,
+            };
+            add(&mut self.cur[i], a);
+            add(&mut self.prev[i], a);
         }
         let e_after = self.inject_local_energy(&touched[..n]);
         self.ledger.account_inject(e_after - e_before);
