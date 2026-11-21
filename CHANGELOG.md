@@ -52,6 +52,20 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-fly-1 - the package script SPDX headers stop repeating the handle
+
+- The night-fly-1 zero-residual sweep caught one leftover of the
+  night-ux-orion-2 estate-wide SPDX header standard: two package
+  scripts (scripts/package/install-on-my-machine.sh and
+  scripts/package/uninstall.sh) carried the copyright handle twice —
+  a doubled parenthetical suffix after the handle — where every other
+  file in the estate carries it exactly once. Both headers now carry
+  the single canonical form. Header comment only: no behavior change,
+  no permission-bit change (644 stays 644).
+
+Verified: an estate-wide grep for the doubled-handle pattern returns
+zero hits across all tracked files.
+
 ### feat: night-fly-1 - the signature display identity synced: verification docs expect what gpg actually prints
 
 - The night-remake-1 UID purge reordered the key's identity set on the
