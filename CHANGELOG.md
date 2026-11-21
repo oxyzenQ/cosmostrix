@@ -93,6 +93,14 @@ when the version line closes.
   proton contact layer carries. The D1 binding law is untouched (the
   coherence check still strips the manifest year through the shared
   helper).
+- The header gate hardened against malformed expressions: the
+  substring law alone let a doubled tail through
+  (`AGPL-3.0-only OR Commercial OR Commercial`, which is how the one
+  occurrence in `scripts/gate-keepers.sh` survived — fixed here). The
+  gate now also rejects any identifier line carrying trailing content
+  after the Masterclass pair, so the value must END with the exact
+  expression (adversarially verified: the doubled form is caught, the
+  clean form passes untouched, 919/919 green).
 - The estate-wide SPDX header standard: all 919 tracked header-bearing
   files (.rs, .sh, .py, .toml, .yml, .yaml, .md, .c, .gitattributes,
   .markdownlint.yaml) now carry the Masterclass pair —

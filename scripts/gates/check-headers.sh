@@ -37,7 +37,9 @@ CHECKED=0
 
 # night-ux-orion-2: the Masterclass dual-license expression. The grep
 # is a substring match, so only files carrying the FULL expression pass
-# — a file still declaring the bare AGPL-3.0-only rung fails here.
+# — a file still declaring the bare AGPL-3.0-only rung fails here. The
+# malformed-expression check below adds the other half: the value must
+# END with the expression (no doubled rungs, no trailing content).
 EXPECTED_LICENSE="AGPL-3.0-only OR Commercial"
 REJECTED_LICENSE="MIT"
 
@@ -54,6 +56,18 @@ while IFS= read -r -d '' file; do
 	# Check for rejected license identifiers
 	if head -10 "$file" | grep -q "SPDX-License-Identifier: ${REJECTED_LICENSE}"; then
 		echo -e "${RED}WRONG LICENSE (${REJECTED_LICENSE}): ${file}${NC}"
+		WRONG=$((WRONG + 1))
+		continue
+	fi
+
+	# Check for a MALFORMED expression (night-ux-orion-2 hardening):
+	# the substring law above cannot reject a duplicated tail —
+	# "AGPL-3.0-only OR Commercial OR Commercial" carries the full
+	# expression yet is not a well-formed SPDX expression. The value
+	# must END with the Masterclass pair: any trailing content on the
+	# same line (a doubled OR rung, a stray suffix) fails here.
+	if head -10 "$file" | grep -qE "SPDX-License-Identifier: ${EXPECTED_LICENSE}.+"; then
+		echo -e "${RED}MALFORMED LICENSE expression (must end with ${EXPECTED_LICENSE}): ${file}${NC}"
 		WRONG=$((WRONG + 1))
 		continue
 	fi
