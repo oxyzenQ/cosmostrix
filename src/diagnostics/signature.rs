@@ -227,6 +227,14 @@ pub(crate) const COPYRIGHT_YEAR: &str = "2025-2026";
 /// one the owner's format renders).
 pub(crate) const LICENSE_LINE: &str = "AGPL-3.0-only OR Commercial";
 
+/// The `sig` identity block's contact line (night-ux-orion-2, the
+/// Masterclass sig format: `contact <CONTACT>`). The single telling of
+/// the owner's public contact surface — the estate's proton contact
+/// layer, the same claim the sibling tools render. The Cargo.toml
+/// authors field is a different surface (the registry's author
+/// record); this constant is what the signature report shows.
+pub(crate) const CONTACT: &str = "oxyzenQ@proton.me";
+
 // --- Compile-time fold ------------------------------------------------
 
 /// Const-evaluable digest of a masked layer: unmask word-by-word and
@@ -342,7 +350,7 @@ const MANIFEST_IDENTITY_YEAR: &str = " 2026";
 ///
 /// `None` means the manifest no longer carries the marker/year shape —
 /// a tampering signal, not a panic path.
-fn identity_core(manifest: &str) -> Option<&str> {
+pub(crate) fn identity_core(manifest: &str) -> Option<&str> {
     manifest
         .split_once(MANIFEST_IDENTITY_MARKER)
         .map(|(_, tail)| tail)

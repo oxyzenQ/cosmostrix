@@ -82,6 +82,17 @@ when the version line closes.
   telling for -V and --docs). The author contact carries the raw
   address per the owner's Masterclass metadata set, superseding the
   earlier obfuscated spelling (the comment law follows the field).
+- The `sig` identity block reached the owner's final Masterclass
+  shape: the runtime-identity depth row and the identity field render
+  the yearless identity core (`rezky_nightky (oxyzenQ)`, via the
+  shared `identity_core` helper, now `pub(crate)` — the one telling of
+  the marker+year shape; the year stays in the frozen embedded claim,
+  never in the handle the report shows), and the identity block gained
+  the owner's `contact` field (`contact     oxyzenQ@proton.me`) from
+  the new `CONTACT` constant — the same public contact the estate's
+  proton contact layer carries. The D1 binding law is untouched (the
+  coherence check still strips the manifest year through the shared
+  helper).
 - The estate-wide SPDX header standard: all 919 tracked header-bearing
   files (.rs, .sh, .py, .toml, .yml, .yaml, .md, .c, .gitattributes,
   .markdownlint.yaml) now carry the Masterclass pair —

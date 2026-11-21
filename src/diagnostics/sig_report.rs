@@ -48,7 +48,7 @@ use std::io::Read;
 
 use crate::output::println_safe;
 
-use super::signature::provenance_view;
+use super::signature::{CONTACT, identity_core, provenance_view};
 
 /// Local alias for the engine-oracle runner (Proof Moat 1c): the
 /// bench-owned oracle is the one renderer of the pinned sequence, and
@@ -116,19 +116,19 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     let view = provenance_view();
 
     // D0: the manifest materialized and carries the identity shape.
-    let identity = view
-        .manifest
-        .split_once("Official Build by ")
-        .map(|(_, tail)| tail.to_string())
+    // The display carries the identity CORE (night-ux-orion-2): the
+    // marker's tail minus the embedded year — the year belongs to the
+    // frozen embedded claim, not to the handle the report shows.
+    let identity = identity_core(&view.manifest)
+        .map(str::to_string)
         .unwrap_or_default();
     let d0_shape_ok = !identity.is_empty();
 
     // D1: the authors layer materialized and binds to the identity.
-    let binding_ok = view
-        .manifest
-        .split_once("Official Build by ")
-        .and_then(|(_, tail)| tail.strip_suffix(" 2026"))
-        .is_some_and(|core| view.authors.starts_with(core));
+    // The same shared core extraction the binding law uses: the
+    // marker/year shape must survive, or the claim is incoherent.
+    let binding_ok =
+        identity_core(&view.manifest).is_some_and(|core| view.authors.starts_with(core));
 
     // D2: the cryptographic anchor (already recomputed in the same
     // single pass that produced the display bytes).
@@ -199,6 +199,7 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     }
     text.push('\n');
     text.push_str(&format!("identity    {identity}\n"));
+    text.push_str(&format!("contact     {CONTACT}\n"));
     text.push_str(&format!(
         "fingerprint fp={:016x} (fnv1a64, dual-layer)\n",
         super::signature::manifest_fingerprint()
@@ -294,9 +295,20 @@ mod tests {
     #[test]
     fn report_names_the_owner_identity() {
         let (text, _) = sig_report();
+        // The Masterclass identity block: the yearless identity core
+        // (the year stays in the frozen embedded claim, never in the
+        // handle the report shows) plus the owner contact line.
         assert!(
-            text.contains("identity    rezky_nightky (oxyzenQ) 2026"),
-            "identity field must materialize the masked layers:\n{text}"
+            text.contains("identity    rezky_nightky (oxyzenQ)\n"),
+            "identity field must render the yearless core:\n{text}"
+        );
+        assert!(
+            !text.contains("identity    rezky_nightky (oxyzenQ) 2026"),
+            "identity field must not leak the embedded year:\n{text}"
+        );
+        assert!(
+            text.contains("contact     oxyzenQ@proton.me\n"),
+            "contact field must carry the owner address:\n{text}"
         );
         assert!(
             text.contains("anchor      b3:"),
