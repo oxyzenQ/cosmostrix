@@ -291,6 +291,34 @@ the cleared/survived diff, exit mapping, survival messages, TSV
 round-trip, parser noise tolerance, summary identity and counts);
 ruff check and format clean; yamllint clean on the edited workflow.
 
+### fix: night-solid-defense-1 - the verdict reads the pinned scanner's real report shape
+
+- The owner's anti-gimmick law (verify complete, prove 100 percent
+  real) caught this before CI did: the pinned cargo-audit 0.22.2
+  binary was run for real against the real advisory database, probed
+  with live pins (the documented arrayref 0.3.10 malicious release,
+  time 0.1.45 under RUSTSEC-2020-0071, instant 0.1.13 under
+  RUSTSEC-2024-0384) - and the probe exposed that the pinned scanner
+  emits a flat top-level report (`vulnerabilities`, keyed `warnings`
+  groups), not the pre-0.22 `results.list` container the first draft
+  parsed. A clean tree masked the gap completely: zero findings
+  parse identically under both shapes, so only a real advisory would
+  have produced a silent false PASS. The parser now reads both
+  shapes, and the self-test replays the probe's exact report shapes
+  (19/19 checks).
+- The full lifecycle is proven against the real scanner, not
+  fixtures alone: the pre-pass stores 3 real findings; the verdict
+  fails hard with the CALL OWNER banner and exit 1; a sweep that
+  takes the time and arrayref fixes reports them cleared while the
+  unmaintained survivor still fails (both scenarios in one verdict);
+  a fully cleared lane passes with the cleared count. The step
+  summary renders the advisory tables with live RustSec links.
+
+Verified: self-test 19/19; ruff clean; gate-keepers 25 passed,
+0 failed, 3 skipped; real-run evidence in /tmp/axp1-probe (probe
+report, lifecycle summaries) produced by the official
+cargo-audit-x86_64-unknown-linux-musl v0.22.2 release binary.
+
 ### feat: night-remake-1 - the estate contact purge: every surface answers to the proton address
 
 - The legacy consumer-mail contact address is purged end-to-end and

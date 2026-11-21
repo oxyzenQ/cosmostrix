@@ -253,20 +253,24 @@ def _rows_from_group(group: object, workspace: str, kind: str) -> list[dict]:
 def findings_from_report(report: dict, workspace: str) -> list[dict]:
     """Every finding of one report, classified into verdict kinds.
 
-    Handles both warnings containers seen across cargo audit releases:
-    the flat warnings.list with a per-item kind, and the keyed groups
-    (warnings.unmaintained / warnings.unsound / warnings.yanked). An
-    unknown warning kind degrades to informational - the hard set is
-    a fixed vocabulary, never a guess.
+    Two report shapes are accepted, both proven against the real
+    scanner: the pinned 0.22.x shape (flat top-level `vulnerabilities`
+    and keyed `warnings` groups - the shape the real 0.22.2 binary
+    emits, probed with live RUSTSEC advisories) and the pre-0.22
+    `results.list` shape. The warnings containers appear as a flat
+    list with a per-item kind or as keyed groups
+    (unmaintained / unsound / yanked / notice). An unknown warning
+    kind degrades to informational - the hard set is a fixed
+    vocabulary, never a guess.
     """
     rows: list[dict] = []
-    for result in (report.get("results") or {}).get("list") or []:
-        rows.extend(
-            _rows_from_group(
-                (result.get("vulnerabilities") or {}), workspace, "vulnerability"
-            )
-        )
-        warnings = result.get("warnings") or {}
+    # The pinned 0.22.x shape: flat top-level containers, one per
+    # report (the scanner emits exactly one per --file invocation).
+    rows.extend(
+        _rows_from_group(report.get("vulnerabilities"), workspace, "vulnerability")
+    )
+    warnings = report.get("warnings") or {}
+    if isinstance(warnings, dict):
         for item in warnings.get("list") or []:
             advisory = _as_dict(_as_dict(item).get("advisory"))
             raw_kind = (
@@ -277,6 +281,30 @@ def findings_from_report(report: dict, workspace: str) -> list[dict]:
             rows.append(make_row(workspace, _normalize_kind(raw_kind), _as_dict(item)))
         for key in ("unmaintained", "unsound", "yanked"):
             rows.extend(_rows_from_group(warnings.get(key), workspace, key))
+        rows.extend(_rows_from_group(warnings.get("notice"), workspace, INFO_KIND))
+    rows.extend(_rows_from_group(report.get("informational"), workspace, INFO_KIND))
+    # The pre-0.22 shape: results.list, one block per scanned lockfile.
+    for result in (report.get("results") or {}).get("list") or []:
+        rows.extend(
+            _rows_from_group(
+                (result.get("vulnerabilities") or {}), workspace, "vulnerability"
+            )
+        )
+        result_warnings = result.get("warnings") or {}
+        for item in (
+            result_warnings.get("list") or []
+            if isinstance(result_warnings, dict)
+            else []
+        ):
+            advisory = _as_dict(_as_dict(item).get("advisory"))
+            raw_kind = (
+                item.get("kind")
+                or item.get("category")
+                or advisory.get("informational")
+            )
+            rows.append(make_row(workspace, _normalize_kind(raw_kind), _as_dict(item)))
+        for key in ("unmaintained", "unsound", "yanked"):
+            rows.extend(_rows_from_group(result_warnings.get(key), workspace, key))
         rows.extend(_rows_from_group(result.get("informational"), workspace, INFO_KIND))
     unique: dict[tuple, dict] = {}
     for row in rows:
@@ -585,7 +613,24 @@ def run_post(repo_root: Path) -> int:
 def make_report(
     vulns: list[dict], warnings: object = None, informational: object = None
 ) -> dict:
-    """Wrap findings into a cargo audit JSON report skeleton."""
+    """Wrap findings into a cargo audit JSON report skeleton.
+
+    The shape proven against the real 0.22.2 binary: flat top-level
+    containers (vulnerabilities / warnings keyed groups / informational),
+    no results wrapper.
+    """
+    result: dict = {"vulnerabilities": {"count": len(vulns), "list": vulns}}
+    if warnings is not None:
+        result["warnings"] = warnings
+    if informational is not None:
+        result["informational"] = informational
+    return result
+
+
+def make_legacy_report(
+    vulns: list[dict], warnings: object = None, informational: object = None
+) -> dict:
+    """The pre-0.22 results.list shape, kept for schema-drift parity."""
     result: dict = {
         "vulnerabilities": {"count": len(vulns), "list": vulns},
     }
@@ -646,6 +691,42 @@ def self_test() -> int:
         and rows[0]["kind"] == "vulnerability"
         and rows[0]["package"] == "alpha"
         and rows[0]["version"] == "1.2.3",
+    )
+
+    # The proven 0.22.2 shapes, replayed from a live probe: the
+    # arrayref 0.3.10 malicious advisory carries no patched version,
+    # and the instant unmaintained warning rides a keyed warnings
+    # group with a per-item kind.
+    probe = make_report(
+        [make_finding(id="RUSTSEC-2026-0260", package="arrayref", version="0.3.10")],
+        warnings={
+            "unmaintained": [
+                {
+                    "kind": "unmaintained",
+                    "advisory": make_advisory(
+                        id="RUSTSEC-2024-0384", package="instant"
+                    ),
+                    "package": {"name": "instant", "version": "0.1.13"},
+                }
+            ]
+        },
+    )
+    rows = findings_from_report(probe, "root")
+    check(
+        "probe-replayed 0.22.2 shape yields the exact hard rows",
+        len(rows) == 2
+        and rows[0]["kind"] == "unmaintained"
+        and rows[1]["kind"] == "vulnerability"
+        and rows[1]["version"] == "0.3.10",
+    )
+
+    # The pre-0.22 results.list shape still extracts (schema drift).
+    legacy_rows = findings_from_report(
+        make_legacy_report([make_finding(package="legacy", version="1.0.0")]), "root"
+    )
+    check(
+        "pre-0.22 results.list shape still extracts",
+        len(legacy_rows) == 1 and legacy_rows[0]["package"] == "legacy",
     )
 
     # Warnings flat-list shape: a per-item kind drives the vocabulary.
