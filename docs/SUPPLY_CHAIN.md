@@ -34,12 +34,20 @@ needs migration), **HOLD** (breaking + low ROI). See
 [`docs/DEPENDENCY_AUDIT.md`](DEPENDENCY_AUDIT.md) for the full
 framework, per-dependency analysis, and the action plan.
 
-The `maintenance.yml` weekly cron runs `cargo update` +
-`cargo audit` + `cargo deny check all` — semver-compatible updates are
-applied automatically with CI verification. Major version bumps require
-manual audit (never auto-applied). CVE monitoring runs on every push
-and PR via `gitbot-audit.yml` (night-fly-1 removed its weekly cron —
-the owner's push-triggered law).
+The `maintenance.yml` Sunday cron (03:00 UTC / 10:00 WIB,
+night-consistent-1) runs the AXP1-ZnQ supply-chain verdict
+(night-solid-defense-1): a pre-pass audits every committed workspace
+lockfile against the RustSec database and snapshots the findings, the
+night-zen-1 walk updates every lock, and the verdict re-audits the
+swept lane — a finding the sweep cleared ships in that run with a
+loud notice, and a finding that survives the sweep fails the lane
+hard (CALL OWNER; the commit job never runs). `cargo deny check all`
+re-runs changed-gated, and the full validation lane (fmt, builds,
+tests, clippy) gates the commit. Semver-compatible updates are
+applied automatically with CI verification; major version bumps
+require manual audit (never auto-applied). CVE monitoring runs on
+every push and PR via `gitbot-audit.yml` (night-fly-1 removed its
+weekly cron — the owner's push-triggered law).
 
 ### Policy Rules
 
@@ -71,7 +79,7 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 
 ## 3. GitHub Actions Hardening
 
-**Action References Float on Major Tags (owner decision 2026-08-30)**: every third-party action in CI and release workflows is referenced by its major version tag (`actions/checkout@v6`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`), and CI-installed deps (shfmt, codespell, ruff, cargo-audit, cargo-deny, Android NDK, ...) resolve their latest upstream release at run time. This "dynamic latest, minimal maintenance, boring but strong" policy deliberately replaced the earlier SHA-pinning migration plan: exact-pinning every action and tool multiplies maintenance work (dozens of pins to review and bump forever) while the remaining attack surface — a maintainer moving a major tag — is a low-likelihood event already mitigated by the controls below. Compensating controls: all workflows run with minimal permissions (`contents: read` everywhere except release/maintenance writers), `release.yml`/`crates-io.yml` only trigger on owner-pushed `v*` tags, CodeQL scans every push, and `cargo audit` + `cargo deny` run on every push and PR (night-fly-1 removed the weekly cron — the estate-wide Sunday slot now carries only `maintenance.yml` and `soak.yml`). If a higher-assurance posture is ever needed, re-introduce SHA pins via Dependabot automation (which removes the manual bump burden) rather than hand-maintained hashes. See `docs/workflow/ABOUT_CI.md` (Dependency version policy).
+**Action References Float on Major Tags (owner decision 2026-08-30)**: every third-party action in CI and release workflows is referenced by its major version tag (`actions/checkout@v7`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`), and CI-installed deps (shfmt, codespell, ruff, cargo-audit, cargo-deny, Android NDK, ...) resolve their latest upstream release at run time. This "dynamic latest, minimal maintenance, boring but strong" policy deliberately replaced the earlier SHA-pinning migration plan: exact-pinning every action and tool multiplies maintenance work (dozens of pins to review and bump forever) while the remaining attack surface — a maintainer moving a major tag — is a low-likelihood event already mitigated by the controls below. Compensating controls: all workflows run with minimal permissions (`contents: read` everywhere except release/maintenance writers), `release.yml`/`crates-io.yml` only trigger on owner-pushed `v*` tags, CodeQL scans every push, and `cargo audit` + `cargo deny` run on every push and PR (night-fly-1 removed the weekly cron — the estate-wide Sunday slot now carries only `maintenance.yml` and `soak.yml`). If a higher-assurance posture is ever needed, re-introduce SHA pins via Dependabot automation (which removes the manual bump burden) rather than hand-maintained hashes. See `docs/workflow/ABOUT_CI.md` (Dependency version policy).
 
 **Minimal Permissions**: `ci.yml` `contents: read` (builds and audits only); `gitbot-audit.yml` `contents: read`, `actions: read` (observation-only); `aur.yml` `contents: read` (no write to this repo; SSH key handles AUR push); `release.yml` `contents: write`, `actions: write` (creates GitHub Releases; write is necessary); `maintenance.yml` `contents: write` (commits validated lockfile updates directly to `main`). No workflow requests `attestations: write`. If binary attestation via GitHub's Sigstore integration is adopted in the future, that permission will be scoped exclusively to `release.yml` and pinned to a single job.
 
@@ -79,7 +87,7 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 
 ## 4. Toolchain Requirements
 
-**`cargo audit`** (Rust Security Advisory working group): scans the project's dependency tree against the RustSec Advisory Database for known CVEs, advisory withdrawals, unmaintained crates. Installed via `taiki-e/install-action` in CI; runs as the first gate in the `security` job. `gitbot-audit.yml` runs `cargo audit` on every push and PR as observation-only (night-fly-1: the owner's push-triggered law — the earlier weekly-cron wording was also stale, the lane never ran daily at 00:00 UTC); if vulnerabilities detected, weekly `maintenance.yml` resolves them during next scheduled run (Sunday 03:00 UTC / 10:00 WIB, night-consistent-1) by `cargo update`, re-auditing, pushing updated lockfile.
+**`cargo audit`** (Rust Security Advisory working group): scans the project's dependency tree against the RustSec Advisory Database for known CVEs, advisory withdrawals, unmaintained crates. Installed via `taiki-e/install-action` in CI; runs as the first gate in the `security` job. `gitbot-audit.yml` runs `cargo audit` on every push and PR as observation-only (night-fly-1: the owner's push-triggered law — the earlier weekly-cron wording was also stale, the lane never ran daily at 00:00 UTC); if vulnerabilities detected, the Sunday `maintenance.yml` run (Sunday 03:00 UTC / 10:00 WIB, night-consistent-1) resolves them through the AXP1-ZnQ verdict (night-solid-defense-1): the dependency sweep takes every fix inside the current version requirements and the fix ships in that run, while a finding that survives the sweep — no patched version released, or a fix outside the current requirements — fails the lane with CALL OWNER instead of shipping.
 
 **`cargo deny`** enforces organizational policies across four dimensions, configured in `deny.toml`: advisories (cross-references RustSec, zero ignored, and `yanked = "deny"` — the 2026-08-20 arrayref attack shipped as a malicious republish that lived 86 minutes before being yanked, so a yanked version must never enter a build here, advisory or no advisory); licenses (permits only the license set in §1, confidence threshold 0.8); bans (duplicate crate versions warn against the pinned skip table, wildcard requirements are **denied** — a wildcard delegates the version decision to whoever publishes next — and the 2026-08-20 arrayref attack family (`proc-macro1`, `proc-macro-en`, `aovine`, `arone`, `aronenao`, `tinymember`, `arrayref`, `internment`, `append-only-vec`) is banned name-wide, any version); sources (restricts all crate origins to the official crates.io registry; git sources and unknown registries are **denied**, not warned — the graph carries zero of either, so any entry is a finding). Both tools run in CI (`ci.yml` deny job, `release.yml` audit+deny) and in `maintenance.yml`.
 
@@ -87,18 +95,18 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 
 ## 5. Update Process
 
-**Routine Dependency Updates** (weekly `maintenance.yml`): (1) `cargo update` runs in every committed workspace — the walk auto-detects each `Cargo.toml` (root, `fuzz/`, `pgo-runner/`; night-zen-1) and bumps all deps in every workspace `Cargo.lock` to latest compatible versions; (2) no-op detection — if no `Cargo.lock` changed, exit early; (3) `cargo audit` verifies no known vulnerabilities; (4) `cargo deny check all` confirms continued policy compliance; (5) `cargo fmt --all -- --check`; (6) `cargo build` (dev, release, pro profiles — the plain `pro` profile since the 2026-08-23 owner directive, not a pinned microarch level); (7) `cargo test --all --locked`; (8) `cargo clippy --locked --all-targets --all-features -- -D warnings`; (9) commit and push to `main` if all checks pass.
+**Routine Dependency Updates** (weekly `maintenance.yml`): (1) the AXP1-ZnQ pre-pass audits every committed workspace lockfile against the RustSec database and snapshots the findings (night-solid-defense-1); (2) `cargo update` runs in every committed workspace — the walk auto-detects each `Cargo.toml` (root, `fuzz/`, `pgo-runner/`; night-zen-1) and bumps all deps in every workspace `Cargo.lock` to latest compatible versions; (3) the AXP1-ZnQ verdict re-audits the swept lane unconditionally and diffs against the snapshot — a finding the sweep cleared stays green with a loud notice, a surviving finding fails the lane before the heavy checks (scenario B, CALL OWNER); (4) the dependency-only diff gate records whether any lock moved; (5) `cargo deny check all` confirms continued policy compliance (runs when locks moved); (6) `cargo fmt --all -- --check`; (7) `cargo build` (dev, release, pro profiles — the plain `pro` profile since the 2026-08-23 owner directive, not a pinned microarch level); (8) `cargo test --all --locked`; (9) `cargo clippy --locked --all-targets --all-features -- -D warnings`; (10) commit and push to `main` if all checks pass.
 
 **Security Advisory Response** (when `cargo audit` or the weekly `gitbot-audit.yml` run detects a vulnerability):
 
 | Severity | Response Time | Action |
 |---|---|---|
 | **Critical** (CVSS >= 9.0) | Immediate | Emergency `cargo update` targeting the affected crate, full CI validation, direct push to `main`. New patch release if main is clean. |
-| **High** (CVSS 7.0–8.9) | Within 24 hours | Next scheduled `maintenance.yml` run resolves automatically. Maintainers can trigger manually via `workflow_dispatch`. |
+| **High** (CVSS 7.0–8.9) | Within 24 hours | Next scheduled `maintenance.yml` run resolves it when the sweep can take the fix — the fix ships in that run (AXP1-ZnQ scenario A). A surviving finding fails the lane hard (CALL OWNER); maintainers can trigger the run manually via `workflow_dispatch`. |
 | **Medium** (CVSS 4.0–6.9) | Next release cycle | Addressed during next regular dep update cycle (weekly) or next feature release. |
 | **Low** (CVSS < 4.0) | Next minor release | Tracked and resolved at project's discretion during normal maintenance. |
 
-For advisories that cannot be resolved by a simple `cargo update` (e.g., no patched version available), the project will evaluate whether the affected functionality can be disabled, the dependency replaced, or a temporary RustSec ignore entry (documented with rationale and a deadline for removal) added to `deny.toml`.
+For advisories the sweep cannot clear (no patched version released, or a fix outside the current version requirements), the AXP1-ZnQ verdict fails the lane by design — a temporary `deny.toml` ignore entry cannot silence it, because the verdict reads the scanner report directly rather than the deny policy. The owner decides: bump the requirement to reach the fix, disable the affected functionality, or replace the dependency.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

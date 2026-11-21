@@ -54,6 +54,38 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-depth-cleanup-2 - the supply-chain doc catches up to the verdict it documents
+
+- Full-walk finding A (DOC_AUDIT rule 4, same-pass sync — the audit
+  inherited the split): docs/SUPPLY_CHAIN.md still told the
+  pre-AXP1-ZnQ lane story — "weekly cron runs cargo update + cargo
+  audit + cargo deny", "resolves them by cargo update, re-auditing,
+  pushing updated lockfile", a no-op early-exit step that no longer
+  exists, and an advisory-response table where High advisories
+  "resolve automatically" — while the source (maintenance.yml) moved
+  to the pre-pass / verdict / diff-gate / changed-gated-deny sequence
+  with scenario A (cleared) and scenario B (survives = CALL OWNER,
+  nothing ships). All five blocks now tell the verdict-era truth,
+  including the fact that a `deny.toml` ignore entry cannot silence
+  the verdict (the verdict reads the scanner report, not the deny
+  policy).
+- Finding A2 (rule 1, tell once): SECURITY.md restated the verdict
+  mechanism that the SUPPLY_CHAIN.md home owns — trimmed to the
+  registry-style pointer so the fact keeps exactly one telling.
+- Finding B (rule 1, volatile fact drift): the hardening section
+  cited `actions/checkout@v6` as the floating-tag example while the
+  workflows actually ride `@v7` — corrected to the real tag.
+- Everything else the walk measured came back already at the bar and
+  is left untouched: the mechanical seat (scripts/gates/docs-audit.py)
+  reports zero broken references, zero stale paths, zero stale counts
+  and zero duplicate candidates across the 66-file living corpus;
+  every in-scope doc has its registry row (root README or
+  docs/README.md); the lock census pin (121 names / 124 entries), the
+  12-runtime-deps claim (9 cross-platform, signal-hook/libc on unix,
+  ctrlc on windows), the MSRV pair, the cron time and the checkout
+  tag were each verified against source before being left alone.
+  Frozen records untouched per the audit's exemption set.
+
 ### fix: night-fly-1 - the GPG expiry check trusts keyring presence, not recv exit codes
 
 - CI incident (Dependency Maintenance run #46, 2026-11-21): the GPG
