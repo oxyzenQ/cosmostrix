@@ -76,9 +76,7 @@ def discover_lockfiles(repo_root: Path) -> list[Path]:
     )
     if proc.returncode != 0:
         detail = proc.stderr.strip() or "no stderr output"
-        raise GuardError(
-            f"manifest walk failed (exit {proc.returncode}): {detail}"
-        )
+        raise GuardError(f"manifest walk failed (exit {proc.returncode}): {detail}")
     locks: list[Path] = []
     for line in proc.stdout.splitlines():
         manifest = line.strip()
@@ -116,8 +114,7 @@ def run_audit(repo_root: Path, lockfile: Path) -> dict:
     if proc.returncode not in (CARGO_AUDIT_OK, CARGO_AUDIT_VULNERABLE):
         detail = (proc.stderr.strip() or "no stderr output")[-500:]
         raise GuardError(
-            f"cargo audit failed on {lockfile} "
-            f"(exit {proc.returncode}): {detail}"
+            f"cargo audit failed on {lockfile} (exit {proc.returncode}): {detail}"
         )
     return parse_report(proc.stdout, context=str(lockfile))
 
@@ -155,8 +152,7 @@ def classify(report: dict) -> tuple[list[dict], list[dict], list[dict]]:
     for result in (report.get("results") or {}).get("list") or []:
         for item in (result.get("vulnerabilities") or {}).get("list") or []:
             (fixable if patched_versions(item) else unfixable).append(item)
-        for item in (result.get("warnings") or {}).get("list") or []:
-            informational.append(item)
+        informational.extend((result.get("warnings") or {}).get("list") or [])
     return fixable, unfixable, informational
 
 
@@ -567,10 +563,10 @@ def self_test() -> int:
         len(classify(make_report([sibling]))[0]) == 1,
     )
 
-    row = finding_row(
-        make_vuln(patched=["1.0"], package="pi|pe"), Path("Cargo.lock")
+    row = finding_row(make_vuln(patched=["1.0"], package="pi|pe"), Path("Cargo.lock"))
+    table = md_table(
+        [dict(row, advisory=_advisory_cell(row))], [("Package", "package")]
     )
-    table = md_table([dict(row, advisory=_advisory_cell(row))], [("Package", "package")])
     check("table cells escape pipes", "pi\\|pe" in table)
     check("advisory cell links the url", "rustsec.org" in _advisory_cell(row))
 
@@ -614,9 +610,7 @@ def self_test() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point; returns the process exit code."""
-    parser = argparse.ArgumentParser(
-        description="Tiered RustSec supply chain guard"
-    )
+    parser = argparse.ArgumentParser(description="Tiered RustSec supply chain guard")
     parser.add_argument(
         "--phase",
         default="audit",
