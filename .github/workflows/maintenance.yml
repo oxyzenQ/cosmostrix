@@ -269,11 +269,12 @@ jobs:
 
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-      # Ownership split (night-solid-defense-1): deny keeps the bans /
-      # licenses / sources hard gates (and its yanked = "deny" line,
-      # the arrayref defense), while advisory vulnerabilities are
-      # warn-level here - the AXP1-ZnQ verdict above owns the advisory
-      # verdict (deny.toml [advisories] records the same contract).
+      # night-solid-defense-1: the AXP1-ZnQ verdict above already
+      # gated every advisory - any finding the sweep cannot clear
+      # failed the lane upstream - so this deny pass runs only when
+      # the lane actually moved locks and stays hard on its own
+      # classes (yanked / bans / licenses / sources; the arrayref
+      # defense lives in deny.toml's yanked = "deny").
       - name: Dependency policy
         if: steps.changes.outputs.changed == 'true'
         run: cargo deny check all

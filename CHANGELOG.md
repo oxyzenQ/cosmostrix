@@ -319,6 +319,40 @@ Verified: self-test 19/19; ruff clean; gate-keepers 25 passed,
 report, lifecycle summaries) produced by the official
 cargo-audit-x86_64-unknown-linux-musl v0.22.2 release binary.
 
+### fix: night-solid-defense-1 - the deny tier contract key is gone from cargo-deny, so the gate agrees with the verdict by construction
+
+- CI watch on the estate-sentinel commit caught a red lane (Cosmic
+  Dragon Guard - CI, run 44935665237): the Dependency policy
+  (cargo-deny) job died at config validation with
+  "error[deprecated]: this key has been removed" against the
+  `vulnerability = "warn"` line the ownership-split commit added -
+  current cargo-deny releases deleted the per-class severity level
+  keys outright (EmbarkStudios/cargo-deny PR #611), so the key was
+  valid last week and is a config error today. The maintenance lane
+  itself stayed green because its deny pass is changed-gated and the
+  Sunday tree moved no locks; ci.yml runs deny unconditionally and
+  caught it, exactly what the watch is for.
+- The fix removes the key and the now-impossible ownership split:
+  under the mature verdict design the AXP1-ZnQ verdict runs
+  upstream of the policy check and fails hard on any finding the
+  sweep cannot clear, so deny and the verdict agree by
+  construction - no per-class override is needed or possible.
+  deny.toml keeps the schema the CI lane accepts (yanked = "deny"
+  untouched, the arrayref defense), and both deny.toml and the
+  maintenance.yml policy step now record the real contract plus the
+  incident.
+- Proven with the real tool, not assumed: the official
+  cargo-deny 0.22.0 musl release binary validates the fixed config
+  with zero errors and, on the same binary, the old config
+  reproduces the exact CI error - a differential check that also
+  proved config validation passes before the cargo metadata stage
+  the sandbox cannot run.
+
+Verified: real-binary A/B (old config: error[deprecated] +
+validation failure; fixed config: zero validation errors);
+yamllint clean on the touched workflow comment; gate-keepers
+25 passed, 0 failed, 3 skipped.
+
 ### feat: night-remake-1 - the estate contact purge: every surface answers to the proton address
 
 - The legacy consumer-mail contact address is purged end-to-end and

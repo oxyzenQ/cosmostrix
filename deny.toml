@@ -22,14 +22,18 @@ ignore = []
 # yanked is deny, not warn.
 yanked = "deny"
 # Tier contract with the maintenance lane (night-solid-defense-1):
-# advisory vulnerabilities are WARN here because the AXP1-ZnQ
-# supply-chain verdict (scripts/ci/supplychain-verdict.py) owns the
-# advisory verdict - a finding the sweep cleared stays non-blocking,
-# a finding that survives the sweep exits 1 with a CALL OWNER banner.
-# The hard vulnerability gates elsewhere are untouched: ci.yml and
-# release.yml keep their own cargo audit lanes that fail on every
-# advisory, and gitbot-audit.yml stays observation-only by design.
-vulnerability = "warn"
+# advisory vulnerability gating belongs to the AXP1-ZnQ supply-chain
+# verdict (scripts/ci/supplychain-verdict.py), which runs upstream of
+# this policy check on the maintenance lane and fails hard on any
+# finding the dependency sweep cannot clear - so the two gates agree
+# by construction. A per-class `vulnerability = "warn"` level was
+# tried here and removed the same day (CI incident 2026-11-21, run
+# 44935665237): current cargo-deny releases deleted the severity
+# level keys (EmbarkStudios/cargo-deny PR #611) and reject them at
+# config validation. This file keeps exactly the schema the CI lane
+# accepts; the advisories check stays hard on every class the
+# current schema gates, and gitbot-audit.yml stays observation-only
+# by design.
 
 [licenses]
 allow = [
