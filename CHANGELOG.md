@@ -238,6 +238,59 @@ runs reproduce all three owner scenarios end to end (unfixable exit
 exit 1 fail-closed); the rendered step summary carries both banners
 and the verdict; yamllint clean on the edited workflow.
 
+### feat: night-solid-defense-1 - the supply-chain verdict is AXP1-ZnQ: the estate sentinel comes home
+
+- Owner directive (night-solid-defense-1): the supply chain bot takes
+  the estate's sentinel identity - AXP1-ZnQ, the same bot the zejtron
+  sibling runs (github.com/oxyzenQ/zejtron, the mature reference) -
+  and its verdict adopts the mature semantics, not just the name.
+- The guard becomes `scripts/ci/supplychain-verdict.py` with the
+  mature two-mode contract: `--pre` scans the as-committed lane and
+  snapshots the findings; `--post` scans the swept lane, diffs
+  against the snapshot, and emits the verdict. Scenario A (fixable)
+  now means what the mature bot means: the sweep actually CLEARED
+  the finding (the advisory vanished from the swept lane), the job
+  stays green and the fix ships in this run, with the loud notice
+  that the tree would have carried the advisory for a week without
+  the lane. Scenario B (unfixable): the finding SURVIVES the sweep -
+  no fixed version at all, or a fix outside the current version
+  requirements that `cargo update` cannot take - the job fails hard
+  with the CALL OWNER banner and the commit job never runs.
+- The hard kind set widens to the estate's mature vocabulary:
+  vulnerability, unmaintained, unsound and yanked all gate when they
+  survive the sweep; informational notices never gate. The yanked
+  kind keys on the exact release (the identity of a yanked version
+  is that version), while every other kind keys across version moves
+  - an update fixes BY moving the version.
+- The verdict now runs unconditionally between the refresh and the
+  diff gate: a sweep that produces no diff still owes the owner a
+  verdict, so a finding the sweep cannot clear can never hide behind
+  a changed-only step condition. The pre-pass gates nothing and
+  exits 1 only on an infrastructure failure - a scanner that cannot
+  run fails the lane, never passes it.
+- The scanner is pinned exactly like the sibling's:
+  `cargo-audit@0.22.2` via the install action, so the resolved
+  binary never drifts under the lane - red means a new advisory,
+  never a new scanner release.
+- Every surface signs the sentinel: the step summary title
+  ("AXP1-ZnQ supply-chain verdict (night-solid-defense-1)"), the
+  FAIL banner ("AXP1-ZnQ SUPPLY-CHAIN VERDICT: FAIL - CALL OWNER"),
+  the holds-the-lane block, the pre-pass count line, the
+  `::error title=AXP1-ZnQ::` and `::warning title=AXP1-ZnQ::`
+  annotations, and the pass line naming the workspace count, the
+  cleared count, the hard count and the informational count. The
+  raw per-workspace JSON reports land in the run scratch state so a
+  red Sunday can be post-mortemed without re-running the scanner.
+- deny.toml and SECURITY.md, scripts/README.md: the same contract
+  recorded where it is enforced and documented.
+
+Verified: the built-in self-test passes 17/17 (extraction across
+both warnings container shapes, the locked-version row, kind
+vocabulary, scenario keying including the yanked exact-release key,
+the cleared/survived diff, exit mapping, survival messages, TSV
+round-trip, parser noise tolerance, summary identity and counts);
+ruff check and format clean; yamllint clean on the edited workflow.
+
 ### feat: night-remake-1 - the estate contact purge: every surface answers to the proton address
 
 - The legacy consumer-mail contact address is purged end-to-end and

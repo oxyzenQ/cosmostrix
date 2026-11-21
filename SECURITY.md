@@ -53,7 +53,12 @@ Both routes reach the maintainer privately.
   analysis and the terminal-ownership threat model).
 - [docs/SUPPLY_CHAIN.md](docs/SUPPLY_CHAIN.md) and
   [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) — the
-  dependency inventory, `cargo-deny` and audit gates, MSRV.
+  dependency inventory, `cargo-deny` and audit gates, MSRV. The
+  weekly Sunday lane runs the AXP1-ZnQ supply-chain verdict
+  (night-solid-defense-1): every workspace lockfile is scanned
+  against the RustSec database before and after the dependency
+  sweep, and any finding the sweep cannot clear fails the lane hard
+  (CALL OWNER) instead of shipping.
 - [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) — checksums,
   signatures, and per-artifact verification.
 - [CHANGELOG.md](CHANGELOG.md) — the release history records every

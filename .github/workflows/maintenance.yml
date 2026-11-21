@@ -195,30 +195,31 @@ jobs:
           fi
           echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
 
-      - name: Install audit + deny tools
+      # night-supply-1: the verdict's scanner, pinned exactly like the
+      # zejtron sibling's (0.22.2) so the resolved binary never drifts
+      # under the lane - red means a new advisory, never a new scanner
+      # release.
+      - name: Install the AXP1-ZnQ scanner (cargo-audit) + deny
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-audit,cargo-deny
+          tool: cargo-audit@0.22.2,cargo-deny
 
-      # Tiered supply chain guard (owner directive 2026-11-21, the
-      # sleeping-owner contract): plain cargo audit fails on every
-      # advisory and cannot tell the two maintenance scenarios apart.
-      # The guard classifies RustSec findings by fixability:
-      #   - patched version exists -> non-blocking, UPDATE ASAP banner
-      #     (the lane continues and the bot may still refresh locks)
-      #   - no patched version -> exit 1, CALL OWNER banner (the run
-      #     fails hard, the scheduled-failure notification reaches the
-      #     owner, and no dependency commit may land while the risk
-      #     stands)
-      # Any audit infrastructure failure (missing tool, missing
-      # lockfile set, malformed report) also exits 1: a broken guard
-      # must never pass silently.
-      # Scope follows the night-zen-1 law: the lockfile set comes from
-      # the same canonical manifest walk the refresh and the commit
-      # phase use (--list mode), so the root-only cargo audit this
-      # step replaces never audited fuzz/ or pgo-runner/ here.
-      - name: Baseline security audit
-        run: python3 scripts/ci/security-guard.py --phase baseline
+      # night-supply-1 / night-solid-defense-1, the AXP1-ZnQ pre-pass:
+      # what the as-committed lane carries BEFORE the refresh touches
+      # it, snapshotted to the run's scratch state. The verdict diffs
+      # against this snapshot to tell the owner's two scenarios apart:
+      # a finding the sweep cleared (scenario A, fixable - the fix
+      # ships in this run) and a finding the sweep left behind
+      # (scenario B, unfixable - CALL OWNER). A pure scan-and-store:
+      # it gates nothing itself, and exits 1 only on an infrastructure
+      # failure, because a scanner that cannot run fails the lane,
+      # never passes it. Scope follows the night-zen-1 law: the
+      # lockfile set comes from the same canonical manifest walk the
+      # refresh and the commit phase use (--list mode), so the
+      # root-only cargo audit this replaces never audited fuzz/ or
+      # pgo-runner/ here.
+      - name: AXP1-ZnQ pre-pass (scan the committed lane)
+        run: python3 scripts/ci/supplychain-verdict.py --pre
 
       # night-zen-1 (the zejtron law): the refresh walks every committed
       # Cargo.toml and runs cargo update in each workspace, so fuzz/ and
@@ -232,6 +233,20 @@ jobs:
       - name: Update dependencies
         shell: bash
         run: bash scripts/ci/update-all-workspaces.sh
+
+      # night-supply-1 / night-solid-defense-1, the verdict: it speaks
+      # on the swept lane, unconditionally - a sweep that produces no
+      # diff still owes the owner a verdict, so findings the sweep
+      # cannot clear never hide behind a changed-only gate. Scenario A
+      # (fixable): a loud notice, the job stays green and the
+      # validated lane below ships the fix. Scenario B (unfixable):
+      # the job fails hard (CALL OWNER, the scheduled-failure
+      # notification reaches the owner) and the commit job never runs:
+      # nothing ships while a dangerous dep has no automatic update
+      # path. The verdict runs before the heavy checks so a red Sunday
+      # lands fast, inside the same budget.
+      - name: The AXP1-ZnQ verdict (the swept lane)
+        run: python3 scripts/ci/supplychain-verdict.py --post
 
       # night-zen-1: every workspace lockfile is in scope, so the gate
       # accepts any repo-relative Cargo.lock path, not just the root's.
@@ -254,20 +269,11 @@ jobs:
 
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-      # Same tiered guard, post-update phase: cargo update has just run
-      # on every workspace, so this audits the exact lock state the
-      # commit phase would publish. Tier 2 here means the refresh
-      # itself introduced an unfixable advisory - the lane stops and
-      # nothing is committed.
-      - name: Security audit
-        if: steps.changes.outputs.changed == 'true'
-        run: python3 scripts/ci/security-guard.py --phase post-update
-
-      # Ownership split (owner directive 2026-11-21): deny keeps the
-      # yanked / bans / licenses / sources hard gates, while advisory
-      # vulnerabilities are warn-level here - the tiered guard above
-      # owns that verdict (deny.toml [advisories] records the same
-      # contract).
+      # Ownership split (night-solid-defense-1): deny keeps the bans /
+      # licenses / sources hard gates (and its yanked = "deny" line,
+      # the arrayref defense), while advisory vulnerabilities are
+      # warn-level here - the AXP1-ZnQ verdict above owns the advisory
+      # verdict (deny.toml [advisories] records the same contract).
       - name: Dependency policy
         if: steps.changes.outputs.changed == 'true'
         run: cargo deny check all
