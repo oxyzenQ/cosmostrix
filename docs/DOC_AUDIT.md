@@ -41,9 +41,9 @@ edits the doc — never the source to match the doc.
    When the audit finds a second telling, the fix is a link to the
    home, never a re-sync of both copies: a re-sync is just the next
    drift waiting for its day. The codebase already speaks this law —
-   `SPINNER_FRAMES` has one definition and every spinner lane
-   delegates to it — and this rule is the docs side of the same
-   discipline.
+   the loading lane's `SWEEP` table has one definition and every
+   spinner lane (the benchmark progress, the update fetch) delegates
+   to it — and this rule is the docs side of the same discipline.
 
 2. **Depth is the bar.** A doc's sections carry the mechanism and
    the why, not only the what: what a thing is, how it works, why

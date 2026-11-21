@@ -862,7 +862,7 @@ mod tests;
 // Submodules (moved from src/ root for clean src/ layout)
 pub(crate) mod escape_ctrl;
 pub(crate) mod grey;
-pub(crate) use grey::grey_open;
+pub(crate) use grey::{grey_err, grey_open};
 pub(crate) mod message;
 pub(crate) mod post_exit;
 pub(crate) mod report;

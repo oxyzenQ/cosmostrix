@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::output::spinner::Spinner;
+use crate::output::spinner::{Spinner, Style};
 use crate::output::{brand_bold, ok_bold, println_safe, warn_bold};
 use std::process::Command;
 
@@ -249,14 +249,22 @@ fn report_update_status(current_version: &str, body: &str) -> Result<(), String>
 /// the failure class. When neither tool exists, the error is actionable
 /// (names both tools and the manual releases URL) instead of a dead end.
 pub(crate) fn check_update(current_version: &str) -> Result<(), String> {
-    // Loading indicator law (night-dragon-maintenance-4): the network
-    // fetch is the one multi-second silent window in the CLI — it shows
-    // the shared single-line spinner while it waits. The spinner is
-    // scoped to the fetch alone, so the report below prints onto a
-    // clean line, and error returns erase it through ordinary RAII.
+    // Loading lane law (night-ux-orion-1): the network fetch is the
+    // one indeterminate wait in the CLI - a silent fetch is
+    // indistinguishable from a hang, so it narrates: a DNA helix on
+    // a capable terminal (two anti-parallel strands, the request
+    // out and the answer back), the ASCII dash on a plain one, and
+    // nothing at all when the answer lands inside the lazy
+    // threshold (100 ms). The machine finishes on every path before
+    // the verdict prints: the only slow step is the fetcher child
+    // below, so the arm/finish bracket wraps exactly that call and
+    // the remaining error paths are instant CPU work. The report
+    // below prints onto a clean line.
     let body = {
-        let _spinner = Spinner::start("Fetching latest release info");
-        fetch_latest_body()?
+        let indicator = Spinner::arm("Fetching latest release info", Style::Helix);
+        let fetched = fetch_latest_body();
+        indicator.finish();
+        fetched?
     };
     report_update_status(current_version, &body)
 }

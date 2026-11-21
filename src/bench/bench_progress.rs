@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 use crossterm::cursor::{Hide, Show};
 use crossterm::execute;
 
-use crate::output::spinner::SPINNER_FRAMES as SPINNER;
+use crate::output::spinner::SWEEP as SPINNER;
 
 /// Number of lines in the live rewrite region during benchmark.
 const LIVE_LINES: u16 = 4;
@@ -194,9 +194,11 @@ impl BenchProgress {
         self.is_tty
     }
 
-    /// Advance the spinner and return the current frame character.
+    /// Advance the spinner and return the current frame cell. The
+    /// frames ride the loading lane's single sweep table (the
+    /// shared ten-frame braille walk), one cell per frame.
     #[inline]
-    fn spin(&mut self) -> char {
+    fn spin(&mut self) -> &'static str {
         let c = SPINNER[self.spinner_idx];
         self.spinner_idx = (self.spinner_idx + 1) % SPINNER.len();
         c

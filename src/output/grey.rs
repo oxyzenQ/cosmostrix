@@ -12,7 +12,7 @@
 //! example lines stay the bold Matrix green tier (NIGHT-boost-2), and
 //! section headings stay the bold brand purple tier.
 
-use super::{ColorCapability, color_capability};
+use super::{ColorCapability, color_capability, reset};
 
 /// Calm grey open sequence, capability-parameterized (unit-testable
 /// without env sniffing — the same four-rung ladder as
@@ -37,6 +37,18 @@ pub(crate) fn grey_open() -> &'static str {
     grey_open_for(color_capability())
 }
 
+/// Wrap `msg` in the calm grey tier for the STDERR lane - the
+/// loading lane's seat (night-ux-orion-1): a narration is secondary
+/// content, dimmer than every report byte it annotates. Plain text
+/// when color is off, so piped output keeps its plain bytes.
+pub(crate) fn grey_err(msg: &str) -> String {
+    let cap = color_capability();
+    match cap {
+        ColorCapability::Mono => msg.to_owned(),
+        _ => format!("{}{msg}{}", grey_open_for(cap), reset()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -53,5 +65,14 @@ mod tests {
         assert_eq!(grey_open_for(ColorCapability::Color256), "\x1b[38;5;245m");
         assert_eq!(grey_open_for(ColorCapability::Color16), "\x1b[90m");
         assert_eq!(grey_open_for(ColorCapability::Mono), "");
+    }
+
+    /// The stderr-lane wrapper: painted grey on every capable rung,
+    /// plain bytes on mono - the piped run's output law.
+    #[test]
+    fn grey_err_wraps_the_ladder_and_stays_plain_on_mono() {
+        assert_eq!(grey_err("[waiting... 1s]"), "[waiting... 1s]");
+        assert!(grey_err("[waiting... 1s]").contains("[waiting... 1s]"));
+        assert!(!grey_err("[waiting... 1s]").starts_with('\x1b'));
     }
 }

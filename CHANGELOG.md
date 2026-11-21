@@ -49,6 +49,46 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### feat: night-ux-orion-1 - the loading lane: a DNA helix for the silent fetch wait
+
+- The `--check-update` fetch (the CLI's one indeterminate wait)
+  narrates instead of sitting silent: a background redrawing thread
+  paints one grey stderr line - `[Fetching latest release info... ⠋⠏]`
+  - while the fetcher child blocks, and erases it before the verdict
+  prints. The gate is a terminal stderr; a piped run never sees a
+  narration byte.
+- Lazy threshold (the owner's auto-detect law): an operation that
+  lands inside 100 ms never draws - the fast path's stderr stays
+  byte for byte silent, and the indicator appears only when the
+  wait is real. The slot clock is deterministic (a pure function of
+  elapsed time), so a late redraw repeats a frame instead of
+  skipping the sequence.
+- The DNA helix: two braille strands running the same ten-frame
+  sweep in opposite directions (`HELIX[i]` pairs `SWEEP[i]` with
+  `SWEEP[9 - i]`) - the two anti-parallel streams the fetch is
+  (the request out, the answer back). The single-strand wave seat
+  (`Style::Wave`) exists for the estate's next linear site.
+- The fallbacks are detection, never flags: NO_COLOR or a non-UTF-8
+  locale drops to the rotating ASCII dash automatically (`-`, `\`,
+  `|`, `/`), and the paint rides the existing capability ladder
+  through the new `output::grey_err` (truecolor #8B8B8B, 256-color
+  index 245, bright black on Color16, plain on mono) - visible by
+  construction on dark and light backgrounds alike.
+- Byte-contract hygiene: overwrite and clear ride carriage returns
+  and spaces only (no CSI erase), every write failure is swallowed
+  (the indicator must never be the reason a run dies), and the
+  clear blanks cells, not bytes (braille is three bytes per cell).
+- Single-source law kept: the benchmark lane's frames re-point to
+  the same `SWEEP` table the loading lane renders, so the two
+  lanes can never drift; `spin()` now returns the frame cell
+  (`&str`) and every display site keeps its format string.
+- The old always-draws spinner (night-dragon-maintenance-4) is
+  replaced wholesale; the machine's nine new tests live in the
+  mirrored `test/output/spinner_tests.rs` (helix table pins, the
+  style ladder, the Unicode probe, the lazy slot clock, the
+  bracket grammar, the inert/drawn/undrawn machine contracts, the
+  cell-width law), plus a `grey_err` ladder pin in grey.rs.
+
 ### test: night-frontier-Z8 - the control-loop resonance census: the Power Dragon's coupled backoff axes get their no-limit-cycle proof
 
 - `test/central_control_power_dragon/power_manager/tests_resonance_z8.rs`
