@@ -8,14 +8,11 @@
 Hardware-verified benchmark results for cosmostrix. Covers a full size
 sweep from 1x1 (engine minimum) to 7680x4320 (8K UHD) on the
 current host.
-
-## Environment
-
 | Item | Value |
 | --- | --- |
 | CPU | Intel(R) Xeon(R) Processor (2 vCPUs) |
-| RAM | 3.9 GiB |
-| OS | Debian GNU/Linux 13 (trixie), glibc |
+| RAM | 4.1 GiB |
+| OS | Debian GNU/Linux 13 (trixie) |
 | Rust | 1.98.1 |
 | Build | `release` |
 | Terminal | `dumb` |
@@ -27,13 +24,16 @@ All sizes use `--scene monolith`. Duration is adaptive:
 
 | Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
 | ------ | ------: | --------: | ---------: | ---------: | ---------------: | -----------: | ---------- |
-| 1x1 | 1 | 1,494,073 | 968,054 | 0.001 | 0.1 | 5 | excellent |
-| 20x6 | 120 | 659,190 | 999,001 | 0.002 | 3.0 | 5 | excellent |
-| 80x24 | 1,920 | 90,058 | 118,666 | 0.015 | 56.8 | 6 | excellent |
-| 120x40 | 4,800 | 52,442 | 67,875 | 0.024 | 107.1 | 5 | excellent |
-| 200x80 | 16,000 | 27,440 | 32,624 | 0.044 | 218.8 | 6 | excellent |
-| 480x160 | 76,800 | 10,508 | 11,734 | 0.113 | 588.3 | 11 | excellent |
-| 960x270 | 259,200 | 4,594 | 5,122 | 0.263 | 1,251.3 | 22 | excellent |
+| 1x1 | 1 | 1,467,248 | 595,948 | 0.001 | 0.2 | 6 | excellent |
+| 20x6 | 120 | 576,908 | 999,001 | 0.002 | 4.7 | 6 | excellent |
+| 80x24 | 1,920 | 66,343 | 91,283 | 0.020 | 90.8 | 6 | excellent |
+| 120x40 | 4,800 | 37,892 | 48,816 | 0.034 | 173.3 | 6 | excellent |
+| 200x80 | 16,000 | 19,416 | 23,217 | 0.063 | 361.2 | 7 | excellent |
+| 480x160 | 76,800 | 7,410 | 8,274 | 0.162 | 977.0 | 11 | excellent |
+| 960x270 | 259,200 | 3,255 | 3,680 | 0.378 | 2,037.2 | 24 | excellent |
+| 1920x540 | 1,036,800 | 1,238 | 1,335 | 0.975 | 4,249.8 | 76 | excellent |
+| 3840x1080 | 4,147,200 | 547 | 609 | 2.365 | 8,499.6 | 285 | good |
+| 7680x4320 | 33,177,600 | 189 | 229 | 5.868 | 18,167.9 | 2,099 | high |
 | 1920x540 | 1,036,800 | 1,727 | 1,894 | 0.677 | 2,590.9 | 68 | excellent |
 | 3840x1080 | 4,147,200 | 752 | 843 | 1.608 | 5,148.0 | 254 | good |
 | 7680x4320 | 33,177,600 | 301 | 350 | 3.473 | 10,933.4 | 1,853 | high |
