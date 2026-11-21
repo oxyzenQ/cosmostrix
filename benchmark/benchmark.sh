@@ -281,6 +281,8 @@ inject_bench_labs() {
 	local block
 	block=$(
 		cat <<EOF
+## Environment
+
 | Item | Value |
 | --- | --- |
 | CPU | ${cpu_val} |
@@ -492,11 +494,11 @@ run_sweep() {
 
 	{
 		# The Masterclass dual-license pair (night-ux-orion-2): every
-	# generated sweep artifact carries the full expression the header
-	# gate enforces - the bare AGPL-3.0-only rung is the pre-Masterclass
-	# spelling and fails check-headers.sh when the artifact sits in the
-	# tree.
-	echo "<!-- SPDX-License-Identifier: AGPL-3.0-only OR Commercial -->"
+		# generated sweep artifact carries the full expression the header
+		# gate enforces - the bare AGPL-3.0-only rung is the pre-Masterclass
+		# spelling and fails check-headers.sh when the artifact sits in the
+		# tree.
+		echo "<!-- SPDX-License-Identifier: AGPL-3.0-only OR Commercial -->"
 		echo ""
 		echo "# cosmostrix Size Sweep"
 		echo ""

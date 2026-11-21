@@ -8,6 +8,9 @@
 Hardware-verified benchmark results for cosmostrix. Covers a full size
 sweep from 1x1 (engine minimum) to 7680x4320 (8K UHD) on the
 current host.
+
+## Environment
+
 | Item | Value |
 | --- | --- |
 | CPU | Intel(R) Xeon(R) Processor (2 vCPUs) |
