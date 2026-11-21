@@ -52,6 +52,34 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### feat: night-ux-orion-3 - the yearless Signature line: the identity display law reaches -V
+
+- The `-V/--version` Signature line renders the identity without the
+  trailing year: `Signature: Cosmic Dragon — Official Build by
+  rezky_nightky (oxyzenQ)` — the Masterclass year order (the year
+  belongs in FRONT, the Copyright line's `2025-2026` range, never
+  behind the handle; the owner's spec line for the estate). The new
+  `manifest_display` helper in signature.rs strips the embedded year
+  at the single render site, next to `identity_core` (which strips
+  the same year for the bare core the `sig` block shows) — one year
+  law, two surfaces. The frozen claim itself is untouched: the masked
+  layers, both fingerprints, and the blake3 anchor are byte-identical,
+  so `sig` still verifies 5/5 AUTHENTIC and the binding law still
+  holds. Test oracles updated to pin the yearless line and the
+  absence of the trailing year across every `-V` surface.
+- Estate scan for the same shape: no other display surface renders
+  the year-stamped form (the `sig` identity block is yearless since
+  the orion-2 completion; the Depth-matrix line never carried a year;
+  the README and INNOVATIONS references describe the frozen embedded
+  claim's bytes, not an output, and stay accurate).
+
+Verified: diagnostics suite green (the -V oracles, the binding law,
+the sig block), `cosmostrix -V` byte-verified on a live build (the
+yearless Signature line, the Masterclass three-line block intact,
+`status=verified`), `sig` five-depth AUTHENTIC with the yearless
+identity and contact line, fmt/clippy clean. Version untouched
+(v100.1.0-night.1), permissions 644/755.
+
 ### feat: night-ux-orion-2 - the Masterclass license disclosure: the -V identity block and the estate-wide SPDX header standard
 
 - The `-V/--version` identity block lands the Masterclass format the

@@ -24,7 +24,7 @@ use crate::constants::{CHAR_POOL_SIZE, DROPLET_COUNT_FACTOR, GLITCH_POOL_SIZE};
 // fold verifies. version_report renders the fields verbatim and must not
 // unmask anything itself — see `signature.rs` for the layer contract,
 // the single-pass invariant, the threat model, and the honest limits.
-use super::signature::{COPYRIGHT_YEAR, LICENSE_LINE, provenance_view};
+use super::signature::{COPYRIGHT_YEAR, LICENSE_LINE, manifest_display, provenance_view};
 
 // --- Build info helpers ---
 
@@ -130,12 +130,12 @@ pub(crate) fn version_report() -> String {
         "{engine_line}\n\
          {build_line}\n\
          Build-time: {build_time}\n\
-         Signature: {manifest}\n\
+         Signature: {signature}\n\
          {depth_line}\n\
          Copyright (c) {year} {authors}\n\
          License: {license}\n\
          Source: {repository}",
-        manifest = provenance.manifest,
+        signature = manifest_display(&provenance.manifest),
         depth_line = depth_line,
         year = COPYRIGHT_YEAR,
         authors = provenance.authors,
@@ -449,11 +449,17 @@ mod tests {
         // are the test-side oracles (cfg(test) never ships in the
         // release artifact) pinning the materialized output.
         let report = version_report();
+        // night-ux-orion-3: the Signature line materializes the
+        // YEARLESS identity — the year belongs in front (the Copyright
+        // line's range), never behind the handle.
         assert!(
-            report.contains(
-                "Signature: Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ) 2026"
-            ),
-            "Signature line must materialize the full year-stamped identity. Report:\n{report}"
+            report
+                .contains("Signature: Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)\n"),
+            "Signature line must materialize the yearless identity. Report:\n{report}"
+        );
+        assert!(
+            !report.contains("rezky_nightky (oxyzenQ) 2026"),
+            "no -V surface may carry the trailing year. Report:\n{report}"
         );
         assert!(
             report.contains("Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)"),

@@ -357,6 +357,22 @@ pub(crate) fn identity_core(manifest: &str) -> Option<&str> {
         .and_then(|tail| tail.strip_suffix(MANIFEST_IDENTITY_YEAR))
 }
 
+/// The display form of the full Signature line (night-ux-orion-3):
+/// the frozen embedded claim carries the trailing year
+/// ("... (oxyzenQ) 2026"), the rendered line carries the identity
+/// without it. The Masterclass year order puts the year in FRONT —
+/// the Copyright line's `2025-2026` range — never behind the handle,
+/// and the `sig` identity block already renders the yearless core.
+/// `identity_core` strips the same year for the bare core; this
+/// strips it for the whole line, brand prose included. A manifest
+/// without the year shape renders unchanged (tampering is the D0/D1
+/// depths' job, not a display-side rewrite).
+pub(crate) fn manifest_display(manifest: &str) -> &str {
+    manifest
+        .strip_suffix(MANIFEST_IDENTITY_YEAR)
+        .unwrap_or(manifest)
+}
+
 // --- Version-report surface -------------------------------------------
 
 /// Everything the `-V/--version` report renders from the provenance
