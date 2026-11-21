@@ -6,6 +6,8 @@ perf.data*
 *.out
 *.log
 hyperfine.md
+sweep_*.md
+sweep_*.csv
 perf-*.txt
 time-*.txt
 scaling_results.json

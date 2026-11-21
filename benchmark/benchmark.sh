@@ -491,7 +491,12 @@ run_sweep() {
 	cpu_model=$(awk '/^model name[[:space:]]*:/ { sub(/^model name[[:space:]]*: */, ""); print; exit }' /proc/cpuinfo 2>/dev/null || sysctl -n machdep.cpu.brand_string 2>/dev/null || true)
 
 	{
-		echo "<!-- SPDX-License-Identifier: AGPL-3.0-only -->"
+		# The Masterclass dual-license pair (night-ux-orion-2): every
+	# generated sweep artifact carries the full expression the header
+	# gate enforces - the bare AGPL-3.0-only rung is the pre-Masterclass
+	# spelling and fails check-headers.sh when the artifact sits in the
+	# tree.
+	echo "<!-- SPDX-License-Identifier: AGPL-3.0-only OR Commercial -->"
 		echo ""
 		echo "# cosmostrix Size Sweep"
 		echo ""
