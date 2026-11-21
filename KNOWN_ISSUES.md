@@ -671,6 +671,39 @@ affected — CI hygiene only.
 
 ---
 
+## CI runner PTY race: the term-dumb pty-smoke leg can observe a stray alt-leave — FLAKE CONFIRMED (night-ux-orion-2, 2026-11-21)
+
+### Symptom
+
+The `Cosmic Dragon Guard - Supermassive` lane's
+`pty smoke (quit paths and color tiers, x86_64)` job failed its
+"Color tier downgrade battery" once (run 44880951123, attempt 1):
+`MASS-RESULT: term-dumb-4s forbid alt-leave: FAIL` — the capture
+carried the alternate-screen leave sequence (`ESC[?1049l`) that the
+leg forbids under `TERM=dumb`.
+
+### Evidence (the flake proof, gathered the same day)
+
+- The aarch64 twin job ran the identical commit, the identical leg:
+  green. One runner saw the byte, the other never did.
+- Local replication of the exact leg (`cosmostrix --duration 4` under
+  a real pty with `TERM=dumb`) five times: zero `alt-enter`, zero
+  `alt-leave`, byte count identical across runs (4431) — the term-dumb
+  behavior is deterministic; the commit's diff carries no alt-screen
+  surface (comments, identity strings, and metadata only).
+- The job re-run (attempt 2) passed with no code change.
+
+### Resolution
+
+Runner-side PTY timing race, not a behavior change: a race between the
+leg's capture window and the binary's restore stack on the shared
+runner. The verdict stands on the re-run plus the local determinism
+pins. If the leg ever fails twice on the same SHA, stop and diff the
+captured bytes against a local run instead of re-running blindly — a
+second failure would mean a real regression, not weather.
+
+---
+
 ## Reporting new issues
 
 If you encounter an issue not listed here, please open a GitHub issue
