@@ -52,6 +52,43 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-fly-1 - the GPG expiry check trusts keyring presence, not recv exit codes
+
+- CI incident (Dependency Maintenance run #46, 2026-11-21): the GPG
+  Signing Key Expiry Check job died in six seconds with "error reading
+  key: No public key" (exit 2).
+- Root cause proven by a live keyserver probe, not assumed:
+  keys.openpgp.org serves the master key but strips its user IDs (none
+  of the key's identities are verified there), and gpg skips a
+  UID-less key on import ("new key but contains no user ID - skipped")
+  while still exiting 0. The old `||` chain read that exit 0 as
+  success, so the keyserver.ubuntu.com fallback never ran, and
+  `--list-keys` found an empty keyring.
+- No key rotation: the ubuntu keyserver imports the full key today —
+  master `F5324E0967F104D58CE025F347A50AEF4B65AAC2`, artifact subkey
+  `3C9EB25BF0407781` (expires 2028-08-23), tag subkey
+  `2B52187D2AB618A7591D45C9C7F8B07418899C4E` (2031-08-23), and the
+  pre-rotation `56B96F3109F4B924` (2028-08-14) — every date exactly
+  matching docs/VERIFY_RELEASE.md, with the purged night-remake-1
+  identities riding as revoked (uid:r) records as documented.
+- The fetch loop now verifies keyring presence after every server
+  attempt and only proceeds when the key actually landed: ubuntu first
+  (the documented source of truth), keys.openpgp.org second (in case
+  its identities are verified there later). Server output stays
+  visible for diagnosability. The non-fatal warn-and-exit-0 contract
+  when no server answers is unchanged.
+- docs/VERIFY_RELEASE.md: the keys.openpgp.org "mirror" import
+  instruction is removed — it imports nothing today (the same
+  UID-less skip), so it was a dead instruction; the ubuntu import is
+  the only one.
+
+Verified: the exact run block extracted from the edited workflow was
+executed in a scratch keyring — it imports the key from ubuntu on the
+first attempt and the expiry parse reports all three subkeys OK (641 /
+1735 / 631 days remaining); a scratch-keyring probe reproduces both
+server behaviors (openpgp.org: skipped, exit 0; ubuntu: imported,
+exit 0 with the key present); yamllint clean on the workflow.
+
 ### ci: night-fly-1 - the test lanes ride the commit: the weekly cron left every push-triggered workflow
 
 - The owner's CI law (night-fly-1): no lane runs past 15 minutes and

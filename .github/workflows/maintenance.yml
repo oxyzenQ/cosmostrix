@@ -66,14 +66,36 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Import the signing key from a public keyserver
-          gpg --batch --keyserver keys.openpgp.org \
-            --recv-keys "${GPG_KEY_FINGERPRINT}" 2>/dev/null || \
-          gpg --batch --keyserver keyserver.ubuntu.com \
-            --recv-keys "${GPG_KEY_FINGERPRINT}" 2>/dev/null || {
-            echo "::warning::Could not fetch GPG key ${GPG_KEY_FINGERPRINT} from keyservers"
+          # Import the signing key from a public keyserver, verifying
+          # keyring PRESENCE after every attempt — the recv exit code
+          # is not trusted (CI incident, Dependency Maintenance run
+          # #46, 2026-11-21): keys.openpgp.org is a verifying keyserver
+          # and serves this key without user IDs (none of its
+          # identities are verified there), and gpg SKIPS a UID-less
+          # key on import ("new key but contains no user ID - skipped")
+          # while still exiting 0. A bare `||` chain therefore stopped
+          # on the first server with an empty keyring, the ubuntu
+          # fallback never ran, and the expiry parse below died with
+          # "error reading key: No public key" (exit 2). Ubuntu is
+          # tried first because it is the documented source of truth
+          # (docs/VERIFY_RELEASE.md) and imports the full key today;
+          # keys.openpgp.org stays as the second attempt in case its
+          # identities get verified there later. Server output stays
+          # visible so a future failure is diagnosable from the log.
+          KEY_FETCHED=false
+          for SERVER in keyserver.ubuntu.com keys.openpgp.org; do
+            echo "Fetching ${GPG_KEY_FINGERPRINT} from ${SERVER} ..."
+            gpg --batch --keyserver "${SERVER}" \
+              --recv-keys "${GPG_KEY_FINGERPRINT}" || true
+            if gpg --batch --list-keys "${GPG_KEY_FINGERPRINT}" >/dev/null 2>&1; then
+              KEY_FETCHED=true
+              break
+            fi
+          done
+          if [[ "${KEY_FETCHED}" != "true" ]]; then
+            echo "::warning::Could not fetch GPG key ${GPG_KEY_FINGERPRINT} from any keyserver"
             exit 0  # non-fatal — network glitch should not break the pipeline
-          }
+          fi
 
           # Extract signing subkey expiry dates (skip master key + revoked subkeys).
           # GPG colon format field layout for a `sub:` record:

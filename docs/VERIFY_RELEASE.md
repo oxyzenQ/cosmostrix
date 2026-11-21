@@ -11,15 +11,17 @@ Every release ships **three checksum files** + **one GPG signature** per archive
 
 ### Import the maintainer's public key
 
-The key is available on two public keyservers:
+Import the key from the Ubuntu keyserver (the estate's source of
+truth):
 
 ```bash
-# Ubuntu keyserver (primary)
 gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
-
-# openpgp.org (mirror)
-gpg --keyserver keys.openpgp.org --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
 ```
+
+Note: `keys.openpgp.org` is a verifying keyserver and currently serves
+this key without user IDs (none of the key's identities are verified
+there), so `gpg` skips it on import and the keyring stays empty — do
+not use it as the import source until its UIDs are verified there.
 
 **Key fingerprint**: `F532 4E09 67F1 04D5 8CE0  25F3 47A5 0AEF 4B65 AAC2`. **Key details**: Master key (ed25519) `F5324E0967F104D58CE025F347A50AEF4B65AAC2` — Certify + Sign, never expires. Signing subkeys (ed25519) rotate on the hygiene cycle described below; the active set as of 2026-09-20 (verified against the keyserver, the v100.0.2 release signatures, and the maintainer's signed git commits; re-verified against the keyserver on 2026-11-21): `3C9EB25BF0407781` (full fingerprint `3EE4A49C78630A16E176DB2B3C9EB25BF0407781` — this full form is what `gpg` prints in its `using EDDSA key` line; matching it back to this subkey confirms the signature chain, it is not a new master key) — release artifacts (expires 2028-08-23), `2B52187D2AB618A7591D45C9C7F8B07418899C4E` — release tags and maintainer git commits (expires 2031-08-23). The pre-rotation artifact subkey `56B96F3109F4B924` (it last signed the v50.0.0-rc.1 artifacts; superseded by `3C9EB25BF0407781` from v80.0.0-beta.1 onward; expires 2028-08-14) is still carried on the master key but signs nothing in the current pipeline. The keyserver always carries the current set — trust it over this list after a rotation. UIDs: `rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>` (the primary contact UID — all estate correspondence) and `Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>`.
 
