@@ -200,8 +200,25 @@ jobs:
         with:
           tool: cargo-audit,cargo-deny
 
+      # Tiered supply chain guard (owner directive 2026-11-21, the
+      # sleeping-owner contract): plain cargo audit fails on every
+      # advisory and cannot tell the two maintenance scenarios apart.
+      # The guard classifies RustSec findings by fixability:
+      #   - patched version exists -> non-blocking, UPDATE ASAP banner
+      #     (the lane continues and the bot may still refresh locks)
+      #   - no patched version -> exit 1, CALL OWNER banner (the run
+      #     fails hard, the scheduled-failure notification reaches the
+      #     owner, and no dependency commit may land while the risk
+      #     stands)
+      # Any audit infrastructure failure (missing tool, missing
+      # lockfile set, malformed report) also exits 1: a broken guard
+      # must never pass silently.
+      # Scope follows the night-zen-1 law: the lockfile set comes from
+      # the same canonical manifest walk the refresh and the commit
+      # phase use (--list mode), so the root-only cargo audit this
+      # step replaces never audited fuzz/ or pgo-runner/ here.
       - name: Baseline security audit
-        run: cargo audit
+        run: python3 scripts/ci/security-guard.py --phase baseline
 
       # night-zen-1 (the zejtron law): the refresh walks every committed
       # Cargo.toml and runs cargo update in each workspace, so fuzz/ and
@@ -237,10 +254,20 @@ jobs:
 
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
+      # Same tiered guard, post-update phase: cargo update has just run
+      # on every workspace, so this audits the exact lock state the
+      # commit phase would publish. Tier 2 here means the refresh
+      # itself introduced an unfixable advisory - the lane stops and
+      # nothing is committed.
       - name: Security audit
         if: steps.changes.outputs.changed == 'true'
-        run: cargo audit
+        run: python3 scripts/ci/security-guard.py --phase post-update
 
+      # Ownership split (owner directive 2026-11-21): deny keeps the
+      # yanked / bans / licenses / sources hard gates, while advisory
+      # vulnerabilities are warn-level here - the tiered guard above
+      # owns that verdict (deny.toml [advisories] records the same
+      # contract).
       - name: Dependency policy
         if: steps.changes.outputs.changed == 'true'
         run: cargo deny check all

@@ -21,6 +21,15 @@ ignore = []
 # version must never enter a build here, advisory or no advisory:
 # yanked is deny, not warn.
 yanked = "deny"
+# Tier contract with the maintenance lane (owner directive 2026-11-21):
+# advisory vulnerabilities are WARN here because the tiered supply
+# chain guard (scripts/ci/security-guard.py) owns that verdict -
+# fixable advisories stay non-blocking, unfixable ones exit 1 with a
+# CALL OWNER banner. The hard vulnerability gates elsewhere are
+# untouched: ci.yml and release.yml keep their own cargo audit lanes
+# that fail on every advisory, and gitbot-audit.yml stays
+# observation-only by design.
+vulnerability = "warn"
 
 [licenses]
 allow = [

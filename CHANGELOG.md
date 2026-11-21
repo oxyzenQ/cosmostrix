@@ -185,6 +185,59 @@ name, and the engine-code "cosmic dragon" strings are module names,
 not contact data. Docs-only change, so the benchmark lane is
 intentionally not run.
 
+### feat: night-fly-1 - the maintenance lane tells the two supply chain scenarios apart
+
+- Owner directive 2026-11-21 (the sleeping-owner contract): the Sunday
+  dependency lane must not just fail on every advisory like plain
+  `cargo audit` does — it must tell a dependency that CAN be fixed
+  (patched versions exist; non-blocking, UPDATE ASAP banner, the lane
+  and the lock refresh continue) apart from one that CANNOT (no
+  patched version anywhere; exit 1, CALL OWNER banner, the run fails
+  hard so the scheduled-failure notification reaches the owner, and
+  the commit phase never publishes the refresh while the risk stands).
+- New `scripts/ci/security-guard.py`: a classifier over the
+  `cargo audit --json` report. Tier 1 = advisory carries patched
+  versions; Tier 2 = it does not; informational (unmaintained and
+  friends) stays listed but never gates. Fail closed throughout: a
+  missing tool, a missing lockfile set, a malformed report or any
+  non-{0,1} cargo audit exit is an infrastructure failure that exits
+  1, because a broken guard must never pass silently. Three advisory
+  schema shapes are accepted (the 0.21 advisory-level `patched` list,
+  the sibling `versions` object, and the legacy `patched_versions`
+  string) so schema drift across cargo audit releases cannot flip a
+  tier.
+- Audit scope now follows the night-zen-1 law it previously lagged
+  behind: the lockfile set comes from the canonical manifest walk
+  (`scripts/ci/update-all-workspaces.sh --list`), so the root-only
+  `cargo audit` this replaces never audited `fuzz/` and
+  `pgo-runner/` in this lane — both now ride the same audit as the
+  refresh and the commit phases.
+- Both audit steps in maintenance.yml (baseline pre-refresh,
+  post-update pre-commit) run the guard with a phase label; the
+  post-update phase is the one that gates the bot commit, so a
+  refresh that itself introduces an unfixable advisory stops the
+  lane before anything lands.
+- Ownership split with cargo-deny (deny.toml [advisories]):
+  vulnerabilities are warn-level there because the guard owns that
+  verdict now; deny keeps `yanked = "deny"` (the arrayref defense),
+  bans, licenses and sources, and the ci.yml / release.yml cargo
+  audit lanes keep failing on every advisory unchanged. The
+  observation-only gitbot-audit.yml keeps its capture-don't-fail
+  behavior by design.
+- The report surfaces on the GitHub step summary: CALL OWNER
+  (`[!CAUTION]`) and UPDATE ASAP (`[!WARNING]`) banners, per-lockfile
+  advisory tables (severity, fixed-in requirements, CVE aliases,
+  RustSec page links), informational rows, and per-finding
+  `::error::` / `::warning::` annotations in the job log.
+
+Verified: the built-in self-test passes 14/14 checks (tier split,
+schema-shape tolerance, parser noise tolerance, table escaping,
+banner and verdict rendering, fail-closed paths); offline fixture
+runs reproduce all three owner scenarios end to end (unfixable exit
+1 with CALL OWNER, fixable exit 0 with UPDATE ASAP, malformed report
+exit 1 fail-closed); the rendered step summary carries both banners
+and the verdict; yamllint clean on the edited workflow.
+
 ### feat: night-remake-1 - the estate contact purge: every surface answers to the proton address
 
 - The legacy consumer-mail contact address is purged end-to-end and
