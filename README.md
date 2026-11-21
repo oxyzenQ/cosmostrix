@@ -884,7 +884,7 @@ revision is grandfathered at $99 for the term they bought. See
 [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)
 for payment addresses, the verification process, the pricing philosophy,
 and full terms. For licensing inquiries contact
-[with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+[oxyzenQ@proton.me](mailto:oxyzenQ@proton.me).
 
 Warning: taking cosmostrix — or any fork, copy, or derivative of it — into
 a closed-source commercial product without contacting the owner and paying

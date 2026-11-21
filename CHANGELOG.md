@@ -52,6 +52,51 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### feat: night-remake-1 - the estate contact purge: every surface answers to the proton address
+
+- The legacy consumer-mail contact address is purged end-to-end and
+  replaced with
+  `oxyzenQ@proton.me` across every surface that carried it, plain or
+  obfuscated: the README contact line, the COMMERCIAL_LICENSE
+  licensing blocks (both the body and the contact list), the
+  SECURITY reporting address, the CLA contact lines (both), the
+  AI_AGENTS_READ_THIS_FILE pointer, and the crate metadata —
+  `Cargo.toml` now reads
+  `authors = ["rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"]`.
+  The AUR PKGBUILD maintainer header carried the same address in
+  its obfuscated no-scrape spelling; it now carries the proton
+  address directly. A historical CHANGELOG
+  sentence that quoted the obfuscated spelling was rephrased to
+  describe the purge instead of repeating the address.
+- The GPG verification story stays fingerprint-anchored
+  (`F5324E0967F104D58CE025F347A50AEF4B65AAC2`, unchanged) and now
+  lists the proton UID — `rezky_nightky (oxyzenQ)
+  <oxyzenQ@proton.me>` — as the primary contact UID in
+  docs/VERIFY_RELEASE.md, alongside the noreply UID that signatures
+  report. The keyserver remains the source of truth for the live
+  UID set.
+- Scope honesty: the runtime surfaces were already clean — the
+  `sig` report's contact line has shown the proton address since
+  the masked layers landed, and `-V` carries no email at all (the
+  frozen provenance layers never contained one). The frozen claim,
+  both fingerprints, and the blake3 anchor are untouched by this
+  purge, so `sig` still verifies 5/5 AUTHENTIC. Git author and
+  committer emails on this repository were always the noreply
+  address; the purge is a content sweep, not a history rewrite (a
+  blob-level history purge is an owner-level destructive operation
+  and was not performed). A pre-existing permission violation the
+  gate caught during the sweep (benchmark/bench-labs/BENCH_LABS.md
+  at 600) is fixed to the 644 standard.
+
+Verified: full-residual scan zero hits across plain, obfuscated,
+and alternate-domain variants (case-insensitive, hidden files
+included); full test suite 3087/3087 green; `cosmostrix -V` and
+`sig` byte-proofed on a live build (yearless Signature line,
+5/5 AUTHENTIC, contact `oxyzenQ@proton.me`); fmt, clippy-free
+build, header gate 919/919, permissions gate 1249/1249, and the
+docs/language/emoji/hype/comment-style/name-case gates all clean.
+Version untouched (v100.1.0-night.1).
+
 ### feat: night-ux-orion-3 - the yearless Signature line: the identity display law reaches -V
 
 - The `-V/--version` Signature line renders the identity without the
@@ -794,8 +839,9 @@ AUTHENTIC), cargo-deny licenses ok, cargo package ok, header gate
   this task: `readme = "README.md"` (the pointer that renders the
   whole crate-page body, guaranteed to ride the registry tarball
   even under this manifest's exclude lane) and the author entry in
-  zelynic's obfuscated contact spelling (`<with dot rezky at gmail
-  dot com>` - no scrapeable raw address), accepted by crates.io in
+  the era's obfuscated no-scrape contact spelling (the address it
+  carried is purged estate-wide by the night-remake-1 proton
+  contact), accepted by crates.io in
   the author `<...>` slot. The manifest now carries the full
   published-crate set: description, five keywords, four validated
   category slugs, license, repository, documentation, readme,

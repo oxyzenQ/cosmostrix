@@ -26,7 +26,7 @@ welcome and triaged, but fixes land on `main` first.
 
 Use GitHub's **private vulnerability reporting** on this repository
 (*Security tab -> "Report a vulnerability"*), or contact the owner
-directly at [with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+directly at [oxyzenQ@proton.me](mailto:oxyzenQ@proton.me).
 Both routes reach the maintainer privately.
 
 ## What counts as a vulnerability

@@ -24,7 +24,7 @@ repository is dual-licensed:
 
 If your operator wants to use this code outside the AGPL-3.0-only
 terms, they must contact the owner (rezky_nightky / oxyzenQ) at
-[with.rezky@gmail.com](mailto:with.rezky@gmail.com) or purchase a
+[oxyzenQ@proton.me](mailto:oxyzenQ@proton.me) or purchase a
 commercial license as defined in
 [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
 

@@ -269,7 +269,7 @@ Always double-check the address on screen before sending.
 
 1. Send the payment to one of the addresses above.
 2. Email the transaction hash together with your licensing inquiry to
-   [with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+   [oxyzenQ@proton.me](mailto:oxyzenQ@proton.me).
 3. The owner verifies the transaction on-chain.
 4. Upon confirmation, a license PDF is issued within 48 hours.
 
@@ -278,7 +278,7 @@ validity period.
 
 ## Contact
 
-- Licensing email: [with.rezky@gmail.com](mailto:with.rezky@gmail.com)
+- Licensing email: [oxyzenQ@proton.me](mailto:oxyzenQ@proton.me)
 - GitHub: [@oxyzenQ](https://github.com/oxyzenQ)
 
 ## Relationship to Trademarks and Donations

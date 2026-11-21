@@ -56,7 +56,7 @@ merchantability or fitness for a particular purpose.
 
 If you become aware of any fact or circumstance that would make these
 representations inaccurate, you agree to notify the Owner promptly at
-[with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+[oxyzenQ@proton.me](mailto:oxyzenQ@proton.me).
 
 ## 6. Acceptance
 
@@ -70,7 +70,7 @@ You accept these terms by either:
 Nothing here reduces the AGPL-3.0-only rights you hold under
 [LICENSE](LICENSE) as a recipient of the project.
 
-**Contact:** [with.rezky@gmail.com](mailto:with.rezky@gmail.com)
+**Contact:** [oxyzenQ@proton.me](mailto:oxyzenQ@proton.me)
 **Last Updated:** 2026-09-26
 
 Copyright (c) 2025-2026 rezky_nightky (oxyzenQ). All rights reserved.
