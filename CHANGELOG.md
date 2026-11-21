@@ -52,6 +52,45 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### feat: night-fly-1 - the signature display identity synced: verification docs expect what gpg actually prints
+
+- The night-remake-1 UID purge reordered the key's identity set on the
+  keyservers, so `gpg` now reports the proton UID as the primary —
+  the `Good signature from "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"`
+  line, with the noreply UID on the aka line — but two verification
+  surfaces still told readers to expect the pre-purge primary: the
+  docs/VERIFY_RELEASE.md "Expected output" line and the
+  scripts/release/generate-release-notes.sh "Expected" line that every
+  generated release notes page ships. Both now expect the proton
+  primary verbatim, with the aka line documented alongside it, matching
+  live `gpg` output on a fresh import.
+- The artifact-signing subkey entry in docs/VERIFY_RELEASE.md now
+  carries the subkey's full fingerprint
+  (`3EE4A49C78630A16E176DB2B3C9EB25BF0407781`) next to its key id
+  (`3C9EB25BF0407781`) — the full form is exactly what `gpg` prints in
+  its "using EDDSA key" line during `gpg --verify`, and without the
+  full form in the docs a first-time verifier reads that line as an
+  unfamiliar key. The active subkey set was re-verified against
+  keyserver.ubuntu.com on 2026-11-21 (both the master fingerprint and
+  the subkey full fingerprint resolve to the same primary key; the
+  colon dump confirms the two live subkeys, their expiry dates, and
+  the pre-rotation artifact subkey exactly as documented).
+- Honest finding: the master key did not rotate. The fingerprint that
+  triggered this hunt belongs to the documented artifact-signing
+  subkey, so every import instruction (README, docs/VERIFY_RELEASE.md,
+  the release-notes generator), the maintenance.yml expiry-check key,
+  and the PKGBUILD GPG header stay master-fingerprint-anchored
+  (`F5324E0967F104D58CE025F347A50AEF4B65AAC2`) and are intentionally
+  unchanged.
+
+Verified: keyserver ground truth fetched and parsed (gpg --show-keys
+and --with-colons); residual scan across the repo shows zero live
+surfaces still expecting the pre-purge primary identity — the
+CHANGELOG history keeps its record, the CLA keeps the owner's legal
+name, and the engine-code "cosmic dragon" strings are module names,
+not contact data. Docs-only change, so the benchmark lane is
+intentionally not run.
+
 ### feat: night-remake-1 - the estate contact purge: every surface answers to the proton address
 
 - The legacy consumer-mail contact address is purged end-to-end and

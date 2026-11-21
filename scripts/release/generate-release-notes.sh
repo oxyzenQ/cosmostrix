@@ -417,6 +417,6 @@ echo "gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F34
 echo "gpg --verify cosmostrix-${TAG}-linux-amd64-v3-musl.tar.gz.asc"
 echo '```'
 echo ""
-echo "Expected: \`Good signature from \"Rezky Cahya Sahputra (cosmic dragon)\"\`"
+echo "Expected: \`Good signature from \"rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>\"\`"
 echo ""
 echo "Full verification instructions: [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md)"
