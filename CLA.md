@@ -1,4 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # cosmostrix Contributor License Agreement (CLA)
 
@@ -70,7 +73,7 @@ Nothing here reduces the AGPL-3.0-only rights you hold under
 **Contact:** [with.rezky@gmail.com](mailto:with.rezky@gmail.com)
 **Last Updated:** 2026-09-26
 
-Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+Copyright (c) 2025-2026 rezky_nightky (oxyzenQ). All rights reserved.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

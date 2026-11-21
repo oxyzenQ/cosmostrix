@@ -1,4 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # Sharpest-skill depth audit Z-2: the emission path after the certificate seam (NIGHT-zen-lts-Z-2)
 

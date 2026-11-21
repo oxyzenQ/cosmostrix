@@ -1,5 +1,8 @@
 # Changelog
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 cosmostrix uses [SemVer](https://semver.org/). Git tags use a leading `v` (e.g. `v50.0.0`).
 
@@ -48,6 +51,55 @@ v100.0.8
 The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
+
+### feat: night-ux-orion-2 - the Masterclass license disclosure: the -V identity block and the estate-wide SPDX header standard
+
+- The `-V/--version` identity block lands the Masterclass format the
+  owner specified: `Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)`
+  (no colon — the Linux kernel/rustc spelling; the year range rides a
+  new `COPYRIGHT_YEAR` constant, bump the back year on new-year
+  releases, freeze forever on acquisition), `License: AGPL-3.0-only
+  OR Commercial`, and the existing `Source:` line. The Copyright line
+  drops the masked email — the name + handle IS the identity.
+- The masked authors provenance layer (D1) rotated to the Masterclass
+  short form via the generator (`scripts/release/
+  generate-provenance-words.py` truth edit + re-run + paste):
+  "rezky_nightky (oxyzenQ)", 23 bytes / 3 words, new FNV fingerprint
+  (b1a27b10a64c879a) and new blake3 DEPTH_ANCHOR (b3:4c1738aa...).
+  The manifest layer (D0) is untouched and the identity-binding law
+  still holds (the manifest's identity core is a prefix of the new
+  authors string). Test oracles updated to the generator's printed
+  cross-check values; the anchor payload framing test pins the new
+  64+23 layout.
+- Cargo.toml carries the machine-readable dual-license expression:
+  `license = "AGPL-3.0-only OR LicenseRef-Commercial"`. The bare word
+  "Commercial" is not a valid SPDX term (proven: cargo-deny rejects
+  it with "unknown term", which would also break the registry field);
+  `LicenseRef-Commercial` is the SPDX-standard machine name for a
+  private license and passes cargo-deny licenses + cargo package.
+  The human-facing surfaces render the clean "AGPL-3.0-only OR
+  Commercial" from the new `LICENSE_LINE` constant (the single
+  telling for -V and --docs). The author contact carries the raw
+  address per the owner's Masterclass metadata set, superseding the
+  earlier obfuscated spelling (the comment law follows the field).
+- The estate-wide SPDX header standard: all 919 tracked header-bearing
+  files (.rs, .sh, .py, .toml, .yml, .yaml, .md, .c, .gitattributes,
+  .markdownlint.yaml) now carry the Masterclass pair —
+  `SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)` +
+  `SPDX-License-Identifier: AGPL-3.0-only OR Commercial` (markdown in
+  the owner's HTML-comment block form). The header gate enforces the
+  full expression (substring law: a file still declaring the bare
+  AGPL rung fails). NOTICE, the README IP statement, and the in-body
+  "All rights reserved." lines migrated to the same year/name form;
+  the sibling estate notes updated where they documented the old
+  shared 57-byte authors layer.
+
+Verified: diagnostics suite 47/47 green (the provenance rotation's
+oracles, binding law, tamper probes, runtime blake3 recompute),
+`cosmostrix -V` byte-verified on a live build (the three Masterclass
+lines exact, `status=verified` on the new anchor, `sig` five-depth
+AUTHENTIC), cargo-deny licenses ok, cargo package ok, header gate
+919/919, fmt/clippy clean. Version untouched, permissions 644/755.
 
 ### feat: night-ux-orion-1 - the loading lane: a DNA helix for the silent fetch wait
 

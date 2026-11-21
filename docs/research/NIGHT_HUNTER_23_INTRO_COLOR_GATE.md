@@ -1,4 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # NIGHT-hunter-23 (F-23-1) — the intro-color gate read the wrong key; the watcher's 8-param signature
 

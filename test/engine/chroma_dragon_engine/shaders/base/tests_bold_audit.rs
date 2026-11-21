@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
 // Audit test (task flags-audit-3): verify that --bold and --shading-mode
 // actually produce DIFFERENT rendered output. The owner reported that

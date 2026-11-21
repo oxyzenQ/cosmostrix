@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # PLATFORM: UNIX-only (Linux, macOS, BSD). Optimal for Unix-like
 #   systems only; not for Windows cmd.exe or PowerShell (use WSL or
 #   Git Bash on Windows).

@@ -2,8 +2,8 @@
 #
 # COSMOSTRIX SPDX HEADER CHECK
 #
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 #
 # ─────────────────────────────────────────────────────────────────────────────
 # PLATFORM: UNIX-only (Linux, macOS, BSD).
@@ -15,7 +15,7 @@
 # headers. Fails if any included file is missing the header or has the wrong
 # license identifier.
 #
-# Required: SPDX-License-Identifier: AGPL-3.0-only
+# Required: SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # Rejected: MIT (project is AGPL-3.0-only licensed)
 #
 # Included file types: *.rs, *.sh, *.py, *.toml, *.yml, *.yaml, *.md
@@ -35,7 +35,10 @@ MISSING=0
 WRONG=0
 CHECKED=0
 
-EXPECTED_LICENSE="AGPL-3.0-only"
+# night-ux-orion-2: the Masterclass dual-license expression. The grep
+# is a substring match, so only files carrying the FULL expression pass
+# — a file still declaring the bare AGPL-3.0-only rung fails here.
+EXPECTED_LICENSE="AGPL-3.0-only OR Commercial"
 REJECTED_LICENSE="MIT"
 
 while IFS= read -r -d '' file; do

@@ -1,7 +1,9 @@
 # Charset "minimal" Masterclass Replacement — Research (Z-master-1B)
 
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-<!-- Copyright (C) 2026 rezky_nightky (oxyzenQ) -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 Status: **RESEARCH ONLY — owner decides, no code changed.** The preset name
 stays `minimal`; only the glyph set it maps to is up for replacement.

@@ -1,5 +1,8 @@
 # Advanced Benchmarking Guide
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 > How to unlock the MICROARCHITECTURE and ENERGY sections of `cosmostrix --benchmark`, and how to interpret the resulting metrics.
 

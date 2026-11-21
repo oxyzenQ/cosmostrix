@@ -1,4 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # NIGHT-diner-9 A/B report — 10 s benches, release profile: sha2 0.10.9 vs 0.11.0
 

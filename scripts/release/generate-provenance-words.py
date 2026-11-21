@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 """Provenance word generator for the depth-matrix signature
 (night-signature-advanced-2 masked layers; night-signature-advanced-3
 blake3 anchor).
@@ -48,7 +48,13 @@ Usage:
 # The provenance truths. Byte-level truth: UTF-8 (the em dash is three
 # bytes, E2 80 94, and every layer below operates on bytes, not chars).
 MANIFEST = "Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ) 2026"
-AUTHORS = "rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"
+# night-ux-orion-2 (the Masterclass authors layer): the Copyright line
+# drops the masked email — the name + handle IS the identity the -V
+# report renders (Copyright (c) <year> <authors>), so the layer shrinks
+# from the 57-byte email form to this 23-byte form. The manifest's own
+# year-stamped identity stays untouched (binding law: the manifest core
+# is a prefix of this string).
+AUTHORS = "rezky_nightky (oxyzenQ)"
 
 # Per-layer seeds. Decoys with no external meaning; rotating them is a
 # supported operation (re-run this tool, paste the new block). Both must

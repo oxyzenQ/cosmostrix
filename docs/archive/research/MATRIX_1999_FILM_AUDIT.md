@@ -5,7 +5,10 @@
 > `src/*.rs` files became module directories). Preserved as a record -
 > cross-check the live source tree before relying on any path.
 
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 > Research document comparing the actual film's digital rain behavior
 > against cosmostrix v30's rendering pipeline. Goal: identify which

@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! Build information, memory estimation, CPU feature detection, and
 //! environment variable helpers.
@@ -24,7 +24,7 @@ use crate::constants::{CHAR_POOL_SIZE, DROPLET_COUNT_FACTOR, GLITCH_POOL_SIZE};
 // fold verifies. version_report renders the fields verbatim and must not
 // unmask anything itself — see `signature.rs` for the layer contract,
 // the single-pass invariant, the threat model, and the honest limits.
-use super::signature::provenance_view;
+use super::signature::{COPYRIGHT_YEAR, LICENSE_LINE, provenance_view};
 
 // --- Build info helpers ---
 
@@ -132,13 +132,14 @@ pub(crate) fn version_report() -> String {
          Build-time: {build_time}\n\
          Signature: {manifest}\n\
          {depth_line}\n\
-         Copyright: (c) 2026 {authors}\n\
+         Copyright (c) {year} {authors}\n\
          License: {license}\n\
          Source: {repository}",
         manifest = provenance.manifest,
         depth_line = depth_line,
+        year = COPYRIGHT_YEAR,
         authors = provenance.authors,
-        license = env!("CARGO_PKG_LICENSE"),
+        license = LICENSE_LINE,
         repository = env!("CARGO_PKG_REPOSITORY"),
     );
 
@@ -333,7 +334,7 @@ Source: {repository}
 License: {license}
 ",
         repository = env!("CARGO_PKG_REPOSITORY"),
-        license = env!("CARGO_PKG_LICENSE"),
+        license = LICENSE_LINE,
     )
 }
 
@@ -455,10 +456,10 @@ mod tests {
             "Signature line must materialize the full year-stamped identity. Report:\n{report}"
         );
         assert!(
-            report.contains(
-                "Copyright: (c) 2026 rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"
-            ),
-            "Copyright line must materialize the masked authors. Report:\n{report}"
+            report.contains("Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)"),
+            "Copyright line must materialize the Masterclass format \
+             (night-ux-orion-2: no colon, the year range, the short \
+             authors form). Report:\n{report}"
         );
     }
 
@@ -543,8 +544,9 @@ mod tests {
             "report must contain Build-time: line"
         );
         assert!(
-            report.contains("Copyright:"),
-            "report must contain Copyright:"
+            report.contains("Copyright (c)"),
+            "report must contain the Copyright line (the Masterclass \
+             format renders it without the colon, night-ux-orion-2)"
         );
         assert!(report.contains("License:"), "report must contain License:");
         assert!(report.contains("Source:"), "report must contain Source:");

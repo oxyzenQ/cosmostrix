@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! Mouse interaction tuning: the cursor hover glow and the wave-equation
 //! click shockwave. Extracted from mod.rs (the v50.0.0-beta.7 LOC-refactor

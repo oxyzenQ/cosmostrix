@@ -1,4 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # NIGHT-dragon-maintenance-2 — unfiltered CI, the KVM kernel lanes on the real floor and the newest mainline, and the bugs the port caught on the way
 

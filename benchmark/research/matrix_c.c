@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 // Minimal full-redraw Matrix rain in C.
 // Writes every cell every frame via ANSI escape sequences to stdout.
 // Usage: BENCH_COLS=120 BENCH_LINES=40 BENCH_FRAMES=100 ./matrix_c

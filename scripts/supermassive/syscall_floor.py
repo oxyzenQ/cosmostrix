@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # PLATFORM: Linux-only. strace is a Linux ptrace tool and the
 #   syscall-floor ledger is the Linux kernel-floor proof by
 #   definition (the release lane is Linux; the docs kernel law lives

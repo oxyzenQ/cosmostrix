@@ -1,6 +1,9 @@
 # Triple Engine LTS Audit — v50.0.0-beta.4
 
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 > Internal independent QA session covering the three rendering engines on the
 > road to stable LTS: Cosmic Dragon (diff-based render), Chroma Dragon (OKLab
@@ -386,7 +389,7 @@ the reset refactor is a no-op for in-range interactive sizes).
 
 ---
 
-Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+Copyright (c) 2025-2026 rezky_nightky (oxyzenQ). All rights reserved.
 cosmostrix and the cosmostrix logo are trademarks of rezky_nightky (oxyzenQ).
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

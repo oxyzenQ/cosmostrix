@@ -1,6 +1,6 @@
 #!/bin/sh
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # PLATFORM: Linux guest only (inside the kernel-floor micro-VM).
 #
 # The kernel-floor payload battery - the FULL headless E2E surface

@@ -1,5 +1,8 @@
 # Changelog — v100.0.6 Era
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 The v100.0.6 era: every entry, verbatim, of the post-stable
 maintenance arc that carried v100.0.0 stable through v100.0.6

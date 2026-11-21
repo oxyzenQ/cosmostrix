@@ -1,4 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # NIGHT-dinner-8 A/B report — 10 s benches, release profile: signal-hook 0.3.18 vs 0.4.4 (then rand 0.9.5 vs 0.10.x, appended below)
 

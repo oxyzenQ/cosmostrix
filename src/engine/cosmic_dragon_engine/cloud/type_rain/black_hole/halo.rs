@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! Black hole halo streams (NIGHT-special-1 stage 2.6, re-weighted
 //! stage 2.7, five lanes NIGHT-research-10, unified NIGHT-research-11,

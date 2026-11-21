@@ -1,5 +1,8 @@
 # cosmostrix Trademark & Intellectual Property
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 **Owner:** rezky_nightky (oxyzenQ)
 **Repository:** <https://github.com/oxyzenQ/cosmostrix>
@@ -107,7 +110,7 @@ For trademark licensing inquiries or written permission requests, contact:
 
 ---
 
-Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+Copyright (c) 2025-2026 rezky_nightky (oxyzenQ). All rights reserved.
 cosmostrix and the cosmostrix logo are trademarks of rezky_nightky (oxyzenQ).
 
 <!-- COSMOSTRIX-DISCLAIMER -->

@@ -1,10 +1,10 @@
 cosmostrix
-Copyright (C) 2026 rezky_nightky (oxyzenQ)
+SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
-This software is licensed under AGPL-3.0-only.
-See the LICENSE file in the repository root for the full text.
-A Commercial License is available for proprietary/commercial use —
-see COMMERCIAL_LICENSE.md for tiers and payment.
+Dual-licensed: under AGPL-3.0-only, or under a Commercial License for
+proprietary/commercial use. See the LICENSE file in the repository root
+for the full AGPL text, and COMMERCIAL_LICENSE.md for tiers and payment.
 
 The "cosmostrix" name, logo, and associated branding assets are trademarks
 of rezky_nightky (oxyzenQ) and are NOT covered by the AGPL.

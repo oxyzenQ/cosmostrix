@@ -1,5 +1,8 @@
 # Changelog — v50 Era
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 The v50 era: the v50.0.0 pre-release line (beta.6 down to alpha.1)
 plus the condensed v25.0.0, v20.x, v15.0.0, v14.0.0, and v13.x release

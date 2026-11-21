@@ -1,5 +1,8 @@
 # Benchmarking Guide
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 > Independent guide to benchmarking cosmostrix: how to run, interpret, compare, and trust the numbers. For exhaustive metric definitions, see `--help` and the `--benchmark` output itself.
 

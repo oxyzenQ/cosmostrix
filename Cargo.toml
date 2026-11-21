@@ -1,14 +1,23 @@
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 [package]
 name = "cosmostrix"
 version = "100.1.0-night.1"
 edition = "2024"
 rust-version = "1.98"
-authors = ["rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"]
+authors = ["rezky_nightky (oxyzenQ) <with.rezky@gmail.com>"]
 description = "Professional-grade cinematic Matrix rain renderer for serious terminal environments."
-license = "AGPL-3.0-only"
+# night-ux-orion-2 (the Masterclass license disclosure): the SPDX
+# dual-license expression — AGPL for the open-source world, a paid
+# Commercial tier for closed-source products (COMMERCIAL_LICENSE.md).
+# `LicenseRef-Commercial` is the SPDX-standard machine name for a
+# private license; the bare word "Commercial" is NOT a valid SPDX term
+# (proven: cargo-deny rejects the expression with "unknown term"). The
+# human-facing surfaces (-V, --docs, NOTICE, the SPDX headers) render
+# the clean form "AGPL-3.0-only OR Commercial" from the diagnostics
+# LICENSE_LINE constant.
+license = "AGPL-3.0-only OR LicenseRef-Commercial"
 repository = "https://github.com/oxyzenQ/cosmostrix"
 # night-improve-11: the docs.rs rustdoc tree is hosted and green -
 # docs.rs/cosmostrix resolves HTTP 200 live (verified against the
@@ -25,10 +34,11 @@ documentation = "https://docs.rs/cosmostrix"
 # registry tarball even under this manifest's exclude lane - the
 # rendered crate page can never decouple from the repo README.
 readme = "README.md"
-# The author contact rides along in the zelynic spelling: obfuscated
-# free text (no scrapeable raw address), accepted by crates.io in the
-# author <...> slot. All three fields are page-data only - no build,
-# test, or version-sync surface reads them (verified before the edit).
+# night-ux-orion-2 (owner directive, the Masterclass metadata set): the
+# author contact carries the raw address in the author <...> slot —
+# crates.io page-data, superseding the earlier obfuscated spelling.
+# Page-data only - no build, test, or version-sync surface reads them
+# (verified before the edit).
 # crates.io discoverability metadata. Categories are validated slugs
 # from the official list (https://crates.io/categories — 58 slugs as
 # of 2026-08-31, re-validated against the live registry API):

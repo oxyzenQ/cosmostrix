@@ -1,4 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # NIGHT-diner-9 — sha2 0.11.0 takes the last Unchanged line: one function rewritten, identity proven three ways, and the wall-of-Unchanged reaches zero
 

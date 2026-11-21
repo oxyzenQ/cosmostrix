@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! Line-level config syntax scanners — extracted from `configfile.rs`
 //! (NIGHT-hunt-38-supermassive) to keep the parser file under the 800-LOC

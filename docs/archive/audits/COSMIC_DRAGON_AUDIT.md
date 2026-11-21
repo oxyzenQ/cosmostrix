@@ -1,6 +1,9 @@
 # Cosmic Dragon Audit — v50.0.0-alpha.2
 
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 > Internal independent QA session covering visual quality, stability,
 > power management, and competitive depth. Conducted across 6 commits
@@ -331,7 +334,7 @@ rationale for why they don't need immediate action).
 
 ---
 
-Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+Copyright (c) 2025-2026 rezky_nightky (oxyzenQ). All rights reserved.
 cosmostrix and the cosmostrix logo are trademarks of rezky_nightky (oxyzenQ).
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

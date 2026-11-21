@@ -1,5 +1,8 @@
 # Maintenance Guide
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 Single reference for maintaining cosmostrix during dormant mode (5-10 year maintenance cycle). Covers build, test, dependency updates, security response, and health-check log.
 
@@ -172,7 +175,7 @@ but must not change or remove existing API surface.
 - [`docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md`](archive/audits/UNSAFE_SOUNDNESS_AUDIT.md) — unsafe block soundness audit + Miri methodology
 - [`docs/README.md`](README.md) — docs index with source module map
 
-Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+Copyright (c) 2025-2026 rezky_nightky (oxyzenQ). All rights reserved.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

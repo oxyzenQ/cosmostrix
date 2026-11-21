@@ -1,6 +1,6 @@
 # shellcheck shell=bash
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # PLATFORM: UNIX-only (Linux, macOS, BSD). Sourced by
 #   scripts/build.sh — not a standalone executable (no main, no
 #   argument parsing; the entry script owns both).

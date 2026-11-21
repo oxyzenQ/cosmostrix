@@ -1,5 +1,8 @@
 # Supply Chain Security
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 Policies, tooling, and procedures that govern the integrity of the cosmostrix software supply chain — from dependency selection through release distribution.
 

@@ -1,4 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # night-dragon-lts-3 / lts-4 audit — sharpest-skill depth, all-infra coverage: stability, hygiene, optimization, security, LTS
 

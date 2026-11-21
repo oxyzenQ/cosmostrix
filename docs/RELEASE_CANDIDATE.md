@@ -1,5 +1,8 @@
 # Release Candidate Checklist
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 cosmostrix follows [SemVer](https://semver.org/) for package versions. Git tags and GitHub Releases use a leading `v` (e.g. `v50.0.0`). Stable releases do not use `-stable.N` suffixes. Do not bump the version or create a tag until the release phase is explicitly authorized.
 

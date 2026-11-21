@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 use crate::constants::{
     PARALLAX_BRIGHTNESS_MULT, PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_SATURATION_MULT,

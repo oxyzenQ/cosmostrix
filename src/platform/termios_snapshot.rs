@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 // PLATFORM: Unix-only (the SIGTSTP/SIGCONT suspend-resume contract is a
 //   POSIX tty contract; Windows ConPTY owns its own terminal state — the
 //   non-unix stubs below keep call sites cfg-free, mirroring the

@@ -1,7 +1,9 @@
 # Rain Depth Audit — Option F "Film Matrix Hero" Lock
 
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 > **SUPERSEDED (2026-08-23)**: This document describes the Option F
 > "Film Matrix Hero" preset. Option F was superseded by the **Cinema Noir**

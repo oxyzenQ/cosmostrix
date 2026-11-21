@@ -1,6 +1,9 @@
 # Bench Labs
 
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 Hardware-verified benchmark results for cosmostrix. Covers a full size
 sweep from 1x1 (engine minimum) to 7680x4320 (8K UHD) on the

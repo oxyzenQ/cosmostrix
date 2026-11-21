@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # PLATFORM: UNIX-only (Linux, macOS, BSD). Uses awk, grep, sed and
 #   the sourced ledger probes. Not for Windows cmd.exe / PowerShell
 #   - use Git Bash or WSL on Windows.

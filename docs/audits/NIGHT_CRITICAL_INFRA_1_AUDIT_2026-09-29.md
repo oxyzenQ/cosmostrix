@@ -1,4 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # NIGHT-critical-infra-1 & think-like-light-years-1 audit — the AI-agent-scale threat model: hardening cosmostrix against 10 thousand, 1 million, and 1 billion hostile agents
 

@@ -1,5 +1,8 @@
 # Contributing to cosmostrix
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 > cosmostrix is a professional-grade cinematic Matrix rain renderer built in Rust. Contributions are welcome — especially bug fixes, platform compatibility improvements, and documentation. See [TRADEMARK.md](TRADEMARK.md) §4a for the contribution fork policy. By submitting a PR you accept the [Contributor License Agreement](CLA.md) — the DCO-style `Signed-off-by:` commit line is the acceptance mechanism (Section 3).
 
@@ -109,7 +112,7 @@ on the PR itself.
 
 Full audit: [`docs/archive/audits/COSMIC_DRAGON_AUDIT.md`](docs/archive/audits/COSMIC_DRAGON_AUDIT.md)
 
-Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+Copyright (c) 2025-2026 rezky_nightky (oxyzenQ). All rights reserved.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

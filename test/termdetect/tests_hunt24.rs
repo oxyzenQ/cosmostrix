@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! S-master-HUNT-24: CPU-renderer / console-TTY effects-gate detection
 //! tests. Extracted from `tests.rs` to keep that file under the 800-LOC

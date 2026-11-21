@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # PLATFORM: Linux-only (reads /proc/<pid>/status and /proc/<pid>/fd —
 #   the RSS and fd census need the Linux procfs; macOS/BSD have no
 #   /proc with these files). CI runs it on ubuntu-24.04.
