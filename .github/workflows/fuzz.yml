@@ -36,24 +36,17 @@
 # corpus stays out of git (fuzz/.gitignore); the seeds are the
 # lane's definition, the same law as the targets and the manifests.
 #
-# The weekly deep session: the same target runs for 15 minutes every
-# Sunday 10:00 WIB (03:00 UTC), the estate-wide Sunday lane - the
-# owner-lazy insurance the
-# continuous 60s net cannot buy (the owner tests locally rarely; the
-# lane exists so the corpus grows without him). The corpus cache
-# restores the accumulated corpus under the same restore-keys, so
-# the deep session and the push sessions grow one asset; a scheduled
-# run and a push on the same ref share the concurrency group, the
-# newer run wins (the estate shape).
+# The corpus cache restores the accumulated corpus under the same
+# restore-keys across runs, so every session grows one asset; runs on
+# the same ref share the concurrency group, the newer run wins (the
+# estate shape). No schedule (night-fly-1, the owner's push-triggered
+# law): the lane rides every push instead of a weekly deep session.
 
 ---
 name: "Cosmic Dragon Guard - Fuzz"
 
 'on':
   push:
-  schedule:
-    # The weekly deep session: Sunday 10:00 WIB (03:00 UTC) (night-consistent-1).
-    - cron: '0 3 * * 0'
   # Manual trigger from the Actions tab.
   workflow_dispatch:
 
@@ -72,8 +65,7 @@ env:
 
 jobs:
   fuzz:
-    # The budget rides the event: 60s on push and dispatch (the
-    # regression net), 900s on the weekly deep session.
+    # The budget: 60s on push and dispatch (the regression net).
     name: cargo fuzz escape_ctrl
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -117,7 +109,7 @@ jobs:
             fuzz-corpus-escape_ctrl-
 
       # The committed anchors: copied into the corpus AFTER the cache
-      # restore, so the seeds ride every session - push or weekly -
+      # restore, so the seeds ride every session - push or dispatch -
       # and land in the cache the run saves.
       - name: Seed the corpus from the committed anchors
         run: |
@@ -132,9 +124,9 @@ jobs:
 
       - name: Fuzz
         run: |
-          # The budget table: 60s on every push and dispatch (the
-          # regression net), 900s on the weekly deep session (the
-          # corpus keeps growing between runs either way).
+          # The budget: 60s on every push and dispatch (the
+          # regression net; the corpus keeps growing between runs
+          # either way via the cache).
           #
           # The target is pinned to the GNU host explicitly:
           # cargo-fuzz 0.13 flipped its Linux default to
@@ -144,11 +136,7 @@ jobs:
           # installed by the toolchain step and has carried ASan +
           # libFuzzer for cargo-fuzz's whole life — the deterministic
           # shape, no build-std dependency.
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            BUDGET=900
-          else
-            BUDGET=60
-          fi
+          BUDGET=60
           echo "fuzz budget: ${BUDGET}s (event: ${{ github.event_name }})"
           cargo fuzz run escape_ctrl --target x86_64-unknown-linux-gnu \
             -- -max_total_time="${BUDGET}" -rss_limit_mb=4096 -timeout=25

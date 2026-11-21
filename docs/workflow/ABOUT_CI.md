@@ -12,19 +12,19 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 |----------|---------|---------|
 | `ci.yml` | every push + every PR (unfiltered) | fmt, clippy, test, build, security audit, version sync |
 | `release.yml` | tag push `v*` (CI-gated: waits for the `ci.yml` run on the tagged SHA — NIGHT-improve-1) | 7-platform binaries + checksums + GPG sign + GitHub Release (PGO nitro release packages retired — night-dragon-maintenance-T1) |
-| `kani.yml` | every push + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | Bounded model checking over the proof harnesses (`#[cfg(kani)] kani_proofs`): density band, reseed ladder, blend hull - one micro job per harness, 15-minute cap (night-depth-cleanup-2; tightened from the 30-minute cap of NIGHT-depth-hardening-3) |
-| `loom.yml` | every push + weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | Exhaustive interleaving model of the two-flag shutdown handshake under `--cfg loom` (NIGHT-depth-hardening-3) |
+| `kani.yml` | every push + manual dispatch (night-fly-1: no schedule) | Bounded model checking over the proof harnesses (`#[cfg(kani)] kani_proofs`): density band, reseed ladder, blend hull - one micro job per harness, 15-minute cap (night-depth-cleanup-2; tightened from the 30-minute cap of NIGHT-depth-hardening-3) |
+| `loom.yml` | every push + manual dispatch (night-fly-1: no schedule) | Exhaustive interleaving model of the two-flag shutdown handshake under `--cfg loom` (NIGHT-depth-hardening-3) |
 | `maintenance.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | `cargo update` in every committed workspace (root, `fuzz/`, `pgo-runner/` — night-zen-1) + audit + commit if validation passes |
-| `gitbot-audit.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB, night-consistent-1) + every push/PR (unfiltered) | `cargo audit` + `cargo deny` (observation-only) |
+| `gitbot-audit.yml` | every push/PR (unfiltered) + manual dispatch (night-fly-1: no schedule) | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
 | `crates-io.yml` | tag push `v*` (stable + pre-release, same CI gate) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
-| `miri.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + every push (unfiltered) | Undefined behavior detection |
-| `fuzz.yml` | every push (unfiltered) + weekly deep session (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | `cargo fuzz` regression net on the terminal-safety sink (`escape_ctrl`, the CWE-150 gate): 60s per push, 900s weekly, accumulating corpus cache + committed seed anchors (night-dragon-maintenance-5) |
-| `codeql.yml` | every push + every PR (unfiltered) + weekly cron | CodeQL static analysis, auto-detected languages |
+| `miri.yml` | every push (unfiltered) + manual dispatch (night-fly-1: no schedule) | Undefined behavior detection |
+| `fuzz.yml` | every push (unfiltered) + manual dispatch (night-fly-1: no schedule) | `cargo fuzz` regression net on the terminal-safety sink (`escape_ctrl`, the CWE-150 gate): 60s per push, accumulating corpus cache + committed seed anchors (night-dragon-maintenance-5) |
+| `codeql.yml` | every push + every PR (unfiltered) + manual dispatch (night-fly-1: no schedule) | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | every push + every PR (unfiltered) | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer, actions-pin health |
 | `supermassive.yml` | every push (unfiltered) + manual dispatch | Runtime E2E on the five-minute law (night-T-1): one artifact build, then pty smoke (six real-pty legs), 4-shard musl workspace nextest, render soak, hostile torture — every battery leg targets ≤5 minutes |
 | `supermassive-kernel.yml` | every push (unfiltered) + manual dispatch | KVM micro-VM lanes on the five-minute law (night-T-1): two artifact builds (baseline-musl floor payload, pro-v3-musl best payload), then the REAL 2.6.27 minimum-kernel floor battery + the latest-mainline best-specs pty battery (night-dragon-maintenance-2) |
-| `soak.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch | The 24h determinism-anchored soak (night-frontier-Z6, S5): one long-lived headless render inside the replay-digest anchor (INNOVATIONS entry 32) + the /proc RSS/fd leak census; hosted profile 150 min, `soak_minutes=1440` dispatches the real 24h window on a self-hosted runner — the harness law lives in `scripts/depth/soak_determinism.sh`, this file only schedules and budgets it |
+| `soak.yml` | weekly cron (Sun 03:00 UTC / 10:00 WIB) + manual dispatch (maintenance-class lane, night-fly-1) | The 24h determinism-anchored soak (night-frontier-Z6, S5): one long-lived headless render inside the replay-digest anchor (INNOVATIONS entry 32) + the /proc RSS/fd leak census; hosted profile 150 min, `soak_minutes=1440` dispatches the real 24h window on a self-hosted runner — the harness law lives in `scripts/depth/soak_determinism.sh`, this file only schedules and budgets it |
 
 Job naming: the ci.yml keystone job (id `build_test`, the strict debug
 build gate every downstream job depends on) is displayed as
@@ -70,9 +70,14 @@ release publish can never ride a blind trigger:
 - `aur.yml` — `repository_dispatch` (fired by release.yml after a
   successful GitHub Release) + manual dispatch only.
 
-The scheduled and manual lanes keep their schedules
-(all eight scheduled lanes share the estate-wide Sunday 10:00 WIB slot,
-night-consistent-1) as back-stops for network-dependent checks.
+The scheduled lanes are maintenance-class only (night-fly-1, the
+owner's push-triggered law: every test fires on the commit, no
+schedule — the weekly cron left the fuzz, kani, loom, miri, codeql,
+and gitbot-audit lanes). Two lanes keep the estate-wide Sunday
+10:00 WIB slot (night-consistent-1): `maintenance.yml` (dependency
+maintenance) and `soak.yml` (the endurance lane whose long window IS
+the test — one long-lived process that cannot be micro-split into
+per-push shards without falsifying it).
 
 Incident (2026-09-13, commit 5553174): a push touching only
 `test/engine/cosmic_dragon_engine/cloud/tests/tests_black_hole/infall.rs`

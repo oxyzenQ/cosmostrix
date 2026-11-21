@@ -52,6 +52,49 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### ci: night-fly-1 - the test lanes ride the commit: the weekly cron left every push-triggered workflow
+
+- The owner's CI law (night-fly-1): no lane runs past 15 minutes and
+  no test lane carries a schedule — every test fires on the commit to
+  main. Six push-triggered test lanes still carried the estate-wide
+  Sunday cron (night-consistent-1) as a redundant duplicate burn:
+  fuzz.yml, kani.yml, loom.yml, miri.yml, codeql.yml, and
+  gitbot-audit.yml. All six already rode every push, so the weekly
+  run only re-proved a verdict the commit run had already delivered.
+  The cron blocks are removed; each trigger block documents the
+  push-triggered law where the cron used to be.
+- fuzz.yml also lost the dead branch the schedule carried: the
+  `event_name == "schedule"` budget table (900s deep session vs 60s
+  push net) collapses to a flat 60s budget, and the header comment
+  describes the corpus growth across push sessions instead of the
+  weekly deep session.
+- soak.yml keeps its Sunday slot, now explicitly documented as
+  maintenance-class: the determinism anchor needs ONE long-lived
+  process, so micro-splitting it into sub-15-minute per-push shards
+  would falsify the test it exists to run. maintenance.yml keeps its
+  slot unchanged (pure maintenance). Every job-level
+  `timeout-minutes` cap was re-audited and stays as documented:
+  ci.yml legs <= 10 minutes, model-checking micro jobs <= 15, publish
+  pipelines carry their own deliberate larger caps, the soak window
+  IS the test.
+- Docs synced to the new trigger map: docs/workflow/ABOUT_CI.md
+  (six trigger-table rows + the scheduled-lanes paragraph — "all
+  eight scheduled lanes" is now the two maintenance-class lanes),
+  docs/SECURITY_AUDIT.md (fuzz budget), docs/MAINTENANCE.md (the
+  dormant-mode CI contract), docs/SUPPLY_CHAIN.md (the weekly CVE
+  monitoring claim, the compensating-controls audit line, and a
+  never-true "daily 00:00 UTC" description of gitbot-audit.yml), and
+  the README fuzz-lane row ("900s weekly" dropped).
+
+Verified: yamllint clean on every changed workflow; the YAML
+per-job audit re-run reports every job with an explicit
+`timeout-minutes`; a residual grep for the removed crons matches
+only maintenance.yml and soak.yml; the old trigger-map claims
+("900s weekly", "all eight scheduled lanes", the daily 00:00 UTC
+audit description) return zero hits in living docs — the surviving
+"weekly deep session" mentions describe the removal itself, per the
+estate's describe-don't-repeat convention.
+
 ### fix: night-fly-1 - the package script SPDX headers stop repeating the handle
 
 - The night-fly-1 zero-residual sweep caught one leftover of the

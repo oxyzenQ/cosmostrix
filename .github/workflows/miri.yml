@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 # SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
-# Weekly Miri verification of the 6 pure-Rust modules audited in
+# Miri verification of the 6 pure-Rust modules audited in
 # docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md.
 #
-# Runs on every push, weekly on Sunday 00:00 UTC (07:00 WIB) + on manual dispatch.
+# Runs on every push + on manual dispatch (night-fly-1: the owner's
+# push-triggered law — every test fires on the commit, no schedule).
 # Miri is slow (1-3 min) and requires nightly, so it's not on the per-PR path.
 # Status banner shown by scripts/build.sh on every invocation reflects
 # the most recent local stamp file, NOT this CI run — contributors run
@@ -36,10 +37,6 @@ name: "Cosmic Dragon Guard - Miri"
 
 'on':
   push:
-  schedule:
-    # Sunday 10:00 WIB (03:00 UTC) — picks up the week's commits in one shot
-    # (night-consistent-1: the estate-wide Sunday lane).
-    - cron: '0 3 * * 0'
   # Manual trigger from the Actions tab.
   workflow_dispatch:
 

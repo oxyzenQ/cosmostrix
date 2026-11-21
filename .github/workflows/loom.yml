@@ -19,11 +19,8 @@ name: "Loom - Concurrency Proof"
 
 'on':
   push:
-  schedule:
-    # Sunday 10:00 WIB (03:00 UTC) - the estate-wide Sunday lane
-    # (night-consistent-1: every scheduled workflow runs at the same
-    # Sunday slot).
-    - cron: '0 3 * * 0'
+  # No schedule (night-fly-1, the owner's push-triggered law): the
+  # proof rides every push; dispatch stays for manual verification.
   workflow_dispatch:
 
 permissions:

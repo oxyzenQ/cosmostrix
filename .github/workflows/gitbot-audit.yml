@@ -1,8 +1,5 @@
 # SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 # SPDX-License-Identifier: AGPL-3.0-only OR Commercial
-# Schedule: Weekly on Sunday 10:00 WIB (03:00 UTC) - the estate-wide Sunday lane
-# (night-consistent-1: every scheduled workflow runs at the same
-# Sunday slot)
 #
 # Purpose:
 # - Fast, non-mutating security scan
@@ -14,14 +11,13 @@
 #
 # Trigger discipline (the owner's unfiltered-CI simplification,
 # night-dragon-maintenance-2): the push/pull_request triggers are
-# unfiltered — any change burns the audit. Only the schedule and
-# workflow_dispatch survive unchanged.
+# unfiltered — any change burns the audit. The weekly schedule left in
+# night-fly-1 (the owner's push-triggered law: audits ride every
+# push); workflow_dispatch survives unchanged.
 
 name: "Cosmic Dragon Guard - Security Audit"
 
 'on':
-  schedule:
-    - cron: "0 3 * * 0"  # Sunday 10:00 WIB (03:00 UTC)
   push:
   pull_request:
   workflow_dispatch:

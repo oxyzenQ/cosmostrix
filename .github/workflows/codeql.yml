@@ -1,8 +1,5 @@
 # SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 # SPDX-License-Identifier: AGPL-3.0-only OR Commercial
-# Schedule: Weekly on Sunday 10:00 WIB (03:00 UTC) - the estate-wide Sunday lane
-# (night-consistent-1: every scheduled workflow runs at the same
-# Sunday 10:00 WIB slot)
 
 # CodeQL security analysis for cosmostrix.
 #
@@ -19,7 +16,8 @@
 # Swift. Bash/shell is NOT a CodeQL language — shellcheck in ci.yml
 # covers it.
 #
-# Weekly scheduled scan Monday 00:00 UTC for full coverage.
+# No schedule (night-fly-1, the owner's push-triggered law): the scan
+# rides every push and pull_request instead of a weekly slot.
 #
 # Trigger discipline (the owner's unfiltered-CI simplification,
 # night-dragon-maintenance-2): the push/pull_request triggers are
@@ -34,8 +32,6 @@ name: "Cosmic Dragon Guard - CodeQL"
 'on':
   push:
   pull_request:
-  schedule:
-    - cron: '0 3 * * 0'  # Sunday 10:00 WIB (03:00 UTC)
   workflow_dispatch:
 
 permissions:

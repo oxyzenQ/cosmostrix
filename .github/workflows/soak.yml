@@ -23,9 +23,13 @@
 # the SAME pass law; the hosted profile is not a weaker one — the RSS
 # trend verdict simply reports SHORT below the 30-minute minimum.
 #
-# Scheduled lane ONLY (Sunday 03:00 UTC, the estate-wide Sunday slot):
-# the 2-minute per-push law is untouched, and manual dispatch exists
-# for on-demand anchoring before a release.
+# Scheduled lane (Sunday 03:00 UTC, the estate-wide Sunday slot):
+# this lane is maintenance-class under the owner's CI law (night-fly-1)
+# — the determinism anchor needs ONE long-lived process, so it cannot
+# be micro-split into sub-15-minute per-push shards without
+# falsifying the test, and it keeps the estate Sunday slot alongside
+# maintenance.yml. The 2-minute per-push law is untouched, and manual
+# dispatch exists for on-demand anchoring before a release.
 
 name: "Endurance Soak - determinism anchored"
 

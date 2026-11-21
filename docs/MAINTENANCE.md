@@ -96,7 +96,7 @@ cosmostrix is designed for long-term stability. The owner may go dormant for 5-1
 ### What "dormant" means
 
 - No commits, no releases, no dependency updates during the dormant period.
-- CI continues running automatically: security audits, Miri, CodeQL, and dependency maintenance share the estate-wide Sunday 10:00 WIB lane (night-consistent-1).
+- CI continues running automatically: every test lane (CI, security audits, Miri, CodeQL, fuzz, model checking) fires on every push (night-fly-1, the owner's push-triggered law), and the maintenance-class lanes keep the estate-wide Sunday 10:00 WIB slot (night-consistent-1): dependency maintenance (`maintenance.yml`) and the determinism-anchored soak (`soak.yml`).
 - The AUR package remains available at the last published version.
 - Issues and PRs may accumulate; the maintenance workflow handles stale management.
 - The `Cargo.lock` is committed and immutable during dormancy — it is the single source of truth for dependency versions.
