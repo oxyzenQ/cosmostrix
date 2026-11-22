@@ -164,7 +164,14 @@ echo "   built: ${BINARY}"
 # already: the CPU detect reads /proc/cpuinfo through it), and the
 # verified-status requirement doubles as an integrity gate: a binary
 # whose signature layers disagree refuses to install.
-if ! "${BINARY}" -V | grep -aFq "Official Build by rezky_nightky (oxyzenQ) 2026"; then
+#
+# The grep is year-free by contract: manifest_display() strips the
+# identity year from the -V Signature line (the year never renders
+# beside the identity on any user-facing surface), so a year-bearing
+# pattern could never match a healthy binary. The year-bearing
+# plaintext oracle lives only in the masked words themselves and in
+# scripts/release/generate-provenance-words.py.
+if ! "${BINARY}" -V | grep -aFq "Official Build by rezky_nightky (oxyzenQ)"; then
 	echo "error: the built binary does not materialize the official-build" >&2
 	echo "  signature on its -V output - the build environment or the" >&2
 	echo "  source tree is not what the release law expects. Refusing to install." >&2

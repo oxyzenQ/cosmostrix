@@ -56,6 +56,23 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-seal-gate-1 - the installer's official-build gate matches the materialized -V signature surface again
+
+- `scripts/package/install-on-my-machine.sh` refused every locally
+  built binary at the signature gate: its grep expected the
+  year-bearing manifest text (`Official Build by rezky_nightky
+  (oxyzenQ) 2026`), while `manifest_display()` strips the identity
+  year from the `-V` Signature line by contract (the year never
+  renders beside the identity on any user-facing surface), so no
+  healthy binary could ever pass the gate. Verified on a real
+  `pro-linux-amd64-v4-musl` build of this tree: the year-bearing grep
+  can never match, while the year-free identity grep, the
+  `status=verified` Depth-matrix line, and the five-depth `sig`
+  AUTHENTIC verdict all pass. The grep is now year-free and the
+  installer comment documents the display contract plus where the
+  year-bearing oracle actually lives (the masked words and
+  `scripts/release/generate-provenance-words.py`).
+
 ### fix: night-depth-cleanup-2 - the supply-chain doc catches up to the verdict it documents
 
 - Full-walk finding A (DOC_AUDIT rule 4, same-pass sync — the audit
