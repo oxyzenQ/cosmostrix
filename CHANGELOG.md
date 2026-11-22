@@ -32,6 +32,8 @@ tripwire note in the pre-v13 archive).
 
 ## Released
 
+v100.1.1
+
 v100.1.0
 
 v100.1.0-night.2
