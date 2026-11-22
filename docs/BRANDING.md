@@ -32,7 +32,7 @@ Since NIGHT-dinner-2 the rule is machine-enforced: `scripts/gates/check-name-cas
 
 ## 3. Logo
 
-The official logo is at [`assets/cosmostrix-original-logo-2026.png`](assets/cosmostrix-original-logo-2026.png). Usage rules:
+The official logo is at [`assets/cosmostrix-original-logo-2026.png`](../assets/cosmostrix-original-logo-2026.png). Usage rules:
 
 - **Minimum size**: 64px width for print, 32px for digital.
 - **Clear space**: padding equal to at least 25% of logo height on all sides.
@@ -140,9 +140,9 @@ jaw-dropping
 
 ## 8. Third-party Usage
 
-External projects, articles, or distributions referencing cosmostrix should: use the correct project name and spelling; link to the official repository (<https://github.com/oxyzenQ/cosmostrix>); not use the logo for commercial purposes without permission (see [`TRADEMARK.md`](TRADEMARK.md)); attribute the project when redistributing modified versions.
+External projects, articles, or distributions referencing cosmostrix should: use the correct project name and spelling; link to the official repository (<https://github.com/oxyzenQ/cosmostrix>); not use the logo for commercial purposes without permission (see [`TRADEMARK.md`](../TRADEMARK.md)); attribute the project when redistributing modified versions.
 
-*For trademark and legal usage terms, see [`TRADEMARK.md`](TRADEMARK.md).*
+*For trademark and legal usage terms, see [`TRADEMARK.md`](../TRADEMARK.md).*
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

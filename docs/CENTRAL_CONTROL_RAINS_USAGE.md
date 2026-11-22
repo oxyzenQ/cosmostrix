@@ -1,4 +1,4 @@
-# `central_control_rains.rs` — Usage & Custom Tuning Guide
+# `src/central_control_rains/` — Usage & Custom Tuning Guide
 
 <!--
   SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
@@ -137,7 +137,7 @@ covers the source-level surface in full detail.
 
 ## 3. The parameter map — what every section controls
 
-`central_control_rains.rs` is organized into logical sections. Each
+`src/central_control_rains/` is organized into logical sections. Each
 section controls one aspect of the rain visual. Below is the full
 map, with the section name, line range, what it controls, and the
 key constants you'd touch to tune it.
@@ -473,7 +473,7 @@ or for users who want the same rain every launch.
 ## 4. The full constant catalog (compact reference)
 
 Below is the complete list of all 110+ constants in
-`central_control_rains.rs`, grouped by section, with current values.
+`src/central_control_rains/`, grouped by section, with current values.
 Use this as a quick lookup when designing a custom tuning.
 
 ```

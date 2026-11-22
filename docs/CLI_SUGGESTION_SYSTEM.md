@@ -160,7 +160,7 @@ The suggestion engine is stresstested at two levels:
 - custom scene `afternon` → `tip: a similar value exists: 'afternoon'`
 - config key `colr` → `tip: a similar value exists: 'color'`
 
-### Option suggestion tests (structured context, `tests/clap_suggestion.rs`)
+### Option suggestion tests (structured context, `test/tests/clap_suggestion.rs`)
 
 - `--test` → `SuggestedArg` context points at `--testconf` (the owner's 2026-09-04 case)
 - `--no-effecs` → `SuggestedArg` context points at `--no-effects` (the v50.0.0-beta.7 rename regression)
