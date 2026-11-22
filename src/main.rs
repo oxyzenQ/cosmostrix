@@ -734,7 +734,7 @@ fn main() -> std::io::Result<()> {
     // fps_user_set was computed earlier (before dynamic default) — USER intent.
 
     // v50.0.0-beta.7 LOC refactor: bench dispatch extracted to
-    // main_bench_dispatch.rs.
+    // src/bench/dispatch.rs (`dispatch_bench`).
     if let Some(result) = crate::bench::dispatch_bench(&args, &cloud_cfg, fps_user_set) {
         return result;
     }

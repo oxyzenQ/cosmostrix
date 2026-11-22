@@ -26,7 +26,7 @@ use super::super::ghost_events::{CinematicEvent, EventCtx};
 // all EAW=Wide (width=2). The frame buffer has no per-cell width metadata,
 // so a width=2 char advances the terminal cursor by 2 while the renderer
 // tracks 1 — every subsequent cell in the row shifts right by 1, matching
-// the original Bug #11 (commit c1843fe) symptom: rain rows "shift right"
+// the original Bug #11 symptom: rain rows "shift right"
 // near the ghost, normalize after force_draw_everything fires.
 //
 // Fix: halfwidth Katakana (U+FF66-U+FF9D, EAW=Halfwidth, width=1).

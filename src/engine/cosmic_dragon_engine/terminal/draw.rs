@@ -138,8 +138,8 @@ impl Terminal {
         // `clear_dirty()` is still called to advance `dirty_gen` — `set()`
         // compares `dirty_cell_gen[i] != dirty_gen` to decide whether to push
         // a cell. Without the gen bump, cells dirty in the last non-idle
-        // frame would be incorrectly skipped on the next frame. See
-        // cosmic_dragon_lock_tests.rs INV-17 for the contract test.
+        // frame would be incorrectly skipped on the next frame. See INV-17 in
+        // test/cosmic_dragon_incubator/tests/lock.rs for the contract test.
         if can_reuse_last && dirty_count == 0 && !frame.is_dirty_all() {
             frame.clear_dirty();
             return Ok(());

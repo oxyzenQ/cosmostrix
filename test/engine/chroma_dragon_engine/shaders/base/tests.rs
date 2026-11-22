@@ -4,8 +4,9 @@
 //! Tests for `chroma::shaders::base::resolve_cell_color` and its helpers.
 //!
 //! Extracted from `base.rs` in Phase 4 to keep the shader module under
-//! the 800-LOC cap. The tests live in a sibling file loaded via
-//! `#[cfg(test)] #[path = "base_tests.rs"] mod tests;` so they retain
+//! the 800-LOC cap. The tests live in the test/ tree and are loaded by
+//! `#[path]` from `shaders/base/mod.rs` (this file plus tests_activation.rs,
+//! tests_bold_audit.rs, and tests_hue_drift.rs), so they retain
 //! `use super::*` access to base's private helpers (column_coherence_perturbation,
 //! cell_hash, apply_subpixel_jitter, make_test_shader, slot_array, etc.)
 //! without any visibility changes.
