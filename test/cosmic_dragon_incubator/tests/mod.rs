@@ -27,11 +27,11 @@ mod fault_ledger;
 // host.
 #[cfg(test)]
 mod info_ledger;
+#[cfg(test)]
+mod lock;
 // The production-draw zero-alloc ledger (INV-25, night-netrunner-Z1):
 // the production emission window the --bench-scene production-draw
 // benchmark measures, pinned at zero steady-state heap events — pure
 // counting-allocator math, cross-architecture-safe by construction.
 #[cfg(test)]
 mod production_alloc_ledger;
-#[cfg(test)]
-mod lock;

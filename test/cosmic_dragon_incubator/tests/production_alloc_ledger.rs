@@ -47,9 +47,7 @@ use std::time::{Duration, Instant};
 
 use crate::alloc_trace::AllocSnapshot;
 
-use super::alloc_ledger::{
-    LEDGER_FRAMES, LEDGER_WARMUP_FRAMES, build_ledger_rig,
-};
+use super::alloc_ledger::{LEDGER_FRAMES, LEDGER_WARMUP_FRAMES, build_ledger_rig};
 
 /// INV-25: the production-draw window performs EXACTLY ZERO heap
 /// allocations per frame in steady state.

@@ -357,7 +357,8 @@ impl BenchIoWriter {
         // must never allocate in the steady-state window.
         let need_cap = frame.width as usize * 4;
         if self.production_row_buf.capacity() < need_cap {
-            self.production_row_buf.reserve(need_cap - self.production_row_buf.capacity());
+            self.production_row_buf
+                .reserve(need_cap - self.production_row_buf.capacity());
         }
 
         let mut cur_fg: Option<crossterm::style::Color> = None;

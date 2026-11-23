@@ -495,6 +495,21 @@ def parse_trace(
             ioctl = IOCTL_OPEN.match(line)
             if ioctl:
                 pid, fd, request = ioctl.groups()
+                # strace can interrupt an ioctl mid-decode and append
+                # its own " <unfinished ...>" marker INSIDE the request
+                # field (the 6cf13bb x86_64 trace carries exactly one
+                # such line: `ioctl(1, TIOCGWINSZ <unfinished ...>` —
+                # the pid was the harness's own resize poller, not the
+                # traced child, and the request itself was read-only).
+                # The raw capture left the marker glued to the request
+                # name, so the never-guesses law classified
+                # "TIOCGWINSZ <unfinished ...>" as an unknown — read as
+                # MUTATING — and the ledger failed a steady state the
+                # binary never mutated. Strip the marker before the
+                # classification; the resumed tail is dropped by the
+                # continuation rule below, so the syscall counts once,
+                # under its true name.
+                request = request.split(" <unfinished", 1)[0]
                 ioctls.append(IoctlRecord(int(pid), int(fd), request, order))
                 continue
 
