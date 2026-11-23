@@ -50,6 +50,10 @@ other ai/
 
 # garbage stuff in root dir
 *.txt*
+# The D5 pinned fingerprint is a tracked trust anchor (night-netrunner-Z1):
+# the wall above would swallow it and break build/gpg.rs's include_str! —
+# re-include it explicitly (the zelynic estate law).
+!assets/gpg/pinned-maintainer-fpr.txt
 *.ruff*
 .vs/
 
