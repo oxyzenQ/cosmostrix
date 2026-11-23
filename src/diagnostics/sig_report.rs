@@ -318,6 +318,8 @@ pub(crate) fn print_sig_report() {
 
 #[cfg(test)]
 mod tests {
+    use super::info::vcs_commit_sig;
+    use super::sig_commit_sig::PINNED_MAINTAINER_KEY_FPR;
     use super::*;
 
     #[test]
@@ -330,10 +332,10 @@ mod tests {
         // is signed by the pinned maintainer key reads AUTHENTIC
         // 6/6 — both are the pristine truth for their build, and the
         // report must never claim otherwise.
-        let stamp = super::info::vcs_commit_sig();
+        let stamp = vcs_commit_sig();
         let sig_verified = stamp
             .strip_prefix("verified:")
-            .is_some_and(|fpr| fpr == super::sig_commit_sig::PINNED_MAINTAINER_KEY_FPR);
+            .is_some_and(|fpr| fpr == PINNED_MAINTAINER_KEY_FPR);
         if sig_verified {
             assert_eq!(verdict, SigVerdict::Authentic, "{text}");
             assert!(

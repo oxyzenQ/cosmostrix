@@ -136,6 +136,13 @@ fn make_temp_keyring(key_bytes: &[u8]) -> Option<PathBuf> {
     let home = std::env::temp_dir().join(format!("cosmostrix-sig-verify-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&home);
     std::fs::create_dir_all(&home).ok()?;
+    // 0700 on unix (gpg refuses a group/world-readable GNUPGHOME);
+    // a no-op on windows, where the throwaway dir under the per-user
+    // temp root carries the ACL of its parent and gpg does not check
+    // unix mode bits. The lane only ever verifies on unix runners and
+    // the owner's machines; a windows host without gpg lands in the
+    // honest "unavailable" state below either way.
+    #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&home, std::fs::Permissions::from_mode(0o700)).ok()?;
