@@ -733,7 +733,7 @@ jobs:
             echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (the D4 engine-oracle row is not pass)" >> "${MASS}"
           elif [ "${sig_exit}" -eq 0 ] && grep -q "SIGNATURE: AUTHENTIC (6/6 depths verified)" "${SIG}"; then
             echo "MASS-RESULT: sig-parity-${{ matrix.arch }} exit=0 AUTHENTIC-6/6 D4=pass" >> "${MASS}"
-          elif [ "${sig_exit}" -eq 2 ] && grep -q "SIGNATURE: TAMPERED (5/6 depths verified)" "${SIG}" && grep -q "^D5 commit-signature +FAIL " "${SIG}"; then
+          elif [ "${sig_exit}" -eq 2 ] && grep -q "SIGNATURE: TAMPERED (5/6 depths verified)" "${SIG}" && grep -Eq "^D5 commit-signature +FAIL " "${SIG}"; then
             echo "MASS-RESULT: sig-parity-${{ matrix.arch }} exit=2 TAMPERED-5/6 (unsigned HEAD, the honest D5 verdict) D4=pass" >> "${MASS}"
           else
             echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (unexpected verdict shape, exit ${sig_exit})" >> "${MASS}"

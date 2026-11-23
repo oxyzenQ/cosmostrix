@@ -215,7 +215,10 @@ mod tests {
     fn bad_signature_stamp_fails() {
         let (ok, detail) = commit_signature_verdict("bad-signature", "cafeba1");
         assert!(!ok, "{detail}");
-        assert!(detail.contains("FAILED the cryptographic check"), "{detail}");
+        assert!(
+            detail.contains("FAILED the cryptographic check"),
+            "{detail}"
+        );
     }
 
     #[test]
