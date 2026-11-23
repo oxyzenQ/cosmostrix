@@ -883,12 +883,21 @@ before any false green can ship. Effect: CI goes red on the commit
 that introduces a per-frame allocation — the claim and the
 enforcement are now the same mechanism. Honest scope: the contract
 covers the LEAN path (sim + diff + lean emission), the same scope
-the 0.0 measurement claimed; the production-draw I/O path carries
-~1.1 allocs/frame by design and stays measured, not contracted; and
-one-shot surfaces (startup, config parse, palette rebuild) are out
-of scope — the ledger measures the per-frame steady state only.
+the 0.0 measurement claimed; and one-shot surfaces (startup, config
+parse, palette rebuild) are out of scope — the ledger measures the
+per-frame steady state only. night-netrunner-Z1 (2026-11-23) closes
+the production-draw remainder the earlier scope note carried: the
+bench mirror's per-frame row-buffer allocation (a heap event the
+live Terminal::draw does not make — its buffers are warm struct
+fields) moved into a `production_row_buf` field, and INV-25
+(`test/cosmic_dragon_incubator/tests/production_alloc_ledger.rs`)
+pins the SAME zero-alloc contract on the production emission window,
+positive control included. Both emission paths the benchmark can
+name are now contracted at zero, not just measured.
 Truth: `test/cosmic_dragon_incubator/tests/alloc_ledger.rs` (the
 window, the zero assertions, the positive control),
+`test/cosmic_dragon_incubator/tests/production_alloc_ledger.rs`
+(INV-25, the production-draw twin),
 `src/diagnostics/alloc_trace.rs` (the counting allocator, the
 per-thread design), `src/main.rs` (the wiring),
 `test/cosmic_dragon_incubator/tests/lock.rs` (the INV-18 table row).

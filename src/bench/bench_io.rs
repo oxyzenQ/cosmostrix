@@ -169,6 +169,13 @@ pub(crate) struct BenchIoWriter {
     /// signature (bytes/frame, SGR mix) reflects the real wire format
     /// those sessions emit, not truecolor bytes.
     sgr_quantizer: Option<SgrQuantizer>,
+    /// night-netrunner-Z1: the production-draw scene's warm row buffer
+    /// (RLE-style run batching). A struct field exactly like
+    /// Terminal::row_buf — the per-frame `Vec::with_capacity` this
+    /// replaces was the one heap event the bench mirror carried that
+    /// the production path it mirrors does not. Pinned at zero
+    /// steady-state growth by the INV-25 ledger.
+    production_row_buf: Vec<u8>,
 }
 
 impl BenchIoWriter {
@@ -209,6 +216,7 @@ impl BenchIoWriter {
             },
             color_cache,
             sgr_quantizer,
+            production_row_buf: Vec::new(),
         })
     }
 
@@ -338,8 +346,19 @@ impl BenchIoWriter {
     /// Output goes to the same /dev/null BufWriter as `write_frame`.
     pub(crate) fn write_frame_production(&mut self, frame: &Frame) {
         self.ansi_buf.clear();
-        // Reusable row buffer for RLE-style run batching (mirrors Terminal::draw).
-        let mut row_buf: Vec<u8> = Vec::with_capacity(frame.width as usize * 4);
+        // Reusable row buffer for RLE-style run batching (mirrors
+        // Terminal::draw, which retains row_buf/ansi_buf as struct
+        // fields). night-netrunner-Z1 remainder closure: the fresh
+        // Vec::with_capacity here was the ONE per-frame heap event
+        // this mirror carried that the production path it mirrors
+        // does not — a benchmark-vs-production drift the INV-25
+        // ledger (test/cosmic_dragon_incubator/tests/
+        // production_alloc_ledger.rs) now pins shut: the warm field
+        // must never allocate in the steady-state window.
+        let need_cap = frame.width as usize * 4;
+        if self.production_row_buf.capacity() < need_cap {
+            self.production_row_buf.reserve(need_cap - self.production_row_buf.capacity());
+        }
 
         let mut cur_fg: Option<crossterm::style::Color> = None;
         let mut cur_bg: Option<crossterm::style::Color> = None;
@@ -358,14 +377,16 @@ impl BenchIoWriter {
                 crate::sgr_format::push_u16(&mut self.ansi_buf, y + 1);
                 self.ansi_buf.extend_from_slice(b";1H");
             }
-            row_buf.clear();
+            self.production_row_buf.clear();
+            let row_buf = &mut self.production_row_buf;
+            let ansi_buf = &mut self.ansi_buf;
             for x in 0..frame.width {
                 let idx = y as usize * frame.width as usize + x as usize;
                 let cell = frame.cell_at_index_ref(idx);
 
                 let style_changed = cell.fg != cur_fg || cell.bg != cur_bg || cell.bold != cur_bold;
                 if style_changed && !row_buf.is_empty() {
-                    self.ansi_buf.extend_from_slice(&row_buf);
+                    ansi_buf.extend_from_slice(row_buf);
                     row_buf.clear();
                 }
 
@@ -374,7 +395,7 @@ impl BenchIoWriter {
                     Self::emit_sgr(
                         self.sgr_quantizer.as_mut(),
                         cache_ref,
-                        &mut self.ansi_buf,
+                        ansi_buf,
                         cell.fg,
                         cell.bg,
                     );
@@ -386,8 +407,7 @@ impl BenchIoWriter {
                     // BOLT: branchless bold escape via table lookup.
                     let bold_idx = cell.bold as usize;
                     let bold_len = BOLD_ESCAPE_LENS[bold_idx];
-                    self.ansi_buf
-                        .extend_from_slice(&BOLD_ESCAPES[bold_idx][..bold_len]);
+                    ansi_buf.extend_from_slice(&BOLD_ESCAPES[bold_idx][..bold_len]);
                     cur_bold = cell.bold;
                 }
 
@@ -399,11 +419,12 @@ impl BenchIoWriter {
                 }
             }
             if !row_buf.is_empty() {
-                self.ansi_buf.extend_from_slice(&row_buf);
+                ansi_buf.extend_from_slice(row_buf);
             }
         }
 
-        // Reset attributes.
+        // Reset attributes. The ansi_buf reborrow ends with the row
+        // loop above; the tail bytes ride the field directly.
         self.ansi_buf.extend_from_slice(b"\x1b[0m");
 
         let write_start = std::time::Instant::now();

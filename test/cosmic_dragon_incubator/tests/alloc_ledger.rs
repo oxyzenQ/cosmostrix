@@ -35,12 +35,16 @@
 //!
 //! Honest scope, stated once: the window covers the LEAN path (sim +
 //! diff + lean emission), the same scope the 0.0 claim was measured on.
-//! The production-draw I/O path (`Terminal::draw` through the real
-//! stdout) carries ~1.1 allocs/frame by design and is NOT this
-//! contract; startup, config parse, palette rebuilds, and message
-//! overlays are one-shot or interactive surfaces, also not this
-//! contract. The window runs on the anchored virtual clock (the Z1
-//! replay law) so the ledger measures the path, not the wall clock.
+//! The production-draw emission window carries its OWN zero-alloc
+//! contract since night-netrunner-Z1 (`production_alloc_ledger.rs`,
+//! INV-25) — the bench mirror (`write_frame_production`) pinned at
+//! zero after its per-frame row-buffer drift closed. The live
+//! `Terminal::draw` through real stdout keeps the one-shot surfaces
+//! (startup, config parse, palette rebuilds, the needs_clear
+//! bg-blanket scratch that fires only on dimension changes) outside
+//! both contracts, by design. The window runs on the anchored
+//! virtual clock (the Z1 replay law) so the ledger measures the
+//! path, not the wall clock.
 
 use std::time::{Duration, Instant};
 
