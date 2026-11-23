@@ -46,7 +46,6 @@
 use std::time::{Duration, Instant};
 
 use crate::alloc_trace::AllocSnapshot;
-use crate::bench::bench_io::BenchIoWriter;
 
 use super::alloc_ledger::{
     LEDGER_FRAMES, LEDGER_WARMUP_FRAMES, build_ledger_rig,
