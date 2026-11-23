@@ -161,9 +161,8 @@ pub(crate) fn version_report() -> String {
 ///
 /// Printed by `cosmostrix --docs`. Intended for curious developers,
 /// benchmarking enthusiasts, and anyone evaluating cosmostrix against
-/// other terminal rain renderers. Output is plain text (no ANSI) so it
-/// pipes cleanly into `less`, `grep`, or documentation generators.
-///
+/// other terminal rain renderers. Plain text (no ANSI), pipes cleanly
+/// into `less`, `grep`, or documentation generators.
 /// NIGHT-docs-audit round 2026-09-12 (owner task: "audit to avoid stale
 /// data and simplify --docs"): every constant below was re-verified
 /// against its source (`central_control_rains/parallax.rs`, living_rain

@@ -168,7 +168,10 @@ mod tests {
         let (ok, detail) = commit_signature_verdict(&format!("verified:{PINNED}"), "089badd");
         assert!(ok, "{detail}");
         assert!(detail.contains("089badd"), "names the commit: {detail}");
-        assert!(detail.contains("47A50AEF4B65AAC2"), "names the key: {detail}");
+        assert!(
+            detail.contains("47A50AEF4B65AAC2"),
+            "names the key: {detail}"
+        );
         assert!(
             detail.contains("verified against the repo's pinned public key"),
             "names the verification lane: {detail}"
@@ -182,7 +185,10 @@ mod tests {
         let (ok, detail) = commit_signature_verdict(&format!("verified:{foreign}"), "deadbee");
         assert!(!ok, "a foreign signer must fail: {detail}");
         assert!(detail.contains("NOT the pinned maintainer key"), "{detail}");
-        assert!(detail.contains("47A50AEF4B65AAC2"), "names the pin: {detail}");
+        assert!(
+            detail.contains("47A50AEF4B65AAC2"),
+            "names the pin: {detail}"
+        );
     }
 
     #[test]
@@ -197,7 +203,10 @@ mod tests {
         let (ok, detail) = commit_signature_verdict("no-key:FFFF47A50AEF4B65AAC2", "cafeba1");
         assert!(!ok, "{detail}");
         assert!(detail.contains("does not cover"), "{detail}");
-        assert!(detail.contains("signed by FFFF47A50AEF4B65AAC2"), "{detail}");
+        assert!(
+            detail.contains("signed by FFFF47A50AEF4B65AAC2"),
+            "{detail}"
+        );
         let (ok, _) = commit_signature_verdict("no-key", "cafeba1");
         assert!(!ok, "evidenceless no-key also fails");
     }
