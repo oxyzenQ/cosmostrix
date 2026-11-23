@@ -347,7 +347,8 @@ pub struct Args {
     )]
     pub docs: bool,
 
-    // night-signature-advanced-4 + night-frontier-Z1: the five-depth
+    // night-signature-advanced-4 + night-frontier-Z1 + night-netrunner-Z1:
+    // the six-depth
     // signature report is a
     // SUBCOMMAND (`cosmostrix sig`), dispatched pre-clap in
     // argv_expand.rs — the retired `--sig` flag spelling is reported by

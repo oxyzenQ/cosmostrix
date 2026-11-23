@@ -551,11 +551,15 @@ Config:
 Diagnostics:
   --doctor       Build info, renderer details, environment diagnostics, and
       terminal compatibility check. (v17: --info merged into --doctor)
-  sig            Verify the embedded build signature: the five-depth
+  sig            Verify the embedded build signature: the six-depth
       report (runtime identity, embedded marker, blake3 anchor integrity,
       binary self-hash) plus the embedded engine oracle (a pinned 16-frame
       synthetic sequence rendered in-memory against the compile-time vector)
-      ending `SIGNATURE: AUTHENTIC (5/5 depths verified)`.
+      plus the commit-signature binding (the commit the binary was built
+      from is GPG-signed by the pinned maintainer key, verified at build
+      time). A build on a signed HEAD ends `SIGNATURE: AUTHENTIC (6/6
+      depths verified)`; a build on an unsigned HEAD fails D5 by name
+      (5/6) — both are the honest verdict for their build.
       Exit code 2 on tamper, so scripts can gate on it. `sig` is a
       subcommand: run it alone, it takes no arguments (`cosmostrix sig`;
       the retired --sig flag spelling is no longer a valid flag). See

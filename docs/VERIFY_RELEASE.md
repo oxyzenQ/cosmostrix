@@ -41,6 +41,33 @@ gpg --verify cosmostrix-vX.Y.Z-linux-amd64-v3-musl.tar.gz.asc
 
 Expected output: `gpg: Good signature from "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"` followed by `gpg:                 aka "Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>"` — either UID line identifies the same key. A `Good signature` line confirms authenticity. The `WARNING: This key is not certified with a trusted signature` notice is normal for first-time imports — verify the fingerprint matches `F532 4E09 67F1 04D5 8CE0 25F3 47A5 0AEF 4B65 AAC2`.
 
+## 1a. The `sig` commit-signature depth (night-netrunner-Z1)
+
+The `cosmostrix sig` report's sixth depth (`D5 commit-signature`)
+binds the binary to the maintainer's key at the commit level:
+build.rs verifies, at build time, that HEAD's commit carries a GPG
+signature by the PINNED maintainer public key (the repo's own copy
+under `assets/gpg/`, imported into an isolated throwaway keyring —
+never the building user's), and the row reports the stamped verdict.
+The pin is estate-wide (the same key files the zelynic sibling
+ships, byte-identical, both inside the signed asset set
+`assets/signature.b3sum`), so a swapped or re-keyed trust anchor
+fails `b3sum -c assets/signature.b3sum` by name before it can vouch
+for anything.
+
+With the maintainer key verified out-of-band (section 1) and
+releases cut from signed tags (`git tag -v` names the commit), the
+chain runs key to tag to commit to binary with no channel left to
+MITM silently — this closes the release-page swap hole where a
+forged binary replayed its own claims and passed a ladder that only
+ever verified self-claims. Honest limits: D5 reports the BUILD's
+verdict (it does not re-verify at runtime, and it proves the commit,
+not the tag — the consumer's `git tag -v` remains part of the
+protocol); a tree on an unsigned HEAD honestly FAILS D5 by name
+(`5/6 depths verified`), which is the honest verdict for that build
+and the discipline the row exists to enforce — sign the release
+commit, then rebuild.
+
 ## 2. Checksum Verification
 
 Every archive ships three checksum files covering classical + post-quantum algorithms:

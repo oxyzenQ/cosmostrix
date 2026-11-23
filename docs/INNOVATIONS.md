@@ -493,7 +493,8 @@ manifest + length-prefixed authors) is embedded as an opaque
 materialized bytes the `-V` line displays, and the new `cosmostrix sig`
 command renders the owner's cross-tool depth report (zejtron
 parity: D0 runtime-identity, D1 embedded-marker, D2 anchor-integrity,
-D3 binary-self-hash, D4 engine-oracle) with a `SIGNATURE: AUTHENTIC (5/5 depths
+D3 binary-self-hash, D4 engine-oracle) with a `SIGNATURE: AUTHENTIC
+(5/5 depths
 verified)` verdict and exit code 2 on tamper, so scripts can gate on
 it. Advanced form 4 (2026-11-13) retires the `--sig` flag spelling —
 `sig` is a SUBCOMMAND dispatched pre-clap (zero arguments; extra
@@ -501,7 +502,26 @@ arguments get a clap-shaped refusal, exit 0 authentic / 2 tamper) —
 and brands the surfaces: the `sig` banner rides the bold brand purple
 report-title tier and the `-V` Depth-matrix line rides the ok-green
 tier, both TTY-gated so piped output stays byte-for-byte plain (the
-machine-friendly canon). D3 blake3-hashes the running executable image (~10 MB in tens of
+machine-friendly canon). night-netrunner-Z1 (2026-11-23) extends the
+ladder to six depths with D5 commit-signature: build.rs verifies, at
+build time, that HEAD's commit carries a GPG signature by the PINNED
+maintainer key (the repo's own `assets/gpg/` copy imported into an
+isolated throwaway keyring — never the building user's), and the
+runtime row reports the stamped verdict (`build/gpg.rs` +
+`src/diagnostics/sig_commit_sig.rs`, the zelynic
+night-solid-defense-2 lane ported; the pinned fingerprint file is
+single-sourced by `include_str!` on both sides and rides inside the
+signed asset set `assets/signature.b3sum`). This closes the release-
+channel MITM hole the owner's adversarial review named: D0-D4 all
+verify claims the binary makes about itself, so a swapped release-
+page binary replayed its own claims and passed — D5 binds the binary
+to a commit the pinned key signed, so with the key verified
+out-of-band and releases cut from signed tags, the chain runs key to
+tag to commit to binary with no silent channel left. Fail-closed is
+the law: unsigned, wrong-key, no-key, bad-signature, no-vcs,
+unavailable and the unstamped default all FAIL by name — a tree on
+an unsigned HEAD reads `SIGNATURE: TAMPERED (5/6 depths verified)`,
+the honest verdict for that build, never a silent pass. D3 blake3-hashes the running executable image (~10 MB in tens of
 milliseconds on the pure-Rust implementation; the crate's C/asm lanes
 are deliberately off so every cross-compile lane in the release matrix
 keeps building without a target C toolchain) — an honest FINGERPRINT:
@@ -532,7 +552,7 @@ NOTICE and TRADEMARK.md is the backstop). The constants are generated
 by `scripts/release/generate-provenance-words.py`, the committed truth
 source that carries the identity in plaintext by design, the same way
 NOTICE does. End-to-end probes on the real release binary pin the full
-matrix: pristine verifies AUTHENTIC 5/5 with zero identity fragments
+matrix: pristine verifies AUTHENTIC with zero identity fragments
 at rest (`oxyzenQ` survives only inside repo/branding contexts - the
 public URL, the repo slug, scene lore - never beside the year), a
 patched masked word flips `-V` to `status=tampered` AND `sig` to exit
@@ -542,20 +562,28 @@ fails the same way. The generic `Official Build by` marker stays
 plaintext by design: it is identity-free and fingerprint-bound.
 Truth: `src/diagnostics/signature.rs` (the masked layers, the
 single-pass materialization, the dual fingerprints, the anchor),
-`src/diagnostics/sig_report.rs` (the five-depth report and the binary
+`src/diagnostics/sig_report.rs` (the six-depth report and the binary
 self-hash),
+`src/diagnostics/sig_commit_sig.rs` (the D5 runtime policy — pinned
+fingerprint, honest verdict sentence for every stamp state),
+`build/gpg.rs` (the build-time stamp lane — isolated keyring,
+fail-closed grammar),
 `scripts/release/generate-provenance-words.py` (constant and anchor
 generation),
-`src/diagnostics/info.rs` (`version_report` renders the view),
+`src/diagnostics/info.rs` (`version_report` renders the view,
+`vcs_commit_sig` surfaces the D5 stamp),
 `src/cli/argv_expand.rs` (the `sig` subcommand dispatch, argv[1] only
 — extra arguments refused, `--sig` retired),
 `scripts/package/install-on-my-machine.sh` (the release law's runtime
-signature gate + the five-depth gate).
+signature gate + the depth gate).
 Verifier: `cosmostrix -V | grep Depth-matrix` must show
 `status=verified` and a `b3:` anchor on any genuine build;
-`cosmostrix sig` must end `SIGNATURE: AUTHENTIC (5/5 depths verified)`
-and exit 0 (exit 2 plus `SIGNATURE: TAMPERED` on any patched depth);
-and `strings ./cosmostrix | grep rezky_nightky` must find NOTHING (the
+`cosmostrix sig` ends `SIGNATURE: AUTHENTIC (6/6 depths verified)`
+and exits 0 when the build's HEAD is signed by the pinned maintainer
+key, `SIGNATURE: TAMPERED (5/6 depths verified)` with a D5 FAIL naming
+the shape when it is not (both honest verdicts; exit 2 plus
+`SIGNATURE: TAMPERED` on any patched depth); and `strings
+./cosmostrix | grep rezky_nightky` must find NOTHING (the
 mark is masked at rest); the unit suites pin the materialization
 oracles, the strings-invisibility floor, the const-vs-runtime
 fingerprint equality, the anchor equality against the generator's
@@ -749,14 +777,14 @@ breadth contract stays with the lock suites and the replay oracle.
 Truth: `src/bench/engine_oracle.rs` (the pinned sequence, the vector,
 the regeneration law), `src/bench/frame_digest.rs` (the shared
 serializer and fold), `src/diagnostics/sig_report.rs` (the D4 row,
-the 5/5 verdict), `src/doctor/mod.rs` (the Engine oracle section).
+the depth verdict), `src/doctor/mod.rs` (the Engine oracle section).
 Verifier: `cosmostrix sig` must end
-`SIGNATURE: AUTHENTIC (5/5 depths verified)` with the D4 row naming
+`SIGNATURE: AUTHENTIC (6/6 depths verified)` with the D4 row naming
 `b3:d00a460a... recomputes in-memory`; `--doctor` must show
 `engine_oracle: pass`; the engine-oracle unit tests pin the vector
 (`cargo test engine_oracle` — pin currency, cross-run
 determinism, the manual fold, and the non-degenerate vector); the
-installer release law gates on the 5/5 line.
+installer release law gates on the 6/6 line.
 
 ### 35. The syscall-floor ledger (the kernel-floor proof)
 

@@ -5,6 +5,12 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
+// night-netrunner-Z1: the D5 commit-signature stamp lane (port of
+// the zelynic night-solid-defense-2 lane; see build/gpg.rs for the
+// stamp grammar and the threat it closes).
+#[path = "build/gpg.rs"]
+mod gpg;
+
 const PROFILE_KEYS: [&str; 7] = [
     "lto",
     "panic",
@@ -102,6 +108,12 @@ fn main() {
     // no designator, which was ambiguous).
     let build_time = format_build_time_utc();
     println!("cargo:rustc-env=COSMOSTRIX_BUILD_TIME={build_time}");
+
+    // night-netrunner-Z1: the D5 commit-signature stamp — the
+    // build's own answer to "is the commit this binary claims
+    // actually signed by the pinned maintainer key?" (see
+    // build/gpg.rs for the stamp grammar).
+    gpg::stamp_commit_signature();
 }
 
 fn emit_git_rerun_triggers() {

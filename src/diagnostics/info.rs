@@ -63,6 +63,18 @@ pub(crate) fn build_commit_short() -> Option<&'static str> {
     }
 }
 
+/// The build-time D5 commit-signature stamp (night-netrunner-Z1):
+/// `<state>[:<evidence-fpr>]` stamped by build.rs after verifying
+/// HEAD's commit signature against the pinned maintainer public key
+/// in an isolated throwaway keyring (see build/gpg.rs for the full
+/// grammar). `"unstamped"` — the value when build.rs never ran the
+/// lane — is an honest state the sig ladder's D5 row FAILS on
+/// (fail-closed, the estate law), never a silent pass.
+#[must_use]
+pub(crate) fn vcs_commit_sig() -> &'static str {
+    option_env!("COSMOSTRIX_VCS_COMMIT_SIG").unwrap_or("unstamped")
+}
+
 #[must_use]
 pub(crate) fn version_report() -> String {
     let version = env!("CARGO_PKG_VERSION");

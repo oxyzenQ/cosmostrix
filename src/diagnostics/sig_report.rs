@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
-//! The `sig` command surface — the five-depth signature report
-//! (night-signature-advanced-3).
+//! The `sig` command surface — the six-depth signature report
+//! (night-signature-advanced-3, extended by night-netrunner-Z1).
 //!
 //! The owner runs sibling tools across the fleet (zejtron prints the
-//! same depth shape), so `cosmostrix sig` renders the same
-//! verdict ladder over cosmostrix's own provenance layers:
+//! same depth shape), so `cosmostrix sig` renders the same verdict
+//! ladder over cosmostrix's own provenance layers:
 //!
 //!   D0  runtime-identity — the masked manifest materializes, carries
 //!       the marker and the identity shape.
@@ -18,10 +18,21 @@
 //!   D4  engine-oracle — the binary renders a pinned synthetic sequence
 //!       in-memory and matches the compile-time vector (night-frontier-Z1,
 //!       Proof Moat 1c: the capability proof).
+//!   D5  commit-signature — the commit the binary claims is GPG-
+//!       signed by the pinned maintainer key, verified at build time
+//!       against the repo's own pinned public key (night-netrunner-Z1,
+//!       the zelynic night-solid-defense-2 lane ported; see
+//!       [`sig_commit_sig`]). This is the row that binds the provenance
+//!       chain to the release channel: with the maintainer key verified
+//!       out-of-band and releases cut from signed tags, D5 closes the
+//!       MITM hole where a swapped release-page binary replays its own
+//!       claims — the chain runs key to tag to commit to binary with
+//!       no silent channel left.
 //!
-//! Numbering note: these D0-D4 are the five VERIFICATION depths (the
+//! Numbering note: these D0-D5 are the six VERIFICATION depths (the
 //! zejtron-parity ladder extended by the capability depth in
-//! night-frontier-Z1). The `-V` Depth-matrix line's d0:-d3: tokens are
+//! night-frontier-Z1 and the commit-signature depth in
+//! night-netrunner-Z1). The `-V` Depth-matrix line's d0:-d3: tokens are
 //! the four STORAGE layers
 //! (masked manifest, masked authors, FNV fingerprints, blake3 anchor)
 //! — a different axis, established in night-signature-advanced-2 and
@@ -31,8 +42,10 @@
 //! The first three depths are the `-V` Depth-matrix line rendered per
 //! depth; they reuse `provenance_view()`'s single pass (the invariant
 //! documented in `signature.rs` — the report shows exactly the bytes
-//! the integrity folds verify). D3 is exclusive to this command: it
-//! reads the whole image and must stay off the `-V` path.
+//! the integrity folds verify). D3, D4 and D5 are exclusive to this
+//! command: D3 reads the whole image, D4 runs the engine oracle, and
+//! D5 reports the build-time commit-signature stamp — all three stay
+//! off the `-V` path.
 //!
 //! # Honest limits of D3
 //!
@@ -43,12 +56,32 @@
 //! `pass` means the image was read in full and hashed; the comparison
 //! is the caller's. The docs and the report text below say this
 //! plainly — no fake "verified against itself" claim anywhere.
+//!
+//! # Honest limits of D5
+//!
+//! D5 reports the BUILD's verdict, stamped by build/gpg.rs when the
+//! binary was compiled: it proves the commit the binary was built
+//! from carried the maintainer's signature at build time, nothing
+//! more. It does not re-verify at runtime (the private key never
+//! touched this machine, and a runtime keyring read would widen the
+//! attack surface); it does not prove the tag the release was cut
+//! from (that is the consumer's out-of-band `git tag -v` step); and
+//! on a tree whose HEAD is unsigned it honestly FAILS — a signed
+//! release channel is the owner's discipline, the row's job is to
+//! refuse to lie about it.
 
 use std::io::Read;
 
 use crate::output::println_safe;
 
 use super::signature::{CONTACT, identity_core, provenance_view};
+
+/// The D5 commit-signature policy (night-netrunner-Z1): pinned
+/// fingerprint and the honest verdict sentence for every stamp state.
+use super::sig_commit_sig::commit_signature_verdict;
+
+/// The build-time D5 stamp accessor (see `info::vcs_commit_sig`).
+use super::info::vcs_commit_sig;
 
 /// Local alias for the engine-oracle runner (Proof Moat 1c): the
 /// bench-owned oracle is the one renderer of the pinned sequence, and
@@ -104,10 +137,10 @@ fn binary_self_hash() -> Result<String, String> {
     Ok(hex)
 }
 
-/// Run the five-depth ladder and render the full report block.
+/// Run the six-depth ladder and render the full report block.
 ///
 /// The text is stable by contract (tests pin its shape, like the `-V`
-/// report): boxed header, four depth rows, an identity field block,
+/// report): boxed header, six depth rows, an identity field block,
 /// then the verdict. Exit code is the dispatcher's job (`sig` exits 2
 /// on [`SigVerdict::Tampered`], the fatal-CLI code this tree already
 /// uses), so the report itself stays side-effect free.
@@ -144,6 +177,15 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     // vs pinned divergence for the depth row.
     let engine = run_engine_oracle();
 
+    // D5 (night-netrunner-Z1): the commit-signature binding. The
+    // stamp is the build's own verified verdict over the claimed
+    // commit (build/gpg.rs, verified against the pinned public key
+    // in an isolated keyring); the policy — pinned fingerprint,
+    // honest sentence for every state, fail-closed on the unknown —
+    // lives in sig_commit_sig.rs.
+    let commit_sha = super::info::build_commit_short().unwrap_or("unknown");
+    let (commit_sig_ok, commit_sig_detail) = commit_signature_verdict(vcs_commit_sig(), commit_sha);
+
     let rows = [
         DepthRow {
             name: "runtime-identity",
@@ -178,6 +220,11 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
                 ),
                 Err(divergence) => format!("pinned lane vector mismatch: {divergence}"),
             },
+        },
+        DepthRow {
+            name: "commit-signature",
+            passed: commit_sig_ok,
+            detail: commit_sig_detail,
         },
     ];
 
@@ -274,19 +321,43 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pristine_build_reports_authentic_five_of_five() {
+    fn pristine_build_reports_the_stamped_signature_truth() {
         let (text, verdict) = sig_report();
-        assert_eq!(verdict, SigVerdict::Authentic);
-        assert!(
-            text.contains("SIGNATURE: AUTHENTIC (5/5 depths verified)"),
-            "{text}"
-        );
+        // The ladder's honesty law (night-netrunner-Z1, the zelynic
+        // night-solid-defense-2 precedent): the D5 row reports the
+        // BUILD's own verified verdict, so a tree on an unsigned HEAD
+        // reads FAIL "no GPG signature" (5/6) and a tree whose HEAD
+        // is signed by the pinned maintainer key reads AUTHENTIC
+        // 6/6 — both are the pristine truth for their build, and the
+        // report must never claim otherwise.
+        let stamp = super::info::vcs_commit_sig();
+        let sig_verified = stamp
+            .strip_prefix("verified:")
+            .is_some_and(|fpr| fpr == super::sig_commit_sig::PINNED_MAINTAINER_KEY_FPR);
+        if sig_verified {
+            assert_eq!(verdict, SigVerdict::Authentic, "{text}");
+            assert!(
+                text.contains("SIGNATURE: AUTHENTIC (6/6 depths verified)"),
+                "{text}"
+            );
+        } else {
+            assert_eq!(verdict, SigVerdict::Tampered, "{text}");
+            let d5 = text
+                .lines()
+                .find(|line| line.starts_with("D5 commit-signature"))
+                .unwrap_or_else(|| panic!("the D5 row must exist:\n{text}"));
+            assert!(
+                d5.contains(" FAIL "),
+                "an unstamped-truth build must fail D5 by name:\n{text}"
+            );
+        }
         for row in [
             "D0 runtime-identity",
             "D1 embedded-marker",
             "D2 anchor-integrity",
             "D3 binary-self-hash",
             "D4 engine-oracle",
+            "D5 commit-signature",
         ] {
             assert!(text.contains(row), "missing depth row {row}:\n{text}");
         }

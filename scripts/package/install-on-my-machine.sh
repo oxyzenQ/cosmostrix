@@ -182,13 +182,16 @@ if ! "${BINARY}" -V | grep -aFq "status=verified"; then
 	echo "  (status=tampered on the -V Depth-matrix line). Refusing to install." >&2
 	exit 1
 fi
-# night-signature-advanced-3 + night-frontier-Z1: the five-depth
-# report is the stronger
+# night-signature-advanced-3 + night-frontier-Z1 + night-netrunner-Z1:
+# the six-depth report is the stronger
 # gate - it verifies the blake3 anchor over the masked layers AND
-# self-hashes the exact image about to be installed. A binary that
-# cannot prove AUTHENTIC 4/4 never lands in /usr/bin.
-if ! "${BINARY}" sig | grep -aFq "SIGNATURE: AUTHENTIC (5/5 depths verified)"; then
-	echo "error: the built binary fails the five-depth signature report" >&2
+# self-hashes the exact image about to be installed AND (D5) proves
+# the build's HEAD commit carries the maintainer's GPG signature. A
+# binary that cannot prove AUTHENTIC 6/6 never lands in /usr/bin
+# (a tree on an unsigned HEAD fails D5 by name - sign the release
+# commit, then rebuild).
+if ! "${BINARY}" sig | grep -aFq "SIGNATURE: AUTHENTIC (6/6 depths verified)"; then
+	echo "error: the built binary fails the six-depth signature report" >&2
 	echo "  (cosmostrix sig did not end AUTHENTIC). Refusing to install." >&2
 	exit 1
 fi
@@ -201,11 +204,11 @@ echo ">> [4/4] Verify"
 /usr/bin/"${cosmostrix}" -V
 # The installed image itself must still prove AUTHENTIC - this catches
 # any copy/copy-on-write corruption between target/ and /usr/bin.
-if ! /usr/bin/"${cosmostrix}" sig | grep -aFq "SIGNATURE: AUTHENTIC (5/5 depths verified)"; then
-	echo "error: the installed binary fails the five-depth signature report." >&2
+if ! /usr/bin/"${cosmostrix}" sig | grep -aFq "SIGNATURE: AUTHENTIC (6/6 depths verified)"; then
+	echo "error: the installed binary fails the six-depth signature report." >&2
 	exit 1
 fi
-echo "   sig: SIGNATURE: AUTHENTIC (5/5 depths verified)"
+echo "   sig: SIGNATURE: AUTHENTIC (6/6 depths verified)"
 if ! command -v "${cosmostrix}" >/dev/null 2>&1; then
 	echo "note: /usr/bin is not on this shell's PATH yet - open a new shell." >&2
 fi
