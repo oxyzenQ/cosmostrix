@@ -170,8 +170,9 @@
 # night-frontier-Z7 (the arch-parity law, 2026-11-19): the battery
 # grows two legs that close the architecture axis the Z1-Z6 proofs
 # never crossed. sig_parity runs `sig` on the release shape on BOTH
-# arches and requires the D4 engine-oracle row to report pass with
-# the five-of-five AUTHENTIC verdict - the same compile-time pinned
+# arches and requires the D4 engine-oracle row to report pass (with
+# the full-depth AUTHENTIC verdict on a signed HEAD, or the honest
+# unsigned-HEAD TAMPERED since night-netrunner-Z1) - the same compile-time pinned
 # vector the x86_64 lanes cross-verified (debug-glibc vs the v3-musl
 # release shape, the ci.yml cross-libm leg) now recomputed on real
 # ARM silicon by the shipped aarch64 musl binary; a mismatch reports
@@ -664,10 +665,11 @@ jobs:
   # arches - the same compile-time pinned vector the x86_64 lanes
   # cross-verified (debug-glibc vs the v3-musl release shape, the
   # ci.yml cross-libm leg) now verified on real ARM silicon by the
-  # shipped aarch64 musl binary. Exit 0 plus the five-of-five
-  # AUTHENTIC verdict plus the D4 pass row is the only pass; a
-  # mismatch reports TAMPERED and fails the leg, which is the moat
-  # working - either outcome is the contract functioning, and the
+  # shipped aarch64 musl binary. The D4 pass row plus a coherent
+  # verdict line (6/6 AUTHENTIC on a signed HEAD, 5/6 TAMPERED with
+  # the D5 row naming the unsigned commit otherwise) is the only
+  # pass; a real mismatch reports TAMPERED and fails the leg, which
+  # is the moat working - either outcome is the contract functioning, and the
   # report is uploaded so the recomputed digest is quotable per arch.
   sig_parity:
     name: supermassive test - sig oracle parity (the D4 vector, ${{ matrix.arch }})
@@ -709,22 +711,32 @@ jobs:
           SIG="/tmp/mass-sig-report.txt"
           rm -f "${MASS}" "${SIG}"
           # `sig` exits 0 on AUTHENTIC and 2 on TAMPERED (the report is
-          # printed either way). The leg gates on the exit code, the
-          # exact verdict line, AND the D4 row status, so a truncated
-          # report cannot pass on a missing row.
+          # printed either way). night-netrunner-Z1 stamped-truth law
+          # (the sig_report unit-test precedent): the ladder has SIX
+          # depths now, and D5 commit-signature reports the BUILD's
+          # own verdict over the commit it was built from. A signed
+          # HEAD reads AUTHENTIC 6/6 with exit 0; an unsigned HEAD
+          # (agent landings, rebases) honestly reads TAMPERED 5/6 with
+          # exit 2 and the D5 row FAILing by name. Both are the
+          # pristine truth for their build: this leg's job is the D4
+          # engine-oracle parity on this silicon, so it gates on the
+          # D4 row and the verdict shape — either the full 6/6
+          # AUTHENTIC or the honest 5/6 unsigned-HEAD TAMPERED with
+          # D0-D4 all pass — never on the owner's signing discipline
+          # (that stays the release lane's law, not CI's).
           set +e
           "${BINARY}" sig > "${SIG}" 2>&1
           sig_exit=$?
           set -e
           cat "${SIG}"
-          if [ "${sig_exit}" -ne 0 ]; then
-            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (exit ${sig_exit}, expected 0 = AUTHENTIC)" >> "${MASS}"
-          elif ! grep -q "SIGNATURE: AUTHENTIC (5/5 depths verified)" "${SIG}"; then
-            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (the five-of-five verdict line is missing)" >> "${MASS}"
-          elif ! grep -Eq "^D4 engine-oracle +pass " "${SIG}"; then
+          if ! grep -Eq "^D4 engine-oracle +pass " "${SIG}"; then
             echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (the D4 engine-oracle row is not pass)" >> "${MASS}"
+          elif [ "${sig_exit}" -eq 0 ] && grep -q "SIGNATURE: AUTHENTIC (6/6 depths verified)" "${SIG}"; then
+            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} exit=0 AUTHENTIC-6/6 D4=pass" >> "${MASS}"
+          elif [ "${sig_exit}" -eq 2 ] && grep -q "SIGNATURE: TAMPERED (5/6 depths verified)" "${SIG}" && grep -q "^D5 commit-signature +FAIL " "${SIG}"; then
+            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} exit=2 TAMPERED-5/6 (unsigned HEAD, the honest D5 verdict) D4=pass" >> "${MASS}"
           else
-            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} exit=0 D4=pass" >> "${MASS}"
+            echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (unexpected verdict shape, exit ${sig_exit})" >> "${MASS}"
           fi
 
       - name: Verdict
@@ -739,7 +751,7 @@ jobs:
             exit 1
           fi
           echo "MASS-VERDICT: PASS"
-          echo "OK: the ${{ matrix.arch }} release shape recomputes the pinned engine vector and reports AUTHENTIC five-of-five"
+          echo "OK: the ${{ matrix.arch }} release shape recomputes the pinned engine vector with a coherent depth verdict"
 
       - name: Sig parity summary (the longitudinal dataset row)
         if: always()
