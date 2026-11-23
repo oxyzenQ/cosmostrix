@@ -21,18 +21,15 @@ use crate::constants::{CHAR_POOL_SIZE, DROPLET_COUNT_FACTOR, GLITCH_POOL_SIZE};
 // identity exists in the artifact) and `provenance_view()` materializes
 // it in one pass per layer, feeding the Signature line, the Depth-matrix
 // line, and the Copyright authors from the SAME read that the integrity
-// fold verifies. version_report renders the fields verbatim and must not
-// unmask anything itself — see `signature.rs` for the layer contract,
-// the single-pass invariant, the threat model, and the honest limits.
+// fold verifies. version_report renders the fields verbatim — see
+// `signature.rs` for the layer contract and the honest limits.
 use super::signature::{COPYRIGHT_YEAR, LICENSE_LINE, manifest_display, provenance_view};
-
 // --- Build info helpers ---
 
 /// Canonical build label (e.g. "linux-amd64-v3", "darwin-aarch64-native").
 ///
 /// Source of truth: `COSMOSTRIX_BUILD` env var set at compile time by
-/// `build.rs` (which reads it from `.cargo/config.toml` aliases or the
-/// `COSMOSTRIX_BUILD` environment variable passed by CI/release scripts).
+/// `build.rs` (from `.cargo/config.toml` aliases or CI/release scripts).
 /// All diagnostics (`--doctor`, `--benchmark`) and
 /// `--version`/`-V` share this single source.
 #[must_use]
@@ -44,17 +41,14 @@ pub(crate) fn canonical_build_label() -> &'static str {
 ///
 /// Injected by build.rs via `COSMOSTRIX_GIT_SHA` using a three-step
 /// resolution chain: `git rev-parse --short=7 HEAD` (git checkouts),
-/// the `GITHUB_SHA` env var (CI), then `.cargo_vcs_info.json` (crates.io
-/// tarball builds — `cargo install cosmostrix` — where cargo embeds the
-/// packaging commit's sha1 in the published tarball; NIGHT-hunt-2 fix).
-/// `None` therefore means a build with no recoverable source revision.
+/// the `GITHUB_SHA` env var (CI), then `.cargo_vcs_info.json`
+/// (crates.io tarball builds, NIGHT-hunt-2 fix). `None` therefore
+/// means a build with no recoverable source revision.
 /// Display contract (night-dragon-maintenance-T1): the human `-V`
 /// report OMITS the commit parenthetical entirely when this is `None`
-/// — a bare "(unknown)" reads as a defect, and the absent parentheses
-/// carry the same information honestly. The machine-readable lanes
-/// (benchmark JSON and the benchmark report's git_sha field) keep the
-/// literal "unknown" string instead: their schemas are LTS-stable and
-/// every field must stay present with a string value.
+/// (a bare "(unknown)" reads as a defect); the machine-readable lanes
+/// (benchmark JSON, git_sha field) keep the literal "unknown" string
+/// because their LTS-stable schemas require every field present.
 #[must_use]
 pub(crate) fn build_commit_short() -> Option<&'static str> {
     match option_env!("COSMOSTRIX_GIT_SHA") {
@@ -64,12 +58,8 @@ pub(crate) fn build_commit_short() -> Option<&'static str> {
 }
 
 /// The build-time D5 commit-signature stamp (night-netrunner-Z1):
-/// `<state>[:<evidence-fpr>]` stamped by build.rs after verifying
-/// HEAD's commit signature against the pinned maintainer public key
-/// in an isolated throwaway keyring (see build/gpg.rs for the full
-/// grammar). `"unstamped"` — the value when build.rs never ran the
-/// lane — is an honest state the sig ladder's D5 row FAILS on
-/// (fail-closed, the estate law), never a silent pass.
+/// `<state>[:<evidence-fpr>]` from build/gpg.rs. `"unstamped"` fails
+/// the sig ladder's D5 row (fail-closed, the estate law).
 #[must_use]
 pub(crate) fn vcs_commit_sig() -> &'static str {
     option_env!("COSMOSTRIX_VCS_COMMIT_SIG").unwrap_or("unstamped")
@@ -170,9 +160,9 @@ pub(crate) fn version_report() -> String {
 /// Detailed engine documentation and architecture overview.
 ///
 /// Printed by `cosmostrix --docs`. Intended for curious developers,
-/// benchmarking enthusiasts, and anyone evaluating cosmostrix against other
-/// terminal rain renderers. Output is plain text (no ANSI) so it pipes
-/// cleanly into `less`, `grep`, or documentation generators.
+/// benchmarking enthusiasts, and anyone evaluating cosmostrix against
+/// other terminal rain renderers. Output is plain text (no ANSI) so it
+/// pipes cleanly into `less`, `grep`, or documentation generators.
 ///
 /// NIGHT-docs-audit round 2026-09-12 (owner task: "audit to avoid stale
 /// data and simplify --docs"): every constant below was re-verified
@@ -182,10 +172,9 @@ pub(crate) fn version_report() -> String {
 /// Crystal Dragon section was added so the three-engine architecture
 /// matches `docs/THREE_DRAGON_ENGINES.md`. Numbers cite their source
 /// location so future audits can re-verify mechanically.
-///
-/// Version info is NOT included here to avoid duplicate versioning —
-/// the user gets the version from `--version` / `-V`, which is the
-/// single source of truth.
+/// Version info is NOT included here (duplicate versioning): the
+/// user gets the version from `--version` / `-V`, the single source
+/// of truth.
 #[must_use]
 pub(crate) fn docs_report() -> String {
     format!(
