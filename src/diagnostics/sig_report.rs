@@ -318,8 +318,8 @@ pub(crate) fn print_sig_report() {
 
 #[cfg(test)]
 mod tests {
-    use super::info::vcs_commit_sig;
-    use super::sig_commit_sig::PINNED_MAINTAINER_KEY_FPR;
+    use super::super::info::vcs_commit_sig;
+    use super::super::sig_commit_sig::PINNED_MAINTAINER_KEY_FPR;
     use super::*;
 
     #[test]
