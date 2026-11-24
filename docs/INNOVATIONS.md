@@ -1351,7 +1351,7 @@ roots (the attribute + the law comment),
 pin), `test/test_support/mod.rs` (the carve-out),
 `docs/research/NIGHT_FRONTIER_Z5C_UNSAFE_LAW.md` (the record).
 Verifier: the compile-negative probe, the census-negative probe, the
-gate-keepers 23-check sweep, and
+gate-keepers sweep, and
 `benchmark/bench-labs/night_frontier_z5c/AB_REPORT.md`
 (performance-neutral — the attribute is a lint, zero codegen).
 
@@ -2202,6 +2202,36 @@ must still SUCCEED beside it.
 Not every idea earned its place. These were evaluated and rejected,
 and the records are kept so the same debate does not rerun:
 
+- **The interleaving theorem (the zelynic night-frontier-Z17 shape,
+  the owner's LTS deepen candidate)** — skipped, because the premise
+  has no target here. Z17 would prove, for EVERY CPU interleaving of
+  the concurrency protocol, that no corrupted state is reachable —
+  a theorem over the CAS draw / refill / debt-pay ordering space of
+  a lock-free kernel limiter. The 2026-11-24 census measured that
+  cosmostrix does not contain the thing such a theorem proves about:
+  src/ carries ZERO CAS-family primitives (`compare_exchange`,
+  `compare_exchange_weak`, `fetch_update` — a lock-free multi-step
+  protocol cannot exist without them), ZERO pointer-cast or
+  location-backed atomics (`AtomicPtr`, `from_ptr`/`from_mut` — the
+  kernel map-value shape zelynic's datapath lives on), the five
+  render cores are compiler-forbidden from unsafe with the screen
+  state single-writer by construction (helper threads touch flags
+  and channels only), and the ONE protocol with a genuine
+  interleaving-sensitive invariant — the two-flag shutdown
+  handshake — already carries the exhaustive instrument: the
+  cfg(loom) model proves a fired shutdown can never be lost for
+  every interleaving up to the preemption bound, on every push
+  (loom.yml). The remaining atomic surface is 55 single-variable
+  flags, counters and stamps whose laws ride the pinned tests. The
+  for-all tier over interleavings would therefore quantify over an
+  empty set — the exact over-engineering the owner's law forbids,
+  landed as a theorem with no subject. The honest NO is standing,
+  not archival: the CAS census gate (`scripts/gates/cas-census.py`,
+  gate-keepers check 26) re-reads the tree on every push and fails
+  the day any CAS-family primitive, pointer-cast atomic, or second
+  cfg(loom) protocol lands — the day the basis moves, the
+  interleaving-theorem question reopens deliberately with a fresh
+  census, and zelynic's Z17 shape becomes the ready-made answer.
 - **GPU image-mode rendering** — rejected because it breaks the
   character-grid aesthetic (every glyph must stay a real, selectable
   codepoint). Record: `docs/archive/cosmic_dragon/EXPLORATION.md`.

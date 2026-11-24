@@ -77,7 +77,7 @@ inherits its number's truth from
 | 42 | The wave-equation click shockwave (the solved ripple) | [wave_field.rs](../src/engine/cosmic_dragon_engine/cloud/wave_field.rs), [tests_wave_field.rs](../test/engine/cosmic_dragon_engine/cloud/tests/tests_wave_field.rs), [tests_mouse_shockwave.rs](../test/engine/cosmic_dragon_engine/cloud/tests/tests_mouse_shockwave.rs) | `cargo test wave_field mouse_shockwave` |
 | 43 | The paste fuse (the structural wedge kill) | [torture.py](../scripts/supermassive/torture.py) (`paste-wedge` leg), the Z5a research record + [AB_REPORT.md](../benchmark/bench-labs/night_frontier_z5a/AB_REPORT.md) | the torture battery's `paste-wedge` rows |
 | 44 | The afterglow temporal colorimetry law (INV-22) | [lock_inv22_z5b.rs](../test/engine/chroma_dragon_engine/tests/lock_inv22_z5b.rs), the Z5b research record | `cargo test inv22` |
-| 45 | The unsafe law (the compiler-forbidden render core) | [unsafe-census.py](../scripts/gates/unsafe-census.py), the Z5c research record + [AB_REPORT.md](../benchmark/bench-labs/night_frontier_z5c/AB_REPORT.md) | the gate-keepers 23-check sweep |
+| 45 | The unsafe law (the compiler-forbidden render core) | [unsafe-census.py](../scripts/gates/unsafe-census.py), the Z5c research record + [AB_REPORT.md](../benchmark/bench-labs/night_frontier_z5c/AB_REPORT.md) | the gate-keepers sweep |
 | 46 | The wave-field energy ledger (the named Lyapunov bound) | [wave_field.rs](../src/engine/cosmic_dragon_engine/cloud/wave_field.rs) (EnergyLedger + the quantum clock), the Z6 [AB_REPORT.md](../benchmark/bench-labs/night_frontier_z6/AB_REPORT.md) | `cargo test wave_field` (16 pins: 10 Z4b + 6 Z6) |
 | 47 | The determinism-anchored soak (the 24h canary lane) | [soak_determinism.sh](../scripts/depth/soak_determinism.sh), [soak.yml](../.github/workflows/soak.yml), [ENDURANCE.md](ENDURANCE.md) | the Sunday lane + the smoke run (`--minutes 2`) |
 | 49 | The never-be scope contract (the enforced non-goals) | [scope-census.py](../scripts/gates/scope-census.py), [README.md](../README.md) (the contract table) | the gate-keepers `scope-census: OK` verdict line |
@@ -105,7 +105,7 @@ inherits its number's truth from
 | [fuzz.yml](../.github/workflows/fuzz.yml) | push | the fuzz targets (emission stays safe under adversarial input) |
 | [codeql.yml](../.github/workflows/codeql.yml) + [gitbot-audit.yml](../.github/workflows/gitbot-audit.yml) | push | static security analysis + the security audit lane |
 | [loom.yml](../.github/workflows/loom.yml) | push | the concurrency proof lane |
-| [gate-keepers.sh](../scripts/gate-keepers.sh) | every push (via CI) | every non-Rust quality gate: headers, permissions, LOC caps, language purity, emoji sweep, hype vocabulary, docs truth audit, unsafe census |
+| [gate-keepers.sh](../scripts/gate-keepers.sh) | every push (via CI) | every non-Rust quality gate: headers, permissions, LOC caps, language purity, emoji sweep, hype vocabulary, docs truth audit, unsafe census, the CAS census (the standing NO behind the interleaving-theorem question) |
 
 ## Auditing the chain in one sitting
 

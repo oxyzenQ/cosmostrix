@@ -875,6 +875,27 @@ else
 	skip "lock-census.py or python3 not found — skipping (tree fault: the gate script itself is missing)"
 fi
 
+# ── 26. CAS census pin (night-netrunner-Z2) ──────────────────────────────
+# The standing NO behind the interleaving-theorem question: the 2026-
+# 11-24 census proved the zelynic night-frontier-Z17 instrument has no
+# target here - zero CAS-family primitives (a lock-free multi-step
+# protocol cannot be built without them), zero pointer-cast atomics
+# (the kernel map-value shape), and exactly one cfg(loom) model (the
+# two-flag shutdown handshake, already exhaustive for-all up to the
+# preemption bound). This gate re-reads the tree on every push and
+# fails the day the basis moves, so the NO is enforced, not archived:
+# any finding reopens the interleaving-theorem question deliberately.
+header "CAS Census Pin (cas-census.py)"
+if [ -f scripts/gates/cas-census.py ] && command -v python3 >/dev/null 2>&1; then
+	if python3 scripts/gates/cas-census.py 2>&1; then
+		PASS=$((PASS + 1))
+	else
+		fail "cas-census: the interleaving-theorem NO's basis moved (see the census report above)"
+	fi
+else
+	skip "cas-census.py or python3 not found — skipping (tree fault: the gate script itself is missing)"
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
