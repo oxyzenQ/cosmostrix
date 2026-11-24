@@ -17,6 +17,8 @@
 #   - kani-cloud-density: living_rain density modifier band
 #   - kani-cloud-reseed-ladder: the deterministic reseed ladder
 #   - kani-chroma-blend: the chroma background blend hull
+#   - kani-cloud-density-calibration: the calibration tooth (the false
+#     bound that must REFUTE - the red path proven live, night-netrunner-Z2)
 
 name: "Kani - Bounded Model Checking"
 
@@ -63,6 +65,41 @@ jobs:
         with:
           runtime: 15
           args: --output-format terse --harness reseed_ladder_is_total_and_fresh_per_rung
+
+  kani-cloud-density-calibration:
+    name: Kani - density calibration (must refute)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The calibration seat cannot use the kani-github-action: its
+      # verdict follows the exit code, and the EXPECTED verdict here is
+      # the verification failure. The same toolchain the action installs
+      # (stable) and the same latest kani release, then the inverted
+      # verdict is checked by hand: a refutation is the green path, and
+      # every other outcome - the lie proven, no verdict, a crash - is
+      # the red alarm that the tier's instrument is dead.
+      - name: Install the stable toolchain and the kani verifier
+        run: |
+          rustup toolchain install stable --profile minimal
+          cargo install --locked kani-verifier
+          cargo kani setup
+
+      - name: The calibration tooth must REFUTE (the red path proven live)
+        run: |
+          set -o pipefail
+          if cargo kani --output-format terse --harness density_band_calibration_must_refute 2>&1 | tee kani_calibration.log; then
+            echo "INSTRUMENT DEAD: a deliberately false law was PROVEN - the red path never fired"
+            exit 1
+          fi
+          grep -qE "VERIFICATION:?-? FAILED" kani_calibration.log || {
+            echo "NO VERDICT: kani died before reaching one (compile error or crash) - not the calibration red"
+            exit 1
+          }
+          echo "THE RED PATH IS LIVE: the false law refuted with a concrete counterexample"
 
   kani-chroma-blend:
     name: Kani - chroma blend hull

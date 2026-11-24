@@ -29,7 +29,7 @@ inherits its number's truth from
   campaign applies, and it must never become the truth itself —
   `src/` is the truth; the atlas only routes to it.
 
-## The atlas (entries 1-47 and 49-59)
+## The atlas (entries 1-47 and 49-60)
 
 | # | The innovation | Proof artifact(s) | The verifier |
 |---|---|---|---|
@@ -91,6 +91,7 @@ inherits its number's truth from
 | 57 | The emission-minimality certificate (the shipped solver bound to the law reference) | [emit_diff.rs](../src/engine/cosmic_dragon_engine/terminal/emit_diff.rs) (the shipped solver, the seam), [emission_ledger.rs](../test/cosmic_dragon_incubator/tests/emission_ledger.rs) (INV-22), [emission_floor.py](../scripts/supermassive/emission_floor.py) | `cargo test lock_inv22` + the CI `emission_floor` job - `MASS-VERDICT: PASS` with every frame inside the identity floor and the calibrated overhead bands, both injections rejected |
 | 58 | The in-process state-digest canary (the soaked process's own anchor) | [premium.rs](../src/bench/premium.rs) (the two anchors, the canary line), [soak_determinism.sh](../scripts/depth/soak_determinism.sh) (pass-law legs 1b/5), [replay_tests.rs](../test/bench/replay_tests.rs) (the chain test) | `cargo test soak_state_digest` + the soak lane's four-way anchor chain and leg 5 (t0 == end inside the soaked process) |
 | 59 | The emission conformance law (the diff grammar's machine-checked semantics) | [emission_conformance.rs](../test/cosmic_dragon_incubator/tests/emission_conformance.rs) (the strict VT model, lemmas L1/L2/L3), [emission_conformance-regressions.txt](../test/cosmic_dragon_incubator/tests/emission_conformance-regressions.txt) (the committed witness ledger), [property-regressions.txt](../test/tests/property-regressions.txt) (the config lane's store) | `cargo test emission_conformance` + `cargo test prop_` — the stored seeds replay on every run |
+| 60 | The calibration tooth (the red path proven live) | [living_rain.rs](../src/engine/cosmic_dragon_engine/cloud/living_rain.rs) (`density_band_calibration_must_refute`, the false-bound harness beside the band law), [kani.yml](../.github/workflows/kani.yml) (the fourth seat, the inverted verdict) | `cargo kani --harness density_band_calibration_must_refute` must FAIL (VERIFICATION FAILED) — the lane seat turns exactly that red green |
 
 ## The standing lanes (the always-on half of the chain)
 
@@ -100,7 +101,7 @@ inherits its number's truth from
 | [supermassive.yml](../.github/workflows/supermassive.yml) | push + scheduled | the PTY contract on a real terminal: byte-log assertions, the syscall-floor ledger, the wakeup-floor ledger, the emission-floor ledger (the stream identity), the torture battery, the arch-parity legs (sig oracle parity on both silicons, the arm64 musl lock suite) |
 | [soak.yml](../.github/workflows/soak.yml) | Sunday + dispatch | the determinism-anchored soak (entry 47 + entry 58): digest drift, the four-way anchor chain, the in-process state digest, RSS plateau, fd census |
 | [miri.yml](../.github/workflows/miri.yml) | push | no undefined behavior in the audited pointer/alloc families |
-| [kani.yml](../.github/workflows/kani.yml) | push | bounded model checking of the audited proof harnesses |
+| [kani.yml](../.github/workflows/kani.yml) | push | bounded model checking of the audited proof harnesses, plus the calibration seat that proves the red path live on every push (entry 60) |
 | [fuzz.yml](../.github/workflows/fuzz.yml) | push | the fuzz targets (emission stays safe under adversarial input) |
 | [codeql.yml](../.github/workflows/codeql.yml) + [gitbot-audit.yml](../.github/workflows/gitbot-audit.yml) | push | static security analysis + the security audit lane |
 | [loom.yml](../.github/workflows/loom.yml) | push | the concurrency proof lane |

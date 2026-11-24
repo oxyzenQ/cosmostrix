@@ -488,4 +488,37 @@ mod kani_proofs {
             "density modifier escaped the documented band"
         );
     }
+
+    /// NIGHT-NETRUNNER-Z2: the calibration tooth - the red path proven
+    /// live. A verifier that only ever hears positive verdicts can die
+    /// silently: one refactor that trivializes an assert or collapses a
+    /// symbolic domain leaves a harness green forever while it proves
+    /// nothing. This harness asserts a DELIBERATELY FALSE bound - the
+    /// modifier claimed above the band's documented ceiling, violated
+    /// by every input in the domain - and must REFUTE with a concrete
+    /// counterexample (VERIFICATION FAILED, nonzero exit). The kani
+    /// lane's calibration seat inverts the verdict: a green run here is
+    /// the red alarm that the instrument itself is dead. The lie rides
+    /// no interior structure of the band (no assumption about which
+    /// columns sit where), so a band retune cannot flip this guard, and
+    /// the band harness above plus the shipped bytes are untouched.
+    #[kani::proof]
+    fn density_band_calibration_must_refute() {
+        let col: u16 = kani::any();
+        let elapsed: f64 = kani::any();
+        // The same domain bound the band harness uses: the plausible
+        // session span, so the calibration measures the same machine
+        // the law rides.
+        kani::assume(elapsed.is_finite() && elapsed >= 0.0 && elapsed < 1.0e6);
+        let modifier = column_density_modifier(col, elapsed);
+        // The false claim: every input sits ABOVE the ceiling. The band
+        // law pins modifier <= DENSITY_NOISE_MAX for all inputs, so the
+        // solver owns a reachable counterexample on every domain the
+        // law governs - the refutation is guaranteed reachable, cheap,
+        // and independent of the band's interior shape.
+        assert!(
+            modifier > DENSITY_NOISE_MAX,
+            "the calibration lie was not refuted - the red path is dead"
+        );
+    }
 }

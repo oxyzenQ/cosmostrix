@@ -41,7 +41,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The fifty-nine, in dependency order
+## The sixty, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -2148,6 +2148,54 @@ Verifier: `cargo test emission_conformance` - L1, L2, L3 and the
 BOLT table pin must all pass; `cargo test` (the full suite, 3104
 green at landing); the stored seeds replay automatically inside
 those runs.
+
+### 60. The calibration tooth (the red path proven live, night-netrunner-Z2)
+
+Problem killed: the for-all tier carried three positive theorems and
+no negative one - every verdict it ever produced was green. A
+verifier that only ever hears green can die silently: one refactor
+that trivializes an assert or collapses a symbolic domain leaves a
+harness green forever while it proves nothing, and no lane in the
+estate would notice. The zelynic estate had already named the
+discipline (its night-frontier-Z15 gigi census "calibrated BOTH
+directions before any verdict was believed - a deliberately false
+bound on a constrained domain refutes in 0.10 s with a concrete
+counterexample, VERIFICATION FAILED, the red path proven live"), and
+this depth lands the standing form of that lesson: the red path is
+proven on EVERY PUSH, not once at census time.
+
+Mechanism (night-netrunner-Z2): a second `#[kani::proof]` harness in
+the density band's own kani_proofs module
+(`density_band_calibration_must_refute`) asserts a deliberately false
+bound - the modifier claimed above the band's documented ceiling,
+violated by every input in the domain the law governs - and must
+REFUTE with a concrete counterexample (VERIFICATION FAILED, nonzero
+exit). The lie rides no interior structure of the band (no
+assumption about which columns sit where), so a band retune cannot
+flip the guard, and the refutation is guaranteed reachable and
+cheap. The lane's fourth seat inverts the verdict: a refutation is
+the green path; every other outcome - the lie proven (the domain
+collapsed or the assert trivialized), no verdict, a crash - is the
+red alarm that the tier's instrument is dead. The seat runs the same
+stable toolchain and the same latest kani release the proof seats
+resolve, under its own 15-minute ceiling.
+
+Honest scope: the calibration proves the INSTRUMENT (compile,
+symbolic execution, assert checking, counterexample reporting, the
+nonzero exit), not any new property of the engine. A real band
+regression still fails the band harness exactly as before - the
+calibration is insensitive to engine bugs by design, because its
+only subject is the verifier itself.
+
+Truth: `src/engine/cosmic_dragon_engine/cloud/living_rain.rs`
+(`density_band_calibration_must_refute`, beside the band harness),
+`.github/workflows/kani.yml` (the fourth seat, the inverted verdict).
+
+Verifier: `cargo kani --output-format terse --harness
+density_band_calibration_must_refute` must FAIL with VERIFICATION
+FAILED (the calibration red), and the lane seat turns exactly that
+red green; `--harness density_modifier_stays_in_band_for_any_input`
+must still SUCCEED beside it.
 
 ## Retired by verdict
 
