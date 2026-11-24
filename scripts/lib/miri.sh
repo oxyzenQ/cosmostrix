@@ -32,7 +32,7 @@
 # CHANGELOG, or docs/ — or burns an unbounded numeric/render loop —
 # must never land here without #[cfg_attr(miri, ignore = "reason")].
 # Miri interprets every instruction, so such a test inflates the run
-# past the job's fail-fast cap (miri.yml timeout-minutes: 20) and dies
+# past the job's fail-fast cap (miri.yml timeout-minutes: 10) and dies
 # loudly there. Natively the test still runs everywhere else: ci.yml
 # and the docs_tests module (test/docs_tests/) own the docs assertions
 # and the math loops. Verified 2026-10-27: all six families' test

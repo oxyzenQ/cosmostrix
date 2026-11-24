@@ -57,14 +57,17 @@ jobs:
   miri:
     name: Cosmic Dragon Guard - Miri UB verification (6 audited modules)
     runs-on: ubuntu-24.04
-    # Sized to the measured record (the sibling's ~5x formula): the
-    # interpreted step's own docs record is 1-3 min, so 20 gives ~5x
-    # headroom on the interpretation while still covering the toolchain
-    # install and the miri rebuild. Not a speed claim — a fail-fast
-    # line: a future docs-scan or unbounded-loop test that inflates
-    # the run past this boundary fails loudly instead of hanging (see
-    # the header's admission law).
-    timeout-minutes: 5
+    # Sized to the measured record, not inherited: healthy runs on
+    # 2026-11-23 landed at 3.4-4.9 min of total job wall clock (206s,
+    # 207s, 275s, 295s across four consecutive greens), so the former
+    # 5-minute cap left only seconds of headroom — a normal cold-cache
+    # variance killed run 45258720551 at 314s (Cancelled after 5m).
+    # 10 gives ~2x the worst observed green while staying a fail-fast
+    # line well under the sibling's 30-minute incident: a future
+    # docs-scan or unbounded-loop test that inflates the run past this
+    # boundary still dies loudly instead of hanging (see the header's
+    # admission law).
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
