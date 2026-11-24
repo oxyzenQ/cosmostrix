@@ -84,8 +84,9 @@ pub struct Frame {
     pub cells: Vec<Cell>,
     /// Content generation counter. Bumped by `clear_with_bg` on semantic
     /// resets. A cell is "live" iff `cell_gen[i] == r#gen`. Exposed as
-    /// `pub(crate)` so the Cosmic Dragon lock suite (`cosmic_dragon_lock_tests`)
-    /// can verify the overflow safety invariant.
+    /// `pub(crate)` so the Cosmic Dragon lock suite
+    /// (`test/cosmic_dragon_incubator/tests/`) can verify the overflow
+    /// safety invariant.
     pub(crate) r#gen: u32,
     pub(crate) cell_gen: Vec<u32>,
     pub(crate) blank: Cell,

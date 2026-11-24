@@ -82,7 +82,7 @@ real PTY ioctl sizes (1x1, 100x400, 200x100); the maximum VALID
 custom-block config (24 blocks per family — the LTS bound from
 NIGHT-hunt-40, so a "10,000-entry" config is impossible by design; the
 25th block of every family must be rejected with the named cap); the
-200-character message boundary; screen-size validation rejects; and the
+200-byte message boundary; screen-size validation rejects; and the
 config byte edges — invalid UTF-8, empty file, permission denied,
 config-as-directory, past the 1 MiB read cap, a 100 KB key, 1000 brackets.
 The byte-edge family pins the two config-read fixes from this hunt: the

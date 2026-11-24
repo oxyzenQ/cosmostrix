@@ -152,9 +152,9 @@ is the section Option F tunes.**
 |----------|------|--------:|--------|
 | `PARALLAX_LAYERS` | usize | 3 | Layer count. Do not change without major refactor — every consumer assumes 3 layers. |
 | `PARALLAX_SPEED_MULT` | [f32; 3] | [0.35, 1.0, 1.7] | Per-layer motion speed. Back recedes (0.35×), front whooshes (1.7×). |
-| `PARALLAX_BRIGHTNESS_MULT` | [f32; 3] | [0.52, 0.80, 1.10] | Per-droplet luminance. The hero pop lever for front. |
-| `PARALLAX_SATURATION_MULT` | [f32; 3] | [0.50, 0.84, 1.12] | Color vividness. The neon signature lever for front. |
-| `PARALLAX_HEAD_BLOOM_MULT` | [f32; 3] | [0.48, 0.74, 1.30] | Head glow falloff. The eye-lock trigger. |
+| `PARALLAX_BRIGHTNESS_MULT` | [f32; 3] | [0.56, 0.82, 1.08] | Per-droplet luminance. The hero pop lever for front. |
+| `PARALLAX_SATURATION_MULT` | [f32; 3] | [0.52, 0.84, 1.10] | Color vividness. The neon signature lever for front. |
+| `PARALLAX_HEAD_BLOOM_MULT` | [f32; 3] | [0.48, 0.74, 1.24] | Head glow falloff. The eye-lock trigger. |
 | `PARALLAX_HEAD_SELFBLOOM_MULT` | [f32; 3] | [0.38, 0.68, 1.20] | Head self-illumination halo width. |
 | `PARALLAX_LENGTH_MULT` | [f32; 3] | [0.5, 1.0, 1.4] | Droplet streak length per layer. |
 | `PARALLAX_DENSITY_MULT` | [f32; 3] | [0.45, 0.62, 0.85] | Per-layer spawn density. |
@@ -171,20 +171,20 @@ passes. This is the "movie rain streak" signature.
 
 | Constant | Type | Current | Effect |
 |----------|------|--------:|--------|
-| `PHOSPHOR_DECAY_RATE` | f32 | 5.0 | Global trail decay rate. Higher = shorter trails. |
+| `PHOSPHOR_DECAY_RATE` | f32 | 8.0 | Global trail decay rate. Higher = shorter trails. |
 | `PHOSPHOR_TAIL_RESIDUAL` | u8 | 160 | Minimum tail brightness (0–255). Higher = trails never fully fade. |
 | `PHOSPHOR_DEAD_THRESHOLD` | u8 | 6 | Below this brightness, trail cell is killed. |
 | `PHOSPHOR_GLYPH_THRESHOLD` | u8 | 96 | Below this, trail cell shows no glyph (just dim glow). |
-| `PHOSPHOR_LAYER_DECAY_MULT` | [f32; 3] | [2.0, 1.2, 0.6] | Per-layer decay multiplier. Back fades fastest, front slowest. |
+| `PHOSPHOR_LAYER_DECAY_MULT` | [f32; 3] | [1.9, 1.15, 0.65] | Per-layer decay multiplier. Back fades fastest, front slowest. |
 | `PHOSPHOR_BOTTOM_ROWS` | u16 | 12 | How many bottom rows get extra decay (rain-pool effect). |
-| `PHOSPHOR_BOTTOM_DECAY_MULT` | f32 | 3.0 | Bottom-row decay multiplier (3× faster fade at the bottom). |
+| `PHOSPHOR_BOTTOM_DECAY_MULT` | f32 | 1.8 | Bottom-row decay multiplier (1.8× faster fade at the bottom). |
 
 **Tuning recipes**:
 
-- **Longer cinematic trails**: lower `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.6 -> 0.4 (front trails last ~1s instead of ~670ms). Warning: may smear on hero-bright fronts.
-- **Harder CRT look (shorter, sharper)**: raise `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.6 -> 0.8. Heads stay very crisp.
+- **Longer cinematic trails**: lower `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.65 -> 0.45 (front trails last noticeably longer). Warning: may smear on hero-bright fronts.
+- **Harder CRT look (shorter, sharper)**: raise `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.65 -> 0.85. Heads stay very crisp.
 - **Brighter trail residual (glowing puddles)**: raise `PHOSPHOR_TAIL_RESIDUAL` from 160 -> 200.
-- **Darker bottom (rain doesn't pool)**: raise `PHOSPHOR_BOTTOM_DECAY_MULT` from 3.0 -> 5.0.
+- **Darker bottom (rain doesn't pool)**: raise `PHOSPHOR_BOTTOM_DECAY_MULT` from 1.8 -> 3.0.
 
 ### 3.3 Head bloom (lines 422–428 + 216–232)
 
@@ -195,9 +195,9 @@ rather than bright pixels.
 | Constant | Type | Current | Effect |
 |----------|------|--------:|--------|
 | `HEAD_BLOOM_SIGMA` | f32 | 1.2 | Gaussian sigma for head glow spread. Higher = wider, softer halo. |
-| `HEAD_BLOOM_INTENSITY` | f32 | 0.40 | Peak head glow brightness (0–1). |
+| `HEAD_BLOOM_INTENSITY` | f32 | 0.36 | Peak head glow brightness (0–1). |
 | `HEAD_BLOOM_CELLS` | u16 | 2 | How many cells around the head get bloom (radius). |
-| `PARALLAX_HEAD_BLOOM_MULT` | [f32; 3] | [0.48, 0.74, 1.30] | Per-layer head bloom multiplier (Option F hero lever). |
+| `PARALLAX_HEAD_BLOOM_MULT` | [f32; 3] | [0.48, 0.74, 1.24] | Per-layer head bloom multiplier (the hero lever). |
 | `PARALLAX_HEAD_SELFBLOOM_MULT` | [f32; 3] | [0.38, 0.68, 1.20] | Per-layer self-bloom halo multiplier. |
 | `HEAD_SELFBLOOM_BASE` | f32 | ~0.234 | Base head self-bloom intensity (fraction of white-blend). |
 
@@ -205,7 +205,7 @@ rather than bright pixels.
 
 - **Bigger, softer halos**: raise `HEAD_BLOOM_SIGMA` from 1.2 -> 1.8 and `HEAD_BLOOM_CELLS` from 2 -> 3.
 - **Smaller, harder pinprick heads**: lower `HEAD_BLOOM_SIGMA` from 1.2 -> 0.8 and `HEAD_BLOOM_CELLS` from 2 -> 1.
-- **Stronger hero pop**: raise `PARALLAX_HEAD_BLOOM_MULT[2]` from 1.30 -> 1.45 (pushes head pop ratio above 9× back).
+- **Stronger hero pop**: raise `PARALLAX_HEAD_BLOOM_MULT[2]` from 1.24 -> 1.40 (pushes the head pop harder against the back layers).
 
 ### 3.4 Atmospheric depth & edge effects (lines 433–510)
 
@@ -218,18 +218,18 @@ vignette, and rain shadow. Depth fog is disabled in v50 alpha.2
 | `FOG_ROWS` | u16 | 3 | Rows affected by depth fog (disabled: FOG_MIN_FACTOR=1.0). |
 | `FOG_MIN_FACTOR` | f32 | **1.0** | Minimum fog brightness (**1.0 = disabled**). Was 0.45; disabled in v50 alpha.2 because depth fog compounded destructively with viewport_edge_fade + CRT vignette, producing 76%/93% dim at edges. |
 | `CRT_VIGNETTE_HEIGHT` | u16 | 3 | Top/bottom vignette band height. |
-| `CRT_VIGNETTE_EDGE_FACTOR` | f32 | 0.90 | Edge darkness factor (0.90 = 10% dim at edges). |
+| `CRT_VIGNETTE_EDGE_FACTOR` | f32 | 0.87 | Edge darkness factor (0.87 = 13% dim at edges). |
 | `CRT_VIGNETTE_PERF_THRESHOLD` | f32 | 0.5 | Performance gate — below this FPS, vignette is skipped. |
-| `VIGNETTE_INTENSITY` | f32 | 0.20 | Radial vignette strength (0–1). |
-| `VIGNETTE_INNER_RADIUS` | f32 | 0.7 | Inner radius where vignette starts (0–1 of screen). |
+| `VIGNETTE_INTENSITY` | f32 | 0.14 | Radial vignette strength (0–1). |
+| `VIGNETTE_INNER_RADIUS` | f32 | 0.75 | Inner radius where vignette starts (0–1 of screen). |
 | `VIGNETTE_LAYER_MULT` | [f32; 3] | [1.0, 1.0, 0.0] | Per-layer vignette (front exempt). |
-| `RAIN_SHADOW_PCT` | f32 | 0.10 | Bottom 10% of screen gets quadratic fade. |
+| `RAIN_SHADOW_PCT` | f32 | 0.13 | Bottom 13% of screen gets quadratic fade. |
 | `RAIN_SHADOW_LAYER_MULT` | [f32; 3] | [1.0, 1.0, 0.0] | Per-layer rain shadow (front exempt). |
 
 **Tuning recipes**:
 
 - **No vignette (flat full-screen)**: set `VIGNETTE_INTENSITY = 0.0` and `CRT_VIGNETTE_EDGE_FACTOR = 1.0`.
-- **Stronger CRT vibe**: raise `VIGNETTE_INTENSITY` from 0.20 -> 0.50 and `CRT_VIGNETTE_HEIGHT` from 3 -> 8.
+- **Stronger CRT vibe**: raise `VIGNETTE_INTENSITY` from 0.14 -> 0.50 and `CRT_VIGNETTE_HEIGHT` from 3 -> 8.
 - **Front layer also vignetted (uniform depth)**: change `VIGNETTE_LAYER_MULT` from `[1.0, 1.0, 0.0]` -> `[1.0, 1.0, 1.0]`.
 
 ### 3.5 Velocity & motion (lines 405–422)
@@ -287,7 +287,7 @@ emergent moments, gusts, atmosphere ticks.
 | `COLOR_CLIMATE_DRIFT_RATE` | f32 | 0.008 | Luminance climate drift speed. |
 | `COLOR_SATURATION_DRIFT_RATE` | f32 | 0.005 | Saturation climate drift speed. |
 | `COLOR_HUE_DRIFT_RATE` | f32 | 0.015 | Hue climate drift speed. |
-| `AUTONOMOUS_PALETTE_DRIFT_CHANCE` | f32 | 0.12 | Crystal Dragon drift chance per tick. |
+| `CRYSTAL_DRAGON_DRIFT_CHANCE` | f32 | 1.0 | Crystal Dragon drift chance per tick (1.0 = drift every tick; pacing comes from `CRYSTAL_DRAGON_MIN_DWELL_SECS`). |
 | `CRYSTAL_DRAGON_POLLING_SECS` | f32 | 60.0 | Crystal Dragon sensor polling interval. |
 | `EMERGENT_MOMENT_CHANCE` | f32 | 0.08 | Chance per storytelling tick of an emergent moment. |
 | `EMERGENT_MOMENT_DURATION_SECS` | f32 | 8.0 | How long an emergent moment lasts. |
@@ -399,17 +399,16 @@ over the rain.
 | `MOUSE_GLOW_RADIUS_COLS` | f32 | 7.0 | Glow radius in columns. |
 | `MOUSE_GLOW_RADIUS_LINES` | f32 | 5.0 | Glow radius in lines. |
 | `MOUSE_GLOW_INTENSITY` | f32 | 0.25 | Static glow intensity (0.25 = subtle on by default). |
-| `MOUSE_FLASH_SPEED` | f32 | 32.0 | Shockwave speed c (cells/s, horizontal). |
-| `MOUSE_FLASH_INTENSITY` | f32 | 0.85 | Shockwave peak brightness factor. |
-| `MOUSE_FLASH_WAVE_DAMPING` | f32 | 6.0 | Shockwave volume damping k (telegraph form; life ~1.8 s). |
+| `MOUSE_FLASH_SPEED` | f32 | 48.0 | Shockwave speed c (cells/s, horizontal). |
+| `MOUSE_FLASH_INTENSITY` | f32 | 2.0 | Shockwave peak brightness factor. |
+| `MOUSE_FLASH_WAVE_DAMPING` | f32 | 1.8 | Shockwave volume damping k (telegraph form). |
 | `MOUSE_FLASH_DT_MAX` | f32 | 1/120 | Solver sub-step ceiling (CFL margin ~11x). |
 | `MOUSE_FLASH_SETTLE_EPS` | f32 | 0.004 | Settle floor (field clears below this). |
 
 **Tuning recipes**:
 
 - **Always-on mouse glow**: set `MOUSE_GLOW_INTENSITY = 0.5`.
-- **Bigger flash**: raise `MOUSE_FLASH_INTENSITY` from 0.85 -> 1.0 (the
-  brightness factor saturates there).
+- **Bigger flash**: raise `MOUSE_FLASH_INTENSITY` from 2.0 -> 3.0.
 - **Slower ripple**: lower `MOUSE_FLASH_SPEED` (the wave equation's c).
 - **Shorter afterglow**: raise `MOUSE_FLASH_WAVE_DAMPING` (the envelope
   halves every `2*ln(2)/k` seconds).
@@ -457,11 +456,11 @@ or for users who want the same rain every launch.
 
 | Constant | Type | Current | Effect |
 |----------|------|--------:|--------|
-| `EDGE_FADE_ROWS` | u16 | 3 | Top edge fade rows. |
-| `EDGE_FADE_BOTTOM_ROWS` | u16 | 10 | Bottom edge fade rows. |
-| `EDGE_FADE_BOTTOM_LIP` | f32 | 0.72 | Bottom lip fade factor. |
-| `EDGE_FADE_TOP_MIN` | f32 | 0.70 | Top min brightness. |
-| `EDGE_FADE_BOTTOM_MIN` | f32 | 0.55 | Bottom min brightness. |
+| `EDGE_FADE_ROWS` | u16 | 2 | Top edge fade rows. |
+| `EDGE_FADE_BOTTOM_ROWS` | u16 | 12 | Bottom edge fade rows. |
+| `EDGE_FADE_BOTTOM_LIP` | f32 | 0.82 | Bottom lip fade factor. |
+| `EDGE_FADE_TOP_MIN` | f32 | 0.48 | Top min brightness. |
+| `EDGE_FADE_BOTTOM_MIN` | f32 | 0.68 | Bottom min brightness. |
 | `EDGE_FADE_BOLD_THRESHOLD` | f32 | 0.5 | Brightness below which bold is suppressed at edges. |
 | `PHOSPHOR_EDGE_ENERGY_CAP` | u8 | 64 | Edge phosphor energy cap. |
 | `PHOSPHOR_EDGE_ROW_TAPER` | u8 | 8 | Edge row taper count. |
@@ -480,9 +479,9 @@ Use this as a quick lookup when designing a custom tuning.
 === Parallax depth layers ===
 PARALLAX_LAYERS                    = 3
 PARALLAX_SPEED_MULT                = [0.35, 1.0, 1.7]
-PARALLAX_BRIGHTNESS_MULT           = [0.52, 0.80, 1.10]
-PARALLAX_SATURATION_MULT           = [0.50, 0.84, 1.12]
-PARALLAX_HEAD_BLOOM_MULT           = [0.48, 0.74, 1.30]
+PARALLAX_BRIGHTNESS_MULT           = [0.56, 0.82, 1.08]
+PARALLAX_SATURATION_MULT           = [0.52, 0.84, 1.10]
+PARALLAX_HEAD_BLOOM_MULT           = [0.48, 0.74, 1.24]
 PARALLAX_HEAD_SELFBLOOM_MULT       = [0.38, 0.68, 1.20]
 PARALLAX_LENGTH_MULT               = [0.5, 1.0, 1.4]
 PARALLAX_DENSITY_MULT              = [0.45, 0.62, 0.85]
@@ -490,17 +489,17 @@ PARALLAX_GLYPH_DIM                 = [1.0, 1.0, 1.0]
 PARALLAX_CONTRAST_REDUCTION        = [0.50, 0.18, 0.0]
 
 === Phosphor persistence ===
-PHOSPHOR_DECAY_RATE                = 5.0
+PHOSPHOR_DECAY_RATE                = 8.0
 PHOSPHOR_TAIL_RESIDUAL             = 160
 PHOSPHOR_DEAD_THRESHOLD            = 6
 PHOSPHOR_GLYPH_THRESHOLD           = 96
-PHOSPHOR_LAYER_DECAY_MULT          = [2.0, 1.2, 0.6]
+PHOSPHOR_LAYER_DECAY_MULT          = [1.9, 1.15, 0.65]
 PHOSPHOR_BOTTOM_ROWS               = 12
-PHOSPHOR_BOTTOM_DECAY_MULT         = 3.0
+PHOSPHOR_BOTTOM_DECAY_MULT         = 1.8
 
 === Head bloom ===
 HEAD_BLOOM_SIGMA                   = 1.2
-HEAD_BLOOM_INTENSITY               = 0.40
+HEAD_BLOOM_INTENSITY               = 0.36
 HEAD_BLOOM_CELLS                   = 2
 HEAD_SELFBLOOM_BASE                = ~0.234
 
@@ -508,12 +507,12 @@ HEAD_SELFBLOOM_BASE                = ~0.234
 FOG_ROWS                           = 3
 FOG_MIN_FACTOR                     = 1.0 (disabled)
 CRT_VIGNETTE_HEIGHT                = 3
-CRT_VIGNETTE_EDGE_FACTOR           = 0.90
+CRT_VIGNETTE_EDGE_FACTOR           = 0.87
 CRT_VIGNETTE_PERF_THRESHOLD        = 0.5
-VIGNETTE_INTENSITY                 = 0.20
-VIGNETTE_INNER_RADIUS              = 0.7
+VIGNETTE_INTENSITY                 = 0.14
+VIGNETTE_INNER_RADIUS              = 0.75
 VIGNETTE_LAYER_MULT                = [1.0, 1.0, 0.0]
-RAIN_SHADOW_PCT                    = 0.10
+RAIN_SHADOW_PCT                    = 0.13
 RAIN_SHADOW_LAYER_MULT             = [1.0, 1.0, 0.0]
 
 === Velocity & motion ===
@@ -548,7 +547,7 @@ COLOR_LUMINANCE_CLIMATE_MIN        = 0.75
 COLOR_LUMINANCE_CLIMATE_MAX        = 1.0
 COLOR_SATURATION_CLIMATE_MIN       = 0.7
 COLOR_SATURATION_CLIMATE_MAX       = 1.0
-AUTONOMOUS_PALETTE_DRIFT_CHANCE    = 0.12
+CRYSTAL_DRAGON_DRIFT_CHANCE        = 1.0
 CRYSTAL_DRAGON_POLLING_SECS        = 60.0
 
 === Profile transitions ===
@@ -597,15 +596,15 @@ EMERGENT_DENSITY_INTENSITY         = 0.25
 EMERGENT_SPEED_SHIFT               = 0.15
 
 === Easing ===
-RESUME_EASE_DURATION_SECS          = 0.45
-PAUSE_EASE_DURATION_SECS           = 0.30
+RESUME_EASE_DECAY_RATE             = 0.9
+PAUSE_EASE_DECAY_RATE              = 1.2
 
 === Edge fade ===
-EDGE_FADE_ROWS                     = 3
-EDGE_FADE_BOTTOM_ROWS              = 10
-EDGE_FADE_BOTTOM_LIP               = 0.72
-EDGE_FADE_TOP_MIN                  = 0.70
-EDGE_FADE_BOTTOM_MIN               = 0.55
+EDGE_FADE_ROWS                     = 2
+EDGE_FADE_BOTTOM_ROWS              = 12
+EDGE_FADE_BOTTOM_LIP               = 0.82
+EDGE_FADE_TOP_MIN                  = 0.48
+EDGE_FADE_BOTTOM_MIN               = 0.68
 EDGE_FADE_BOLD_THRESHOLD           = 0.5
 PHOSPHOR_EDGE_ENERGY_CAP           = 64
 PHOSPHOR_EDGE_ROW_TAPER            = 8
@@ -614,9 +613,9 @@ PHOSPHOR_EDGE_ROW_TAPER            = 8
 MOUSE_GLOW_RADIUS_COLS             = 7.0
 MOUSE_GLOW_RADIUS_LINES            = 5.0
 MOUSE_GLOW_INTENSITY               = 0.25
-MOUSE_FLASH_SPEED                  = 32.0
-MOUSE_FLASH_INTENSITY              = 0.85
-MOUSE_FLASH_WAVE_DAMPING           = 6.0
+MOUSE_FLASH_SPEED                  = 48.0
+MOUSE_FLASH_INTENSITY              = 2.0
+MOUSE_FLASH_WAVE_DAMPING           = 1.8
 MOUSE_FLASH_DT_MAX                 = 0.008333334
 MOUSE_FLASH_SETTLE_EPS             = 0.004
 
@@ -940,7 +939,7 @@ pub const GUST_IDLE_MAX_SECS: f64 = 1e18;
 pub const COLOR_CLIMATE_DRIFT_RATE: f32 = 0.0;
 pub const COLOR_SATURATION_DRIFT_RATE: f32 = 0.0;
 pub const COLOR_HUE_DRIFT_RATE: f32 = 0.0;
-pub const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.0;
+pub const CRYSTAL_DRAGON_DRIFT_CHANCE: f32 = 0.0;
 pub const GHOST_SPAWN_CHANCE_PER_TICK: f64 = 0.0;
 ```
 

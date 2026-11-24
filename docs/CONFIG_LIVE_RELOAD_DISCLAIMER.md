@@ -79,7 +79,8 @@ These are documented in detail in `docs/LIVE_RELOAD_BEHAVIOR.md`
 - **Limitation C** — `color.tune` reset-on-comment — **FIXED** in
   v50.0.0-alpha.7 (kept here as historical context).
 - **Limitation D** — Ambient-owned config keys (`scene`, `color`,
-  `charset`, `fps`, `speed`, `density`, `glitch-level`) are no-ops
+  `charset`, `fps`, `speed`, `density`, `glitch-level`, `rain_style`)
+  are no-ops
   while the ambient overlay is active (v80.0.0-beta.2: `fps` joined
   the list — the ambient scene owns the frame target; a config-set
   custom palette also loses to the ambient scene's color). Shortkeys
@@ -104,8 +105,9 @@ These are documented in detail in `docs/LIVE_RELOAD_BEHAVIOR.md`
 - **Single ambient entry is active all day.** A schedule with only
   one entry wraps via midnight carry-over. Use two entries if you
   want a scene to activate only after a specific time.
-- **Restart-only keys**: `intro` and `intro-color` (the intro is a
-  one-shot animation, not live-reloadable). Documented, not a gap.
+- **Restart-only keys**: `intro` (the intro is a one-shot animation,
+  not live-reloadable; `intro-color` itself live-reloads with a
+  soft-fail on invalid values). Documented, not a gap.
 
 ## What this disclaimer is NOT
 

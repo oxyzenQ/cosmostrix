@@ -73,7 +73,7 @@ Documented **"no new unsafe in renderer/core paths"** policy (`docs/archive/SIMD
 
 **Trust boundary (honest limits — the direct answer to "why is text still copyable")**: terminal emulators split into two classes, and only one of them is reachable by any TUI application. *Bypass terminals* (the mainstream default: xterm, VTE/GNOME Terminal and derivatives, kitty, WezTerm, Alacritty, iTerm2, Windows Terminal, foot) intercept modified clicks THEMSELVES for their local selection engine and never deliver the events to the application — no escape sequence exists that revokes a terminal's own selection engine, its select-all shortcut (Cmd/Ctrl+Shift+A), Ctrl+Shift+C copy, middle-click primary paste, screenshot tools, or a multiplexer's copy-mode (tmux/screen sit between the app and the terminal and own their own pane selection). In that class, "still able to copy" is terminal physics, not a cosmostrix gap; the only counters live outside the application (OS kiosk policies, screenshot-permission controls) or mean not rendering the text at all (graphics-protocol pixel output — deliberately out of scope for a text renderer). *Forwarding terminals* (a minority; the legacy Windows console input path is the notable case) deliver modified mouse events to the app, and there cosmostrix actively degrades every selection attempt as described above. What cosmostrix guarantees is everything inside its own boundary: mouse capture held for the whole run, no app-offered copy path, pasted content discarded, and zero visual acknowledgment plus grid churn for every selection gesture that actually reaches the application.
 
-**Dependencies** — 11 direct deps, all mainstream. No crypto crates, no HTTP client crates, no TLS crates, no filesystem-walk crates, no subprocess-management crates, no async runtimes. Every direct dependency (clap, crossterm, rand, bitvec, smallvec, unicode-width, notify, sha2, signal-hook, libc, ctrlc) is mainstream and matches the stated purpose of a terminal renderer. Feature-flag minimality (Dragon Hunt v2 Phase 4): `clap`/`crossterm`/`notify` all have `default-features = false` with only the required features enabled. License policy: `deny.toml` enforces an allowlist (Apache-2.0, MIT, AGPL-3.0-only, BSD-2/3-Clause, ISC, Unicode-3.0, Zlib, MPL-2.0, CC0-1.0) and `cargo deny check all` runs in CI.
+**Dependencies** — 12 direct deps, all mainstream. No crypto crates, no HTTP client crates, no TLS crates, no filesystem-walk crates, no subprocess-management crates, no async runtimes. Every direct dependency (clap, crossterm, rand, bitvec, smallvec, unicode-width, notify, sha2, blake3, signal-hook, libc, ctrlc) is mainstream and matches the stated purpose of a terminal renderer. Feature-flag minimality (Dragon Hunt v2 Phase 4): `clap`/`crossterm`/`notify` all have `default-features = false` with only the required features enabled. License policy: `deny.toml` enforces an allowlist (AGPL-3.0-only, Apache-2.0, MIT, GPL-3.0-or-later, BSD-2/3-Clause, ISC, Unicode-3.0, Unicode-DFS-2016, Zlib, MPL-2.0, CC0-1.0) and `cargo deny check all` runs in CI.
 
 ## 7. External Scripts + CI/CD + build.rs
 
@@ -131,7 +131,7 @@ behavior only.
 
 ## 10. Recommended Ongoing Security Practices
 
-1. Run `cargo audit` weekly (automated in `gitbot-audit.yml`'s Sunday 10:00 WIB run).
+1. Run `cargo audit` (automated in `gitbot-audit.yml` on every push and PR — the earlier weekly-cron wording was retired in night-fly-1).
 2. Run `cargo deny check all` before each release (already in `maintenance.yml`).
 3. Pin transitive deps when upstream `notify` v7 lands (currently 3 duplicate-version warnings, all Windows-only, documented in `deny.toml:47-64`).
 4. Consider replacing `curl` subprocess in `--check-update` with `ureq` (compiled-out by default) so users don't need to trust whatever `curl` binary is on `PATH`. Defense-in-depth, not a vulnerability.
@@ -236,7 +236,7 @@ refusal could break.
 - `docs/ENDURANCE.md` — long-running stability methodology
 - `docs/TERMINAL_COMPATIBILITY.md` — terminal compatibility matrix
 - `deny.toml` — license + advisory policy
-- `.github/workflows/gitbot-audit.yml` — weekly (Sunday 10:00 WIB) `cargo audit` + `cargo deny`
+- `.github/workflows/gitbot-audit.yml` — every push and PR: `cargo audit` + optional `cargo deny`
 - `.github/workflows/maintenance.yml` — two-phase dep auto-update
 
 <!-- COSMOSTRIX-DISCLAIMER -->

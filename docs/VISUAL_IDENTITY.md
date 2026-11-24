@@ -68,7 +68,7 @@ and bright heads, and the heavy lens darkening.
 | `PARALLAX_SATURATION_MULT` | [0.52, 0.84, 1.10] | Slightly muted head color |
 | `PARALLAX_HEAD_BLOOM_MULT` | [0.48, 0.74, 1.24] | Glare control |
 | `PARALLAX_CONTRAST_REDUCTION` | [0.50, 0.18, 0.0] | Fog identity kept from noir |
-| `PHOSPHOR_DECAY_RATE` | 5.5 | ~360 ms trail — less residual busyness |
+| `PHOSPHOR_DECAY_RATE` | 8.0 | ~0.4 s trail — less residual busyness |
 | `PHOSPHOR_LAYER_DECAY_MULT` | [1.9, 1.15, 0.65] | Back clears faster, front lingers |
 | `PHOSPHOR_BOTTOM_DECAY_MULT` | 1.8 | Dissolve lingers slightly |
 | `HEAD_BLOOM_INTENSITY` | 0.36 | Glare control |

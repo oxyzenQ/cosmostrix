@@ -35,7 +35,7 @@
 //! ## Optimization Philosophy
 //!
 //! Performance work follows a "measure, don't guess" discipline. The benchmark
-//! subsystem (`bench.rs`) provides reproducible metrics with warmup phases
+//! subsystem (`src/bench/`) provides reproducible metrics with warmup phases
 //! and outlier trimming. Optimizations target real bottlenecks identified
 //! through profiling, not hypothetical micro-optimizations.
 
@@ -388,7 +388,7 @@ fn main() -> std::io::Result<()> {
     // dynamic default FPS (terminal-aware: 144 high-perf / 60 std
     // / 30 xterm.js) when user didn't set --fps. track which
     // resolution layer won so verbose can show `fps_precedence:`. See
-    // the FPS Precedence Chain doc in termdetect.rs.
+    // the FPS Precedence Chain doc in `termdetect/mod.rs`.
     let term_caps = crate::termdetect::detect();
     let cli_fps_explicit = matches!(
         matches.value_source("fps"),

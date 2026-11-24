@@ -45,7 +45,7 @@ cargo clippy --locked --all-targets --all-features -- -D warnings
 ```
 
 All tests must pass.  Clippy must produce zero warnings.  The
-build.sh comprehensive check, the 16-check gate-keeper sweep, and the
+build.sh comprehensive check, the gate-keeper sweep, and the
 release-build verification (binary sizes, `--doctor`, metadata,
 strip status) must all pass.
 
@@ -158,7 +158,7 @@ If no terminal code changed since the last release, this gate is a
 lightweight review (confirm matrix doc exists, no changes needed).
 
 See `docs/TERMINAL_LIFECYCLE_MATRIX.md` for the full matrix of all
-14 lifecycle paths and their expected behavior.
+15 lifecycle paths and their expected behavior.
 
 ### Gate 8 — CI green
 
@@ -203,10 +203,13 @@ Verify the binary checksum matches before updating the AUR package.
   SIGKILL.  Terminal residue after SIGKILL is expected and documented
   in `docs/TERMINAL_KILL_CLEANUP.md`.
 
-* **50k FPS is not a release promise.**  The 50k FPS lab target was
-  not reached and is not promised for any release.  Do not reference
-  50k FPS in release notes, CHANGELOG, or marketing material as a
-  achieved or guaranteed target.
+* **FPS numbers are not a release promise.** Measured headless figures
+  vary by hardware and build (from ~28K avg FPS on a laptop Ryzen —
+  `docs/RENDER_ENGINE.md` — to ~100K+ on a 2-vCPU cloud Xeon —
+  `docs/PERFORMANCE_ACROSS_SCALES.md`). No FPS figure is promised for
+  any release. Do not reference an FPS figure in release notes,
+  CHANGELOG, or marketing material as an achieved or guaranteed
+  target.
 
 * **Renderer invariants are non-negotiable.**  Every release must
   honestly report:
@@ -216,7 +219,7 @@ Verify the binary checksum matches before updating the AUR package.
 
 * **Terminal lifecycle matrix is authoritative.**  The matrix in
   `docs/TERMINAL_LIFECYCLE_MATRIX.md` defines expected cleanup behavior
-  for all 14 lifecycle paths.  Owner visual smoke testing is required
+  for all 15 lifecycle paths.  Owner visual smoke testing is required
   before release if terminal code changes.
 
 * **Owner visual smoke remains required before release** if terminal

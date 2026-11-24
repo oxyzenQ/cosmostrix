@@ -383,7 +383,7 @@ impl Terminal {
             //
             // Only pushed when `term_caps.kitty_keyboard` is true
             // (detected via KITTY_KEYBOARD_TERMINALS list — see
-            // termdetect.rs). On terminals that don't support the
+            // `termdetect/mod.rs`). On terminals that don't support the
             // protocol, the push would emit literal `CSI >1u` characters
             // into the input stream, polluting it.
             //

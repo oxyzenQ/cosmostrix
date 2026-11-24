@@ -212,9 +212,9 @@ impl ColorCache {
     /// generate a unique (fg, bg) per cell and the cache always misses.
     ///
     /// At 46K FPS × 235 cells = 10.8M atomic RMW ops/sec, the silent variant
-    /// saves ~5-10% of the per-cell SGR cost. The bench writer has its own
-    /// local counters in `TerminalIoMetrics` if it ever needs to report
-    /// hit/miss rate (currently unused — kept for future use).
+    /// saves ~5-10% of the per-cell SGR cost. The bench writer runs silent
+    /// by design; hit/miss reporting lives in the interactive path's
+    /// shutdown summary (`event_loop_finalize`).
     #[inline]
     pub(crate) fn sgr_for_cell_silent(
         &self,

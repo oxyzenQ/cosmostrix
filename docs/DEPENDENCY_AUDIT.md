@@ -53,7 +53,7 @@ deps are yanked.
 
 The real signals to act on:
 - **CVE in current version** → update immediately (monitored by
-  `gitbot-audit.yml` weekly Sunday `cargo audit`)
+  `gitbot-audit.yml` `cargo audit` on every push and PR)
 - **Current version unmaintained** (no commits for 2+ years AND a newer
   major exists) → plan a migration
 - **New version has a feature you need** → update for that feature
@@ -230,8 +230,8 @@ Each major update PR MUST:
 The existing `maintenance.yml` weekly cron already runs
 `cargo update` + `cargo audit` + `cargo deny check all`. This handles:
 - Semver-compatible updates (applied automatically, CI verifies).
-- CVE monitoring (cargo audit, weekly Sunday via `gitbot-audit.yml`).
-- License compliance (cargo deny, weekly Sunday).
+- CVE monitoring (cargo audit, every push and PR via `gitbot-audit.yml`).
+- License compliance (cargo deny, same lane).
 
 No changes needed to the maintenance workflow — it's already correct.
 
@@ -260,8 +260,8 @@ The "latest = best" assumption is wrong for LTS/dormant-mode projects:
 
 | Signal | Tool | Frequency | Action |
 |--------|------|-----------|--------|
-| CVE in a dep | `cargo audit` | Daily (`gitbot-audit.yml`) | Update the affected dep immediately |
-| License violation | `cargo deny check` | Daily (`gitbot-audit.yml`) | Replace or obtain license |
+| CVE in a dep | `cargo audit` | Every push and PR (`gitbot-audit.yml`) | Update the affected dep immediately |
+| License violation | `cargo deny check` | Every push and PR (`gitbot-audit.yml`) | Replace or obtain license |
 | New major version available | `cargo update --verbose` | Quarterly manual check | Audit per this doc's framework |
 | Dep unmaintained (2+ years no commits) | crates.io page | Annual check | Plan migration |
 
@@ -270,7 +270,7 @@ The "latest = best" assumption is wrong for LTS/dormant-mode projects:
 - `docs/SUPPLY_CHAIN.md` — dependency policy, license allow-list, lockfile discipline
 - `docs/MAINTENANCE.md` — dormant-mode maintenance guide (Section 4: dependency updates)
 - `.github/workflows/maintenance.yml` — weekly `cargo update` cron
-- `.github/workflows/gitbot-audit.yml` — weekly (Sunday 10:00 WIB) `cargo audit` + `cargo deny`
+- `.github/workflows/gitbot-audit.yml` — every push and PR: `cargo audit` + optional `cargo deny`
 - `deny.toml` — license/source/duplicate policy
 
 <!-- COSMOSTRIX-DISCLAIMER -->

@@ -151,7 +151,7 @@ one is honest to correct.
 **1. "Aesthetic renderer = shallow renderer."**
 The visual is the surface. Below it: three locked engines (Cosmic
 Dragon diff-based render, Chroma Dragon OKLab Phase 9-D color
-pipeline, Crystal Dragon ambient scheduler), 110K lines of Rust, 14
+pipeline, Crystal Dragon ambient scheduler), over 110K lines of Rust, 14
 rain styles — six of them original motion-math systems
 (Navier-Stokes FLIP/PIC, Physarum stigmergy, Lorenz RK4, boids
 spatial hash, FABRIK chain dynamics, Keplerian orbits) — and 71,062
@@ -239,7 +239,7 @@ The contract is [docs/INNOVATIONS.md](docs/INNOVATIONS.md) entry 49.
 ### Intelligence & Power
 
 - **Crystal Dragon Engine** — ambient intelligence for palette drift from system state (`--crystal-dragon`), point-based temperature grouping (Cold/Medium/Hot) with OKLab smooth transitions.
-- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config (1..=24 entries per schedule — NIGHT-hunt-39, tightened by NIGHT-hunt-40; 25+ is rejected on every surface, never silently truncated). A dynamic idle/wake scheduler thread spends zero CPU between phase boundaries. Crystal Dragon drift overrides the ambient palette, and the ambient snapback reverts it after `ambient-snapback-secs` — the two systems cooperate by taking turns. Both timing knobs are tunable online (`ambient-snapback-secs` and `--crystal-dragon-secs` / `crystal-dragon-secs`, 0.0..=86400.0, default 60, human forms accepted: `45`, `45s`, `1m`, `1h30m` — one vocabulary across CLI and config; keep snapback < polling for the cleanest take-turns rhythm — the owner's verified pair is 15s + 10s). When ambient is off, Crystal Dragon drifts on its own cadence with a self-resetting cycle. See `docs/AMBIENT_SCHEDULER.md` "Usage Quick Guide" for the timing recipes.
+- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config (1..=24 entries per schedule — NIGHT-hunt-39, tightened by NIGHT-hunt-40; 25+ is rejected on every surface, never silently truncated). A dynamic idle/wake scheduler thread spends zero CPU between phase boundaries. Crystal Dragon drift overrides the ambient palette, and the ambient snapback reverts it after `ambient-snapback-secs` — the two systems cooperate by taking turns. Both timing knobs are tunable online (`ambient-snapback-secs` and `--crystal-dragon-secs` / `crystal-dragon-secs`, 0.0..=86400.0, snapback defaulting to 30 and the drift cadence to 60, human forms accepted: `45`, `45s`, `1m`, `1h30m` — one vocabulary across CLI and config; keep snapback < polling for the cleanest take-turns rhythm — the owner's verified pair is 15s + 10s). When ambient is off, Crystal Dragon drifts on its own cadence with a self-resetting cycle. See `docs/AMBIENT_SCHEDULER.md` "Usage Quick Guide" for the timing recipes.
 - **Self-healer** — P1 auto scene downgrade (switches to `low-power` under sustained pressure, restores when pressure drops) and P2 endurance health mitigation (full redraw + memory reclaim hints).
 - **Endurance subsystem** — activity prediction, idle coalescing, memory reclaim hints (Linux `madvise`), and Endurance Health Score (0–100) for long-running sessions.
 - **Power Dragon** — adaptive throttling reduces CPU when idle (30s no-input -> 0.5× FPS). Thermal pressure tracking feeds into the self-healer. With it on, the HUD `dsty:` line shows the EFFECTIVE (pressure-banded) density — `density = 0.90` can display ~0.65 under moderate pressure; `power-dragon = false` (or `--power-dragon false`) pins the exact configured value.
@@ -295,7 +295,7 @@ cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 
 ## Requirements
 
-- Rust 1.98.1+ (MSRV, pinned via `rust-toolchain.toml`) to build from source
+- Rust 1.98.1 (the pinned toolchain via `rust-toolchain.toml`; the crate's MSRV is 1.98, declared in `Cargo.toml`) to build from source
 - Linux kernel 2.6.27+ / macOS 10.12+ / Windows 10 1809+
 - A terminal supporting ANSI escape sequences, alternate screen, and raw mode
 - Best results with 256-color or truecolor terminals

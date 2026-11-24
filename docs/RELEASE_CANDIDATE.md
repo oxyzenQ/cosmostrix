@@ -46,7 +46,7 @@ Must print `valid JSON`. The JSON object must contain 13 top-level keys: status,
 
 ```bash
 "$BIN" --benchmark --bench-duration 3   # exits 0, DRIFT section present
-"$BIN" --benchmark --bench-duration 600 # exits 0 (no max cap)
+"$BIN" --benchmark --bench-duration 600 # exits 0 (24h hard ceiling)
 "$BIN" --benchmark --bench-duration 0   # "below the 1-second minimum"
 "$BIN" --color green --color-tune "saturation=1.5,brightness=0.9" --benchmark   # valid
 "$BIN" --color aurora --color-tune "sat=0.0" --benchmark                        # grayscale
@@ -61,7 +61,7 @@ Must print `valid JSON`. The JSON object must contain 13 top-level keys: status,
 "$BIN"
 ```
 
-Then press `i` and verify: a top-left overlay appears showing the full HUD row set (fps, tgt, max, p99, cpu, rss, ehs, prs, scn, chr, clr, sped, dsty, dcel, tcel, prdr, crdr, ambt, glth, ctun, mnst, cid, up, screensize — see docs/HUD.md); the overlay updates ~1 time per second without flickering; press `i` again — the overlay disappears cleanly; press `q` — clean exit, terminal restored.
+Then press `i` and verify: a top-left overlay appears showing the full HUD row set (fps, tgt, max, p99, cpu, rss, ehs, prs, scn, chr, clr, sped, dsty, prdr, crdr, ambt, glth, ctun, mnst, rain, dcel, tcel, cid, up, screensize — see docs/HUD.md); the overlay updates ~1 time per second without flickering; press `i` again — the overlay disappears cleanly; press `q` — clean exit, terminal restored.
 
 Note: `i` is lowercase-only (uppercase `I` is a no-op — see `docs/HUD.md` and `docs/RULES.md`).
 

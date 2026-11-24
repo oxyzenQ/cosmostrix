@@ -201,8 +201,8 @@ instead of snapping.
 Truth: `src/engine/chroma_dragon_engine/palette/mod.rs` (the pipeline),
 `src/engine/chroma_dragon_engine/tuning.rs` (the tuning constants).
 Verifier: the Chroma Dragon lock suite (invariants INV-01 through
-INV-19 across `test/engine/chroma_dragon_engine/tests/lock.rs` and
-`lock_inv13_19.rs`) —
+INV-22 across `test/engine/chroma_dragon_engine/tests/lock.rs`,
+`lock_inv13_19.rs`, `lock_inv20_z4a.rs`, and `lock_inv22_z5b.rs`) —
 `cargo test chroma_dragon_engine::tests::lock -- --nocapture`.
 
 ### 12. The central color theme registry
@@ -2221,8 +2221,8 @@ and the records are kept so the same debate does not rerun:
   handshake — already carries the exhaustive instrument: the
   cfg(loom) model proves a fired shutdown can never be lost for
   every interleaving up to the preemption bound, on every push
-  (loom.yml). The remaining atomic surface is 55 single-variable
-  flags, counters and stamps whose laws ride the pinned tests. The
+  (loom.yml). The remaining atomic surface is single-variable flags,
+  counters and stamps whose laws ride the pinned tests. The
   for-all tier over interleavings would therefore quantify over an
   empty set — the exact over-engineering the owner's law forbids,
   landed as a theorem with no subject. The honest NO is standing,

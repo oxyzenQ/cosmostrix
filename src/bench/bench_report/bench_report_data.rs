@@ -20,7 +20,8 @@ use crate::runtime::ColorMode;
 
 /// All computed metrics needed to build the premium benchmark report.
 ///
-/// Populated by the measurement loop in `bench.rs` and consumed by
+/// Populated by the measurement loops in `bench/premium.rs` and
+/// `bench/silent.rs` and consumed by
 /// [`build_premium_report`] to produce the final formatted output.
 /// This struct keeps the hot measurement code decoupled from the
 /// cold report-formatting code.

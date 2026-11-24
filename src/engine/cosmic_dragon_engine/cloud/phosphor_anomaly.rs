@@ -259,7 +259,7 @@ impl super::Cloud {
     /// T1.1: independent gate added. The sweep now short-circuits when
     /// `enable_stuck_cell_sweep` is false (independent of `enable_component_timing`).
     /// Default true for interactive runs; set to false in benchmark mode
-    /// (`bench.rs`) so the sweep's Vec growth does not pollute realloc
+    /// (`src/bench/`) so the sweep's Vec growth does not pollute realloc
     /// counters.
     /// NIGHT-hunter-17: removed the `enable_component_timing` second
     /// short-circuit — it meant the sweep NEVER ran unless `--perf-stats`

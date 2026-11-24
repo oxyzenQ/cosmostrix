@@ -213,9 +213,12 @@ Normal exit only restores terminal modes and leaves the alternate screen.
 It does NOT clear the screen or scrollback. This is intentional — the
 alternate screen buffer preserves the original terminal content.
 
-Signal exit (SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated) clears the visible viewport inside
-the alternate screen before leaving, preventing rain frame residue.
-It does NOT purge scrollback or modify the main screen.
+Signal exit (SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated) runs the same
+byte-identical cleanup as a normal `q` exit: `LeaveAlternateScreen`
+alone swaps the alternate buffer out invisibly (the old signal-exit
+viewport clear was removed — see "No extra viewport clear on signal
+exit" above and Phase 4B below). It does NOT purge scrollback or
+modify the main screen.
 
 `--reset-terminal` is the explicit destructive recovery option. It clears
 the screen, purges scrollback, runs `stty sane` and `reset`, and should
@@ -262,11 +265,19 @@ first clearing the visible viewport. The last rain frame content could
 momentarily appear on the main screen during the terminal emulator's
 alternate-to-main buffer switch, leaving visible glyph residue.
 
-Fix: `Terminal` now accepts a `signal_exit: Arc<AtomicBool>` flag. When
-set (by signal handlers for SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated), `cleanup_terminal()`
-writes `MoveTo(0,0)` + `Clear(All)` + flush to the alternate screen
-buffer before issuing `LeaveAlternateScreen`. Normal q/esc exit does not
-set this flag, so normal exit remains non-destructive.
+Fix (historical): `Terminal` accepted a `signal_exit: Arc<AtomicBool>`
+flag. When set (by signal handlers for SIGTERM/SIGHUP/SIGQUIT; SIGINT
+deprecated), `cleanup_terminal()` wrote `MoveTo(0,0)` + `Clear(All)` +
+flush to the alternate screen buffer before issuing
+`LeaveAlternateScreen`.
+
+Superseded: that in-alt-screen viewport clear was later REMOVED (see
+the "REMOVED Clear(All)" note in
+`src/engine/cosmic_dragon_engine/terminal/cleanup.rs` and "No extra
+viewport clear on signal exit" above) — an in-alt-screen `\x1b[2J`
+can wipe the main screen's scrollback on VTE-based emulators. Signal
+exit today is byte-identical to a normal `q` exit:
+`LeaveAlternateScreen` alone swaps the alternate buffer out invisibly.
 
 ### Manual Test
 
@@ -299,7 +310,8 @@ v4.8 merge remains blocked until owner-side visual smoke confirms the fix.
 
 A comprehensive matrix covering all terminal lifecycle paths (normal exit,
 SIGINT (deprecated), SIGTERM, SIGHUP, SIGQUIT, SIGTSTP/SIGCONT, SIGKILL, `--reset-terminal`,
-Windows Terminal, tmux, ssh, headless, benchmark mode, and doctor mode)
+Windows Terminal, tmux, ssh, headless, benchmark mode, piped/redirected
+stdout, and doctor mode)
 is maintained in `docs/TERMINAL_LIFECYCLE_MATRIX.md`. That document is
 the authoritative reference for cleanup guarantees across all paths.
 This document covers the signal handling implementation details.

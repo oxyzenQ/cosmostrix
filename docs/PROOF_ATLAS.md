@@ -43,7 +43,7 @@ inherits its number's truth from
 | 8 | Ghost-kanji cinematic events | [ghost_events.rs](../src/engine/cosmic_dragon_engine/cloud/ghost_events.rs) | [RENDER_ENGINE.md](RENDER_ENGINE.md) + the PTY lanes |
 | 9 | The entropy drift ecosystem | [ecosystem.rs](../src/engine/cosmic_dragon_engine/cloud/ecosystem.rs) | [RENDER_ENGINE.md](RENDER_ENGINE.md) + [ENDURANCE.md](ENDURANCE.md) |
 | 10 | Smooth pause (the exponential-decay easing family) | [pause.rs](../src/engine/cosmic_dragon_engine/cloud/pause.rs), [tests_pause_smooth_hunt8.rs](../test/engine/cosmic_dragon_engine/cloud/tests/tests_pause_smooth_hunt8.rs) | the pause/resume cloud seats |
-| 11 | The Chroma Dragon OKLab pipeline (Phase 9-D) | [palette/mod.rs](../src/engine/chroma_dragon_engine/palette/mod.rs), [lock.rs](../test/engine/chroma_dragon_engine/tests/lock.rs) | `cargo test chroma` (INV-01..INV-19) |
+| 11 | The Chroma Dragon OKLab pipeline (Phase 9-D) | [palette/mod.rs](../src/engine/chroma_dragon_engine/palette/mod.rs), [lock.rs](../test/engine/chroma_dragon_engine/tests/lock.rs) | `cargo test chroma` (INV-01..INV-22) |
 | 12 | The central color theme registry | [catalog.rs](../src/engine/chroma_dragon_engine/catalog.rs), [themes.rs](../src/engine/chroma_dragon_engine/catalog/themes.rs) | Chroma lock full-catalog sweep (INV-02) |
 | 13 | Color tune (the per-channel multipliers) | [tuning.rs](../src/engine/chroma_dragon_engine/tuning.rs) | the `--color-tune` contract ([FAQ.md](FAQ.md)) |
 | 14 | Crystal Dragon ambient drift | [crystal_dragon_engine/](../src/engine/crystal_dragon_engine/), [ambient/tests.rs](../test/engine/crystal_dragon_engine/ambient/tests.rs) | `cargo test crystal` |

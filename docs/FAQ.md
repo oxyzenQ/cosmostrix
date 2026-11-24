@@ -177,7 +177,7 @@ input (see the next question). The rendering substrate itself is
 |-----------|----------|------|
 | Cloud simulation | `cloud/` | rain simulation, monolith, phosphor decay, the render pipeline that decides each cell's glyph and color |
 | Frame buffer | `frame.rs` | differential 2D cell grid with double-buffered, generation-based dirty tracking (O(1) per-frame clear) |
-| Terminal output | `terminal/` | raw-mode guard, alternate screen, RLE-batched ANSI diff emission, 64 KiB buffered writer, `/dev/tty` fallback, I/O recovery |
+| Terminal output | `terminal/` | raw-mode guard, alternate screen, RLE-batched ANSI diff emission, 256 KiB buffered writer, `/dev/tty` fallback, I/O recovery |
 | Runtime types | `runtime.rs` | the `ColorScheme`/`ColorMode`/`ColorPipeline` vocabulary |
 
 The frame path, file by file (paths verified 2026-09-13):
@@ -187,7 +187,7 @@ event loop            src/interactive/event_loop.rs
   -> run_sim_and_draw src/interactive/event_loop_sim_draw.rs
      -> cloud.rain_at(frame, now)   simulation writes Cell values into Frame
      -> term.draw(frame)            only DIRTY cells re-emitted, RLE-batched
-        -> one write() syscall per frame (64 KiB buffer)
+        -> one write() syscall per frame (256 KiB buffer)
 ```
 
 `Terminal::draw` is a two-path strategy: full redraw when dimensions
@@ -341,7 +341,7 @@ and re-checkable on your own hardware with `--benchmark`):
 | Property | Verified range | Behavior |
 |---|---|---|
 | Per-cell cost | 20x20 -> 400x200 | ~80 ns/cell, O(1) (small uptick at 400x200 = cache pressure) |
-| Hot-path allocation | 6x6 -> 400x200 | 3.00 allocs/frame constant, zero from the render path |
+| Hot-path allocation | 6x6 -> 400x200 | 0.0 allocs/frame constant — the contract pin (INV-18 lean path, INV-25 production draw) |
 | Memory | 6x6 -> 400x200 | 3.7 -> 8.0 MiB, linear in cell count |
 | Dirty ratio | 6x6 -> 400x200 | 5.4% -> 1.8% — the diff engine writes FEWER cells (relatively) as the screen grows |
 

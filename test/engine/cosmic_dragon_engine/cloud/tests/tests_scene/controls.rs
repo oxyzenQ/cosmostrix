@@ -92,7 +92,7 @@ fn unknown_scene_does_not_change_state() {
 /// at runtime, but NOT its `fps` field. Cloud does not own `target_fps` —
 /// it lives on `PowerManager` in `event_loop.rs`, which is NOT mutated by
 /// `apply_scene_runtime`. This locks the "scene fps is startup-only by
-/// design" contract documented in `termdetect.rs` §FPS Precedence Chain.
+/// design" contract documented in `termdetect/mod.rs` §FPS Precedence Chain.
 /// If a future refactor adds runtime fps application, this test will fail
 /// loudly, forcing the author to either (a) update the docs + this test
 /// to acknowledge the new behavior, or (b) revert the change.

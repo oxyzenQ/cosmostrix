@@ -557,8 +557,9 @@ fn apply_palette_relative_floor(rgb: &mut [(u8, u8, u8)]) {
 /// for the full rationale. Continuity (`apply_body_tail_continuity`) is still
 /// applied afterward using the production `BODY_TAIL_MAX_GAP_RATIO`.
 ///
-/// Visibility: `pub(super)` so the engine lock suite at `chroma::lock_tests`
-/// can exercise it directly. Still private outside the `chroma` module.
+/// Visibility: `pub(super)` so the engine lock suite
+/// (`test/engine/chroma_dragon_engine/tests/lock.rs`) can exercise it
+/// directly. Still private outside the `chroma_dragon_engine` module.
 pub(super) fn apply_palette_relative_floor_with(
     rgb: &mut [(u8, u8, u8)],
     ratio: f32,
@@ -657,8 +658,9 @@ fn apply_body_tail_continuity(rgb: &mut [(u8, u8, u8)]) {
 /// Phase 7-b parameterized variant for tuning audits. Production callers should
 /// use [`apply_body_tail_continuity`], which uses the constant from `tuning`.
 ///
-/// Visibility: `pub(super)` so the engine lock suite at `chroma::lock_tests`
-/// can exercise it directly. Still private outside the `chroma` module.
+/// Visibility: `pub(super)` so the engine lock suite
+/// (`test/engine/chroma_dragon_engine/tests/lock.rs`) can exercise it
+/// directly. Still private outside the `chroma_dragon_engine` module.
 pub(super) fn apply_body_tail_continuity_with(rgb: &mut [(u8, u8, u8)], max_gap: f32) {
     let n = rgb.len();
     if n < 2 {

@@ -76,19 +76,21 @@
 
 ### Q1: "If I run `cosmostrix` (no options) then set `msg-mode = false` in config mid-run, does it reload without the default 'cosmostrix v-x' message?"
 
-**No.** `msg-mode` is not handled by `rebuild_cloud_config`. The
-renderer keeps showing the default "cosmostrix v50.0.0-beta.3" overlay
-until the user presses `q` and reruns cosmostrix. This is the collision
-the owner flagged: the user expects config edits to take effect
-immediately (like `color`/`speed`/`fps` do), but `msg-mode` silently
-ignores mid-run edits.
+**Yes.** `msg-mode` live-reloads (v50.0.0-alpha.7; an earlier version
+of this answer said "No" — that described the pre-alpha.7 behavior).
+Matrix row: key present wins; absent + CLI lock keeps the locked
+value; absent + no lock falls back to the default (true). The
+msg-mode gate also mirrors `config_apply.rs`: `msg-mode = false`
+clears a config-sourced message, while a CLI `-m` text survives
+under its own lock.
 
 ### Q2: "If I run `cosmostrix -m "hello"` then edit config to set `message = "hey"` mid-run, does it reload with 'hey'?"
 
-**No.** Same reason — `message` and `message-border` are not handled by
-`rebuild_cloud_config`. The renderer keeps showing "hello" until
-restart. This is inconsistent with `color`/`speed`/`fps` which DO
-live-reload.
+**Yes.** `message` and `message-border` live-reload (v50.0.0-alpha.7;
+an earlier version of this answer said "No" — that described the
+pre-alpha.7 behavior). Matrix row: key present wins; absent + CLI
+lock keeps the locked `-m` text; absent + no lock falls back to the
+default.
 
 ### Q3: "What about `power-dragon`, `crystal-dragon`, `async-mode`?"
 
@@ -99,11 +101,11 @@ live-reload.
 
 ### Q4: "And `intro-color` / `intro`?"
 
-**No, neither live-reloads.** Both are one-shot startup settings — the
-intro animation plays once at process start and never again. A config
-edit to `intro-color` or `intro` has no effect until restart. This is
-expected behavior (the owner already knew this), but it's inconsistent
-with the live-reload keys.
+**Split.** `intro-color` live-reloads (v50.0.0-alpha.7: key present
+wins, soft-fail on invalid values; an earlier version of this answer
+said "neither" — that was stale). `intro` does not — the intro
+animation plays once at process start, so a live-reload would be moot
+(matrix row: X NO, one-shot).
 
 ---
 
@@ -421,7 +423,7 @@ loaded in RAM. Terminal 2 continues running fine — it does NOT
 error on the config change.
 
 **Root cause**: cosmostrix's file watcher detects config.toml
-content changes via SHA-256 hash. When `--dump-config --force`
+content changes via SHA-512 hash. When `--dump-config --force`
 rewrites the file, the hash changes, and the watcher fires a
 reload. The reload reads the new (default) config — but since the
 default template has all values commented out, the parsed config

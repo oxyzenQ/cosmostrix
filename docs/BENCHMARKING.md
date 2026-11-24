@@ -541,7 +541,7 @@ post-fix points are the styles' true structure signatures.
 | `dirty_glyphs_per_second` | glyphs/sec | Changed cells per second — the work the diff engine actually emits. |
 | `peak_rss` | MiB | Peak resident set size. Steady growth across runs = possible leak. |
 | `avg_cpu_percent` | % | Process CPU%. ~99% = single-threaded, fully utilized. |
-| `alloc_calls_per_frame` | count | Fresh allocations per frame, attributed to the bench thread (single-threaded bench: process totals). Higher = leaking heap. v30 baseline: 3.00. |
+| `alloc_calls_per_frame` | count | Fresh allocations per frame, attributed to the bench thread (single-threaded bench: process totals). Higher = leaking heap. Contract: 0.0 — the lean render path (INV-18) and production draw (INV-25) are pinned to exact zero; any positive value is a regression. (The v30-era baseline of 3.00 predates the zero-alloc lock.) |
 | `heap_retained` | bytes | Bytes allocated and never freed. Non-zero = investigate. |
 | `energy_per_frame` | µJ | Energy per frame (Linux + RAPL only). Lower = more efficient. |
 | `IPC` | ratio | Instructions per cycle (Linux + perf_event_open). >2.0 = healthy; >3.0 = excellent. |

@@ -606,7 +606,7 @@ RGB(0,200,0), preserving the green hue).
 
 4. **Dynamic width.** Lines are formatted WITHOUT fixed-width padding.
    The HUD width grows/shrinks to fit the longest line. Capped at
-   `HUD_MAX_WIDTH` (24 cols) to prevent the HUD from eating the whole
+   `HUD_MAX_WIDTH` (64 cols) to prevent the HUD from eating the whole
    terminal. Floor at `HUD_MIN_WIDTH` (12 cols) for short values.
 
 5. **No `\x1b[2K` line clear.** The HUD writes only `current_width`

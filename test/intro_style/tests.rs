@@ -5,8 +5,6 @@
 //! for the `intro_style` dispatcher module — per-style tests live in
 //! their style files (`logo_tests.rs`, inline in `cosmic.rs`).
 
-// use super::*; // not needed — tests are self-contained
-
 use super::*;
 
 #[test]

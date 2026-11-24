@@ -74,7 +74,7 @@ pub(crate) fn restore_terminal_best_effort() {
     let _ = out.execute(crossterm_terminal::EnableLineWrap);
     // Only leave alternate screen if the terminal supports it.
     // The Linux virtual console (TERM=linux) DOES support the alt screen
-    // buffer (\x1b[?1049l via vt.c, kernel 2.6.x+) — see termdetect.rs
+    // buffer (\x1b[?1049l via vt.c, kernel 2.6.x+) — see `termdetect/mod.rs`
     // for the full history. Only `dumb` terminals and an unset TERM
     // lack alt screen support. TERMINAL_RESTORE_SEQUENCE already includes
     // \x1b[?1049l, so crossterm's LeaveAlternateScreen is redundant in

@@ -162,7 +162,7 @@ v50.0.0 and carries forward through every major since):
 - **Scene names**: all built-in scene names
 - **Color scheme names**: all built-in color scheme names (`THEME_COUNT` in `src/theme/mod.rs`)
 - **Charset preset names**: all built-in charset names
-- **Runtime controls**: all keyboard shortcuts (q, Space, c/C, s/S, p, x, i, [/], Up/Down)
+- **Runtime controls**: all keyboard shortcuts (q, r, c/C, s/S, p, x/X, i, [/], Up/Down)
 - **Output format**: `--json` benchmark output schema, `--doctor` report format
 
 Breaking changes require a major version bump — the next breaking

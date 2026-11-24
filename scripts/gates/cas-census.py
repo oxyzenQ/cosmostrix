@@ -13,7 +13,7 @@ ordering of CAS draw / refill / debt pay on the same bucket). The
   - src/ carries ZERO CAS-family primitives (compare_exchange,
     compare_exchange_weak, fetch_update). A lock-free multi-step
     protocol - the thing an interleaving theorem proves - cannot be
-    built without them. The 55 atomic variables are single-variable
+    built without them. The atomic variables are single-variable
     flags, counters and stamps whose laws ride the pinned tests.
   - src/ carries ZERO AtomicPtr and zero location-backed atomics
     (from_ptr / from_mut). The pointer-cast-over-shared-memory

@@ -59,7 +59,7 @@ use protocol::{HIGH_PERF_DEFAULT_FPS, STANDARD_DEFAULT_FPS, XTERMJS_FPS_CAP};
 
 // Items used only by the test suite (tests.rs uses `use super::*;`).
 
-/// # FPS Precedence Chain ( documentation)
+/// # FPS Precedence Chain
 ///
 /// The effective frame rate at any moment is the result of a 7-layer
 /// precedence chain. Layers are listed highest-priority first; the

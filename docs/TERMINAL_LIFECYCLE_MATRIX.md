@@ -347,9 +347,11 @@ immediately.
   benchmark.** These modes have different computational costs and must
   not be used to inflate or deflate release benchmark numbers.
 
-- **SIGTSTP suspend leaves the terminal in raw mode.** This is a known
-  limitation. Recovery is automatic on SIGCONT if no external
-  modification occurred.
+- **SIGTSTP suspend does NOT leave the terminal in raw mode.** The
+  suspend path snapshots termios, restores canonical mode, and SIGCONT
+  re-inits to the exact snapshot (rows 5-6 above). The "raw mode
+  during suspend" caveat predates the Z3 termios work and is retired
+  (INNOVATIONS entry 37).
 
 ## Cross-Reference
 

@@ -33,8 +33,8 @@
 //! | #  | Feature                    | Main file                       | Modifies                       |
 //! |----|----------------------------|---------------------------------|--------------------------------|
 //! | 1  | crystal-dragon            | crystal_dragon_engine/          | ambient palette drift          |
-//! | 2  | dynamic-default-fps       | termdetect.rs, main.rs          | target_fps                     |
-//! | 3  | xterm.js cap + Tier 2     | termdetect.rs, tier2.rs         | target_fps + ANSI bytes        |
+//! | 2  | dynamic-default-fps       | termdetect/, main.rs            | target_fps                     |
+//! | 3  | xterm.js cap + Tier 2     | termdetect/, tier2.rs           | target_fps + ANSI bytes        |
 //! | 4  | adaptive throttling       | event_loop.rs, activity.rs      | frame_period (idle × 0.5)      |
 //! | 5  | phase predictor (P1)      | adaptive.rs                     | is_idle (OR'd with reactive)   |
 //! | 6  | adaptive resync (P2)      | adaptive.rs                     | resync interval (20s/60s/120s) |
@@ -54,7 +54,7 @@
 //! 1. FPS / frame_period — 4 independent writers (dynamic-default-fps,
 //!    xterm.js cap, adaptive throttling, self-healer via low-power scene,
 //!    ambient via scene). See the FPS Precedence Chain doc in
-//!    `termdetect.rs` for the resolution order.
+//!    `termdetect/mod.rs` for the resolution order.
 //!    audit note (FPS-F2/F3): the "self-healer via low-power
 //!    scene" and "ambient via scene" writers do NOT actually write
 //!    `target_fps` at runtime — `Cloud::apply_scene_runtime` only applies

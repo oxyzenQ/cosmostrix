@@ -4,11 +4,11 @@
 //! Cosmic Dragon Egg: dirty-threshold sweep benchmark.
 //!
 //! Research experiment for the `dragon-fight` branch — measures whether the
-//! optimal `DIRTY_THRESHOLD_RATIO` (currently a static `const = 3`) varies
+//! optimal `DIRTY_THRESHOLD_RATIO` (currently a static `const = 8`) varies
 //! significantly across terminal sizes. If the optimal threshold varies
 //! more than 2× across sizes, an adaptive `match terminal_size` lookup is
 //! worth implementing in `terminal/draw.rs` (`Terminal::draw`). Otherwise,
-//! the current `const = 3` is sufficient.
+//! the current `const = 8` is sufficient.
 //!
 //! ## How it works
 //!
@@ -96,9 +96,9 @@ mod tests {
         //
         // If the crossover is constant (~13% across all sizes), then the
         // optimal threshold divisor is constant (~7.5) and adaptive tuning
-        // is NOT worth it. The current `const = 3` (33%) would be 2.5× too
-        // permissive of diff path — a single bump to `const = 8` would
-        // capture the crossover without needing adaptive logic.
+        // is NOT worth it. The old `const = 3` (33%) would be 2.5× too
+        // permissive of diff path — the landed bump to `const = 8`
+        // (12.5%) captures the crossover without needing adaptive logic.
         //
         // If the crossover varies (e.g., 5% at 4×4, 15% at 200×60), then
         // adaptive `match terminal_size` is worth implementing.

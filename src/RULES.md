@@ -30,30 +30,31 @@ MUST be organized into subdirectories.
   clock/, config/, cosmic_dragon_engine/, chroma_dragon_engine/,
   crystal_dragon_engine/, etc.). This rule codifies the convention.
 
-## Current Structure (2026-08-19)
+## Current Structure (2026-11-24)
 
 ```
 src/
 ├── main.rs                    <- ONLY .rs file at root (entry point)
 ├── RULES.md                   <- this file
-├── bench/                     <- benchmark subsystem (17 bench_*.rs files)
+├── RULES_LOC.md               <- the LOC law
+├── bench/                     <- benchmark subsystem (18 bench_*.rs files)
 ├── bolt/                      <- cross-cutting utility module
 ├── central_control_power_dragon/  <- power management, self-healer, thermal
 ├── central_control_rains/     <- rain visual tuning constants
-├── chroma_dragon_engine/      <- coloring engine (palette, shaders, post-FX)
 ├── cli/                       <- CLI args, parsing, help, app struct, UX contract (ux.rs)
 ├── clock/                     <- wall-clock helpers (Howard Hinnant style)
 ├── config/                    <- config.toml parsing, live-reload, hints
-├── cosmic_dragon_engine/      <- rendering engine (cloud, frame, terminal, runtime)
 ├── cosmic_dragon_incubator/   <- experimental / concluded work
-├── crystal_dragon_engine/     <- ambient intelligence (palette drift, scheduler)
 ├── diagnostics/               <- diagnostics, alloc_trace, info, humanize
-├── docs_tests/                <- integration tests for docs/README consistency
 ├── doctor/                    <- --doctor diagnostics subsystem
 ├── droplet/                   <- droplet rendering (parallax, brightness)
+├── engine/                    <- the three dragon engines
+│   ├── chroma_dragon_engine/  <-   coloring engine (palette, shaders, post-FX)
+│   ├── cosmic_dragon_engine/  <-   rendering engine (cloud, frame, terminal, runtime)
+│   └── crystal_dragon_engine/ <-   ambient intelligence (palette drift, scheduler)
 ├── interactive/               <- event loop, HUD, input handling (intro runner glue: event_loop_intro.rs)
 ├── intro_style/               <- cinematic intro styles (one file per style: cosmic.rs / logo.rs + mod.rs dispatch)
-├── msg_fill_style/            <- message overlay reveal styles (one file per style: typewriter/fade/words/slide/pulse/instant/engrave.rs + mod.rs dispatch)
+├── msg_fill_style/            <- message overlay reveal styles (one file per style: cascade/engrave/fade/glitch/hologram/instant/radar/scorch/slide/typewriter/words.rs + mod.rs dispatch)
 ├── output/                    <- output, report, verbose, message (ux.rs moved to cli/)
 ├── platform/                  <- platform detection, panic hook, update
 ├── safepath/                  <- path validation (security)
@@ -62,7 +63,6 @@ src/
 ├── sysstat/                   <- CPU/memory/env/usage stats
 ├── termdetect/                <- terminal capability detection
 ├── testconf/                  <- --testconf validation
-├── tests/                     <- crate-level integration tests
 ├── theme/                     <- theme/cosmostrix-pro theme system
 ├── types/                     <- constants, cell, rain_style, renderer_info
 └── validation/                <- input validation

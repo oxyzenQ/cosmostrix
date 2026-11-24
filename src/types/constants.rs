@@ -9,17 +9,17 @@
 // ─── Rain visual stack: single source of truth ─────────────────────────────
 //
 // All rain / parallax / phosphor / depth-layer / atmospheric / cinematic
-// constants live in `central_control_rains.rs`. This re-export keeps
+// constants live in `central_control_rains/`. This re-export keeps
 // every existing `use crate::constants::*;` call site working unchanged.
-// To fine-tune any rain parameter, edit `central_control_rains.rs`.
+// To fine-tune any rain parameter, edit `central_control_rains/`.
 pub(crate) use crate::central_control_rains::*;
 
 // ─── Power management: single source of truth ──────────────────────────────
 //
 // All power / perf / adaptive / thermal / xterm.js-tier-2 constants live
-// in `central_control_power_dragon.rs`. This re-export keeps every
+// in `central_control_power_dragon/`. This re-export keeps every
 // existing `use crate::constants::*;` call site working unchanged.
-// To fine-tune any power parameter, edit `central_control_power_dragon.rs`.
+// To fine-tune any power parameter, edit `central_control_power_dragon/`.
 pub(crate) use crate::central_control_power_dragon::*;
 
 // Density & sizing

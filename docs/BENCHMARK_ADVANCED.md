@@ -77,7 +77,7 @@ The benchmark report (and JSON output) exposes metrics that together describe co
 - **`ipc`** — instructions per cycle. >2.0 = healthy; >3.0 = excellent. v50 PGO v3: 2.52–2.62 (Zen 3). Below 2.0 suggests the binary was built without AVX2 (`pro-linux-amd64-v3-musl`) or AVX-512 (`pro-linux-amd64-v4-musl`).
 - **`branch_mispredict_rate`** — branch predictor failure rate. <2% = BOLT lookup tables working. v30: 0.57–2.41%. High mispredict rates suggest BOLT was not applied (use `pro-linux-amd64-v3-musl`/`pro-linux-amd64-v4-musl` profile or `nitro-pgo`).
 - **`energy_per_cell`** — size-independent energy metric (nJ). Lower = more efficient. v50 PGO v3 wet: 1,520.7 nJ. Useful for comparing energy efficiency across screen sizes — total energy grows with screen size, but `energy_per_cell` should stay flat.
-- **`alloc_calls_per_frame`** — fresh allocations per frame. v30 baseline: 3.00 (constant). Higher = leaking heap. The render + I/O hot path is zero-alloc by design; any non-zero growth across runs indicates a regression.
+- **`alloc_calls_per_frame`** — fresh allocations per frame. Contract: 0.0 (constant). The render + I/O hot path is zero-alloc by design — INV-18 (lean path) and INV-25 (production draw) pin exact zero; any non-zero value across runs indicates a regression. (The v30-era baseline of 3.00 predates the zero-alloc lock.)
 - **`heap_retained`** — bytes allocated and never freed. v30: 0 (zero retained). Non-zero = investigate. Use `--bench-duration 5m` to confirm a leak — `heap_retained` should remain 0 even on long runs.
 
 ## 5. Interpreting Results + Pitfalls
