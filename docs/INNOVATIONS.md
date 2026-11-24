@@ -589,7 +589,17 @@ oracles, the strings-invisibility floor, the const-vs-runtime
 fingerprint equality, the anchor equality against the generator's
 hex oracle, the framing layout, and the tamper sensitivity
 (`cargo test diagnostics::signature diagnostics::info
-diagnostics::sig_report`).
+diagnostics::sig_report`). The installer's dev-mode lane
+(night-netrunner-Z2, the owner directive): the owner-machine
+installer accepts the 5/6 unsigned-HEAD shape — D5 alone failing
+with the "carries NO GPG signature" sentence, every other depth
+passing — as a DEV-MODE install with a loud warning (the normal
+state between release cuts: development commits are pushed without
+GPG, and the binary's own identity, anchor, self-hash and pinned
+replay all verified); every other 5/6 shape (wrong-key, failed
+crypto check, a second failing depth, a post-install flip) still
+refuses. The release channel's law is unchanged — only the local
+dev loop may install unbound provenance, and it says so.
 
 ### 32. The deterministic replay oracle (byte-identical render sequences)
 

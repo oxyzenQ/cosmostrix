@@ -190,10 +190,37 @@ fi
 # binary that cannot prove AUTHENTIC 6/6 never lands in /usr/bin
 # (a tree on an unsigned HEAD fails D5 by name - sign the release
 # commit, then rebuild).
-if ! "${BINARY}" sig | grep -aFq "SIGNATURE: AUTHENTIC (6/6 depths verified)"; then
-	echo "error: the built binary fails the six-depth signature report" >&2
-	echo "  (cosmostrix sig did not end AUTHENTIC). Refusing to install." >&2
-	exit 1
+#
+# night-netrunner-Z2 (owner directive): the DEV exception - exactly
+# one shape may install below 6/6. A working tree on an UNSIGNED
+# HEAD (the normal state between release cuts: development commits
+# are pushed without GPG) fails D5 alone with the "carries NO GPG
+# signature" sentence; every other depth must still pass. That
+# build installs with a loud dev-mode banner - the binary itself is
+# fully verified (identity, anchor, self-hash, pinned replay), only
+# the commit-provenance binding is unbound, which is the pristine
+# truth for a dev tree. EVERY other shortfall - a wrong-key
+# signature (the MITM shape), a failed cryptographic check, a
+# tampered anchor, any other depth - still refuses: the exception
+# is unsigned-only, never a general 5/6 pass.
+sig_output="$("${BINARY}" sig)" || true
+if ! grep -aFq "SIGNATURE: AUTHENTIC (6/6 depths verified)" <<<"${sig_output}"; then
+	d5_line="$(grep -aF "D5 commit-signature" <<<"${sig_output}" || true)"
+	if grep -aqF "carries NO GPG signature" <<<"${d5_line}" &&
+		grep -aqF " FAIL " <<<"${d5_line}" &&
+		[[ "$(grep -acF " FAIL " <<<"${sig_output}")" -eq 1 ]]; then
+		echo "warning: DEV-MODE INSTALL - the build sits on an unsigned HEAD." >&2
+		echo "  D5 (commit-signature) is the only failing depth: the binary's own" >&2
+		echo "  identity, anchor, self-hash and pinned replay all verified, but the" >&2
+		echo "  commit provenance is unbound (development commits are not GPG-signed)." >&2
+		echo "  A release cut signs the commit/tag - rebuild then for the full 6/6." >&2
+	else
+		echo "error: the built binary fails the six-depth signature report" >&2
+		echo "  (cosmostrix sig did not end AUTHENTIC, and the failure is not the" >&2
+		echo "  dev-mode unsigned-HEAD shape - a wrong-key signature, a failed" >&2
+		echo "  cryptographic check, or a failing depth outside D5 refuses)." >&2
+		exit 1
+	fi
 fi
 echo ">> [3/4] Installing to /usr/bin/${cosmostrix} (sudo for this step only)"
 sudo install -Dm755 "${BINARY}" "/usr/bin/${cosmostrix}"
@@ -204,11 +231,24 @@ echo ">> [4/4] Verify"
 /usr/bin/"${cosmostrix}" -V
 # The installed image itself must still prove AUTHENTIC - this catches
 # any copy/copy-on-write corruption between target/ and /usr/bin.
+# The dev-mode exception rides here too: an unsigned-HEAD build
+# re-verifies with the same D5-only shortfall and the same loud
+# banner; anything else (a depth that passed pre-install now failing
+# is exactly the corruption this gate exists to catch) refuses.
 if ! /usr/bin/"${cosmostrix}" sig | grep -aFq "SIGNATURE: AUTHENTIC (6/6 depths verified)"; then
-	echo "error: the installed binary fails the six-depth signature report." >&2
-	exit 1
+	inst_sig="$(/usr/bin/"${cosmostrix}" sig)" || true
+	inst_d5="$(grep -aF "D5 commit-signature" <<<"${inst_sig}" || true)"
+	if grep -aqF "carries NO GPG signature" <<<"${inst_d5}" &&
+		grep -aqF " FAIL " <<<"${inst_d5}" &&
+		[[ "$(grep -acF " FAIL " <<<"${inst_sig}")" -eq 1 ]]; then
+		echo "   sig: DEV MODE - 5/6 depths verified (D5: unsigned HEAD, the pre-install verdict)" >&2
+	else
+		echo "error: the installed binary fails the six-depth signature report." >&2
+		exit 1
+	fi
+else
+	echo "   sig: SIGNATURE: AUTHENTIC (6/6 depths verified)"
 fi
-echo "   sig: SIGNATURE: AUTHENTIC (6/6 depths verified)"
 if ! command -v "${cosmostrix}" >/dev/null 2>&1; then
 	echo "note: /usr/bin is not on this shell's PATH yet - open a new shell." >&2
 fi
