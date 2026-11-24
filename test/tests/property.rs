@@ -7,11 +7,36 @@
 //! verify the parser never panics, never produces invalid output, and
 //! that valid configs round-trip correctly. This catches edge cases that
 //! unit tests miss (Unicode, embedded nulls, extreme lengths, etc.).
+//!
+//! The regression store (night-netrunner-Z2, the zelynic proof-layer
+//! shape): every counterexample proptest finds and shrinks is persisted
+//! to `test/tests/property-regressions.txt` and replayed on every
+//! subsequent run before any novel case is generated. The store is
+//! committed to source control so every contributor and CI lane re-runs
+//! the exact witness of every past failure. The path is pinned with
+//! `FileFailurePersistence::Direct`, not the default `SourceParallel`:
+//! the macro stamps its own `source_file` from `file!()`, and this
+//! crate's tests live under `test/tests/` included into the bin target
+//! via `#[path]` — the walk-up from there never sees `src/main.rs`, so
+//! the default would fall back to a `.txt` beside each source file and
+//! scatter one store per file instead of one committed ledger.
 
 use crate::configfile::parse_config_text;
 use proptest::prelude::*;
+use proptest::test_runner::{Config, FileFailurePersistence};
+
+fn regression_store() -> Config {
+    Config {
+        failure_persistence: Some(Box::new(FileFailurePersistence::Direct(
+            "test/tests/property-regressions.txt",
+        ))),
+        ..Config::default()
+    }
+}
 
 proptest! {
+    #![proptest_config(regression_store())]
+
     /// Any string input to parse_config_text must NOT panic.
     /// The parser must handle arbitrary input gracefully (malformed → empty
     /// values + malformed_lines, valid → parsed values).
@@ -142,4 +167,109 @@ proptest! {
         prop_assert!(parsed.values.is_empty());
         prop_assert!(parsed.malformed_lines.is_empty());
     }
+
+    /// The auto-promote typo-guard law (v50.0.0-beta.6 FATAL FIX +
+    /// v80.0.0-beta.1 relaxation, see configfile_promote.rs): a SCALAR
+    /// known top-level key nested inside a custom block
+    /// ([charset-custom.<name>] / [colors-custom.<name>] /
+    /// [scene-custom.<name>]) is a field-name typo and must NEVER be
+    /// promoted to root scope — the whole point of the guard is that
+    /// `color = green` inside `[charset-custom.quantum]` must not
+    /// silently change the global color scheme. The property quantifies
+    /// over every valid custom-block shape and every scalar key on the
+    /// known-keys list, holding the promotion contract that until now
+    /// was only pinned by hand-picked unit vectors (night-netrunner-Z2).
+    ///
+    /// The first counterexample the store caught (seed cc 8ec86c94…,
+    /// shrunk to `scene-custom.a` + `color`) sharpened the model the
+    /// way zelynic's fraction law did: for [scene-custom.<name>],
+    /// the scalar key may ALSO be a legitimate block FIELD (color,
+    /// charset, fps, speed, density, glitch-level, rain) — those route
+    /// to values under the dotted key and are the intended content of
+    /// the block, not typos. The law therefore has two destination
+    /// classes: field keys land in values, non-field keys surface in
+    /// unknown_keys. In NO class does the bare key reach root scope.
+    #[test]
+    fn prop_scalar_key_in_custom_block_never_promotes(
+        block in prop::sample::select(vec![
+            "charset-custom",
+            "colors-custom",
+            "scene-custom",
+        ]),
+        name in "[a-z][a-z0-9_]{0,10}",
+        scalar_key in prop::sample::select(SCALAR_ROOT_KEYS),
+        value in "[a-z0-9]{1,10}"
+    ) {
+        let config = format!("[{block}.{name}]\n{scalar_key} = \"{value}\"\n");
+        let parsed = parse_config_text(&config);
+        let full_key = format!("{block}.{name}.{scalar_key}");
+        // The typo guard, both classes: no root-scope re-home under
+        // the bare name, ever.
+        prop_assert!(
+            !parsed.values.contains_key(scalar_key),
+            "scalar key '{scalar_key}' escaped the custom block [{block}.{name}] \
+             into root scope — the v50 typo guard regressed"
+        );
+        prop_assert!(parsed.promoted_keys.is_empty());
+        if block == "scene-custom" && SCENE_CUSTOM_FIELD_KEYS.contains(&scalar_key) {
+            // A legitimate block field: stored under the dotted key.
+            prop_assert!(
+                parsed.values.get(&full_key) == Some(&value),
+                "scene-custom field '{full_key}' must land in values"
+            );
+        } else {
+            // A typo: the rejection is visible, not silent — the full
+            // dotted key surfaces in unknown_keys so config_hints can
+            // attach the targeted field-name message.
+            prop_assert!(
+                parsed.unknown_keys.iter().any(|u| u == &full_key),
+                "unknown scalar key '{full_key}' must surface in unknown_keys, \
+                 not vanish"
+            );
+        }
+    }
 }
+
+/// The scalar (dot-free) subset of the root known-keys list — the keys
+/// the v50 typo guard exists for. Dot-bearing keys (ambient.01-50,
+/// color.tune.brightness) are the v80 relaxation's promoted class and
+/// are covered by prop_section_prefixes_keys' three-destination model.
+const SCALAR_ROOT_KEYS: &[&str] = &[
+    "scene",
+    "color",
+    "charset",
+    "fps",
+    "speed",
+    "density",
+    "monolith-size",
+    "glitch-level",
+    "bold",
+    "shading-mode",
+    "color-bg",
+    "crystal-dragon",
+    "crystal-dragon-secs",
+    "power-dragon",
+    "async-mode",
+    "intro",
+    "intro-color",
+    "message",
+    "message-border",
+    "msg-mode",
+    "msg-fill-style",
+    "ambient-snapback-secs",
+];
+
+/// The scene-custom block's own field allowlist (SCENE_CUSTOM_FIELDS in
+/// src/scene_custom/mod.rs): a scalar root key that also names one of
+/// these is the block's intended content, not a typo. Only the
+/// dot-free members matter here — colors-custom/charset-custom are
+/// namespaced and never collide with the scalar key class.
+const SCENE_CUSTOM_FIELD_KEYS: &[&str] = &[
+    "rain",
+    "color",
+    "charset",
+    "fps",
+    "speed",
+    "density",
+    "glitch-level",
+];
