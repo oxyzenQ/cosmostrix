@@ -43,7 +43,31 @@ pub(crate) fn restore_terminal_best_effort() {
     // - bracketed paste is compiled out (Cargo.toml) and never enabled.
     // The raw sequence below still carries the ESC[?2004l disable as a
     // baseline reset for paste mode a previous process may have armed.
-    let _ = out.write_all(TERMINAL_RESTORE_SEQUENCE.as_bytes());
+    //
+    // night-netrunner-Z2 (the dumb-terminal leak): the raw sequence
+    // carries ESC[?1049l, but a `dumb` terminal has no alternate
+    // screen at all — the pty battery's term-dumb leg forbids the
+    // byte, and cleanup_terminal() already gates its own leave on
+    // the same capability probe. This restore path used to emit the
+    // sequence unconditionally: on a clean exit the fork-guard child
+    // (spawn_kill9_terminal_guard) can still see a still-broken
+    // termios snapshot in its PDEATHSIG race window and fire this
+    // function AFTER the parent's correct dumb-path cleanup —
+    // appending the forbidden leave byte to an already-clean stream
+    // (measured: 1 stray 1049l per TERM=dumb run on the pro-musl
+    // shape; A/B with COSMOSTRIX_NO_FORK_GUARD=1 zero). Split the
+    // sequence at the leave byte: the pre-leave head (mouse, paste,
+    // focus, kitty pop, sync end) and the post-leave tail (scroll
+    // region, charset, wrap, cursor show) always run; the 1049l
+    // slice rides only when TERM reports alt-screen capability —
+    // the same decision cleanup_terminal() makes.
+    let term = std::env::var("TERM").unwrap_or_default();
+    let has_alt = !term.eq_ignore_ascii_case("dumb") && !term.is_empty();
+    if has_alt {
+        let _ = out.write_all(TERMINAL_RESTORE_SEQUENCE.as_bytes());
+    } else {
+        let _ = out.write_all(TERMINAL_RESTORE_SEQUENCE_NO_ALT.as_bytes());
+    }
     let _ = out.execute(SetAttribute(Attribute::Reset));
     let _ = out.execute(ResetColor);
     let _ = out.execute(cursor::Show);
@@ -55,8 +79,6 @@ pub(crate) fn restore_terminal_best_effort() {
     // lack alt screen support. TERMINAL_RESTORE_SEQUENCE already includes
     // \x1b[?1049l, so crossterm's LeaveAlternateScreen is redundant in
     // most cases, but crossterm may do additional internal state cleanup.
-    let term = std::env::var("TERM").unwrap_or_default();
-    let has_alt = !term.eq_ignore_ascii_case("dumb") && !term.is_empty();
     if has_alt {
         let _ = out.execute(crossterm_terminal::LeaveAlternateScreen);
     }
@@ -172,6 +194,25 @@ pub(crate) const TERMINAL_RESTORE_SEQUENCE: &str = "\x1b[0m\
      \x1b[?2004l\
      \x1b[?1004l\
      \x1b[?1049l\
+     \x1b[r\
+     \x1b(B\
+     \x1b[?7h\
+     \x1b[?25h\
+     \x1b[0m";
+
+/// The no-alt-screen variant of [`TERMINAL_RESTORE_SEQUENCE`] — every
+/// byte of it minus the `\x1b[?1049l` leave (night-netrunner-Z2, the
+/// dumb-terminal leak). A `dumb` terminal has no alternate screen at
+/// all: the leave byte is not a restore there, it is forbidden noise
+/// (the pty battery's term-dumb leg fails on it). Kept as a sibling
+/// constant so the two sequences stay byte-reviewable against each
+/// other: same head, same tail, the alt-screen slice alone removed.
+pub(crate) const TERMINAL_RESTORE_SEQUENCE_NO_ALT: &str = "\x1b[0m\
+     \x1b[?2026l\
+     \x1b[<1u\
+     \x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\
+     \x1b[?2004l\
+     \x1b[?1004l\
      \x1b[r\
      \x1b(B\
      \x1b[?7h\

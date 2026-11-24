@@ -122,6 +122,59 @@ mod tests {
         );
     }
 
+    /// night-netrunner-Z2 (the dumb-terminal leak): the no-alt variant
+    /// is byte-identical to the full sequence minus exactly the 1049l
+    /// leave — same head (mouse/paste/focus/kitty/sync disarms), same
+    /// tail (scroll region, charset, wrap, cursor show), and the
+    /// removal is ONLY the alt-screen slice a dumb terminal forbids.
+    #[test]
+    fn no_alt_restore_sequence_is_the_full_sequence_minus_the_leave() {
+        use crate::terminal::TERMINAL_RESTORE_SEQUENCE_NO_ALT;
+        assert!(
+            !TERMINAL_RESTORE_SEQUENCE_NO_ALT.contains("\x1b[?1049l"),
+            "the no-alt variant must not carry the alt-screen leave — a dumb \
+             terminal has no alternate screen and the pty battery forbids the \
+             byte"
+        );
+        assert!(
+            !TERMINAL_RESTORE_SEQUENCE_NO_ALT.contains("\x1b[?1049h"),
+            "the no-alt variant must not carry the alt-screen enter either"
+        );
+        // The splice proof: removing every 1049l occurrence from the
+        // full sequence must yield the no-alt variant byte-for-byte.
+        let spliced = TERMINAL_RESTORE_SEQUENCE.replace("\x1b[?1049l", "");
+        assert_eq!(
+            TERMINAL_RESTORE_SEQUENCE_NO_ALT, spliced,
+            "the no-alt variant must be exactly the full sequence with the \
+             leave spliced out — any other drift between the two constants \
+             is a review miss"
+        );
+        // And the shared contract still holds on the variant: every
+        // disarming mode, the kitty pop, the scroll-region/charset/wrap
+        // tail, the trailing reset.
+        for mode in [
+            "?1000l", "?1002l", "?1003l", "?1006l", "?1015l", "?2004l", "?1004l", "?25h", "?2026l",
+        ] {
+            assert!(
+                TERMINAL_RESTORE_SEQUENCE_NO_ALT.contains(mode),
+                "missing terminal restore mode {mode} in the no-alt variant"
+            );
+        }
+        assert!(TERMINAL_RESTORE_SEQUENCE_NO_ALT.contains("\x1b[<1u"));
+        assert!(TERMINAL_RESTORE_SEQUENCE_NO_ALT.contains("\x1b[r"));
+        assert!(TERMINAL_RESTORE_SEQUENCE_NO_ALT.contains("\x1b(B"));
+        assert!(TERMINAL_RESTORE_SEQUENCE_NO_ALT.contains("\x1b[?7h"));
+        assert!(TERMINAL_RESTORE_SEQUENCE_NO_ALT.ends_with("\x1b[0m"));
+        assert!(
+            !TERMINAL_RESTORE_SEQUENCE_NO_ALT.contains("\x1b[2J"),
+            "the no-alt restore must not clear the visible screen"
+        );
+        assert!(
+            !TERMINAL_RESTORE_SEQUENCE_NO_ALT.contains("\x1b[3J"),
+            "the no-alt restore must not purge scrollback"
+        );
+    }
+
     #[test]
     fn reset_terminal_sequence_disables_terminal_reporting_modes() {
         for mode in [

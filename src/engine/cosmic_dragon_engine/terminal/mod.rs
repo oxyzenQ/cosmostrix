@@ -112,8 +112,9 @@ pub(crate) mod tier2;
 // caught the test consumer at link time and they were restored.)
 #[allow(unused_imports)]
 pub(crate) use restore::{
-    TERMINAL_RESET_SEQUENCE, TERMINAL_RESTORE_SEQUENCE, blank_cell, force_exit_terminal_restored,
-    reset_terminal_emergency, restore_terminal_best_effort,
+    TERMINAL_RESET_SEQUENCE, TERMINAL_RESTORE_SEQUENCE, TERMINAL_RESTORE_SEQUENCE_NO_ALT,
+    blank_cell, force_exit_terminal_restored, reset_terminal_emergency,
+    restore_terminal_best_effort,
 };
 // NIGHT-termux-hang: unix-only sibling (O_NONBLOCK wrap) used by the
 // SIGTSTP suspend handler.
