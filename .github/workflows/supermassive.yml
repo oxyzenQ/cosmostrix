@@ -729,6 +729,10 @@ jobs:
           sig_exit=$?
           set -e
           cat "${SIG}"
+          # Sync duty (the zylaxion night): the 6/6 / 5/6 verdict
+          # literals below are pinned by the sig_report self-test
+          # (src/diagnostics/sig_report.rs) — a depth-ladder change
+          # bumps that test and these greps in the same commit.
           if ! grep -Eq "^D4 engine-oracle +pass " "${SIG}"; then
             echo "MASS-RESULT: sig-parity-${{ matrix.arch }} FAIL (the D4 engine-oracle row is not pass)" >> "${MASS}"
           elif [ "${sig_exit}" -eq 0 ] && grep -q "SIGNATURE: AUTHENTIC (6/6 depths verified)" "${SIG}"; then

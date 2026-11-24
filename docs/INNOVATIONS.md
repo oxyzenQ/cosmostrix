@@ -1652,7 +1652,7 @@ not extend to the machines it ships on — and "should hold (strict
 IEEE)" is not the house style. Mechanism (night-frontier-Z7): the
 supermassive battery grows two legs. `sig_parity` runs `sig` on the
 release shape on BOTH arches (x86_64 and the ubuntu-24.04-arm
-runner) and requires exit 0, the five-of-five `SIGNATURE: AUTHENTIC`
+runner) and requires exit 0, the six-of-six `SIGNATURE: AUTHENTIC`
 verdict, and the D4 engine-oracle pass row — the same compile-time
 pinned vector recomputed on each silicon; a mismatch reports
 TAMPERED and fails the leg (either outcome is the moat working, and

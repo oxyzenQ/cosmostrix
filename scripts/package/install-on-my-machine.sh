@@ -203,6 +203,9 @@ fi
 # signature (the MITM shape), a failed cryptographic check, a
 # tampered anchor, any other depth - still refuses: the exception
 # is unsigned-only, never a general 5/6 pass.
+# Sync duty (the zylaxion night): the 6/6 literal below is pinned by
+# the sig_report self-test (src/diagnostics/sig_report.rs) — bump
+# that test and this grep together.
 sig_output="$("${BINARY}" sig)" || true
 if ! grep -aFq "SIGNATURE: AUTHENTIC (6/6 depths verified)" <<<"${sig_output}"; then
 	d5_line="$(grep -aF "D5 commit-signature" <<<"${sig_output}" || true)"

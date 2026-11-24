@@ -61,6 +61,12 @@ categories = [
     "rendering",
 ]
 build = "build.rs"
+# include_str! contract (the zylaxion night): assets/gpg/
+# pinned-maintainer-fpr.txt is include_str!'d by
+# src/diagnostics/sig_commit_sig.rs at compile time and must ALWAYS
+# ride the package (zylaxion's crates-io lane died on exactly this).
+# benchmark/HIST_BENCH.md is include_str!'d only under #[cfg(test)],
+# so its exclusion below is safe.
 exclude = [
     "benchmark/*",
     "docs/research/*",
