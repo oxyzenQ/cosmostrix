@@ -316,7 +316,16 @@ jobs:
           sudo mv /etc/resolv.conf.new /etc/resolv.conf
           echo "resolver front: $(head -2 /etc/resolv.conf | tr '\n' ' ')"
           # night-T-2 round 11: the azure archive mirror rescue.
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          # night-netrunner-Z2: the AWS regional mirrors too. The
+          # 2026-11-24 storm killed us-east-2.ec2.archive.ubuntu.com
+          # (runs 45325207461..45329401861, all four exit-124 inside
+          # the install ceilings): the runner's apt-mirrors.txt pins
+          # the EC2 regional mirror, the rescue sed only rewrote the
+          # azure/kernel.org hostnames, so both the first attempt and
+          # the fallback retried the SAME dead mirror. Every regional
+          # mirror class now re-points in one pass.
+          sudo sed -i -e 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+            -e 's|[a-z0-9-]*\.ec2\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           # night-T-2 follow-up 20 (the zejtron law, layer 3 on the
@@ -624,7 +633,16 @@ jobs:
           sudo mv /etc/resolv.conf.new /etc/resolv.conf
           echo "resolver front: $(head -2 /etc/resolv.conf | tr '\n' ' ')"
           # night-T-2 round 11: the azure archive mirror rescue.
-          sudo sed -i 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+          # night-netrunner-Z2: the AWS regional mirrors too. The
+          # 2026-11-24 storm killed us-east-2.ec2.archive.ubuntu.com
+          # (runs 45325207461..45329401861, all four exit-124 inside
+          # the install ceilings): the runner's apt-mirrors.txt pins
+          # the EC2 regional mirror, the rescue sed only rewrote the
+          # azure/kernel.org hostnames, so both the first attempt and
+          # the fallback retried the SAME dead mirror. Every regional
+          # mirror class now re-points in one pass.
+          sudo sed -i -e 's|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
+            -e 's|[a-z0-9-]*\.ec2\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g' \
             /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
             /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           # night-T-2 follow-up 20 (the zejtron law, layer 3 on the
@@ -841,7 +859,13 @@ jobs:
           # that boot. Hand the container its own clean resolver.
           docker run --dns 1.1.1.1 --dns 8.8.8.8 --name best-rootfs -d ubuntu:24.04 sleep infinity
           docker exec best-rootfs bash -c '
-            sed -i "s|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g" \
+            # night-netrunner-Z2: the EC2 regional mirror class joins
+            # the azure rescue here too (the host-side fix's rationale;
+            # the stock ubuntu:24.04 image only carries archive.ubuntu.com,
+            # but a mirror-rescued daemon config can leak regional pins
+            # into derived images).
+            sed -i -e "s|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g" \
+              -e "s|[a-z0-9-]*\.ec2\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g" \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list \
               /etc/apt/sources.list.d/*.sources || true
             # night-T-2 follow-up 15: fast bail first (45s), one generous
