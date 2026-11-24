@@ -860,10 +860,10 @@ jobs:
           docker run --dns 1.1.1.1 --dns 8.8.8.8 --name best-rootfs -d ubuntu:24.04 sleep infinity
           docker exec best-rootfs bash -c '
             # night-netrunner-Z2: the EC2 regional mirror class joins
-            # the azure rescue here too (the host-side fix's rationale;
-            # the stock ubuntu:24.04 image only carries archive.ubuntu.com,
-            # but a mirror-rescued daemon config can leak regional pins
-            # into derived images).
+            # the azure rescue here too (same rationale as the host
+            # side; the stock ubuntu:24.04 image only carries
+            # archive.ubuntu.com, but a mirror-rescued daemon config
+            # can leak regional pins into derived images).
             sed -i -e "s|azure\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g" \
               -e "s|[a-z0-9-]*\.ec2\.archive\.ubuntu\.com|mirrors.edge.kernel.org|g" \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.list \
