@@ -41,7 +41,7 @@ own every tuning parameter (`src/central_control_rains/`,
 (`src/config/`). The cooperation model is told once in
 [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md).
 
-## The fifty-six, in dependency order
+## The fifty-nine, in dependency order
 
 ### 1. The diff-based render path (the Cosmic Dragon)
 
@@ -2061,6 +2061,83 @@ rows PASS, and `worst-floor-margin >= 0`; locally the leg reproduces
 with `python3 scripts/supermassive/emission_floor.py --binary
 <release-shape> --log /tmp/ef-capture.log --mass /tmp/mass-ef.log
 --label emission-floor-8s --duration 8 --budget 30`.
+
+### 59. The emission conformance law (the diff grammar's machine-checked semantics, night-netrunner-Z2)
+
+Problem killed: entry 57 certifies the diff solver's BYTE ECONOMY -
+the payload equals the changed cells' glyphs and the total lands
+inside the law-reference band - but byte economy is not semantic
+correctness: a solver that emitted garbage bytes inside that budget
+would pass every INV-22 assertion while corrupting the screen. The
+semantic half of the certificate ("the emitted bytes reconstruct the
+target screen") was prose with no instrument, the same naked-claim
+shape entry 57 was landed to kill. The zelynic estate had already
+named the instrument for exactly this gap (its night-frontier-Z10
+emission conformance theorem), and this depth ports the shape, not
+the bytes: cosmostrix's grammar is its own (CUP MoveTo with
+row-boundary resync, combined fg+bg bridges, BOLT bold tables, run
+batching, the trailing reset) and the model was written against THIS
+grammar from its own source files.
+
+Mechanism (night-netrunner-Z2): a minimal strict VT state machine
+(`test/cosmic_dragon_incubator/tests/emission_conformance.rs`) is
+driven by the SHIPPED solver's own emission stream -
+`encode_diff_emission`, the entry-57 seam, no copy - and the law
+states that applying the stream to a model of the previous screen
+reconstructs the target screen, FULL cell tuple (glyph, fg, bg,
+bold), for every frame pair the property lane generates. The lemma
+decomposition follows the zelynic night-frontier-Z12 lesson (its
+first kani seat died on exactly the monolithic-session wall class):
+L1 the reconstruction lemma (screen equality, quantified over
+generated frame pairs on a 12x4 grid, three-glyph alphabet, three
+fg arms, two bg arms, both bold states); L2 the idle identity,
+which its own first counterexample sharpened the way zelynic's
+fraction law was - the zero-BYTE claim lives in draw.rs's v30 fast
+path (INV-17), so the SOLVER's own idle obligation is payload zero,
+no moves, no bridges, no bolds, only the 4-byte trailing reset the
+grammar mandates; L3 the payload accounting lemma (the paint
+identity, quantified over generated screens instead of entry 57's
+hand-built grids). The model is strict by construction - any byte
+outside the grammar panics the lane - so the law doubles as a
+grammar pin: a future emission token must teach the model
+deliberately, never silently. The color bridge parser round-trips
+through `write_sgr_colors_buf` itself (the model and the grammar
+share one definition, no hand-written twin).
+
+Honest scope (the zelynic golden-vectors rule, restated here): the
+model is a MODEL. It implements exactly the truecolor diff grammar -
+no quantizer, no cache - because the quantized wire modes
+(Color256, Color16, Mono) transform colors at the emission boundary
+and their conformance target is the QUANTIZED screen, which is the
+task-17 contract's own surface and keeps its entry-57 wire-variant
+coverage. Multi-frame sessions reduce to frame pairs by the
+trailing reset's state restoration (each frame starts from the
+reset state, the L1 model's exact initial condition). The sampled
+tier is proptest, not kani: the for-all seat on this engine class
+is the wall zelynic's census measured (its 3x8@68 seat died in
+kernel OOM on 4 GB and killed a 16 GB hosted runner twice at
+24-25 minutes), and the property lane's 3000-case stress runs in
+0.2s. The lane's own regression store
+(`emission_conformance-regressions.txt`, committed past the .txt
+ignore wall) replays the L2 witness - seed cc 6de5d1b2, shrunk to
+the empty screen - on every run. The config-parser property lane
+gained the same store shape the same depth
+(`test/tests/property-regressions.txt`): every counterexample every
+lane catches is now a committed seed every future run replays.
+
+Truth: `test/cosmic_dragon_incubator/tests/emission_conformance.rs`
+(the model, the lemmas, the store wiring),
+`test/cosmic_dragon_incubator/tests/emission_conformance-regressions.txt`
+(the committed witness ledger),
+`src/engine/cosmic_dragon_engine/terminal/emit_diff.rs` (the
+shipped solver under test - unchanged),
+`test/tests/property.rs` + `test/tests/property-regressions.txt`
+(the config lane's store, the zelynic proof-layer shape).
+
+Verifier: `cargo test emission_conformance` - L1, L2, L3 and the
+BOLT table pin must all pass; `cargo test` (the full suite, 3104
+green at landing); the stored seeds replay automatically inside
+those runs.
 
 ## Retired by verdict
 

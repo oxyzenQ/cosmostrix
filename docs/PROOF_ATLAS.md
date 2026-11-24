@@ -29,7 +29,7 @@ inherits its number's truth from
   campaign applies, and it must never become the truth itself —
   `src/` is the truth; the atlas only routes to it.
 
-## The atlas (entries 1-47 and 49-56)
+## The atlas (entries 1-47 and 49-59)
 
 | # | The innovation | Proof artifact(s) | The verifier |
 |---|---|---|---|
@@ -90,19 +90,20 @@ inherits its number's truth from
 | 56 | The wakeup-floor ledger (the whole-frame syscall budget) | [wakeup_budget.py](../scripts/supermassive/wakeup_budget.py), [event_loop.rs](../src/interactive/event_loop.rs) (the spin-sleep pacing it measures) | the CI `wakeup_floor` job - `MASS-VERDICT: PASS` with writes/frame=1.000, blocking-waits in bounds, zero sleeps/yields/inputs |
 | 57 | The emission-minimality certificate (the shipped solver bound to the law reference) | [emit_diff.rs](../src/engine/cosmic_dragon_engine/terminal/emit_diff.rs) (the shipped solver, the seam), [emission_ledger.rs](../test/cosmic_dragon_incubator/tests/emission_ledger.rs) (INV-22), [emission_floor.py](../scripts/supermassive/emission_floor.py) | `cargo test lock_inv22` + the CI `emission_floor` job - `MASS-VERDICT: PASS` with every frame inside the identity floor and the calibrated overhead bands, both injections rejected |
 | 58 | The in-process state-digest canary (the soaked process's own anchor) | [premium.rs](../src/bench/premium.rs) (the two anchors, the canary line), [soak_determinism.sh](../scripts/depth/soak_determinism.sh) (pass-law legs 1b/5), [replay_tests.rs](../test/bench/replay_tests.rs) (the chain test) | `cargo test soak_state_digest` + the soak lane's four-way anchor chain and leg 5 (t0 == end inside the soaked process) |
+| 59 | The emission conformance law (the diff grammar's machine-checked semantics) | [emission_conformance.rs](../test/cosmic_dragon_incubator/tests/emission_conformance.rs) (the strict VT model, lemmas L1/L2/L3), [emission_conformance-regressions.txt](../test/cosmic_dragon_incubator/tests/emission_conformance-regressions.txt) (the committed witness ledger), [property-regressions.txt](../test/tests/property-regressions.txt) (the config lane's store) | `cargo test emission_conformance` + `cargo test prop_` — the stored seeds replay on every run |
 
 ## The standing lanes (the always-on half of the chain)
 
 | Lane | Cadence | What it pins |
 |---|---|---|
-| [ci.yml](../.github/workflows/ci.yml) | every push | the full suite partitions, the replay-oracle double run, the two-host reproducible release chain, fmt + clippy, cargo-audit, cargo-deny, MSRV, the multi-OS builds |
+| [ci.yml](../.github/workflows/ci.yml) | every push | the full suite partitions, the replay-oracle double run, the two-host reproducible release chain, fmt + clippy, cargo-audit, cargo-deny, MSRV, the multi-OS builds, the property lanes with their committed regression stores (entry 59) |
 | [supermassive.yml](../.github/workflows/supermassive.yml) | push + scheduled | the PTY contract on a real terminal: byte-log assertions, the syscall-floor ledger, the wakeup-floor ledger, the emission-floor ledger (the stream identity), the torture battery, the arch-parity legs (sig oracle parity on both silicons, the arm64 musl lock suite) |
 | [soak.yml](../.github/workflows/soak.yml) | Sunday + dispatch | the determinism-anchored soak (entry 47 + entry 58): digest drift, the four-way anchor chain, the in-process state digest, RSS plateau, fd census |
-| [miri.yml](../.github/workflows/miri.yml) | push + Sunday | no undefined behavior in the audited pointer/alloc families |
-| [kani.yml](../.github/workflows/kani.yml) | Sunday | bounded model checking of the audited proof harnesses |
-| [fuzz.yml](../.github/workflows/fuzz.yml) | push + Sunday | the fuzz targets (emission stays safe under adversarial input) |
-| [codeql.yml](../.github/workflows/codeql.yml) + [gitbot-audit.yml](../.github/workflows/gitbot-audit.yml) | Sunday | static security analysis + the security audit lane |
-| [loom.yml](../.github/workflows/loom.yml) | Sunday | the concurrency proof lane |
+| [miri.yml](../.github/workflows/miri.yml) | push | no undefined behavior in the audited pointer/alloc families |
+| [kani.yml](../.github/workflows/kani.yml) | push | bounded model checking of the audited proof harnesses |
+| [fuzz.yml](../.github/workflows/fuzz.yml) | push | the fuzz targets (emission stays safe under adversarial input) |
+| [codeql.yml](../.github/workflows/codeql.yml) + [gitbot-audit.yml](../.github/workflows/gitbot-audit.yml) | push | static security analysis + the security audit lane |
+| [loom.yml](../.github/workflows/loom.yml) | push | the concurrency proof lane |
 | [gate-keepers.sh](../scripts/gate-keepers.sh) | every push (via CI) | every non-Rust quality gate: headers, permissions, LOC caps, language purity, emoji sweep, hype vocabulary, docs truth audit, unsafe census |
 
 ## Auditing the chain in one sitting
