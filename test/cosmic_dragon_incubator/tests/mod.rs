@@ -9,6 +9,14 @@
 
 #[cfg(test)]
 mod alloc_ledger;
+// The emission conformance law (night-netrunner-Z2, the zelynic Z10
+// shape): a strict VT model applied to the shipped diff solver's
+// emission stream must reconstruct the target screen — the semantic
+// half of the certificate INV-22's byte economy cannot see. Lemma-
+// decomposed (L1 reconstruction / L2 idle identity / L3 payload
+// accounting) per the Z12 lesson, with its own regression store.
+#[cfg(test)]
+mod emission_conformance;
 // The emission-minimality certificate (INV-22, night-frontier-Z9-C):
 // the shipped diff solver and the lean writer bound against an
 // independent law reference — pure frame math, cross-architecture-safe

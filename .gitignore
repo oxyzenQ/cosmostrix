@@ -54,11 +54,12 @@ other ai/
 # the wall above would swallow it and break build/gpg.rs's include_str! —
 # re-include it explicitly (the zelynic estate law).
 !assets/gpg/pinned-maintainer-fpr.txt
-# The proptest regression store (night-netrunner-Z2, the zelynic
-# proof-layer shape): a tracked ledger of every counterexample the
-# property lane has caught and shrunk — committed on purpose so every
-# contributor and CI lane replays the exact witnesses.
+# The proptest regression stores (night-netrunner-Z2, the zelynic
+# proof-layer shape): tracked ledgers of every counterexample the
+# property lanes have caught and shrunk — committed on purpose so
+# every contributor and CI lane replays the exact witnesses.
 !test/tests/property-regressions.txt
+!test/cosmic_dragon_incubator/tests/emission_conformance-regressions.txt
 *.ruff*
 .vs/
 
