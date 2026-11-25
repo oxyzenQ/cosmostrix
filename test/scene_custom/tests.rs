@@ -357,7 +357,7 @@ fn list_custom_scenes_text_renders_plain_names() {
         ("scene-custom.beta.color".to_string(), "neon".to_string()),
     ]);
     let scenes = collect_custom_scenes(&cfg);
-    let text = list_custom_scenes_text(&scenes);
+    let text = list_custom_scenes_text(&scenes, &std::collections::HashMap::new());
     assert!(text.contains("alpha"), "list must include alpha: {text}");
     assert!(text.contains("beta"), "list must include beta: {text}");
     assert!(
@@ -392,7 +392,7 @@ fn list_custom_scenes_text_escapes_control_bytes_in_scene_name() {
         hostile_name.to_string(),
         crate::scene_custom::UserProfile::default(),
     );
-    let text = list_custom_scenes_text(&synthetic);
+    let text = list_custom_scenes_text(&synthetic, &std::collections::HashMap::new());
     assert!(
         !text.chars().any(|c| c != '\n' && c.is_control()),
         "raw control byte leaked into --list-scenes output: {text:?}"

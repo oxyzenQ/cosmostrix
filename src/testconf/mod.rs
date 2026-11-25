@@ -100,29 +100,47 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         }
     };
 
-    // v50: SHA-512 fingerprint of the config file on disk.
-    // Lets the user verify exact config state with `sha512sum`,
-    // detect config drift across machines, and prove config identity
-    // in bug reports. Uses the same sha2 crate as --dump-config and
+    // v50: SHA-512 fingerprint of the config file on disk (matches
+    // `sha512sum <path>` exactly). Lets the user verify exact config
+    // state, detect config drift across machines, and prove config
+    // identity in bug reports. NIGHT-cafe-1: the header's
+    // template-fingerprint is now blake3 — this full-file hash is a
+    // separate, unchanged scope, still served by sha2 alongside
     // live-reload change detection (zero new dependencies).
     let file_hash = configfile::sha512_hex(content.as_bytes());
     println_safe!("testconf: file-sha512: {file_hash}");
 
     // v50 (alpha.2): Extract template-fingerprint from the header (if present)
     // and compare against the current built-in template to detect drift.
+    //
+    // NIGHT-cafe-1 (2026-11-25): the fingerprint algorithm moved from
+    // SHA-512 (128 hex chars) to blake3 (64 hex chars). The digest width
+    // selects the comparison algorithm, so configs written by older
+    // versions keep verifying against the legacy SHA-512 digest of the
+    // current template instead of reporting a false drift.
     let header_fp = configfile::extract_template_fingerprint(&content);
-    let current_template_hash = configfile::sha512_hex(configfile::dump_config_text().as_bytes());
     match &header_fp {
         Some(fp) => {
             println_safe!("testconf: template-fingerprint: {fp}");
+            let (current_template_hash, algo) = if fp.len() == 64 {
+                (
+                    configfile::blake3_hex(configfile::dump_config_text().as_bytes()),
+                    "blake3",
+                )
+            } else {
+                (
+                    configfile::sha512_hex(configfile::dump_config_text().as_bytes()),
+                    "sha512 (legacy)",
+                )
+            };
             if fp == &current_template_hash {
                 println_safe!(
-                    "testconf: template drift: none (matches built-in v{} template)",
+                    "testconf: template drift: none (matches built-in v{} template, {algo})",
                     env!("CARGO_PKG_VERSION")
                 );
             } else {
                 println_safe!(
-                    "testconf: template drift: detected — header fingerprint differs from built-in template"
+                    "testconf: template drift: detected — header fingerprint differs from built-in template ({algo})"
                 );
                 println_safe!("testconf:   built-in hash: {current_template_hash}");
                 crate::output::eprintln_suggestion_line(

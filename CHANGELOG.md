@@ -64,6 +64,39 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-cafe-1 - custom block names display in their original case and the template fingerprint moves to blake3
+
+- `--list-charsets` rendered every custom charset name lowercased
+  (`[charset-custom.T1]` listed as "t1"): the config parser lowercases
+  section names for case-insensitive key lookup, which also destroyed
+  the user's block-name spelling before any display surface saw it.
+  The parser now records each custom-block header paired with the
+  spelling as written (`ParsedConfig::original_custom_block_headers`),
+  and the three listing surfaces display the original case:
+  `--list-charsets` ("T1"), `--list-scenes` ("Nebula"),
+  `--list-colors` ("Dusk"). Matching stays case-insensitive end to end
+  (`-C t1` still loads `[charset-custom.T1]`; the lookup key, the
+  duplicate-header detector and the completeness validator all keep
+  their lowercase contract). Verified against the owner's own repro:
+  the 44-char `T1` pool lists as `T1   44 chars`, and the legacy
+  sha512 fingerprint quoted in the task (`1464e07e...349ea`) recomputes
+  bit-for-bit from the current template body.
+- The `--dump-config` header's `template-fingerprint` moves from
+  SHA-512 (128 hex chars) to blake3 (64 hex chars), per the owner's
+  "use blake3 for speed" contract — the digest that `--testconf`
+  compares is now `configfile::blake3_hex`, the same hash family the
+  depth anchor, the binary self-hash and the replay oracle already
+  use. Backward compatible by digest width: configs written before
+  this change carry a 128-char sha512 fingerprint and `--testconf`
+  compares it against the legacy sha512 digest of the current template
+  (`drift: none ... sha512 (legacy)`), so no false drift is reported.
+  The full-file hash (`testconf: file-sha512`, matching `sha512sum`
+  exactly) is a separate scope and unchanged. Cross-checked against an
+  independent Python blake3 implementation (empty string and `abc`
+  reference vectors plus the full 8893-byte template body) — the Rust
+  digest matches byte-for-byte, so the test vectors cannot pass
+  circularly.
+
 ### fix: night-seal-gate-1 - the installer's official-build gate matches the materialized -V signature surface again
 
 - `scripts/package/install-on-my-machine.sh` refused every locally

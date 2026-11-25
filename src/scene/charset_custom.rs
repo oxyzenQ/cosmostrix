@@ -87,6 +87,13 @@ pub(crate) const CHARSET_CUSTOM_MAX_NAME_LEN: usize = 64;
 pub(crate) struct CharsetCustomDef {
     /// The validated character pool, in config-declared order.
     pub chars: Vec<char>,
+    /// The block name exactly as written in config.toml (original case),
+    /// for user-facing display. Map keys stay lowercase so lookups remain
+    /// case-insensitive; this field keeps `--list-charsets`, the
+    /// "expected one of" error list and the shadow-warning faithful to
+    /// the config source. NIGHT-cafe-1 (2026-11-25): `[charset-custom.T1]`
+    /// used to surface as "t1" everywhere its name was printed.
+    pub display_name: String,
 }
 
 /// Collect every `[charset-custom.<name>]` block from the parsed config
@@ -97,7 +104,9 @@ pub(crate) struct CharsetCustomDef {
 /// upstream by `is_known_key()` in `configfile.rs`, so they never reach
 /// this function.
 ///
-/// Names are normalized to lowercase for case-insensitive matching.
+/// Names are normalized to lowercase for case-insensitive matching; the
+/// original-case spelling is preserved in `CharsetCustomDef::display_name`
+/// for every user-facing surface (NIGHT-cafe-1).
 ///
 /// v50.0.0-beta.6 LTS: bounded by `CHARSET_CUSTOM_MAX_BLOCKS` (24,
 /// NIGHT-hunt-39, NIGHT-hunt-40) and `CHARSET_CUSTOM_MAX_NAME_LEN` (64 chars)
@@ -129,6 +138,10 @@ pub(crate) fn collect_charset_custom(
         if name.len() > CHARSET_CUSTOM_MAX_NAME_LEN {
             continue;
         }
+        // NIGHT-cafe-1: keep the original-case block name for display
+        // before the key is normalized. Same last-wins semantics as
+        // `chars` for pathological duplicate case-variant blocks.
+        let display_name = name.to_string();
         let name = name.to_ascii_lowercase();
         if name.is_empty() {
             continue;
@@ -146,6 +159,7 @@ pub(crate) fn collect_charset_custom(
         if let Ok(chars) = parse_charset_value(value) {
             def.chars = chars;
         }
+        def.display_name = display_name;
     }
 
     out
@@ -247,8 +261,20 @@ pub(crate) fn load_custom_charset(
     let palettes = collect_charset_custom(cfg);
     let normalized = name.trim().to_ascii_lowercase();
     let def = palettes.get(&normalized).ok_or_else(|| {
-        let mut available: Vec<String> = palettes.keys().cloned().collect();
-        available.sort();
+        // NIGHT-cafe-1: list the block names exactly as the config spells
+        // them (original case). Order stays deterministic — the BTreeMap
+        // iterates in lowercase-key order regardless of HashMap seed.
+        let mut available: Vec<String> = palettes
+            .iter()
+            .map(|(key, d)| {
+                if d.display_name.is_empty() {
+                    key.clone()
+                } else {
+                    d.display_name.clone()
+                }
+            })
+            .collect();
+        available.sort_by_key(|a| a.to_ascii_lowercase());
         let list = if available.is_empty() {
             "<none defined>".to_string()
         } else {
@@ -314,7 +340,11 @@ pub(crate) fn load_custom_charset_if_matches(
     let chars = load_custom_charset(cfg, name).ok()?;
     // v50.0.0-beta.6 Option D: warn if this custom name also matches a
     // builtin preset. Custom wins (already returned below), but the user
-    // must be informed so silent shadowing never happens.
+    // must be informed so silent shadowing never happens. NIGHT-cafe-1
+    // note: this line still quotes the LOWERCASED lookup key — the
+    // parser-level original-case record does not reach this deep (it is
+    // threaded only to the listing surfaces); matching is
+    // case-insensitive either way.
     if crate::charset::charset_from_str(name, false).is_ok() {
         let builtin_desc = "builtin preset (see --list-charsets)";
         let custom_desc = format!(
@@ -486,6 +516,28 @@ mod tests {
         cfg.insert("charset-custom.MySet.set".to_string(), "ab".to_string());
         let map = collect_charset_custom(&cfg);
         assert!(map.contains_key("myset"));
+    }
+
+    #[test]
+    fn collect_preserves_display_name_case() {
+        // NIGHT-cafe-1: user-facing surfaces must show the block name
+        // exactly as the config spells it, while the map key stays
+        // lowercase for case-insensitive lookup.
+        let mut cfg = HashMap::new();
+        cfg.insert("charset-custom.T1.set".to_string(), "ab".to_string());
+        let map = collect_charset_custom(&cfg);
+        assert!(map.contains_key("t1"));
+        assert_eq!(map["t1"].display_name, "T1");
+    }
+
+    #[test]
+    fn load_custom_charset_error_lists_original_case() {
+        // NIGHT-cafe-1: the "expected one of" list quotes the config's
+        // own spelling, not the lowercased key.
+        let mut cfg = HashMap::new();
+        cfg.insert("charset-custom.T1.set".to_string(), "ab".to_string());
+        let err = load_custom_charset(&cfg, "missing").unwrap_err();
+        assert!(err.contains("T1"), "got: {err}");
     }
 
     #[test]

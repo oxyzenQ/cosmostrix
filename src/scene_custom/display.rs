@@ -63,10 +63,22 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 /// through `--list-scenes` — the same shared-config injection class the
 /// S-night-R4 diagnostic guard closed.
 #[must_use]
-pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
+pub(crate) fn list_custom_scenes_text(
+    scenes: &BTreeMap<String, UserProfile>,
+    display_names: &std::collections::HashMap<String, String>,
+) -> String {
     let mut out = String::new();
     for name in scenes.keys() {
-        out.push_str(&format!("  {name}\n"));
+        // NIGHT-cafe-1: the parser lowercases section names for
+        // case-insensitive lookup, so the collected key is lowercase;
+        // the display name comes from the parse's original-case header
+        // record when available (`[scene-custom.Nebula]` lists as
+        // "Nebula"), falling back to the lowercase key.
+        let shown = display_names
+            .get(&format!("scene-custom.{name}"))
+            .map(String::as_str)
+            .unwrap_or(name);
+        out.push_str(&format!("  {shown}\n"));
     }
     escape_ctrl(&out).into_owned()
 }

@@ -143,6 +143,15 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
     // DETECTION, not a new key-resolution policy, so a validation
     // bypass keeps the old semantics for the survivors.
     let mut seen_sections: std::collections::HashSet<String> = std::collections::HashSet::new();
+    // NIGHT-cafe-1: the lowercased section name destroys the user's
+    // block-name spelling for the user-named custom namespaces
+    // (`[charset-custom.T1]` survives in the values map only as
+    // charset-custom.t1.*). Pair each first-seen lowercased header with
+    // the spelling as written so the listing surfaces can display the
+    // original case; duplicate headers already land in
+    // duplicate_sections and the first spelling wins the record.
+    let mut seen_sections_original: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     let mut duplicate_keys: Vec<String> = Vec::new();
     let mut duplicate_sections: Vec<String> = Vec::new();
 
@@ -161,8 +170,8 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
         }
 
         if stripped.starts_with('[') && stripped.ends_with(']') && stripped.len() > 2 {
-            let section = &stripped[1..stripped.len() - 1];
-            let section = section.trim().to_ascii_lowercase();
+            let raw_section = stripped[1..stripped.len() - 1].trim();
+            let section = raw_section.to_ascii_lowercase();
             if section.is_empty() {
                 malformed_lines.push(stripped.to_string());
                 i += 1;
@@ -177,6 +186,10 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
             if !seen_sections.insert(section.clone()) {
                 duplicate_sections.push(section.clone());
             }
+            // NIGHT-cafe-1: first spelling wins the original-case record.
+            seen_sections_original
+                .entry(section.clone())
+                .or_insert_with(|| raw_section.to_string());
             current_section = section;
             i += 1;
             continue;
@@ -366,6 +379,9 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
         duplicate_keys,
         duplicate_sections,
         custom_block_headers: ParsedConfig::custom_block_headers_from(&seen_sections),
+        original_custom_block_headers: ParsedConfig::original_custom_block_headers_from(
+            &seen_sections_original,
+        ),
         // Text-level parse: no disk I/O happened, so no read error.
         // Only configfile_load::parse_config_at can set this.
         read_error: None,
@@ -756,9 +772,10 @@ pub(crate) use configfile_syntax::unquoted_hash_inside_array;
 // v50.0.0-beta.7 LOC refactor: dump_config_text + dump_config_with_header
 // + sha512_hex + extract_template_fingerprint extracted to
 // configfile_dump.rs. Re-exported here so all call sites resolve unchanged.
+// NIGHT-cafe-1: blake3_hex joins the set (template-fingerprint algorithm).
 mod configfile_dump;
 pub(crate) use configfile_dump::{
-    dump_config_text, dump_config_with_header, extract_template_fingerprint, sha512_hex,
+    blake3_hex, dump_config_text, dump_config_with_header, extract_template_fingerprint, sha512_hex,
 };
 
 // v80.0.0-beta.1: auto-promote decision rule extracted to keep this file

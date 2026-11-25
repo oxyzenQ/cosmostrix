@@ -50,6 +50,17 @@ pub(crate) struct ParsedConfig {
     /// the values map, but the repeat is recorded so the
     /// validation layers reject the file.
     pub duplicate_sections: Vec<String>,
+    /// NIGHT-cafe-1 (2026-11-25): custom-block section headers paired
+    /// `(lowercased header, header as written)`. The parser lowercases
+    /// section names so the values map stays case-insensitive — which
+    /// also destroys the user's block-name spelling for the user-named
+    /// custom namespaces (`[charset-custom.T1]` survives only as
+    /// charset-custom.t1.*). This record lets the listing surfaces
+    /// display the name exactly as the config spells it. Built from the
+    /// first spelling seen per lowercased header (duplicates land in
+    /// `duplicate_sections`), filtered to the custom namespaces, sorted
+    /// by the lowercased header for determinism.
+    pub original_custom_block_headers: Vec<(String, String)>,
     /// NIGHT-hunt-37: every `[scene-custom.<name>]`,
     /// `[colors-custom.<name>]` and `[charset-custom.<name>]` section
     /// header the parser saw (plus the bare namespace forms),
@@ -94,6 +105,48 @@ impl ParsedConfig {
             .collect();
         headers.sort();
         headers
+    }
+
+    /// NIGHT-cafe-1: build the original-case custom-block header record
+    /// from the parser's lowercased-header -> first-seen-original map.
+    /// Keys arrive lowercased, so `is_custom_block_section` filters them
+    /// directly; the pair is sorted by the lowercased header so the
+    /// record order is deterministic regardless of HashMap iteration.
+    #[must_use]
+    pub(crate) fn original_custom_block_headers_from(
+        seen_originals: &std::collections::HashMap<String, String>,
+    ) -> Vec<(String, String)> {
+        let mut headers: Vec<(String, String)> = seen_originals
+            .iter()
+            .filter(|(s, _)| is_custom_block_section(s))
+            .map(|(s, o)| (s.clone(), o.clone()))
+            .collect();
+        headers.sort_by(|a, b| a.0.cmp(&b.0));
+        headers
+    }
+
+    /// NIGHT-cafe-1: the lowercased custom-block header mapped to the
+    /// block NAME exactly as the config spells it. The listing surfaces
+    /// look up a collected lowercase key's full header here
+    /// (`format!("charset-custom.{key}")`) and display the original
+    /// spelling, falling back to the lowercase key when the record has
+    /// no match (e.g. a hand-built values map with no parse record).
+    ///
+    /// The slice is byte-safe: the lowercased header is produced by
+    /// `to_ascii_lowercase`, which preserves byte lengths, so the name
+    /// part starts at the same offset in the original spelling.
+    #[must_use]
+    pub(crate) fn original_custom_name_map(&self) -> std::collections::HashMap<String, String> {
+        let mut out = std::collections::HashMap::new();
+        for (lower_header, original) in &self.original_custom_block_headers {
+            for prefix in ["charset-custom.", "colors-custom.", "scene-custom."] {
+                if lower_header.starts_with(prefix) {
+                    out.insert(lower_header.clone(), original[prefix.len()..].to_string());
+                    break;
+                }
+            }
+        }
+        out
     }
 }
 

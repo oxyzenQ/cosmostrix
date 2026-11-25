@@ -4,10 +4,13 @@
 //! Config dump + fingerprint helpers — extracted from `configfile.rs`
 //! to keep that file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
-//! Owns 4 pure functions:
+//! Owns 5 pure functions:
 //! - `dump_config_text()`: the commented config template body (raw string).
-//! - `dump_config_with_header()`: template + timestamp + sha512 fingerprint.
-//! - `sha512_hex(data)`: SHA-512 hash as 128-char lowercase hex.
+//! - `dump_config_with_header()`: template + timestamp + blake3 fingerprint.
+//! - `blake3_hex(data)`: BLAKE3 hash as 64-char lowercase hex
+//!   (NIGHT-cafe-1: template-fingerprint algorithm, replaces SHA-512).
+//! - `sha512_hex(data)`: SHA-512 hash as 128-char lowercase hex (kept for
+//!   legacy fingerprint comparison + `testconf: file-sha512`).
 //! - `extract_template_fingerprint(content)`: parses the
 //!   `# template-fingerprint: <hash>` header from a config file.
 //!
@@ -236,6 +239,19 @@ pub(crate) fn dump_config_text() -> &'static str {
 /// Serves as a content-addressable identity — any change to the template
 /// produces a different digest. `--testconf` extracts this fingerprint and
 /// compares it against the current built-in template to detect drift.
+///
+/// NIGHT-cafe-1 (2026-11-25): the fingerprint algorithm moved from
+/// SHA-512 to BLAKE3 (`blake3_hex`, 64 lowercase hex chars) per owner
+/// mandate — blake3 is already in-tree (pure-Rust profile) and the
+/// "use blake3 for speed" contract from night-signature-advanced-3
+/// extends to this surface. Configs written by older versions carry a
+/// 128-char SHA-512 fingerprint; `extract_template_fingerprint` accepts
+/// both and `testconf::run` compares each against the matching
+/// algorithm's digest of the current template, so legacy configs keep
+/// verifying instead of reporting a false drift. The full-file hash
+/// (`testconf: file-sha512`, matching `sha512sum` on disk) is a
+/// separate, unchanged scope.
+///
 /// Uses the same `sha2` crate already in-tree for live-reload change
 /// detection (zero new dependencies). SHA-512 chosen over SHA-256 for
 /// higher security margin (256-bit collision resistance vs 128-bit) at
@@ -255,10 +271,34 @@ pub(crate) fn dump_config_text() -> &'static str {
 pub(crate) fn dump_config_with_header() -> String {
     let ts = crate::clock::now_iso_utc();
     let body = dump_config_text();
-    let hash = sha512_hex(body.as_bytes());
+    let hash = blake3_hex(body.as_bytes());
     format!(
         "# cosmostrix config file\n# generated at {ts}\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# template-fingerprint: {hash}\n# verify full file: sha512sum <path> or --testconf\n#\n{body}"
     )
+}
+
+/// Compute the BLAKE3 hex digest of `data` (32-byte output, 64 lowercase
+/// hex chars).
+///
+/// NIGHT-cafe-1 (2026-11-25): template-fingerprint algorithm. blake3 is
+/// already a dependency (pure-Rust profile, zero new compile surface) and
+/// the owner's "use blake3 for speed" contract (night-signature-advanced-3)
+/// covers this surface too: a config-template hash is a cold-start-path
+/// computation, small enough that speed is not the point — the point is
+/// one hash family across the tree's integrity surfaces (depth anchor,
+/// binary self-hash, replay oracle, now the template fingerprint).
+///
+/// Returns a 64-character lowercase hex string.
+#[must_use]
+pub(crate) fn blake3_hex(data: &[u8]) -> String {
+    let digest = blake3::hash(data);
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(64);
+    for byte in digest.as_bytes() {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out
 }
 
 /// Compute the SHA-512 hex digest of `data`.
@@ -299,13 +339,19 @@ pub(crate) fn sha512_hex(data: &[u8]) -> String {
 /// Extract the `template-fingerprint` hex digest from the header of a config
 /// file (if present).
 ///
-/// Looks for a line matching `# template-fingerprint: <128 hex chars>` in the
-/// first 6 lines of the file. Returns `None` if the header is missing or
-/// doesn't contain a fingerprint line (e.g., hand-written config, or pre-v50
-/// format).
+/// Looks for a line matching `# template-fingerprint: <64 or 128 hex chars>`
+/// in the first 6 lines of the file. Returns `None` if the header is missing
+/// or doesn't contain a fingerprint line (e.g., hand-written config, or
+/// pre-v50 format).
+///
+/// Accepts both digest widths: 64 hex chars = blake3 (NIGHT-cafe-1
+/// algorithm), 128 hex chars = legacy SHA-512 (configs written before
+/// NIGHT-cafe-1). The caller (`testconf::run`) compares each width against
+/// the matching algorithm's digest of the current template, so legacy
+/// configs keep verifying instead of reporting a false drift.
 ///
 /// Used by `testconf::run()` to detect template drift: the extracted
-/// fingerprint is compared against a fresh `sha512_hex(dump_config_text())`
+/// fingerprint is compared against a fresh digest of `dump_config_text()`
 /// computed at runtime.
 #[must_use]
 pub(crate) fn extract_template_fingerprint(content: &str) -> Option<String> {
@@ -313,12 +359,13 @@ pub(crate) fn extract_template_fingerprint(content: &str) -> Option<String> {
         let trimmed = line.trim_start();
         if let Some(hex) = trimmed.strip_prefix("# template-fingerprint: ") {
             let hex = hex.trim();
-            // Validate: must be exactly 128 lowercase hex characters.
-            if hex.len() == 128 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            // Validate: exactly 64 (blake3) or 128 (legacy sha512)
+            // lowercase hex characters.
+            if (hex.len() == 64 || hex.len() == 128) && hex.chars().all(|c| c.is_ascii_hexdigit()) {
                 return Some(hex.to_owned());
             }
         }
-        // Also accept the legacy v50 label for backward compat.
+        // Also accept the legacy v50 label for backward compat (sha512 only).
         if let Some(hex) = trimmed.strip_prefix("# sha512 (template): ") {
             let hex = hex.trim();
             if hex.len() == 128 && hex.chars().all(|c| c.is_ascii_hexdigit()) {

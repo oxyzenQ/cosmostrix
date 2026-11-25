@@ -142,12 +142,17 @@ pub(crate) fn print_list_charsets() {
     crate::report::print_usage_note(color_enabled_stdout());
 
     // v25: Show custom charsets from config (if any).
-    let cfg = crate::configfile::load_config_file(None);
-    let custom_charsets = crate::charset_custom::collect_charset_custom(&cfg);
+    // NIGHT-cafe-1: the full parse rides the same memoized load (no
+    // extra disk read) and carries the original-case custom-block
+    // headers, so `[charset-custom.T1]` lists as "T1", not "t1".
+    let parsed_cfg = crate::configfile::load_config_file_full(None);
+    let cfg = &parsed_cfg.values;
+    let orig_names = parsed_cfg.original_custom_name_map();
+    let custom_charsets = crate::charset_custom::collect_charset_custom(cfg);
     // NIGHT-depthtest-3: charset blocks hidden by the name-length cap
     // (the collector drops them before this listing ever runs).
     let hidden = oversized_custom_block_names(
-        &cfg,
+        cfg,
         "charset-custom.",
         &["set"],
         crate::charset_custom::CHARSET_CUSTOM_MAX_NAME_LEN,
@@ -165,11 +170,26 @@ pub(crate) fn print_list_charsets() {
         }
         println_safe!();
         for (name, def) in &custom_charsets {
+            // NIGHT-cafe-1: display the block name exactly as the config
+            // spells it. The parser record (original spelling of the
+            // section header) wins; the def's display name and the
+            // lowercase key are the fallbacks for hand-built maps.
+            let shown = orig_names
+                .get(&format!("charset-custom.{name}"))
+                .cloned()
+                .or_else(|| {
+                    if def.display_name.is_empty() {
+                        None
+                    } else {
+                        Some(def.display_name.clone())
+                    }
+                })
+                .unwrap_or_else(|| name.clone());
             // NIGHT-cybersecurity-1: `collect_charset_custom` gates only
             // name LENGTH and key shape — not charset — so an
             // ESC-bearing name IS collected and reaches this loop. Escape
             // before it reaches the terminal.
-            let safe_name = escape_ctrl(name);
+            let safe_name = escape_ctrl(&shown);
             println_safe!("  {safe_name:<20} {} chars", def.chars.len());
         }
         for line in hidden_block_warning_lines(
@@ -201,11 +221,16 @@ pub(crate) fn print_list_colors() {
     println_safe!("{} built-in themes.", crate::theme::theme_count());
 
     // v16: Show custom color palettes from config (if any).
-    let cfg = crate::configfile::load_config_file(None);
-    let custom_palettes = crate::colors_custom::collect_colors_custom(&cfg);
+    // NIGHT-cafe-1: the full parse (same memoized load) carries the
+    // original-case block headers, so `[colors-custom.Dusk]` lists as
+    // "Dusk", not "dusk".
+    let parsed_cfg = crate::configfile::load_config_file_full(None);
+    let cfg = &parsed_cfg.values;
+    let orig_names = parsed_cfg.original_custom_name_map();
+    let custom_palettes = crate::colors_custom::collect_colors_custom(cfg);
     // NIGHT-depthtest-3: palette blocks hidden by the name-length cap.
     let hidden = oversized_custom_block_names(
-        &cfg,
+        cfg,
         "colors-custom.",
         &["bg", "rain", "stops"],
         crate::colors_custom::COLORS_CUSTOM_MAX_NAME_LEN,
@@ -223,11 +248,18 @@ pub(crate) fn print_list_colors() {
         }
         println_safe!();
         for name in custom_palettes.keys() {
+            // NIGHT-cafe-1: display the palette name exactly as the
+            // config spells it (parser-recorded original case first,
+            // the lowercase key as fallback).
+            let shown = orig_names
+                .get(&format!("colors-custom.{name}"))
+                .map(String::as_str)
+                .unwrap_or(name);
             // NIGHT-cybersecurity-1: `collect_colors_custom` gates only
             // name LENGTH and key shape — not charset — so an
             // ESC-bearing name IS collected and reaches this loop. Escape
             // before it reaches the terminal.
-            let safe_name = escape_ctrl(name);
+            let safe_name = escape_ctrl(shown);
             println_safe!("  {safe_name:<20} custom palette");
         }
         for line in hidden_block_warning_lines(
@@ -258,15 +290,20 @@ pub(crate) fn print_list_scenes() {
     print!("{}", crate::scene::list_scenes_text());
 
     // Append custom scenes from config (if any) under a separate heading.
-    let cfg = crate::configfile::load_config_file(None);
-    let custom_scenes = crate::scene_custom::collect_custom_scenes(&cfg);
+    // NIGHT-cafe-1: the full parse (same memoized load) carries the
+    // original-case block headers, so `[scene-custom.Nebula]` lists as
+    // "Nebula", not "nebula".
+    let parsed_cfg = crate::configfile::load_config_file_full(None);
+    let cfg = &parsed_cfg.values;
+    let orig_names = parsed_cfg.original_custom_name_map();
+    let custom_scenes = crate::scene_custom::collect_custom_scenes(cfg);
     // NIGHT-depthtest-3: scene blocks hidden by the name-length cap —
     // the owner's --list-scenes repro: a 65+-char name never listed
     // while 4-char names listed fine. The section now prints (with a
     // warning) even when the collected map is empty and every defined
     // block is hidden.
     let hidden = oversized_custom_block_names(
-        &cfg,
+        cfg,
         "scene-custom.",
         crate::scene_custom::SCENE_CUSTOM_FIELDS,
         crate::scene_custom::SCENE_CUSTOM_MAX_NAME_LEN,
@@ -285,7 +322,7 @@ pub(crate) fn print_list_scenes() {
         println_safe!();
         print!(
             "{}",
-            crate::scene_custom::list_custom_scenes_text(&custom_scenes)
+            crate::scene_custom::list_custom_scenes_text(&custom_scenes, &orig_names)
         );
         for line in hidden_block_warning_lines(
             "scene-custom.",
