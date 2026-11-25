@@ -316,9 +316,11 @@ for name, st, want_ok, needle in cases:
 # stamp; ladder arithmetic: 5 depths evaluate on their own + D5 pass).
 ok, _ = commit_signature_verdict(stamp, signed_short)
 check("ladder arithmetic: signed HEAD -> 6/6 AUTHENTIC", ok)
-# ...and the unsigned agent HEAD reads 5/6 TAMPERED — the honest twin.
+# ...and the unsigned agent HEAD reads 5/6 UNSIGNED (night-hit-2: the
+# D5 row FAILs — the policy below stays fail-closed — but the ladder
+# names it a missing provenance link, not a modification; exit 1).
 ok_h, _ = commit_signature_verdict(head_stamp, head_short)
-check("ladder arithmetic: unsigned agent HEAD -> 5/6 TAMPERED", not ok_h)
+check("ladder arithmetic: unsigned agent HEAD -> 5/6 UNSIGNED (D5 FAIL)", not ok_h)
 
 # P5: an unsigned tree (the agent-push shape) fails D5 by name —
 # build a synthetic unsigned commit in a scratch clone and classify.

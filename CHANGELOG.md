@@ -64,6 +64,46 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-hit-2 - the sig ladder names an unsigned commit UNSIGNED (a missing provenance link, not a modification)
+
+- A pristine local build with no GPG used to read
+  `SIGNATURE: TAMPERED (5/6 depths verified)` — a lie about the
+  artifact: nothing was modified, the provenance chain just stops at
+  an unbound commit. The verdict ladder splits the class out (the
+  zelynic night-dragon-fly-4 port): `SIGNATURE: UNSIGNED (5/6 depths
+  verified)` fires only when the commit-signature depth is the ONE
+  failure and its stamp state is `unsigned`, and the report carries
+  its own note ("a missing provenance link, not a modification —
+  every integrity depth above verifies"). TAMPERED stays the
+  tampering-class verdict: any integrity-depth failure (D0-D4), a
+  foreign key, a failed cryptographic check, and the fail-closed
+  unknown states (no-vcs, unavailable, unstamped) all keep
+  `SIGNATURE: TAMPERED`.
+- Exit contract: 0 AUTHENTIC, 1 UNSIGNED, 2 TAMPERED — the
+  any-failed-depth contract still names the exit (a script gates on
+  the code without parsing the text), and a script can now tell a
+  missing link from a tampering-class hole. The classifier is a pure
+  function (`verdict_class`) unit-tested across the full matrix, so
+  the contract does not depend on the build's own stamp; the
+  `commit_signature_state` helper (ported from zelynic) splits the
+  stamp's state word off the evidence.
+- `-V` names its own coverage on the Depth-matrix line: the appended
+  hint `(runtime depths; d4/d5 ride cosmostrix sig)` marks the
+  runtime-verifiable depths (d0-d3) versus the two `sig`-exclusive
+  rows (d4 engine-oracle, d5 commit-signature). The hint appends
+  after the layers suffix, so the line's leading shape stays
+  byte-stable for the fingerprint-token parsers.
+- Sync duty honored in the same commit: the supermassive sig_parity
+  gate accepts the new verdict shape (exit 1 + UNSIGNED 5/6 with the
+  D5 FAIL row, alongside the 6/6 AUTHENTIC and the fail-closed 5/6
+  TAMPERED shapes), `scripts/release/prove-d5-lane.py` relabels the
+  unsigned-HEAD expectation, and docs/INNOVATIONS.md documents the
+  three-verdict exit contract.
+- Verified on a real debug build of this tree (unsigned HEAD):
+  `cosmostrix sig` prints `SIGNATURE: UNSIGNED (5/6 depths verified)`
+  with D0-D4 all pass, exits 1, and carries the missing-link note;
+  `-V` shows `status=verified` with the appended hint.
+
 ### fix: night-cafe-1 - custom block names display in their original case and the template fingerprint moves to blake3
 
 - `--list-charsets` rendered every custom charset name lowercased

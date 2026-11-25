@@ -72,15 +72,17 @@ pub(crate) fn expand_argv_shorthands(argv: &[std::ffi::OsString]) -> Vec<std::ff
         // contract: subcommand only. Extra tokens after `sig` are
         // refused with a clap-shaped error (the report takes no
         // arguments; the same refusal lane as the -mfs typo guard).
-        // Exit codes: 0 authentic, 2 tamper (print_sig_report owns the
-        // tamper exit) — the install gate greps the AUTHENTIC verdict.
+        // Exit codes: 0 authentic, 1 unsigned (missing provenance link,
+        // night-hit-2), 2 tamper (print_sig_report owns both non-zero
+        // exits) — the install gate greps the AUTHENTIC verdict.
         if i == 1 && arg == "sig" {
             if let Some(extra) = argv.get(i + 1) {
                 die_sig_extra_arg(&extra.to_string_lossy());
             }
             crate::diagnostics::sig_report::print_sig_report();
-            // The authentic path reaches here (tamper exits 2 inside
-            // print_sig_report). Flush before exit: process::exit skips
+            // The authentic path reaches here (tamper exits 2 and
+            // unsigned exits 1 inside print_sig_report). Flush before
+            // exit: process::exit skips
             // the stdout destructor, and a piped report must not be
             // truncated by a still-buffered writer.
             use std::io::Write;

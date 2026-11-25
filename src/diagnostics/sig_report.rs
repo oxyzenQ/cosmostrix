@@ -78,7 +78,7 @@ use super::signature::{CONTACT, identity_core, provenance_view};
 
 /// The D5 commit-signature policy (night-netrunner-Z1): pinned
 /// fingerprint and the honest verdict sentence for every stamp state.
-use super::sig_commit_sig::commit_signature_verdict;
+use super::sig_commit_sig::{commit_signature_state, commit_signature_verdict};
 
 /// The build-time D5 stamp accessor (see `info::vcs_commit_sig`).
 use super::info::vcs_commit_sig;
@@ -93,6 +93,13 @@ use crate::bench::engine_oracle::run_engine_oracle;
 pub(crate) enum SigVerdict {
     /// Every depth passed.
     Authentic,
+    /// The commit-signature depth is the ONE failure and its stamp
+    /// state is `unsigned` (night-hit-2, the zelynic
+    /// night-dragon-fly-4 port): a missing GPG binding is a missing
+    /// provenance link, not a modification — every integrity depth
+    /// above verifies. Still exits 1 (the any-failed-depth contract
+    /// names the exit, not the verdict class).
+    Unsigned,
     /// At least one depth failed; the report names which.
     Tampered,
 }
@@ -102,6 +109,24 @@ struct DepthRow {
     name: &'static str,
     passed: bool,
     detail: String,
+}
+
+/// Pure verdict classifier (night-hit-2, the zelynic
+/// night-dragon-fly-4 port): given the pass count, the depth total,
+/// the D5 row's pass flag and its stamp state word, name the verdict
+/// class. UNSIGNED fires only when the commit-signature depth is the
+/// ONE failure and its stamp state is `unsigned` — a missing
+/// provenance link, not a modification. Any integrity-depth failure
+/// or signature anomaly (foreign key, failed check, unknown state)
+/// stays TAMPERED: tampering-class, not absent-provenance-class.
+fn verdict_class(depths_passed: usize, total: usize, sig_ok: bool, sig_state: &str) -> SigVerdict {
+    if depths_passed == total {
+        SigVerdict::Authentic
+    } else if depths_passed + 1 == total && !sig_ok && sig_state == "unsigned" {
+        SigVerdict::Unsigned
+    } else {
+        SigVerdict::Tampered
+    }
 }
 
 /// blake3 over the running executable image, read in chunks (the
@@ -142,8 +167,11 @@ fn binary_self_hash() -> Result<String, String> {
 /// The text is stable by contract (tests pin its shape, like the `-V`
 /// report): boxed header, six depth rows, an identity field block,
 /// then the verdict. Exit code is the dispatcher's job (`sig` exits 2
-/// on [`SigVerdict::Tampered`], the fatal-CLI code this tree already
-/// uses), so the report itself stays side-effect free.
+/// on [`SigVerdict::Tampered`] — the fatal-CLI code this tree already
+/// uses — and 1 on [`SigVerdict::Unsigned`], night-hit-2's
+/// missing-provenance-link class, so a script can tell the two apart
+/// without parsing the text), so the report itself stays side-effect
+/// free.
 #[must_use]
 pub(crate) fn sig_report() -> (String, SigVerdict) {
     let view = provenance_view();
@@ -182,9 +210,13 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     // commit (build/gpg.rs, verified against the pinned public key
     // in an isolated keyring); the policy — pinned fingerprint,
     // honest sentence for every state, fail-closed on the unknown —
-    // lives in sig_commit_sig.rs.
+    // lives in sig_commit_sig.rs. The state word rides alongside for
+    // the verdict class (night-hit-2): `unsigned` names a missing
+    // provenance link, everything else an anomaly.
     let commit_sha = super::info::build_commit_short().unwrap_or("unknown");
-    let (commit_sig_ok, commit_sig_detail) = commit_signature_verdict(vcs_commit_sig(), commit_sha);
+    let commit_stamp = vcs_commit_sig();
+    let (commit_sig_ok, commit_sig_detail) = commit_signature_verdict(commit_stamp, commit_sha);
+    let commit_sig_state = commit_signature_state(commit_stamp);
 
     let rows = [
         DepthRow {
@@ -229,11 +261,14 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     ];
 
     let depths_passed = rows.iter().filter(|r| r.passed).count();
-    let verdict = if depths_passed == rows.len() {
-        SigVerdict::Authentic
-    } else {
-        SigVerdict::Tampered
-    };
+    // night-hit-2 (the zelynic night-dragon-fly-4 port): the verdict
+    // splits the unsigned class out of TAMPERED — an unsigned commit
+    // is a missing provenance link, not a modification (a pristine
+    // local build with no GPG used to read "SIGNATURE: TAMPERED" for
+    // a plain no-GPG commit). The pure classifier is unit-tested
+    // (`verdict_class_names_the_unsigned_link`) so the contract does
+    // not depend on this build's own stamp.
+    let verdict = verdict_class(depths_passed, rows.len(), commit_sig_ok, commit_sig_state);
 
     let mut text = String::new();
     text.push_str("\u{2501}\u{2501}\u{2501} cosmostrix signature \u{2014} depth matrix \u{2501}\u{2501}\u{2501}\n");
@@ -263,13 +298,23 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     text.push('\n');
     text.push_str(&format!(
         "verdict: SIGNATURE: {} ({depths_passed}/{} depths verified)\n",
-        if verdict == SigVerdict::Authentic {
-            "AUTHENTIC"
-        } else {
-            "TAMPERED"
+        match verdict {
+            SigVerdict::Authentic => "AUTHENTIC",
+            SigVerdict::Unsigned => "UNSIGNED",
+            SigVerdict::Tampered => "TAMPERED",
         },
         rows.len()
     ));
+    // night-hit-2: the unsigned class carries its own note — the
+    // verdict names the missing link honestly, and the self-hash note
+    // below stays the closing line for every verdict.
+    if verdict == SigVerdict::Unsigned {
+        text.push_str(
+            "note: an unsigned commit is a missing provenance link, not a\n\
+             modification — every integrity depth above verifies; releases\n\
+             still bind to signed commits/tags.\n",
+        );
+    }
     text.push_str("note: the self-hash is a fingerprint to compare against a\n");
     text.push_str("published release hash; it cannot embed its own digest.\n");
 
@@ -314,6 +359,16 @@ pub(crate) fn print_sig_report() {
         let _ = std::io::stdout().flush();
         std::process::exit(2);
     }
+    if verdict == SigVerdict::Unsigned {
+        // night-hit-2: UNSIGNED still fails the gate (exit 1 — the
+        // any-failed-depth contract names the exit, not the verdict
+        // class), but it is the milder code: scripts can tell a
+        // missing provenance link (1) from a tampering-class hole (2)
+        // without parsing the text.
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
+        std::process::exit(1);
+    }
 }
 
 #[cfg(test)]
@@ -328,10 +383,13 @@ mod tests {
         // The ladder's honesty law (night-netrunner-Z1, the zelynic
         // night-solid-defense-2 precedent): the D5 row reports the
         // BUILD's own verified verdict, so a tree on an unsigned HEAD
-        // reads FAIL "no GPG signature" (5/6) and a tree whose HEAD
-        // is signed by the pinned maintainer key reads AUTHENTIC
-        // 6/6 — both are the pristine truth for their build, and the
-        // report must never claim otherwise.
+        // reads FAIL "no GPG signature" and the UNSIGNED verdict class
+        // (night-hit-2: a missing provenance link, not a modification —
+        // 5/6 with the unsigned note), a tree on an anomalous stamp
+        // (no-vcs, unavailable, unstamped) stays TAMPERED fail-closed,
+        // and a tree whose HEAD is signed by the pinned maintainer key
+        // reads AUTHENTIC 6/6 — all are the pristine truth for their
+        // build, and the report must never claim otherwise.
         let stamp = vcs_commit_sig();
         let sig_verified = stamp
             .strip_prefix("verified:")
@@ -342,12 +400,24 @@ mod tests {
                 text.contains("SIGNATURE: AUTHENTIC (6/6 depths verified)"),
                 "{text}"
             );
+        } else if commit_signature_state(stamp) == "unsigned" {
+            assert_eq!(verdict, SigVerdict::Unsigned, "{text}");
+            assert!(
+                text.contains("SIGNATURE: UNSIGNED (5/6 depths verified)"),
+                "{text}"
+            );
+            assert!(
+                text.contains("missing provenance link, not a"),
+                "the unsigned note must name the class:\n{text}"
+            );
         } else {
             assert_eq!(verdict, SigVerdict::Tampered, "{text}");
-            let d5 = text
-                .lines()
-                .find(|line| line.starts_with("D5 commit-signature"))
-                .unwrap_or_else(|| panic!("the D5 row must exist:\n{text}"));
+        }
+        let d5 = text
+            .lines()
+            .find(|line| line.starts_with("D5 commit-signature"))
+            .unwrap_or_else(|| panic!("the D5 row must exist:\n{text}"));
+        if !sig_verified {
             assert!(
                 d5.contains(" FAIL "),
                 "an unstamped-truth build must fail D5 by name:\n{text}"
@@ -363,6 +433,48 @@ mod tests {
         ] {
             assert!(text.contains(row), "missing depth row {row}:\n{text}");
         }
+    }
+
+    #[test]
+    fn verdict_class_names_the_unsigned_link() {
+        // night-hit-2: the pure classifier — UNSIGNED is the 5/6
+        // missing-provenance-link class, not a tampering verdict.
+        let six = |ok: [bool; 6]| (ok.iter().filter(|p| **p).count(), 6);
+        let (passed, total) = six([true, true, true, true, true, true]);
+        assert_eq!(
+            verdict_class(passed, total, true, "verified"),
+            SigVerdict::Authentic
+        );
+        // The owner's case: pristine local build, no GPG, everything
+        // else verifies — UNSIGNED (5/6), exit 1, never TAMPERED.
+        let (passed, total) = six([true, true, true, true, true, false]);
+        assert_eq!(
+            verdict_class(passed, total, false, "unsigned"),
+            SigVerdict::Unsigned
+        );
+        // A signature that EXISTS but is wrong stays tampering-class.
+        assert_eq!(
+            verdict_class(passed, total, false, "wrong-key"),
+            SigVerdict::Tampered
+        );
+        assert_eq!(
+            verdict_class(passed, total, false, "bad-signature"),
+            SigVerdict::Tampered
+        );
+        // Fail-closed on the unknown: not an `unsigned` link.
+        assert_eq!(
+            verdict_class(passed, total, false, "no-vcs"),
+            SigVerdict::Tampered
+        );
+        assert_eq!(
+            verdict_class(passed, total, false, "unstamped"),
+            SigVerdict::Tampered
+        );
+        // Two failures (unsigned + a broken integrity depth) is a
+        // tampering verdict — the link class needs 5/6 exactly.
+        assert_eq!(verdict_class(4, 6, false, "unsigned"), SigVerdict::Tampered);
+        // And any integrity-depth failure with a verified stamp.
+        assert_eq!(verdict_class(5, 6, true, "verified"), SigVerdict::Tampered);
     }
 
     #[test]
@@ -415,7 +527,7 @@ mod tests {
         assert!(text.contains("note: the self-hash is a fingerprint"));
         assert!(matches!(
             verdict,
-            SigVerdict::Authentic | SigVerdict::Tampered
+            SigVerdict::Authentic | SigVerdict::Unsigned | SigVerdict::Tampered
         ));
     }
 }

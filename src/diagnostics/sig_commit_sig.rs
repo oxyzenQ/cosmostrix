@@ -40,6 +40,20 @@
 pub(crate) const PINNED_MAINTAINER_KEY_FPR: &str =
     include_str!("../../assets/gpg/pinned-maintainer-fpr.txt");
 
+/// The stamp's state word (`verified`, `unsigned`, `wrong-key`, ...),
+/// split off the `state[:evidence]` shape the build stamps. The depth
+/// ladder uses it to tell a MISSING provenance link (`unsigned`) from
+/// an active signature anomaly (foreign key, failed check) when it
+/// renders the verdict class (night-hit-2, the zelynic
+/// night-dragon-fly-4 port).
+#[must_use]
+pub(crate) fn commit_signature_state(stamp: &str) -> &str {
+    match stamp.split_once(':') {
+        Some((state, _)) => state,
+        None => stamp,
+    }
+}
+
 /// The D5 verdict: `(passed, detail)` for the sig ladder's
 /// commit-signature row. Every state of the build-time stamp maps to
 /// an honest sentence; only a verified match against the pinned
@@ -161,6 +175,23 @@ mod tests {
         // together — a drifted pin silently breaks the whole D5
         // chain.
         assert_eq!(PINNED, "F5324E0967F104D58CE025F347A50AEF4B65AAC2");
+    }
+
+    #[test]
+    fn state_word_splits_off_the_evidence() {
+        // night-hit-2: the verdict class reads the state word; the
+        // split must survive both stamp shapes and fail closed on the
+        // bare form (the build's unstamped default).
+        assert_eq!(
+            commit_signature_state("verified:AAAA47A50AEF4B65AAC2"),
+            "verified"
+        );
+        assert_eq!(commit_signature_state("unsigned"), "unsigned");
+        assert_eq!(commit_signature_state("unstamped"), "unstamped");
+        assert_eq!(
+            commit_signature_state("no-key:FFFF47A50AEF4B65AAC2"),
+            "no-key"
+        );
     }
 
     #[test]

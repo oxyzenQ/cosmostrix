@@ -519,9 +519,14 @@ to a commit the pinned key signed, so with the key verified
 out-of-band and releases cut from signed tags, the chain runs key to
 tag to commit to binary with no silent channel left. Fail-closed is
 the law: unsigned, wrong-key, no-key, bad-signature, no-vcs,
-unavailable and the unstamped default all FAIL by name — a tree on
-an unsigned HEAD reads `SIGNATURE: TAMPERED (5/6 depths verified)`,
-the honest verdict for that build, never a silent pass. D3 blake3-hashes the running executable image (~10 MB in tens of
+unavailable and the unstamped default all FAIL by name — since
+night-hit-2 a tree on an unsigned HEAD reads
+`SIGNATURE: UNSIGNED (5/6 depths verified)` with exit 1 (a missing
+provenance link, not a modification: every integrity depth above
+verifies), an anomalous stamp (wrong-key, no-key, bad-signature,
+no-vcs, unavailable, unstamped) keeps the fail-closed
+`SIGNATURE: TAMPERED` verdict, and neither is ever a silent pass.
+D3 blake3-hashes the running executable image (~10 MB in tens of
 milliseconds on the pure-Rust implementation; the crate's C/asm lanes
 are deliberately off so every cross-compile lane in the release matrix
 keeps building without a target C toolchain) — an honest FINGERPRINT:
@@ -580,9 +585,11 @@ Verifier: `cosmostrix -V | grep Depth-matrix` must show
 `status=verified` and a `b3:` anchor on any genuine build;
 `cosmostrix sig` ends `SIGNATURE: AUTHENTIC (6/6 depths verified)`
 and exits 0 when the build's HEAD is signed by the pinned maintainer
-key, `SIGNATURE: TAMPERED (5/6 depths verified)` with a D5 FAIL naming
-the shape when it is not (both honest verdicts; exit 2 plus
-`SIGNATURE: TAMPERED` on any patched depth); and `strings
+key, `SIGNATURE: UNSIGNED (5/6 depths verified)` with a D5 FAIL naming
+the shape and exit 1 when the only missing link is the GPG binding
+(night-hit-2: a missing provenance link, not a modification), and
+`SIGNATURE: TAMPERED` with exit 2 on any anomalous stamp or patched
+depth (all honest verdicts for their build); and `strings
 ./cosmostrix | grep rezky_nightky` must find NOTHING (the
 mark is masked at rest); the unit suites pin the materialization
 oracles, the strings-invisibility floor, the const-vs-runtime
