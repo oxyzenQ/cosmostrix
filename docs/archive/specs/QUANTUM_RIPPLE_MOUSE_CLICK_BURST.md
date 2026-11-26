@@ -89,7 +89,7 @@ frame from the `rain_at` post-draw stage:
    by `PARTICLE_MAX_FRAME_DT_SECS` (0.25s anti-teleport bound) and
    scaled by `resume_blend` during pause/resume ramps
    (S-master-HUNT-22 real-time physics clock).
-3. Per active particle: `sim_age += dt`; expiry at `sim_age >= 
+3. Per active particle: `sim_age += dt`; expiry at `sim_age >=
    lifetime`; trail ring-buffer push (shift-left when full); motion
    integration; exponential velocity decay
    (`QUANTUM_RIPPLE_VELOCITY_DECAY` = 0.35/s); specular edge bounce

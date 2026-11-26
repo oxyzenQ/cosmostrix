@@ -55,6 +55,7 @@ No shared mutable state. Integration contracts:
 ## Hidden Vulnerability Sweep (3-dragon integration surface)
 
 ### Method
+
 Focused ripgrep + Read on dragon communication points:
 - `runtime_controls.rs` (set_color_scheme, apply_new_palette, crystal_dragon_sensor)
 - `scene_runtime.rs` (scene application)

@@ -244,11 +244,12 @@ impl BenchProgress {
         }
     }
 
-    /// Wipe the live silent spinner line (CR + clear-to-EOL) so an error
-    /// printed afterwards does not glue onto "Running COSMOSTRIX
-    /// BENCHMARK..." (night-dragon-fly-2: the production-draw-requires-
-    /// --bench-io refusal used to render as one glued line). No-op when
-    /// no silent spinner is active or stderr is not a terminal.
+    /// Wipe the live silent spinner line (CR + clear-to-EOL) so an
+    /// error printed afterwards does not glue onto the "Running
+    /// COSMOSTRIX BENCHMARK..." banner (night-dragon-fly-2: the
+    /// production-draw-requires-
+    /// --bench-io refusal used to render as one glued line). No-op
+    /// when no silent spinner is active or stderr is not a terminal.
     pub(crate) fn clear_silent_line(&mut self) {
         if !self.silent_active {
             return;

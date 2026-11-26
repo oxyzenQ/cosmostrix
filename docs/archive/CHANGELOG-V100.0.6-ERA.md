@@ -16,7 +16,7 @@ Unreleased section and were moved here unchanged in night-improve-5
 — the live CHANGELOG.md restarts fresh for the next release cycle.
 Immutable historical record, original order preserved.
 
-### infra: NIGHT-diner-11 — the stable-cut pre-flight: cosmostrix audited against zelynic's v11.0.0 generator incident (dinner-26, commit 6cb6f83), the exact v100.0.6 shapes verified green locally, and the release-notes generator gains a shape-contract gate
+## infra: NIGHT-diner-11 — the stable-cut pre-flight: cosmostrix audited against zelynic's v11.0.0 generator incident (dinner-26, commit 6cb6f83), the exact v100.0.6 shapes verified green locally, and the release-notes generator gains a shape-contract gate
 
 - The second zelynic reference in the rc.1 arc: zelynic's v11.0.0
   STABLE publish died 11 seconds into the Create GitHub Release job
@@ -65,7 +65,7 @@ Immutable historical record, original order preserved.
   five-file release-commit pattern is unchanged. Full record:
   docs/research/NIGHT_DINNER_11_STABLE_CUT_PRE_FLIGHT.md.
 
-### infra: NIGHT-diner-10 — the CI gate reads the status FIELD, not the summary prefix: v100.0.6-rc.1's two tag pipelines stop polling an already-green CI into their own timeout (zelynic NIGHT-dinner-25 lineage, same bug found there first)
+## infra: NIGHT-diner-10 — the CI gate reads the status FIELD, not the summary prefix: v100.0.6-rc.1's two tag pipelines stop polling an already-green CI into their own timeout (zelynic NIGHT-dinner-25 lineage, same bug found there first)
 
 - The v100.0.6-rc.1 tag push left both tag pipelines (Guard -
   Release run 109, crates.io publish run 12) stuck in the gate job
@@ -108,7 +108,7 @@ Immutable historical record, original order preserved.
   touched, the release binary is bit-identical, so the 10 s render
   benchmark is skipped (nothing to A/B).
 
-### deps: NIGHT-diner-9 — sha2 0.11.0 takes the last Unchanged line with it: one function rewritten, identity proven three ways, and the wall-of-Unchanged is gone (eight lines -> four -> two -> zero in two days)
+## deps: NIGHT-diner-9 — sha2 0.11.0 takes the last Unchanged line with it: one function rewritten, identity proven three ways, and the wall-of-Unchanged is gone (eight lines -> four -> two -> zero in two days)
 
 - sha2 0.10.9 → 0.11.0 (owner-approved via the quarterly-revisit
   clause; the last HOLD on the audit). The 2026-09-02 audit claims
@@ -166,7 +166,7 @@ Immutable historical record, original order preserved.
   counts), and the full research record
   [NIGHT_DINNER_9_SHA2_0_11.md](docs/research/NIGHT_DINNER_9_SHA2_0_11.md).
 
-### deps: NIGHT-dinner-8 (part 2) — rand 0.10.3 crosses the dragon's heart in two import lines: the 4-6 h estimate dies by compiler, and 16,000 parity draws prove the heart's sequences never moved a bit
+## deps: NIGHT-dinner-8 (part 2) — rand 0.10.3 crosses the dragon's heart in two import lines: the 4-6 h estimate dies by compiler, and 16,000 parity draws prove the heart's sequences never moved a bit
 
 - rand 0.9.5 → 0.10.3 (owner-approved relax policy, the dragon
   skin-not-heart rule — rand being the one crate whose output IS the
@@ -212,7 +212,7 @@ Immutable historical record, original order preserved.
   --verbose` prints two Unchanged lines, both by design (generic-array
   upstream-pinned, sha2 0.11 HOLD per owner decision).
 
-### deps: NIGHT-dinner-8 (part 1) — signal-hook 0.4.4 lands as a compiler-proven pure pin bump, and the Unix signal contract gets an 8-check PTY parity harness to prove the dragon's exit paths never moved
+## deps: NIGHT-dinner-8 (part 1) — signal-hook 0.4.4 lands as a compiler-proven pure pin bump, and the Unix signal contract gets an 8-check PTY parity harness to prove the dragon's exit paths never moved
 
 - signal-hook 0.3.18 → 0.4.4 (owner-approved relax policy, the
   dragon skin-not-heart rule: the crate never touches the render
@@ -247,7 +247,7 @@ Immutable historical record, original order preserved.
   next in this task) and sha2 0.11 (HOLD). Research record:
   docs/research/NIGHT_DINNER_8_MAJOR_BUMP_BACKLOG.md.
 
-### security: NIGHT-critical-infra-1 & think-like-light-years-1 — the AI-agent-scale threat model: every standing wall re-verified live, the prompt-injection surface gets its process rules, and the honest limits at 10k/1M/1B agents go on record
+## security: NIGHT-critical-infra-1 & think-like-light-years-1 — the AI-agent-scale threat model: every standing wall re-verified live, the prompt-injection surface gets its process rules, and the honest limits at 10k/1M/1B agents go on record
 
 - New audit: docs/audits/NIGHT_CRITICAL_INFRA_1_AUDIT_2026-09-29.md.
   The classical security record (SECURITY_AUDIT, NIGHT-long-horizon-1
@@ -283,7 +283,7 @@ Immutable historical record, original order preserved.
 - docs/SECURITY_AUDIT.md cross-references the new audit as the
   AI-agent-scale companion to the classical model.
 
-### deps: NIGHT-dinner-5 & research-1 — the strictness policy lands: clap relaxes to 4.6.7, notify migrates to 8.2.0 and clears RUSTSEC-2024-0384, the generic-array mystery is solved upstream, and the Unchanged list gets its decoder ring
+## deps: NIGHT-dinner-5 & research-1 — the strictness policy lands: clap relaxes to 4.6.7, notify migrates to 8.2.0 and clears RUSTSEC-2024-0384, the generic-array mystery is solved upstream, and the Unchanged list gets its decoder ring
 
 - The clap pin relaxes from `>=4.5, <4.6` to `>=4.5, <4.7` with a
   rationale comment in Cargo.toml: 4.6 is a minor release inside the
@@ -359,7 +359,7 @@ Immutable historical record, original order preserved.
   thread is idle in both binaries. Recorded in
   benchmark/bench-labs/night_dinner5/AB_REPORT.md.
 
-### license: NIGHT-dinner-6 — the value-price realignment: Business and Company tiers rise to $5,000 and $50,199 a year, the unauthorized-use warning lands, and the piracy position goes on record
+## license: NIGHT-dinner-6 — the value-price realignment: Business and Company tiers rise to $5,000 and $50,199 a year, the unauthorized-use warning lands, and the piracy position goes on record
 
 - The Business tier moves from $1,000/year to $5,000/year and the
   Company tier from $9,900/year to $50,199/year. The Personal tier
@@ -380,7 +380,7 @@ Immutable historical record, original order preserved.
   docs/LICENSING_FAQ.md gains two Q&As (why prices rose, what happens
   on unlicensed commercial use) so no reader is left confused.
 
-### ux: NIGHT-dinner-3 — the CLI output depth audit: six fixes land, style and data sharpness unified across every diagnostics surface
+## ux: NIGHT-dinner-3 — the CLI output depth audit: six fixes land, style and data sharpness unified across every diagnostics surface
 
 - The audit walked every user-facing CLI surface live (--doctor,
   --benchmark text + JSON, --perf-stats under a PTY, -V, --help,
@@ -437,7 +437,7 @@ Immutable historical record, original order preserved.
   0.00. Zero render-path code touched; the deltas are debug-build
   noise.
 
-### ci: NIGHT-dinner-1 — infra flakes can't read as code failures: the curl retry contract, apt retries, and the ci_gate infra carve-out keep a GitHub-side 500 from stalling a release
+## ci: NIGHT-dinner-1 — infra flakes can't read as code failures: the curl retry contract, apt retries, and the ci_gate infra carve-out keep a GitHub-side 500 from stalling a release
 
 - The hazard: GitHub's own infrastructure fails sometimes — a
   release-asset URL answering 500 mid-download (observed in the
@@ -493,7 +493,7 @@ Immutable historical record, original order preserved.
   green. No benchmark per house rule — CI orchestration only, zero
   render-path code.
 
-### gate: NIGHT-dinner-2 — the name-case gate: the lowercase rule becomes a machine-enforced tripwire, every tracked file and path scanned, nothing excluded
+## gate: NIGHT-dinner-2 — the name-case gate: the lowercase rule becomes a machine-enforced tripwire, every tracked file and path scanned, nothing excluded
 
 - New `scripts/gates/check-name-case.py` as gate-keepers section 18:
   a `git ls-files` walk over every tracked file and path (the
@@ -523,7 +523,7 @@ Immutable historical record, original order preserved.
   1111 tracked files and paths, 3140 name tokens — 2551 lowercase,
   589 identifier/banner/display family, 0 violations.
 
-### docs: NIGHT-dinner-4 — the era changelogs move to docs/archive/: the root keeps one live CHANGELOG.md, nothing else
+## docs: NIGHT-dinner-4 — the era changelogs move to docs/archive/: the root keeps one live CHANGELOG.md, nothing else
 
 - `CHANGELOG-V100-ERA.md`, `CHANGELOG-V80-ERA.md`, and
   `CHANGELOG-V50-ERA.md` moved verbatim to `docs/archive/` via
@@ -546,7 +546,7 @@ Immutable historical record, original order preserved.
   shrinks by the three era files (the root copies were previously
   packaged as dead weight — 578 KB of frozen history riders).
 
-### audit: NIGHT-long-horizon-1 — the five-phase long-horizon depth audit: stability, hygiene, optimization, security, and LTS all verified at peak, zero code changes
+## audit: NIGHT-long-horizon-1 — the five-phase long-horizon depth audit: stability, hygiene, optimization, security, and LTS all verified at peak, zero code changes
 
 - Fresh scripted evidence (full report: docs/audits/NIGHT_LONG_HORIZON_1_AUDIT_2026-09-26.md):
   a brace-aware production panic-site analyzer (tracks #[cfg(test)]
@@ -578,7 +578,7 @@ Immutable historical record, original order preserved.
   the correct #[must_use]; the corruption was a display-layer
   artifact. Byte-level check before byte-level verdict.
 
-### audit: NIGHT-lts-1 & NIGHT-safety-1 — depth security/safety audit: all surfaces verified at peak, zero code changes
+## audit: NIGHT-lts-1 & NIGHT-safety-1 — depth security/safety audit: all surfaces verified at peak, zero code changes
 
 - Unsafe inventory (the whole of `src/`, 19 files): every `unsafe`
   block lives behind an FFI/seam boundary — sysstat (libc
@@ -613,7 +613,7 @@ Immutable historical record, original order preserved.
   no new mitigations needed, none added (owner's
   don't-over-engineer-at-peak rule).
 
-### perf: NIGHT-lts-2 & NIGHT-perf-1 — depth performance audit: every overhead class verified at peak, zero code changes (fresh 10 s A/B evidence captured during the lts-3 run)
+## perf: NIGHT-lts-2 & NIGHT-perf-1 — depth performance audit: every overhead class verified at peak, zero code changes (fresh 10 s A/B evidence captured during the lts-3 run)
 
 - Allocation: 563 total allocs over a 119 K-frame 10 s run (0.0047
   allocs/frame) with `heap_retained` flat and the zero-alloc cosmetics
@@ -646,7 +646,7 @@ Immutable historical record, original order preserved.
   at peak; skipping further investment per the owner's
   don't-over-engineer-at-peak rule.
 
-### lts: NIGHT-lts-3 — ultra-long-endurance depth audit: the column-coherence shimmer phase no longer quantizes on multi-day runs (f64 + wrap to [0, 2π))
+## lts: NIGHT-lts-3 — ultra-long-endurance depth audit: the column-coherence shimmer phase no longer quantizes on multi-day runs (f64 + wrap to [0, 2π))
 
 - The one real defect found in the endurance sweep: the column-coherence
   hue shimmer derived its temporal phase from the process-lifetime
@@ -676,7 +676,7 @@ Immutable historical record, original order preserved.
   are u64; the restart-consistency contract (fresh-start state on 'r')
   is already pinned by tests_restart_lts3.rs.
 
-### ci: NIGHT-improve-1 — the commit+tag collision gate: both tag pipelines now serialize behind the branch CI on the tagged SHA, so `git push origin main vX.Y.Z` is safe
+## ci: NIGHT-improve-1 — the commit+tag collision gate: both tag pipelines now serialize behind the branch CI on the tagged SHA, so `git push origin main vX.Y.Z` is safe
 
 - The documented release recipe (docs/workflow/ABOUT_CI.md, the
   version-to.sh summary) is `git push origin main vX.Y.Z` — commit and
@@ -712,7 +712,7 @@ Immutable historical record, original order preserved.
   to wait on; the docs-only-release path (no CI run) is the designed
   grace-period pass, not a hole.
 
-### build: NIGHT-blade-1 — cargo alias rename: the Linux x86_64 build family now names arch + baseline + libc (pro-linux-amd64-v3/v4-gnu, pro-linux-amd64-v3/v4-musl)
+## build: NIGHT-blade-1 — cargo alias rename: the Linux x86_64 build family now names arch + baseline + libc (pro-linux-amd64-v3/v4-gnu, pro-linux-amd64-v3/v4-musl)
 
 - `cargo pro-linux-v3` / `pro-linux-v4` / `pro-linux-musl` are renamed to
   `cargo pro-linux-amd64-v3-gnu` / `pro-linux-amd64-v4-gnu` /
@@ -745,7 +745,7 @@ Immutable historical record, original order preserved.
   intentionally keep the old names — they document what was actually
   run.
 
-### docs: NIGHT-master-2 — dual-licensing model: GPL-3.0-only + Commercial License (Individual $99/yr, Business $1K/yr, Company $9.9K/yr)
+## docs: NIGHT-master-2 — dual-licensing model: GPL-3.0-only + Commercial License (Individual $99/yr, Business $1K/yr, Company $9.9K/yr)
 
 - cosmostrix is now dual-licensed: GPL-3.0-only for open-source use (the
   existing license, unchanged) plus a Commercial License for
@@ -767,7 +767,7 @@ Immutable historical record, original order preserved.
   entries; TRADEMARK.md and NOTICE cross-reference the commercial
   offering; docs/README.md indexes the new FAQ.
 
-### fix: NIGHT-perf-2 - thread-attributed alloc counting: the cosmetics zero-alloc tripwire measured process-global counters, so libtest's parallel shared-process execution attributed concurrent tests' allocations to the cosmetics path (FreeBSD CI: 16.3 allocs/frame of cross-thread noise)
+## fix: NIGHT-perf-2 - thread-attributed alloc counting: the cosmetics zero-alloc tripwire measured process-global counters, so libtest's parallel shared-process execution attributed concurrent tests' allocations to the cosmetics path (FreeBSD CI: 16.3 allocs/frame of cross-thread noise)
 
 - **Root cause** (FreeBSD CI failure on the NIGHT-perf-2 harness commit,
   2026-09-25): `cargo test --all` runs every test in ONE process on
@@ -802,7 +802,7 @@ Immutable historical record, original order preserved.
   allocs/frame). Post-fix, the full parallel suite passes at 8 and 16
   test threads (2980 passed, 0 failed).
 
-### perf: NIGHT-perf-2 - dedicated bench harness for the Z-6-skipped paths: --bench-cosmetics measures the message overlay + per-frame HUD block; bring-up found and killed the last per-frame heap alloc in draw_message (visible_border Vec)
+## perf: NIGHT-perf-2 - dedicated bench harness for the Z-6-skipped paths: --bench-cosmetics measures the message overlay + per-frame HUD block; bring-up found and killed the last per-frame heap alloc in draw_message (visible_border Vec)
 
 - **Change** (owner-approved 2026-09-24): the paths --benchmark skips
   by design (Z-6, critical-path-only) are now measurable with a
@@ -873,7 +873,7 @@ Immutable historical record, original order preserved.
   (plain vs cosmetics, matrix scene) runs post-commit per protocol and
   is recorded in benchmark/HIST_BENCH.md.
 
-### boost: NIGHT-boost-6 — cross-doc stale-data sweep: 23 flat-path citations repointed at the post-reorg script homes, the half-stale NIGHT-lts-1 debt record made truthful, HUD.md post-NIGHT-perf-1 mechanism drift repaired
+## boost: NIGHT-boost-6 — cross-doc stale-data sweep: 23 flat-path citations repointed at the post-reorg script homes, the half-stale NIGHT-lts-1 debt record made truthful, HUD.md post-NIGHT-perf-1 mechanism drift repaired
 
 - **Change**: owner mandate (2026-09-24) — stale/outdated data and
   info across cross docs and commented code removed or repointed.
@@ -923,7 +923,7 @@ Immutable historical record, original order preserved.
   stale-hunt 0; markdownlint clean on both touched files. Docs-only
   change — no benchmark run (owner rule).
 
-### refactor: NIGHT-lts-2 — build.sh de-monolithed: the 2187-line single-entry orchestrator split into 7 sourced lib/ modules; the NIGHT-lts-1 LOC_EXEMPT debt is paid
+## refactor: NIGHT-lts-2 — build.sh de-monolithed: the 2187-line single-entry orchestrator split into 7 sourced lib/ modules; the NIGHT-lts-1 LOC_EXEMPT debt is paid
 
 - **Change**: owner-approved follow-up to the scripts LOC hard limit
   (NIGHT-lts-1 tracked the split as "a standalone risk-balanced task"
@@ -989,7 +989,7 @@ Immutable historical record, original order preserved.
   validation block, CI workflows, pgo-runner) is unchanged because
   the entry point path and the full command surface are identical.
 
-### perf: NIGHT-perf-1 — depth performance audit: message-overlay zero-alloc (6 scratch buffers), HUD per-frame work gates (palette_gen + compare-first setters), phase-predictor FFI skip, head-bloom LUT, per-line rain-shadow LUT
+## perf: NIGHT-perf-1 — depth performance audit: message-overlay zero-alloc (6 scratch buffers), HUD per-frame work gates (palette_gen + compare-first setters), phase-predictor FFI skip, head-bloom LUT, per-line rain-shadow LUT
 
 - **Message overlay: 6 per-frame heap allocations hoisted** —
   `draw_message` allocated `pulse_factor`/`pulse_color` (message.len),
@@ -1056,7 +1056,7 @@ Immutable historical record, original order preserved.
   budget). Bench A/B (matrix + monolith, 10s) run post-commit per
   protocol.
 
-### lts: NIGHT-ultimate-1 — depth security/LTS audit: SIGCONT double-teardown (P0), adaptive watchdog threshold, screen-size clamp, signal-install surfacing, wedged-cleanup exit code
+## lts: NIGHT-ultimate-1 — depth security/LTS audit: SIGCONT double-teardown (P0), adaptive watchdog threshold, screen-size clamp, signal-install surfacing, wedged-cleanup exit code
 
 - **P0 fix — SIGCONT reinit double-teardown**: on Ctrl+Z the suspend
   handler restores the terminal via raw-fd writes (bypassing the
@@ -1127,7 +1127,7 @@ Immutable historical record, original order preserved.
   interactive Ctrl+Z/fg smoke on a real terminal remains with the
   owner's environment.
 
-### refactor: NIGHT-refactor-1 — scripts/ de-flattened: every script now lives in a category directory (build/gates/release/audit/bench/harness/setup)
+## refactor: NIGHT-refactor-1 — scripts/ de-flattened: every script now lives in a category directory (build/gates/release/audit/bench/harness/setup)
 
 - **Change**: owner mandate (2026-09-24) — the 34 flat scripts under
   `scripts/` moved into seven category directories by job: `build/`
@@ -1186,7 +1186,7 @@ Immutable historical record, original order preserved.
   clippy compile (light checks passed silently before the kill,
   heavy left to CI per owner rule).
 
-### lts: NIGHT-lts-1 — scripts 1K LOC hard limit: gate-keepers check 17 + check-all wiring; gatekeeper LOC-guard silent-death fix
+## lts: NIGHT-lts-1 — scripts 1K LOC hard limit: gate-keepers check 17 + check-all wiring; gatekeeper LOC-guard silent-death fix
 
 - **Change**: owner mandate (2026-09-24) — every shell and Python
   script under `scripts/` (recursive, subdirectories included) is now
@@ -1234,7 +1234,7 @@ Immutable historical record, original order preserved.
   patched scripts; full gate-keepers run green including the new
   check 17 (17/17 with tools present).
 
-### docs: NIGHT-docs-1 — tell once, don't double: README + docs dedup, and the disclaimer gate now catches duplicates
+## docs: NIGHT-docs-1 — tell once, don't double: README + docs dedup, and the disclaimer gate now catches duplicates
 
 - **Change**: owner mandate (2026-09-24) — the same data is no
   longer told twice. README.md: the paused-mode contract was told
@@ -1281,7 +1281,7 @@ Immutable historical record, original order preserved.
   at the 2-minute local budget on the cold cache (fmt passed
   before the kill; clippy/test left to CI per owner policy).
 
-### build: NIGHT-boost-4 — max-muscle job calculation: every build uses 100% of detected cores
+## build: NIGHT-boost-4 — max-muscle job calculation: every build uses 100% of detected cores
 
 - **Change**: owner mandate (2026-09-24) — `calculate_jobs()`
   (previously in the flat `scripts/build.sh`, since the NIGHT-lts-2
@@ -1314,7 +1314,7 @@ Immutable historical record, original order preserved.
   parallelism affects build wall-time only, the compiled binary is
   identical, so the visual/perf A/B benchmark is not applicable.
 
-### ci: NIGHT-boost-5 — the build_test keystone job is displayed as "build.sh -q", the local command it mirrors
+## ci: NIGHT-boost-5 — the build_test keystone job is displayed as "build.sh -q", the local command it mirrors
 
 - **Change**: owner mandate (2026-09-24) — the ci.yml job id
   `build_test` (born "Test + Build (debug)"; tests moved to
@@ -1337,7 +1337,7 @@ Immutable historical record, original order preserved.
   historical record and stay). docs/workflow/ABOUT_CI.md documents
   the naming in one place.
 
-### cli: NIGHT-boost-3 — --verbose implies the full session telemetry (exit performance report); one flag, complete debugging instrument
+## cli: NIGHT-boost-3 — --verbose implies the full session telemetry (exit performance report); one flag, complete debugging instrument
 
 - **Change**: owner mandate (2026-09-24) — `-v/--verbose` is critical
   infrastructure for matrix-rain debugging, not a config dump: one
@@ -1376,7 +1376,7 @@ Immutable historical record, original order preserved.
   plain run prints neither. fmt / clippy `-D warnings` /
   build.sh check-all -q / gate-keepers 14/14 green.
 
-### cli: NIGHT-boost-2 — --help example lines render bold Matrix green; `#` annotations moved above their example
+## cli: NIGHT-boost-2 — --help example lines render bold Matrix green; `#` annotations moved above their example
 
 - **Change**: owner mandate (2026-09-24) — the `--help` reference
   manual's example usage CLI lines (every indented `cosmostrix ...`
@@ -1412,7 +1412,7 @@ Immutable historical record, original order preserved.
   reset wrapping on example lines at every indent, plain annotations
   above their green examples, and prose mentions left untouched.
 
-### ci: NIGHT-boost-1 — glob-only CI path-filter policy codified as gate-keepers check 16
+## ci: NIGHT-boost-1 — glob-only CI path-filter policy codified as gate-keepers check 16
 
 - **Change**: owner mandate (2026-09-24) — workflow `paths:` /
   `paths-ignore:` entries that point inside a directory must be
@@ -1433,7 +1433,7 @@ Immutable historical record, original order preserved.
   and suggesting the glob; clean state passes all 9 workflows;
   gate-keepers 14/14 green; clippy `-D warnings` clean.
 
-### security: NIGHT-security-4 follow-up — hard refuse `--check-update` at euid 0: network egress denied at root (exit 2)
+## security: NIGHT-security-4 follow-up — hard refuse `--check-update` at euid 0: network egress denied at root (exit 2)
 
 - **Change**: owner follow-up — the NIGHT-security-4 warning alone left
   the root network fetch alive: `sudo cosmostrix -v --check-update`
@@ -1468,7 +1468,7 @@ Immutable historical record, original order preserved.
   non-root run verified unchanged (exit 0, clean stderr, normal
   report).
 
-### security: NIGHT-security-4 — root-usage guard: loud stderr warning when running as root (euid 0), plus the canonical "Running as Root" policy
+## security: NIGHT-security-4 — root-usage guard: loud stderr warning when running as root (euid 0), plus the canonical "Running as Root" policy
 
 - **Change**: owner report — `sudo cosmostrix -vV` and `sudo cosmostrix
   --check-update` ran silently: the config path switched to
@@ -1507,7 +1507,7 @@ Immutable historical record, original order preserved.
   build (temporary euid-0 patch, reverted) verified the full warning
   block renders before command output with stdout untouched.
 
-### docs: NIGHT-docs-8 — usage deduplication across README and living docs (tell once, don't double)
+## docs: NIGHT-docs-8 — usage deduplication across README and living docs (tell once, don't double)
 
 - **Change**: owner report — README.md carries duplicated usage info,
   and the duplication crosses `*.md` files ("tell once don't double,
@@ -1551,7 +1551,7 @@ Immutable historical record, original order preserved.
 - **Verification**: docs-audit.py green across all four sections;
   gate-keepers full suite green; no code paths touched.
 
-### audit: NIGHT-ultimate-1 — comprehensive peak audit (security / mitigation / LTS / robustness): remaining surfaces verified at peak, zero code changes
+## audit: NIGHT-ultimate-1 — comprehensive peak audit (security / mitigation / LTS / robustness): remaining surfaces verified at peak, zero code changes
 
 - **Change**: owner umbrella request for comprehensive peak coverage
   ("security, mitigate, LTS, and other comprehensive aspects —
@@ -1596,7 +1596,7 @@ Immutable historical record, original order preserved.
   hits) plus source-level reads of every runtime candidate; no code
   paths touched; gate-keepers full suite green.
 
-### audit: NIGHT-improve-10 / security-3 — overflow & explode-data endurance audit: all surfaces verified at peak, zero code changes
+## audit: NIGHT-improve-10 / security-3 — overflow & explode-data endurance audit: all surfaces verified at peak, zero code changes
 
 - **Change**: owner request to mitigate overflow/explode-data when
   limits are reached, for long-endurance LTS operation. A
@@ -1632,7 +1632,7 @@ Immutable historical record, original order preserved.
   long-session math (24 h capped paths; indefinite screensaver runs
   elsewhere); no code paths touched; gate-keepers full suite green.
 
-### security: NIGHT-improve-8 follow-up — gesture-level selection-bypass hardening: the whole Down/Drag/Up/Moved motion family now gets zero acknowledgment plus per-event selection-clearing churn
+## security: NIGHT-improve-8 follow-up — gesture-level selection-bypass hardening: the whole Down/Drag/Up/Moved motion family now gets zero acknowledgment plus per-event selection-clearing churn
 
 - **Change**: owner follow-up report — rendered text was still copyable
   ("include even shift+click and any"). The re-audit found the first
@@ -1678,7 +1678,7 @@ Immutable historical record, original order preserved.
   pipeline untouched, steady-state frame content identical), benchmark
   A/B recorded post-commit.
 
-### security: NIGHT-improve-8 — modified-click selection-bypass hardening: shift+click and any modifier combination produce zero feedback plus a selection-clearing redraw
+## security: NIGHT-improve-8 — modified-click selection-bypass hardening: shift+click and any modifier combination produce zero feedback plus a selection-clearing redraw
 
 - **Change**: owner request to disable copy/paste — rendered text/info
   must not be extractable, including via shift+click. The audit found the
@@ -1712,7 +1712,7 @@ Immutable historical record, original order preserved.
   gate-keepers full suite green; runtime surface is event-path only
   (render pipeline untouched), benchmark run post-commit as A/B record.
 
-### ci: unify all scheduled workflow crons at 00:00 UTC (07:00 WIB) — owner call closing the decision parked by NIGHT-hunt-6
+## ci: unify all scheduled workflow crons at 00:00 UTC (07:00 WIB) — owner call closing the decision parked by NIGHT-hunt-6
 
 - **Change**: `maintenance.yml` fired Monday 07:00 UTC (14:00 WIB) while
   the daily `gitbot-audit.yml` already fired at 00:00 UTC (07:00 WIB) —
@@ -1737,7 +1737,7 @@ Immutable historical record, original order preserved.
   the four edited workflows; gate-keepers full suite green; zero Rust
   surface touched (workflows + docs only, no benchmark run required).
 
-### cleanup: NIGHT-hunt-6 (post v100.0.2) — second-sweep staleness hunt: key-details truth, CI-trigger table, dep counts, moved-doc citations
+## cleanup: NIGHT-hunt-6 (post v100.0.2) — second-sweep staleness hunt: key-details truth, CI-trigger table, dep counts, moved-doc citations
 
 - **Change**: a second, independent audit pass over axes the repo's own
   tooling does not cover (key IDs, workflow triggers, dependency counts,
@@ -1792,7 +1792,7 @@ Immutable historical record, original order preserved.
   mirror comment, and one properly-framed `was previously` note left
   as-is); gate-keepers all green; docs-audit + stale-hunt still clean.
 
-### cleanup: NIGHT-hunt-5 (post v100.0.2) — total staleness cross-audit of docs and commented code
+## cleanup: NIGHT-hunt-5 (post v100.0.2) — total staleness cross-audit of docs and commented code
 
 - **Change**: live-corpus sweep (55 .md files at audit time; `docs/archive/`,
   `docs/research/`, `docs/audits/`, the CHANGELOG era files, bench-lab A/B
@@ -1836,7 +1836,7 @@ Immutable historical record, original order preserved.
   --check` — 212/212 files carry the marker; ruff + rustfmt clean; gate-keepers
   all green.
 
-### fix: the release-note commit classifier never fired — case-sensitive prefix vs the capitalized history
+## fix: the release-note commit classifier never fired — case-sensitive prefix vs the capitalized history
 
 - **Change** (scripts/release/generate-release-notes.sh): every classifier stage
   (`grep -qE '^internal research:...'` detection, verb extraction sed,
@@ -1859,7 +1859,7 @@ Immutable historical record, original order preserved.
   generated locally and diffed against the published classification;
   gate-keepers all green.
 
-### fix: the release-note GPG example shipped wrong asset names — missing `v` prefix + spurious `-gnu` (caught in the published v100.0.1 body)
+## fix: the release-note GPG example shipped wrong asset names — missing `v` prefix + spurious `-gnu` (caught in the published v100.0.1 body)
 
 - **Change** (scripts/release/generate-release-notes.sh): the verification example in the
   generated release body read `gpg --verify cosmostrix-${TAG#v}-linux-amd64-v3-gnu.tar.gz.asc`
@@ -1892,7 +1892,7 @@ Immutable historical record, original order preserved.
   asset names character-for-character (all 11 v100.0.1 archives cross-checked
   from the published release); shellcheck + shfmt clean; gate-keepers all green.
 
-### perf: NIGHT-perf-2 (post v100) — CI runs the suite through cargo-nextest in two parallel partitions
+## perf: NIGHT-perf-2 (post v100) — CI runs the suite through cargo-nextest in two parallel partitions
 
 - **Change** (ci.yml): the full-suite `cargo test --all --locked` step
   moved out of the build_test job into a new `test_partitions` job —
@@ -1926,7 +1926,7 @@ Immutable historical record, original order preserved.
   ci.yml; gate-keepers 19 passed / 0 failed; no Rust source, script,
   or manifest change — CI + docs only, no benchmark per house rule.
 
-### perf: NIGHT-perf-1 (post v100) — the test suite accelerated: opt-level 1 test profile + the MSRV full-suite duplicate retired
+## perf: NIGHT-perf-1 (post v100) — the test suite accelerated: opt-level 1 test profile + the MSRV full-suite duplicate retired
 
 - **Problem**: the full suite (about 2950 tests; 2418 in the `test/**`
   mirror wired via 48 `#[path]` includes, 534 inline) executed at
@@ -1963,7 +1963,7 @@ Immutable historical record, original order preserved.
   (incl. the version-sync guard that scans ci.yml for RUST_VERSION
   drift — untouched).
 
-### cleanup: NIGHT-cleanup-2 (post v100) — the dragon engine lock protocol retired: RULES.md/KEY.md/dragon-history.sh removed, engine READMEs simplified
+## cleanup: NIGHT-cleanup-2 (post v100) — the dragon engine lock protocol retired: RULES.md/KEY.md/dragon-history.sh removed, engine READMEs simplified
 
 - **Owner decision (2026-09-20)**: the per-engine LOCK/UNLOCK protocol
   was too strict a maintenance burden. Every engine change had to
@@ -2003,7 +2003,7 @@ Immutable historical record, original order preserved.
   files that share the name but not the protocol; the `lock.rs`
   invariant suites themselves remain fully in force.
 
-### cleanup: NIGHT-cleanup-1 (post v100) — dead-script sweep: 27 retired one-off hunt harnesses removed, live references re-anchored
+## cleanup: NIGHT-cleanup-1 (post v100) — dead-script sweep: 27 retired one-off hunt harnesses removed, live references re-anchored
 
 - **Method**: a full reference map of every tracked file (CI workflows,
   build.sh + gate-keepers.sh wiring, install/release scripts, active
@@ -2050,7 +2050,7 @@ Immutable historical record, original order preserved.
   shellcheck on the surviving scripts, permissions/headers checks, and
   the build.sh check-all gate.
 
-### audit: NIGHT-optimized-1 (post v100) — the master optimization audit: peak verified across ten dimensions, no change warranted
+## audit: NIGHT-optimized-1 (post v100) — the master optimization audit: peak verified across ten dimensions, no change warranted
 
 - **Method**: dimension-by-dimension sweeps with on-host evidence,
   each probed for a >5 % measurable gain (the cosmic-dragon UNLOCK
@@ -2083,7 +2083,7 @@ Immutable historical record, original order preserved.
   rule (docs-only); the cited measurements were already captured as
   the cybersecurity A/B baseline.
 
-### security: NIGHT-cybersecurity-1 (post v100) — the master security audit: report-family escape injection closed, unsafe inventory re-verified
+## security: NIGHT-cybersecurity-1 (post v100) — the master security audit: report-family escape injection closed, unsafe inventory re-verified
 
 - **Method**: full capability-class re-sweeps (secrets, spawn sites,
   env surface, filesystem, panic vectors, dependency sources,
@@ -2136,7 +2136,7 @@ Immutable historical record, original order preserved.
   executes none of the changed code. Evidence:
   `benchmark/bench-labs/night_cybersecurity1/AB_REPORT.md`.
 
-### fix: the build.rs LOC-cap regression left by the hunt-2/hunt-3 test growth
+## fix: the build.rs LOC-cap regression left by the hunt-2/hunt-3 test growth
 
 - **Root cause**: the NIGHT-hunt-2 vcs-info parser tests and the
   NIGHT-hunt-3 epoch-constant/sub-minute suite grew `build.rs` to
@@ -2160,7 +2160,7 @@ Immutable historical record, original order preserved.
 - **Scope**: 1 line in `build.rs`. No behavioral change, no
   benchmark per house rule.
 
-### audit: NIGHT-hunt-4 (post v100) — the stale/burden/duplicate cross-audit driven to zero true positives
+## audit: NIGHT-hunt-4 (post v100) — the stale/burden/duplicate cross-audit driven to zero true positives
 
 - **Method**: both house audit tools executed against the full tree,
   then every finding adjudicated against the FUTURE_BACKLOG
@@ -2223,7 +2223,7 @@ Immutable historical record, original order preserved.
   nr7-dna report, FUTURE_BACKLOG adjudication note). No production
   Rust code, no benchmark per house rule.
 
-### docs: NIGHT-docs-1 (post v100) — the monolithic CHANGELOG split into per-era files
+## docs: NIGHT-docs-1 (post v100) — the monolithic CHANGELOG split into per-era files
 
 - **Root cause**: `CHANGELOG.md` had grown to 8,235 lines / 587 KB in a
   single file. The structure was historical debt: no release-notes cut
@@ -2256,7 +2256,7 @@ Immutable historical record, original order preserved.
   refresh (`docs/HUD.md` HUD expansion history now points at the v50
   and v80 era files). No code touched, no benchmark per house rule.
 
-### docs: NIGHT-docs-2 (post v100) — the donation addresses cryptographically verified, and the Solana line now names USDT (SPL)
+## docs: NIGHT-docs-2 (post v100) — the donation addresses cryptographically verified, and the Solana line now names USDT (SPL)
 
 - **Verification**: all three README receive addresses were verified
   offline before any edit: the Ethereum address passes the EIP-55
@@ -2275,7 +2275,7 @@ Immutable historical record, original order preserved.
 - **Scope**: README donation section text only. No code, no
   addresses changed, no benchmark (docs-only change per house rule).
 
-### fix: NIGHT-hunt-1 (post v100) — the black hole center ball froze after ~1.6 days (unbounded f32 spin phase) + full 13-scene long-session audit
+## fix: NIGHT-hunt-1 (post v100) — the black hole center ball froze after ~1.6 days (unbounded f32 spin phase) + full 13-scene long-session audit
 
 - **Root cause**: the sorgonemous_intrascals ball rim's `spin_phase`
   is the only ball clock that never resets, and it accumulated as an
@@ -2332,7 +2332,7 @@ Immutable historical record, original order preserved.
   step, conveyor consumer) + one regression test. No config, CLI,
   or scene API surface touched.
 
-### fix: NIGHT-hunt-2 (post v100) — the commit id vanished from cargo-install builds (-V/--version showed "(unknown)", HUD cid went blank)
+## fix: NIGHT-hunt-2 (post v100) — the commit id vanished from cargo-install builds (-V/--version showed "(unknown)", HUD cid went blank)
 
 - **Root cause**: `build.rs` resolved the commit sha through a
   two-step chain (`git rev-parse --short=7 HEAD`, then the
@@ -2370,7 +2370,7 @@ Immutable historical record, original order preserved.
   metadata plumbing with zero per-frame cost (the HUD string is
   built once in `new()`).
 
-### fix: NIGHT-hunt-3 (post v100) — the build-script epoch drift: two wrong constants that cargo test could never catch
+## fix: NIGHT-hunt-3 (post v100) — the build-script epoch drift: two wrong constants that cargo test could never catch
 
 - **Root cause**: the `build.rs` test suite claimed two epoch
   constants that silently disagreed with their documented calendar

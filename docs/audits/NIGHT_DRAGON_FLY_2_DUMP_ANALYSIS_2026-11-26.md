@@ -96,7 +96,7 @@ redirect) instead of pasting into the interactive shell.
 
 | # | Finding | Severity | Evidence | Status |
 |---|---------|----------|----------|--------|
-| 1 | Double `error: error: --config '/tmp/probe_dump.toml' is outside allowed directories` on the `--testconf` + bad `--config` path: `validate_config_path` embeds `error: ` in the Err string (src/safepath/mod.rs:530-537) and the testconf caller wraps it again (src/testconf/mod.rs:47-49, `eprintln_error_labeled`). The plain `--config` run prints the same message with a SINGLE prefix — one message, two printers, two shapes | LOW-MEDIUM | dump 1453 vs 1580; source sites above | Proposed fix: strip the embedded prefix in safepath and label exactly once at each printer |
+| 1 | Double `error: error: --config '/tmp/probe_dump.toml' is outside allowed directories` on the `--testconf` + bad `--config` path: `validate_config_path` embeds `error:` in the Err string (src/safepath/mod.rs:530-537) and the testconf caller wraps it again (src/testconf/mod.rs:47-49, `eprintln_error_labeled`). The plain `--config` run prints the same message with a SINGLE prefix — one message, two printers, two shapes | LOW-MEDIUM | dump 1453 vs 1580; source sites above | Proposed fix: strip the embedded prefix in safepath and label exactly once at each printer |
 | 2 | `--bench-frames` has no ceiling: the `--bench-frames 0` rejection exposes the parse range `1..=18446744073709551615` (full u64). A typo'd huge frame count would run unbounded — inconsistent with the courteous-guest 24h ceiling every time-based knob enforces | MEDIUM-LOW | dump 4146 fragment; sandbox re-run: `0 is not in 1..18446744073709551615` | Proposed fix: cap the value_parser range (or add a frame ceiling equivalent to 24h) + one help line |
 | 3 | Piped `--doctor` prints `headless/non-TTY detected; use --benchmark, --doctor, ...` — recommending `--doctor` while running `--doctor` | LOW | dump 1706; src/doctor/mod.rs:501 | Proposed fix: reword or suppress for the doctor surface itself |
 | 4 | Help default-overlay wording drift: help says the default overlay shows `cosmostrix v<VERSION>`; the actual default is `Experience with cosmostrix v<version>` | LOW | dump 318-319 (help) vs 4873/5049 (verbose) vs 1232-1234 (dump-config template) | Proposed fix: align help_text.rs with the shipped string |
@@ -127,7 +127,7 @@ changes), the UX CLI surface is defensibly peak LTS.
 1. argv_expand bare `-mb` fall-through -> `continue` (mirror `-mfs`).
 2. Attached-short values (`-S12.5`) through the same prevalidation as
    long forms (or normalize them in argv_expand).
-3. Baseline errors: strip the embedded `error: ` at the two
+3. Baseline errors: strip the embedded `error:` at the two
    `eprintln_error_labeled` call sites; make compare FAIL (distinct
    verdict + exit 2) when the baseline is unreadable or has no
    parseable metric keys.
