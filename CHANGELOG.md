@@ -64,6 +64,49 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### audit: night-cafe-2 + night-arc-2 - pins parity/determinism proof, the config verify hint is NOT stale, and the throttle audit verdict
+
+- NIGHT-cafe-2 (actions-pin UX parity + determinism, zylaxion as the
+  mature reference): the two-seat split here (check-actions-pins.sh
+  gate reads; actions-version-sweep.sh heals) is the documented
+  one-implementation design - the verdict grammar is the same lineage
+  ("sweep verdict: N healed, N kept, N skipped (mode: M)"), the heal
+  rules match (moving-major policy, SHA/local/docker/branch refs
+  skipped-for-cause, guard_diff confines heals to .github/workflows/),
+  and the mode names are MORE honest than the reference's own output
+  (the zylaxion session printed "(mode: warn)" while its --apply run
+  rewrote 4 pins; here apply mode prints "(mode: apply)" and warn mode
+  never rewrites). Determinism PROVEN with authenticated twin runs:
+  byte-identical output ("CI actions pins current - 137 kept, 27
+  skipped-for-cause (checked just now)"), zero rewrites, zero tree
+  churn - idempotent by construction (a current verdict changes
+  nothing; the 6h cache makes repeats free). The anonymous-quota skip
+  path is deterministic too (the twin-run diff caught the quota skip
+  before the authenticated pass).
+- NIGHT-arc-2a (the generated config hint
+  `# verify full file: sha512sum <path> or --testconf`): verified NOT
+  stale - it names the deliberate two-hash design from NIGHT-cafe-1:
+  the --dump-config header template-fingerprint is blake3 (64-hex,
+  the owner's zejtron "use blake3 for speed" mandate), while the
+  full-file verification is sha512 BY DESIGN so the hint's `sha512sum
+  <path>` interops with the standard tool and --testconf prints the
+  identical digest. Proven live: `--testconf` file-sha512 ==
+  `sha512sum` of the same config, byte-exact. No code change - the
+  comment is accurate.
+- NIGHT-arc-2b (the "micro lag saat throttle" audit): the power-dragon
+  idle path is a deterministic PERIOD step, not a hidden stall -
+  IDLE_FPS_FACTOR = 0.5 multiplies the frame period once at the phase
+  transition (worst-case one added frame period, <= 6.9 ms at 144 fps,
+  imperceptible), the adaptive resync redraw is bounded and periodic
+  (adaptive_resync_interval), and the engine never backs up: pressure
+  0.000, overshoot 0, budget headroom ~6.8 ms through the transition.
+  The felt cadence change at idle engage is the documented power trade
+  (arc-1's idle_throttle_share telemetry names the mix explicitly;
+  the owner's session showed phase_transitions: 2 with a healthy
+  score). No engine change: the sim is determinism-pinned (blake3
+  frame digests + engine oracle), and a motion-ramping rewrite would
+  churn the proof moat to chase an imperceptible single-frame step.
+
 ### build: night-cafe-3 - the strict-build law is total: warning = failed on every build shape
 
 - Owner law: ANY build whose output carries a warning is a failed build,
