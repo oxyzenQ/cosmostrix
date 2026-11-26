@@ -16,7 +16,7 @@
 # license identifier.
 #
 # Required: SPDX-License-Identifier: AGPL-3.0-only OR Commercial
-# Rejected: MIT (project is AGPL-3.0-only licensed)
+# Rejected: MIT (project is dual-licensed: AGPL-3.0-only OR Commercial)
 #
 # Included file types: *.rs, *.sh, *.py, *.toml, *.yml, *.yaml, *.md
 # Scope: git-tracked files only (untracked files are skipped)

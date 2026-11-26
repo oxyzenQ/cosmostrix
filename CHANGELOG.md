@@ -107,6 +107,36 @@ when the version line closes.
   frame digests + engine oracle), and a motion-ramping rewrite would
   churn the proof moat to chase an imperceptible single-frame step.
 
+### fix: night-cafe-4 - the AUR package metadata carries the dual-license disclosure (zero license ants left)
+
+- The last shipped surface declaring AGPL-only licensing was the AUR
+  package metadata: `aur/cosmostrix-bin/PKGBUILD` `license=('AGPL3')`
+  and its generated `.SRCINFO` `license = AGPL3`. Every `pacman -Si
+  cosmostrix-bin` and the AUR web page rendered a bare AGPL license
+  with no commercial rung. Both now carry the estate's canonical clean
+  expression — `license=('AGPL-3.0-only OR Commercial')` — the same
+  string `LICENSE_LINE` renders on `-V` since night-ux-orion-2.
+- The `.SRCINFO` stays regenerations-proof: `scripts/dev/
+  version-to.sh` (generate_srcinfo_from_pkgbuild) and the aur.yml
+  lane both derive the license field VERBATIM from the PKGBUILD's
+  array (proven live: sourcing the patched PKGBUILD renders
+  `license = AGPL-3.0-only OR Commercial`), so future version bumps
+  keep the disclosure — no drift path.
+- One stale policy comment healed: scripts/gates/check-headers.sh
+  said "project is AGPL-3.0-only licensed" (pre-Masterclass
+  phrasing); it now states the dual-license policy.
+- Sweep proof (the ant-hunt, repo-wide, excluding target/): every
+  remaining bare "AGPL-3.0-only" mention is a legitimate description
+  of the AGPL license itself (TRADEMARK.md's source-license
+  statement, NOTICE's explicit dual-licensed sentence, LICENSING_FAQ,
+  deny.toml's allowlist, historical CHANGELOG entries). The CLI
+  surfaces were already correct at HEAD: `-V` prints
+  `License: AGPL-3.0-only OR Commercial`, `sig` carries the identity
+  block, `--doctor` has no license line, `--help` carries none by
+  design. Gates: check-headers 928 files dual ✓, check-version-
+  anti-patterns 322 files ✓, docs_tests 21/21 ✓, PKGBUILD bash -n ✓,
+  cargo build clean under the night-cafe-3 deny ✓.
+
 ### build: night-cafe-3 - the strict-build law is total: warning = failed on every build shape
 
 - Owner law: ANY build whose output carries a warning is a failed build,
