@@ -109,6 +109,15 @@ when the version line closes.
   frame digests + engine oracle), and a motion-ramping rewrite would
   churn the proof moat to chase an imperceptible single-frame step.
 
+### fix: night-cafe-5 micro - the sig exit codes are fully documented (0 AUTHENTIC, 1 UNSIGNED, 2 tamper)
+
+- The dragon.1 session audit surfaced the gap (`sig exit=1` on an
+  unsigned-commit build with no documented meaning): the -h reference
+  only said "Exit code 2 on tamper". The sig entry now states all
+  three codes - 0 = AUTHENTIC (6/6), 1 = UNSIGNED (the honest 5/6
+  verdict on a build whose commit carries no GPG signature), 2 =
+  tamper - so scripts can gate on every outcome the tool emits.
+
 ### fix: night-cafe-5 follow-up - the version-sync tests learn the pre-release AUR law
 
 - The cafe-5 script patch shipped, but CI caught the second half of the
@@ -120,6 +129,15 @@ when the version line closes.
   pkgver stays a hyphen-free pacman version instead of equality, and
   keep the exact-match assertion for stable releases. docs_tests 21/21
   locally; clippy -D warnings clean.
+
+### fix: night-cafe-5 micro - the sig exit codes are fully documented (0 AUTHENTIC, 1 UNSIGNED, 2 tamper)
+
+- The dragon.1 session audit surfaced the gap (`sig exit=1` on an
+  unsigned-commit build with no documented meaning): the -h reference
+  only said "Exit code 2 on tamper". The sig entry now states all
+  three codes - 0 = AUTHENTIC (6/6), 1 = UNSIGNED (the honest 5/6
+  verdict on a build whose commit carries no GPG signature), 2 =
+  tamper - so scripts can gate on every outcome the tool emits.
 
 ### fix: night-cafe-5 - pre-release bumps keep the AUR metadata at the last stable pkgver
 

@@ -560,7 +560,9 @@ Diagnostics:
       time). A build on a signed HEAD ends `SIGNATURE: AUTHENTIC (6/6
       depths verified)`; a build on an unsigned HEAD fails D5 by name
       (5/6) — both are the honest verdict for their build.
-      Exit code 2 on tamper, so scripts can gate on it. `sig` is a
+      Exit codes: 0 = AUTHENTIC (6/6), 1 = UNSIGNED (the honest 5/6
+      verdict on a build whose commit carries no GPG signature), 2 =
+      tamper — scripts can gate on all three. `sig` is a
       subcommand: run it alone, it takes no arguments (`cosmostrix sig`;
       the retired --sig flag spelling is no longer a valid flag). See
       docs/INNOVATIONS.md entry 31 for the mechanism and its honest
