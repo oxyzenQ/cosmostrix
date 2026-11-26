@@ -45,6 +45,14 @@ Common options:
       cosmostrix --color-tune head=1.5,tail=0.5
       Also configurable in config.toml via [color.tune] section.
 
+  --colors-custom <name>
+      Load a custom color palette from config (see --list-colors).
+      Equivalent to -c <name> for custom palettes: accepts the built-in
+      themes AND names defined under [colors-custom.<name>] in
+      config.toml (bg + rain stops; see --dump-config for the block
+      template).
+      cosmostrix --colors-custom tron_legacy
+
   -C, --charset [--charset-custom] <name>
       Character set. See --list-charsets for available sets.
       Accepts built-in presets or custom names from [charset-custom.<name>].
@@ -269,7 +277,8 @@ Common options:
         message         = \"hello\"   (no border, matches -m)
         message-border  = \"hello\"   (with border, matches -mb)
       When neither CLI nor config provides a message, interactive mode
-      defaults to a bordered overlay showing \"cosmostrix v<VERSION>\"
+      defaults to a bordered overlay showing \"Experience with
+      cosmostrix v<VERSION>\"
       (version is dynamic, read from Cargo.toml at compile time).
       Benchmark mode never shows a message overlay.
       msg-mode = false in config (or --msg-mode false on CLI) disables
@@ -482,8 +491,11 @@ Config:
       (cosmostrix --dump-config | less) is allowed.
 
       With a path: writes to that file. The path must:
-        1. Be inside ~/.config/cosmostrix/ or /etc/cosmostrix/
-           (strict whitelist, same as --config)
+        1. Be inside one of the whitelisted cosmostrix directories
+           (strict whitelist, same set as --config: ~/.config/cosmostrix/,
+           /etc/cosmostrix/, /usr/local/etc/cosmostrix/,
+           $PREFIX/etc/cosmostrix/, /sdcard/cosmostrix/,
+           %APPDATA%\\cosmostrix\\ or %ProgramData%\\cosmostrix\\)
         2. Have a .toml extension (strict, same as --config;
            case-insensitive: CONFIG.TOML is accepted)
       Everything else is rejected.
@@ -524,7 +536,8 @@ Config:
       ONLY: allows overwriting an existing config at the target path.
       Default --dump-config refuses to overwrite (data-loss guard).
       Other write operations (--save-baseline, etc.) are NOT affected
-      by --force — they have their own per-option overwrite policy.
+      by --force — --save-baseline's own policy is always-overwrite (no
+      refuse guard, --force not involved).
       Examples:
         cosmostrix --dump-config ~/.config/cosmostrix/config.toml --force
       Destructive: replaces the existing file with the example template.
@@ -568,6 +581,13 @@ Diagnostics:
       docs/INNOVATIONS.md entry 31 for the mechanism and its honest
       limits.
       cosmostrix sig
+  --bench-cosmetics
+      Benchmark the bench-skipped cosmetics paths: message overlay +
+      HUD write into the measured frame (use with --benchmark).
+      Measures what bench mode deliberately skips; pair with
+      --message/--msg-fill-style/--message-border to pick the overlay
+      configuration.
+      cosmostrix --benchmark --bench-cosmetics
   --docs         Print engine documentation and architecture overview.
       Plain-text dump of The Cosmic Dragon Diff-Based Rendering Engine: the
       five cooperating subsystems (diff-based cell renderer, 3-layer
@@ -580,19 +600,25 @@ Diagnostics:
       measure pure engine throughput. Add --bench-io for wet I/O.
   --bench-duration <N>
       Benchmark duration (default 5s). Accepts compound forms: 5, 6s, 30m,
-      1h30m, 0.5d. Minimum 1s, maximum 24h — the hard OS-protection ceiling
+      1h30m (integer-second grammar — fractional forms like 0.5d are
+      --duration / --crystal-dragon-secs only). Minimum 1s, maximum 24h —
+      the hard OS-protection ceiling
       (v80.0.0-alpha.1: every time-scale input is capped at one day; use
       endurance runs up to 24h, then relaunch). Use with --benchmark for
       long-run drift / leak / thermal-throttle detection.
       The DRIFT section of the report compares first-half FPS vs second-half FPS.
   --screen-size <WxH>
-      Fixed virtual screen size (e.g. 120x40). Min 1x1. Max 1024x500 in
-      interactive mode, 7680x4320 (8K UHD) in --benchmark mode. Useful
+      Fixed virtual screen size (e.g. 120x40). Min 1x1; 7680x4320 (8K UHD)
+      cap in --benchmark mode. Interactive mode has no hard cap — a size
+      larger than the terminal is accepted, warned about, and clipped to
+      the terminal's top-left. Useful
       for benchmarking at exact dimensions or rendering independent of
       terminal resize.
   --json         Output benchmark as JSON (use with --benchmark).
       Machine-readable single-line JSON for CI/scripts. Mirrors the text
-      report's 13 sections. Option fields emit null; NaN/Inf emit null.
+      report's section set (19 top-level JSON sections). Option fields
+      emit null; NaN/Inf emit null. --bench-all --json emits the
+      scaling-ladder schema instead.
   --bench-io     Benchmark with wet terminal I/O — writes ANSI to /dev/null
       so the kernel syscall path is exercised without terminal emulator
       overhead. Measures real write bandwidth + latency. Default is dry
@@ -617,13 +643,20 @@ Diagnostics:
       at parse time — never silently fallback'd to the default lean path.
       cosmostrix --benchmark --bench-io --bench-scene production-draw
   --save-baseline <path>
-      Save benchmark JSON to a file (whitelist-enforced path, same as
-      --config). Use to lock in a regression baseline for later diffing.
-      cosmostrix --benchmark --save-baseline base.json
+      Save benchmark JSON to a file (whitelist-enforced absolute path,
+      same as --config). Use to lock in a regression baseline for later
+      diffing. ALWAYS overwrites an existing baseline file (no refuse
+      guard, --force not involved).
+      cosmostrix --benchmark --save-baseline \"$HOME/.config/cosmostrix/base.json\"
   --compare-baseline <path>
       Compare the current benchmark run against a saved baseline JSON.
-      Marks >5% FPS regressions with a clear PASS/FAIL verdict.
-      cosmostrix --benchmark --compare-baseline base.json
+      Seven metrics with per-metric thresholds; per-row statuses
+      OK / + BETTER / - WORSE, verdicts \"! N REGRESSION(S) detected\",
+      \"+ N improvement(s) detected. No regressions.\" or
+      \"OK: no significant changes detected.\". A missing, corrupt or
+      foreign baseline fails the comparison and exits 2 so CI gates
+      stay honest.
+      cosmostrix --benchmark --compare-baseline \"$HOME/.config/cosmostrix/base.json\"
   --reset-terminal
       Emergency terminal recovery — the last resort.
       Use after SIGKILL (kill -9) or crash leaves the terminal broken.
@@ -714,7 +747,10 @@ Advanced (intentionally not in clap's auto-list, but documented here — honest 
       Run headless benchmark for exactly N frames and exit. Alternative
       to --bench-duration when you want frame-count-based measurement
       instead of time-based. Useful for cross-machine A/B at identical
-      workloads. Dispatch precedence: --bench-all > --benchmark > --bench-frames.
+      workloads. min 1, max 1000000000 (1e9 — the typo-guard ceiling
+      mirroring the time knobs' 24h courteous-guest policy; for
+      time-based runs use --bench-duration). Dispatch precedence:
+      --bench-all > --benchmark > --bench-frames.
       If --bench-frames is set alongside a higher-precedence option, --bench-frames
       is ignored (warned). If --bench-frames is set with --bench-duration and
       neither --bench-all nor --benchmark is set, --bench-frames wins
@@ -748,6 +784,6 @@ Rendering philosophy:
   ANSI escape sequences are the brush, glyphs are the pixels. No GPU
   context (OpenGL/Vulkan/Metal/DirectX/WebGPU) is ever created. GPU
   image-mode would change cosmostrix from \"terminal rain\" to \"image
-  rain\" — a different program. See --doctor RENDERER for the field-level
+  rain\" — a different program. See --doctor Renderer for the field-level
   declaration and docs/PHILOSOPHY.md for the full rationale.
 ";

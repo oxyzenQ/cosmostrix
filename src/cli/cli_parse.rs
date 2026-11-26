@@ -354,10 +354,11 @@ pub(crate) type ScreenSize = (u16, u16);
 ///   - `1x1` → (1, 1) (minimum, enforced by MIN_TERMINAL_COLS/LINES)
 ///   - `200X60` → (200, 60) (case-insensitive 'x')
 ///
-/// Format range: 1x1 to 65535x65535 (u16 range). However, the renderer
-/// enforces a stricter floor of MIN_TERMINAL_COLS × MIN_TERMINAL_LINES
-/// (4×4) — sizes below this are rejected at parse time with a clear
-/// error. The renderer also clamps to a per-mode ceiling at runtime:
+/// Format range: 1x1 to 65535x65535 (u16 range). The floor IS
+/// MIN_TERMINAL_COLS × MIN_TERMINAL_LINES (1×1 — night-dragon-fly-2: a
+/// stale docstring claimed a 4×4 floor and a dead below-minimum arm;
+/// both corrected, the defensive arm stays for constant drift). The
+/// renderer clamps to a per-mode ceiling at runtime:
 ///   - Interactive mode: MAX_TERMINAL_COLS × MAX_TERMINAL_LINES (1024×500)
 ///   - Benchmark mode:   BENCH_MAX_COLS × BENCH_MAX_LINES (7680×4320 = 8K UHD)
 ///

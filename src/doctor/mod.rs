@@ -498,7 +498,11 @@ pub(crate) fn print_doctor_report(args: &Args) {
         let s = r.section("Advice");
 
         if !stdin_tty || !stdout_tty {
-            s.advice("headless/non-TTY detected; use --benchmark, --doctor, --list-colors, --list-charsets, --list-scenes, --show-scene, --config-path, --dump-config, --docs, or --help");
+            // night-dragon-fly-2: the old line recommended --doctor while
+            // running --doctor (self-referential). The honest wording:
+            // diagnostics work fine in pipes; it is the interactive rain
+            // that wants a terminal.
+            s.advice("headless/non-TTY detected; diagnostics work fine in pipes (--doctor, --list-colors, --list-charsets, --list-scenes, --show-scene, --config-path, --dump-config, --docs, --benchmark, --help) — interactive rain wants a terminal");
         }
         if !locale_utf8 {
             s.advice("locale does not look like UTF-8; unicode charsets may render incorrectly");
