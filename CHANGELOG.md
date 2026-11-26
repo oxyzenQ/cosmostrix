@@ -109,6 +109,33 @@ when the version line closes.
   frame digests + engine oracle), and a motion-ramping rewrite would
   churn the proof moat to chase an imperceptible single-frame step.
 
+### fix: night-cafe-5 - pre-release bumps keep the AUR metadata at the last stable pkgver
+
+- The audit of the owner's v100.1.3-dragon.1 bump session caught the
+  ant: the pre-release branch of scripts/dev/version-to.sh ran
+  update_pkgbuild unconditionally, writing pacman-ILLEGAL metadata —
+  pkgver=100.1.3-dragon.1 into aur/cosmostrix-bin/PKGBUILD and its
+  .SRCINFO. Pacman forbids hyphens in pkgver (the hyphen is the
+  pkgver-pkgrel separator), so makepkg rejects the file and any manual
+  AUR publish of that state would break the package metadata. The
+  aur.yml lane was never at risk (its own guard rejects any hyphenated
+  tag before sync — AUR only accepts stable packages), but the repo
+  carried the invalid state between bumps.
+- The law now matches the lane: a pre-release bump leaves the AUR
+  files untouched (they keep the last stable pkgver, exactly what is
+  live on the AUR), and verify_version's pre-release mode asserts the
+  AUR pkgver stays a hyphen-free pacman version plus the .SRCINFO
+  regen-sync, instead of expecting equality with the pre-release. The
+  next STABLE bump writes the registry version again — no drift path.
+- The v100.1.3-dragon.1 state healed: PKGBUILD/.SRCINFO restored to
+  the stable 100.1.2 metadata (dual-license disclosure intact).
+- Proven by two live runs: the idempotent check on v100.1.3-dragon.1
+  now reports "PKGBUILD: pkgver=100.1.2 (stable base, untouched —
+  pre-release 100.1.3-dragon.1 never syncs to AUR)" and passes; a real
+  v100.1.3-dragon.2 bump moved Cargo/README/pgo-runner to dragon.2
+  while the AUR files stayed at 100.1.2, with "All verification checks
+  passed" — then the test mutation was wiped.
+
 ### fix: night-cafe-4 - the AUR package metadata carries the dual-license disclosure (zero license ants left)
 
 - The last shipped surface declaring AGPL-only licensing was the AUR

@@ -566,7 +566,19 @@ verify_version() {
 	pkg_ver="$(grep '^pkgver=' "${PKGBUILD}" | head -1 | sed 's/^pkgver=//')"
 	local pkg_tag
 	pkg_tag="$(grep '^_tag=' "${PKGBUILD}" | head -1 | sed 's/^_tag=//')"
-	if [[ "${pkg_ver}" == "${expected_ver}" ]]; then
+	if [[ "${expected_ver}" == *-* ]]; then
+		# night-cafe-5: pre-release versions never sync to the AUR —
+		# aur.yml rejects any hyphenated tag (AUR only accepts stable
+		# packages) and pacman forbids hyphens in pkgver (the hyphen is
+		# the pkgver-pkgrel separator). The PKGBUILD keeps the last
+		# stable pkgver; assert validity, not equality.
+		if [[ "${pkg_ver}" =~ ^[0-9.]+$ ]]; then
+			log_ok "PKGBUILD: pkgver=${pkg_ver} (stable base, untouched — pre-release ${expected_ver} never syncs to AUR)"
+		else
+			log_err "PKGBUILD: pkgver=${pkg_ver} carries a hyphen — pacman forbids it; the AUR files must keep the last stable pkgver"
+			((errors++))
+		fi
+	elif [[ "${pkg_ver}" == "${expected_ver}" ]]; then
 		log_ok "PKGBUILD: pkgver=${expected_ver}"
 	else
 		log_err "PKGBUILD: expected pkgver=${expected_ver}, got ${pkg_ver}"
@@ -582,7 +594,14 @@ verify_version() {
 	if [[ -f "${SRCINFO}" ]]; then
 		local srcinfo_pkgver
 		srcinfo_pkgver="$(grep -E '^[[:space:]]*pkgver = ' "${SRCINFO}" | head -1 | sed -E 's/^[[:space:]]*pkgver = //')"
-		if [[ "${srcinfo_pkgver}" == "${expected_ver}" ]]; then
+		if [[ "${expected_ver}" == *-* ]]; then
+			if [[ "${srcinfo_pkgver}" =~ ^[0-9.]+$ ]]; then
+				log_ok ".SRCINFO: pkgver = ${srcinfo_pkgver} (stable base, untouched — pre-release never syncs to AUR)"
+			else
+				log_err ".SRCINFO: pkgver = ${srcinfo_pkgver:-<missing>} carries a hyphen — pacman forbids it"
+				((errors++))
+			fi
+		elif [[ "${srcinfo_pkgver}" == "${expected_ver}" ]]; then
 			log_ok ".SRCINFO: pkgver = ${expected_ver}"
 		else
 			log_err ".SRCINFO: expected pkgver = ${expected_ver}, got ${srcinfo_pkgver:-<missing>}"
@@ -896,13 +915,19 @@ main() {
 	update_cargo_lock "${OLD_VER}" "${NEW_VER}"
 	changed_files+=("Cargo.lock")
 
-	# 3. Update PKGBUILD
-	update_pkgbuild "${OLD_VER}" "${NEW_VER}"
-	changed_files+=("aur/cosmostrix-bin/PKGBUILD")
+	# 3. Update PKGBUILD (night-cafe-5: pre-releases skip the AUR —
+	# aur.yml rejects hyphenated tags, pacman pkgver forbids hyphens;
+	# the files keep the last stable pkgver until the next STABLE bump)
+	if [[ "${NEW_VER}" == *-* ]]; then
+		log_info "AUR untouched: ${NEW_VER} is a pre-release — aur.yml rejects hyphenated tags (AUR only accepts stable); PKGBUILD keeps its current stable pkgver"
+	else
+		update_pkgbuild "${OLD_VER}" "${NEW_VER}"
+		changed_files+=("aur/cosmostrix-bin/PKGBUILD")
 
-	# .SRCINFO
-	if [[ -f "${SRCINFO}" ]]; then
-		changed_files+=("aur/cosmostrix-bin/.SRCINFO")
+		# .SRCINFO
+		if [[ -f "${SRCINFO}" ]]; then
+			changed_files+=("aur/cosmostrix-bin/.SRCINFO")
+		fi
 	fi
 
 	# 4. Update docs/examples (only the TAG= line is touched under the
