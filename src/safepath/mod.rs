@@ -218,10 +218,12 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
     // single source of truth prevents drift if the detection heuristic ever
     // needs to change.
     let is_termux = crate::configfile::is_termux_environment();
-    if !is_termux {
-        if let Some(xdg) = std::env::var("XDG_CONFIG_HOME").ok().filter(|v| !v.is_empty()) {
-            push_normalized_allowed_prefix(&mut allowed_prefixes, format!("{xdg}/cosmostrix/"));
-        }
+    if !is_termux
+        && let Some(xdg) = std::env::var("XDG_CONFIG_HOME")
+            .ok()
+            .filter(|v| !v.is_empty())
+    {
+        push_normalized_allowed_prefix(&mut allowed_prefixes, format!("{xdg}/cosmostrix/"));
     }
 
     // Linux/macOS/Android: /etc/cosmostrix/ (system-wide)
