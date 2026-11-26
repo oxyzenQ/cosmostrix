@@ -112,6 +112,9 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         .map(|s| s == "production-draw")
         .unwrap_or(false);
     if bench_scene_production && !cfg.bench_io {
+        // night-dragon-fly-2: wipe the live spinner line first, or the
+        // error glues onto "Running COSMOSTRIX BENCHMARK...".
+        progress.clear_silent_line();
         crate::ux::or_exit::<(), String>(Err(
             "error: --bench-scene production-draw requires --bench-io to be set \
              (it routes the BenchIoWriter through the production draw path)"
@@ -776,13 +779,20 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // extracted verbatim to bench_cosmetics::emit_report_output so the
     // cosmetics harness shares the exact same emission path; premium.rs
     // was at its 800-LOC cap and this is a net code-motion out.
-    crate::bench_cosmetics::emit_report_output(cfg, &report_data);
+    //
+    // night-dragon-fly-2: a refused/failed baseline op exits 2 AFTER the
+    // state-digest line (the soak harness's parse target) — exit 0 used
+    // to contradict the no-silent-failure contract.
+    let baseline_ok = crate::bench_cosmetics::emit_report_output(cfg, &report_data);
 
     // night-frontier-Z9-D: the canary line the soak harness parses
     // (pass-law leg 5) - printed by the oracle's own helper beside the
     // pure computation it measures. Text report only.
     if !cfg.json {
         super::bench_replay::print_state_digest_line(&state_digest_t0, &state_digest_end);
+    }
+    if !baseline_ok {
+        std::process::exit(2);
     }
     Ok(())
 }

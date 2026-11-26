@@ -21,7 +21,7 @@
 use crate::app::CloudConfig;
 use crate::bench;
 use crate::config::Args;
-use crate::output::println_safe;
+use crate::output::{eprintln_safe, println_safe};
 
 /// Check post-config bench dispatchers.
 ///
@@ -75,6 +75,30 @@ pub(crate) fn dispatch_bench(
     if let Some(_bench_frames) = args.bench_frames {
         crate::bench_helpers::warn_bench_noop_flags(args, fps_user_set);
         return Some(bench::run_benchmark(cloud_cfg));
+    }
+
+    // night-dragon-fly-2: --json and the baseline flags are benchmark
+    // reporting knobs with no interactive effect — a silent drop
+    // contradicts the no-silent-failure contract (finding 14 of the
+    // night-dragon-fly-1 audit), so the no-op is announced before the
+    // rain starts.
+    if args.json {
+        eprintln_safe!(
+            "! --json has no effect in interactive mode (it reports \
+             benchmarks; use --benchmark)"
+        );
+    }
+    if args.save_baseline.is_some() {
+        eprintln_safe!(
+            "! --save-baseline has no effect in interactive mode (use \
+             --benchmark)"
+        );
+    }
+    if args.compare_baseline.is_some() {
+        eprintln_safe!(
+            "! --compare-baseline has no effect in interactive mode (use \
+             --benchmark)"
+        );
     }
 
     None

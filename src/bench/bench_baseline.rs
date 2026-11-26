@@ -5,12 +5,17 @@
 //!
 //! Phase 7 of DeepSeek benchmark restructuring plan.
 //!
-//! Usage:
-//!   cosmostrix --benchmark --json --save-baseline v50.0.0.json
-//!   cosmostrix --benchmark --json --compare-baseline v50.0.0.json
+//! Usage (paths are safepath-whitelisted — absolute, inside the
+//! cosmostrix config directories, like --config):
+//!   cosmostrix --benchmark --json --save-baseline "$HOME/.config/cosmostrix/v50.0.0.json"
+//!   cosmostrix --benchmark --json --compare-baseline "$HOME/.config/cosmostrix/v50.0.0.json"
 //!
 //! Comparison flags regressions/improvements per-metric: 5% for FPS,
 //! 10% for frame-time / ns-per-cell, 15% for CPU, 20% for dirty cells.
+//! A baseline that yields no comparable metrics (corrupt or foreign
+//! JSON) fails the comparison with `Err` — the caller exits 2 so CI
+//! gates stay honest (night-dragon-fly-2: this used to false-pass with
+//! "OK: no significant changes detected." on all-N/A rows).
 
 use crate::output::{brand_bold, grey_open, println_safe, reset};
 use std::collections::HashMap;
@@ -29,11 +34,17 @@ const COMPARE_METRICS: &[(&str, &str, f64)] = &[
 
 /// Save benchmark JSON to a file.
 pub(crate) fn save_baseline(path: &str, json: &str) -> Result<(), String> {
-    std::fs::write(path, json).map_err(|e| format!("error: cannot save baseline to '{path}': {e}"))
+    std::fs::write(path, json).map_err(|e| format!("cannot save baseline to '{path}': {e}"))
 }
 
 /// Compare current benchmark JSON against a saved baseline JSON.
 /// Prints a comparison table to stdout.
+///
+/// Night-dragon-fly-2: a baseline that contains NONE of the compared
+/// metrics (corrupt or foreign JSON) is an `Err`, not an all-N/A table
+/// with an "OK: no significant changes detected." verdict — the old
+/// behavior false-passed and broke CI gating. Partial baselines (some
+/// metrics present) still compare, with a note for the skipped rows.
 pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> Result<(), String> {
     // night-dragon-lts-3 hardening: the baseline read previously used an
     // unbounded fs::read_to_string. Baselines are small JSON (KBs); route
@@ -42,10 +53,26 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
     // (same Read::take law the config loader enforces since S-master-3-v2).
     let baseline_text =
         crate::config::config_io::read_config_capped(std::path::Path::new(baseline_path))
-            .map_err(|e| format!("error: cannot read baseline '{baseline_path}': {e}"))?;
+            .map_err(|e| format!("cannot read baseline '{baseline_path}': {e}"))?;
 
     let baseline = parse_json_flat(&baseline_text);
     let current = parse_json_flat(current_json);
+
+    let baseline_metrics = COMPARE_METRICS
+        .iter()
+        .filter(|(key, _, _)| baseline.contains_key(*key))
+        .count();
+    let current_metrics = COMPARE_METRICS
+        .iter()
+        .filter(|(key, _, _)| current.contains_key(*key))
+        .count();
+    if baseline_metrics == 0 || current_metrics == 0 {
+        return Err(format!(
+            "cannot compare baseline '{baseline_path}': no comparable metrics found \
+             ({baseline_metrics} on the baseline side, {current_metrics} on the current \
+             side) — the file is not a cosmostrix benchmark JSON or is corrupt"
+        ));
+    }
 
     println_safe!();
     // Output color law (night-dragon-maintenance-4): the comparison title
@@ -78,6 +105,7 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
 
     let mut regressions = 0;
     let mut improvements = 0;
+    let mut na_rows = 0usize;
 
     println_safe!(
         "  {:<25} {:>12} {:>12} {:>10} {:>8}",
@@ -144,6 +172,7 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
                 );
             }
             _ => {
+                na_rows += 1;
                 println_safe!(
                     "  {:<25} {:>12} {:>12} {:>10} {:>8}",
                     label,
@@ -165,6 +194,11 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
         println_safe!("  + {improvements} improvement(s) detected. No regressions.");
     } else {
         println_safe!("  OK: no significant changes detected.");
+    }
+    if na_rows > 0 {
+        println_safe!(
+            "  {na_rows} metric(s) skipped: not present in the baseline or current JSON."
+        );
     }
     println_safe!();
 
@@ -375,5 +409,29 @@ mod tests {
             err.contains(missing),
             "error must mention the path; got: {err}"
         );
+    }
+
+    /// night-dragon-fly-2: a readable but corrupt/foreign baseline (no
+    /// comparable metric keys) must `Err` — the old behavior rendered an
+    /// all-N/A table and printed "OK: no significant changes detected.",
+    /// false-passing CI gates on a broken comparison.
+    #[test]
+    fn compare_baseline_returns_err_on_metricless_json() {
+        let tmp = std::env::temp_dir().join(format!(
+            "cosmostrix-baseline-corrupt-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::write(&tmp, "{\"broken\":").expect("write corrupt baseline fixture");
+        let current_json = r#"{ "avg_fps": 38000.0, "cols": 120, "lines": 40 }"#;
+        let result = compare_with_baseline(tmp.to_str().unwrap(), current_json);
+        assert!(result.is_err(), "metricless baseline must Err");
+        let err = result.unwrap_err();
+        assert!(err.contains("no comparable metrics found"), "got: {err}");
+        assert!(err.contains(tmp.to_str().unwrap()), "got: {err}");
+        std::fs::remove_file(&tmp).ok();
     }
 }

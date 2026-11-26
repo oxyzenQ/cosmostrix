@@ -593,8 +593,19 @@ pub(crate) use println_safe;
 // ── Print helpers (stderr) ───────────────────────────────────────────────────
 
 /// Print a labeled error to stderr: "error: <msg>" in red.
+///
+/// night-dragon-fly-2: an `Err` string that already embeds an
+/// `error: ` prefix produced the double-label `error: error: …` on the
+/// `--testconf` config path and the baseline read paths (the
+/// `ux::print_branded_error` lane already stripped; this lane did not).
+/// Strip here so BOTH error lanes render exactly one label, whatever
+/// the caller embeds.
 pub(crate) fn eprintln_error_labeled(msg: &str) {
-    eprintln_safe!("{}", render_labeled_block("error:", error_bold, error, msg));
+    let stripped = msg.strip_prefix("error: ").unwrap_or(msg);
+    eprintln_safe!(
+        "{}",
+        render_labeled_block("error:", error_bold, error, stripped)
+    );
 }
 
 /// Print a labeled warning to stderr: "! <msg>" in yellow.

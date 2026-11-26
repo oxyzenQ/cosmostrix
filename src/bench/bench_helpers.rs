@@ -273,8 +273,9 @@ fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static 
     {
         warns.push("--bench-duration ignored (--bench-frames is frame-count-based)");
     }
-    // NIGHT-hunt-47: --json is honored by --benchmark (the 13-section
-    // JSON report) and --bench-all (the scaling ladder JSON), but the
+    // NIGHT-hunt-47: --json is honored by --benchmark (the 19-section
+    // JSON report; stale "13 sections" corrected by night-dragon-fly-2)
+    // and --bench-all (the scaling ladder JSON), but the
     // legacy --bench-frames path emits the TEXT BENCH: format. Silence
     // here would be hidden behavior against the honesty contract —
     // the user asked for machine-readable output and got text.
@@ -357,12 +358,18 @@ pub(crate) fn median_sorted(data: &[f64]) -> f64 {
 /// Resolve the benchmark duration: validate the override if supplied, else
 /// return the default `BENCHMARK_DURATION_SECS`. Returns `Err` with
 /// a human-readable error message on out-of-range values.
+///
+/// night-dragon-fly-2: the old `Ok(n)` arm carried a stale "No max cap"
+/// comment — the 24h courteous-guest ceiling lives upstream in the
+/// --bench-duration value grammar (HumanSecs max 86400), so this
+/// function only re-checks the 1s floor defensively.
 pub(crate) fn resolve_bench_duration(override_secs: Option<u64>) -> Result<u64, String> {
     match override_secs {
         Some(n) if n < BENCH_DURATION_MIN => Err(format!(
             "error: --bench-duration {n} is below the {BENCH_DURATION_MIN}-second minimum"
         )),
-        Some(n) => Ok(n), // No max cap — use --bench-duration for endurance tests
+        // The 24h ceiling is enforced upstream (HumanSecs grammar); see doc.
+        Some(n) => Ok(n),
         None => Ok(BENCHMARK_DURATION_SECS),
     }
 }

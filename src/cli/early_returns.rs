@@ -287,16 +287,18 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
                         // error. Previously this used process::exit(2)
                         // directly, bypassing the ux module's centralized
                         // error handling.
-                        ux::die_input(
+                        ux::die_input(format!(
                             "refusing to write --dump-config to a redirected file\n  \
                              Shell redirection (>, >|) bypasses the strict whitelist.\n  \
                              Use the explicit path form instead:\n    \
                              cosmostrix --dump-config ~/.config/cosmostrix/config.toml\n  \
-                             The path must be inside ~/.config/cosmostrix/ or \
-                             /etc/cosmostrix/ and have a .toml extension.\n  \
+                             The path must be inside one of the whitelisted \
+                             cosmostrix directories and have a .toml extension.\n  \
+                             Allowed: {}\n  \
                              Piping to another command (cosmostrix --dump-config | less) \
                              is allowed.",
-                        );
+                            crate::safepath::allowed_dirs_summary()
+                        ));
                     }
                 }
                 print!("{}", configfile::dump_config_with_header());

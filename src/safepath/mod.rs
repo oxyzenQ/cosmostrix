@@ -496,6 +496,20 @@ fn expand_tilde(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
+/// The canonical whitelist summary shared by every rejection message.
+///
+/// night-dragon-fly-2: the baseline and redirect-refusal surfaces listed
+/// two roots while `validate_config_path` listed all six — three
+/// surfaces disagreed; one source ends the drift.
+pub(crate) fn allowed_dirs_summary() -> &'static str {
+    "~/.config/cosmostrix/ (Linux, macOS, FreeBSD, Android Termux); \
+     /etc/cosmostrix/ (Linux, macOS); \
+     /usr/local/etc/cosmostrix/ (FreeBSD — ports/packages convention); \
+     $PREFIX/etc/cosmostrix/ (Android Termux — system-wide); \
+     /sdcard/cosmostrix/ (Android Termux — external storage); \
+     %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\ (Windows)"
+}
+
 /// Validate a `--config <path>` argument: must be inside the strict
 /// whitelist AND have a `.toml` extension. Returns `Ok(resolved_path)` if
 /// valid (with Windows `%VAR%` env vars expanded), or
@@ -532,12 +546,8 @@ pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<Stri
     if !safe {
         return Err(format!(
             "error: --config '{path_str}' is outside allowed directories\n  \
-             Allowed: ~/.config/cosmostrix/ (Linux, macOS, FreeBSD, Android Termux);\n  \
-             /etc/cosmostrix/ (Linux, macOS);\n  \
-             /usr/local/etc/cosmostrix/ (FreeBSD — ports/packages convention);\n  \
-             $PREFIX/etc/cosmostrix/ (Android Termux — system-wide);\n  \
-             /sdcard/cosmostrix/ (Android Termux — external storage);\n  \
-             %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\ (Windows)"
+             Allowed: {}",
+            allowed_dirs_summary()
         ));
     }
     // Strict: only .toml files allowed. Prevents reading arbitrary

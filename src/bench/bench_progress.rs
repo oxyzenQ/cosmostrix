@@ -244,6 +244,22 @@ impl BenchProgress {
         }
     }
 
+    /// Wipe the live silent spinner line (CR + clear-to-EOL) so an error
+    /// printed afterwards does not glue onto "Running COSMOSTRIX
+    /// BENCHMARK..." (night-dragon-fly-2: the production-draw-requires-
+    /// --bench-io refusal used to render as one glued line). No-op when
+    /// no silent spinner is active or stderr is not a terminal.
+    pub(crate) fn clear_silent_line(&mut self) {
+        if !self.silent_active {
+            return;
+        }
+        self.silent_active = false;
+        if io::stderr().is_terminal() {
+            let _ = write!(io::stderr(), "\r\x1b[K");
+            let _ = io::stderr().flush();
+        }
+    }
+
     /// Print "initializing renderer... done" — this step is fast enough
     /// that it appears as a single completed line.
     pub(crate) fn init_done(&mut self) {

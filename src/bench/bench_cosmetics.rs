@@ -63,7 +63,11 @@ pub(crate) fn run_cosmetics_benchmark(cfg: &CloudConfig) -> std::io::Result<()> 
          overlay + HUD) for {duration_label}s at {size_label} ..."
     );
     let report_data = super::run_premium_benchmark_silent(cfg)?;
-    emit_report_output(cfg, &report_data);
+    if !emit_report_output(cfg, &report_data) {
+        // night-dragon-fly-2: same exit-2 law as the premium path — a
+        // refused/failed baseline operation must be visible to scripts.
+        std::process::exit(2);
+    }
     Ok(())
 }
 
@@ -72,7 +76,16 @@ pub(crate) fn run_cosmetics_benchmark(cfg: &CloudConfig) -> std::io::Result<()> 
 /// save/compare (path-whitelisted). Extracted VERBATIM from
 /// premium.rs (BL-02 dedup shape preserved: json_opt computed once
 /// above the branches); behavior-identical code motion.
-pub(crate) fn emit_report_output(cfg: &CloudConfig, data: &crate::bench_report::BenchReportData) {
+///
+/// Returns `true` when every requested baseline operation succeeded
+/// (or none was requested) and `false` when a save/compare was refused
+/// or failed — the callers exit 2 so CI gates can't go green on a
+/// failed comparison (night-dragon-fly-2: failures used to print and
+/// still exit 0, contradicting the no-silent-failure contract).
+pub(crate) fn emit_report_output(
+    cfg: &CloudConfig,
+    data: &crate::bench_report::BenchReportData,
+) -> bool {
     // BL-02 (Dragon Hunt v3): dedup — hoist json_opt above the json/text
     // branch so save/compare baseline logic runs once (was duplicated
     // verbatim in both arms).
@@ -92,6 +105,8 @@ pub(crate) fn emit_report_output(cfg: &CloudConfig, data: &crate::bench_report::
         crate::bench_report::build_premium_report(data);
     }
 
+    let mut baseline_ok = true;
+
     // Save baseline if requested (v17: path whitelist enforced).
     // For text mode, the JSON was generated above so users don't have to
     // pass --json just to save a baseline.
@@ -99,12 +114,17 @@ pub(crate) fn emit_report_output(cfg: &CloudConfig, data: &crate::bench_report::
         if !crate::is_safe_path(path) {
             crate::output::eprintln_error_labeled(&format!(
                 "--save-baseline '{path}' is outside allowed directories\n  \
-                 Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
+                 Allowed: {}",
+                crate::safepath::allowed_dirs_summary()
             ));
+            baseline_ok = false;
         } else {
             match crate::bench_baseline::save_baseline(path, json) {
                 Ok(()) => eprintln_safe!("[baseline] saved to {path}"),
-                Err(e) => crate::output::eprintln_error_labeled(&e.to_string()),
+                Err(e) => {
+                    crate::output::eprintln_error_labeled(&e);
+                    baseline_ok = false;
+                }
             }
         }
     }
@@ -114,10 +134,15 @@ pub(crate) fn emit_report_output(cfg: &CloudConfig, data: &crate::bench_report::
         if !crate::is_safe_path(path) {
             crate::output::eprintln_error_labeled(&format!(
                 "--compare-baseline '{path}' is outside allowed directories\n  \
-                 Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
+                 Allowed: {}",
+                crate::safepath::allowed_dirs_summary()
             ));
+            baseline_ok = false;
         } else if let Err(e) = crate::bench_baseline::compare_with_baseline(path, json) {
-            crate::output::eprintln_error_labeled(&e.to_string());
+            crate::output::eprintln_error_labeled(&e);
+            baseline_ok = false;
         }
     }
+
+    baseline_ok
 }
