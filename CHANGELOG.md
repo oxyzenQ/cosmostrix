@@ -64,6 +64,39 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### feat: night-arc-1 - the perf report explains an avg_fps below target: idle_throttle_share
+
+- The owner reported felt "micro lag" and asked for a depth
+  architecture audit (smoothness, crystal dragon intelligence, honest
+  math). The audit verdict, fully measured: the renderer is not the
+  bottleneck — a paced 144fps release bench reads avg work 0.021ms,
+  p99 0.027ms, p99.9 0.033ms, max 0.058ms, jitter low (0.3% of the
+  6.944ms frame budget); the crystal-dragon drift tick adds one 0.33ms
+  sim spike per 3s tick (4.8% of one frame, below perception, crystal
+  on vs off otherwise identical); the always-on climate drift is O(1)
+  scalar accumulation applied shader-side (the post-hoc
+  decode-encode pass was already deleted), so no full-grid
+  invalidates. What the owner actually felt is the power_dragon idle
+  reduction: after 30s without input the cadence halves (144→72).
+  The math locks against the owner's own 22-minute report —
+  frame_period_avg 12.873ms sits between the active 6.944ms and the
+  idle 13.889ms; the implied 85.4% idle share predicts avg_fps 77.68
+  and the report measured exactly 77.68.
+- The report never said any of this: `target_fps` showed the BASE
+  144.000, `avg_fps` showed 77.680, and nothing connected them — the
+  reader was left blaming the renderer or the scheduler. The power
+  manager now counts its own idle-paced frames
+  (`idle_throttled_frames`, incremented in `begin_frame` when
+  `is_idle` returns true) and the exit PERFORMANCE REPORT's Timing
+  section prints `idle_throttle_share: N% of frames ran idle-paced
+  (power_dragon idle reduction after 30s without input) — avg_fps is
+  an active/idle cadence mix, not a renderer shortfall`. Verified
+  live: a 38s PTY session crossing the 30s threshold reads
+  `11.9% of frames ran idle-paced`. No loop-file change: the counter
+  rides the PowerManager the stats builder already receives. If the
+  slowdown is never wanted, `power_dragon = false` removes it — the
+  report now makes that an informed choice instead of a mystery.
+
 ### fix: night-firefly-1 - the runtime surfaces show a custom scene's original-case name, not the lowercase key
 
 - The same bug class NIGHT-dragon-fly-2 closed for charsets was still

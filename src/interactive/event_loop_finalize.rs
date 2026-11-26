@@ -64,6 +64,12 @@ pub(crate) struct SessionStats<'a> {
     /// exit-time counters (same thread — TLS attribution contract).
     /// `None` when the session ended before the warmup frame.
     pub alloc_baseline: Option<crate::alloc_trace::AllocSnapshot>,
+    /// NIGHT-arc-1: frames the power manager paced under the idle
+    /// reduction (its `begin_frame` returned is_idle). Denominator
+    /// companion to `perf_frames` for the Timing section's
+    /// `idle_throttle_share` — the honest explanation when `avg_fps`
+    /// sits far below `target_fps` on a healthy renderer.
+    pub idle_throttled_frames: u64,
 }
 
 /// Terminal IO snapshot — the encoding + tier2 counters captured from
@@ -259,6 +265,23 @@ fn print_perf_report(
         s.field(
             "rolling_avg_frame_time",
             &format!("{:.3}ms", stats.frame_time_tracker.rolling_avg_ms()),
+        );
+        // NIGHT-arc-1: the idle throttle is the honest explanation for an
+        // avg_fps far below target on a healthy renderer — the owner's
+        // 22-minute session read 77.68 vs target 144.0 and neither the
+        // report nor the docs said why (85% of frames were paced at
+        // base*0.5 after the 30s no-input threshold). The share is the
+        // power manager's own idle-frame count; the mix math is
+        // 1/((1-share)/target + share/(target*idle_fps_factor)).
+        let idle_share = (stats.idle_throttled_frames as f64) / (stats.perf_frames as f64).max(1.0);
+        s.field(
+            "idle_throttle_share",
+            &format!(
+                "{:.1}% of frames ran idle-paced (power_dragon idle reduction \
+                 after 30s without input) — avg_fps is an active/idle cadence \
+                 mix, not a renderer shortfall",
+                idle_share * 100.0
+            ),
         );
     }
 

@@ -83,6 +83,9 @@ pub(crate) fn build_session_stats(inp: StatsInputs<'_>) -> SessionStats<'_> {
         power_manager_base_target_fps: power_manager.base_target_fps(),
         endurance_health_score: endurance_health.score(),
         endurance_health_classification: endurance_health.classification(),
+        // NIGHT-arc-1: the power manager counts its own idle-paced
+        // frames; surfacing them costs no loop-file change.
+        idle_throttled_frames: power_manager.idle_throttled_frames(),
         alloc_baseline,
     }
 }

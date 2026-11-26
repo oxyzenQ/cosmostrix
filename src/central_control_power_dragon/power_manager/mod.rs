@@ -111,6 +111,17 @@ pub(crate) struct PowerManager {
     was_active: bool,
     idle_started: Option<Instant>,
 
+    // ── NIGHT-arc-1: session idle-throttle accounting ──
+    /// Frames whose `begin_frame` returned `is_idle == true` — the
+    /// frames the idle reduction actually paced at
+    /// `base_target_fps * idle_fps_factor`. Surfaced in the exit
+    /// PERFORMANCE REPORT (`Timing.idle_throttle_share`) so an
+    /// `avg_fps` far below `target_fps` carries its real explanation
+    /// (a deliberate power save, not a renderer shortfall): the owner's
+    /// 22-minute session measured avg 77.68 against target 144.0 and
+    /// the report gave no hint the idle throttle was the cause.
+    idle_throttled_frames: u64,
+
     // ── effective FPS state (was event_loop.rs:139, 179) ──
     base_target_fps: f64,
 
@@ -186,6 +197,7 @@ impl PowerManager {
             phase_predictor: PhasePredictor::new(),
             was_active: true,
             idle_started: None,
+            idle_throttled_frames: 0,
             base_target_fps: base_target_fps.max(1.0),
             drain_backoff: 0.0,
             reader_backoff: 0.0,
@@ -325,6 +337,9 @@ impl PowerManager {
             self.phase_predictor
                 .record_transition(now_active, local_secs_since_midnight());
             self.was_active = now_active;
+        }
+        if is_idle {
+            self.idle_throttled_frames = self.idle_throttled_frames.saturating_add(1);
         }
 
         if is_idle && self.idle_started.is_none() {
@@ -600,6 +615,15 @@ impl PowerManager {
     #[must_use]
     pub(crate) fn phase_transitions_observed(&self) -> u64 {
         self.phase_predictor.transitions_observed()
+    }
+
+    /// NIGHT-arc-1: frames paced under the idle reduction this session
+    /// (each `begin_frame` that returned `is_idle`). Read by the exit
+    /// PERFORMANCE REPORT so `avg_fps` far below `target_fps` carries
+    /// its real explanation — see the field's docs.
+    #[must_use]
+    pub(crate) fn idle_throttled_frames(&self) -> u64 {
+        self.idle_throttled_frames
     }
 }
 
