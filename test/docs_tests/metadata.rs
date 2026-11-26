@@ -131,6 +131,24 @@ fn readme_uses_current_release_tag_in_install_example() {
 #[test]
 fn aur_pkgbuild_pkgver_matches_release() {
     let pkgbuild = include_str!("../../aur/cosmostrix-bin/PKGBUILD");
+    if CURRENT_VERSION.contains('-') {
+        // night-cafe-5: pre-release versions never sync to the AUR —
+        // aur.yml rejects any hyphenated tag (AUR only accepts stable
+        // packages) and pacman forbids hyphens in pkgver (the hyphen is
+        // the pkgver-pkgrel separator). The PKGBUILD keeps the last
+        // stable pkgver — assert legality, not equality with the
+        // pre-release.
+        let ver = pkgbuild
+            .lines()
+            .find(|l| l.starts_with("pkgver="))
+            .expect("PKGBUILD must carry a pkgver= line")
+            .trim_start_matches("pkgver=");
+        assert!(
+            !ver.is_empty() && !ver.contains('-'),
+            "PKGBUILD pkgver must stay a hyphen-free pacman version on a pre-release (got {ver})"
+        );
+        return;
+    }
     let expected = format!("pkgver={}", CURRENT_VERSION);
     assert!(
         pkgbuild.contains(&expected),
@@ -142,6 +160,23 @@ fn aur_pkgbuild_pkgver_matches_release() {
 #[test]
 fn aur_srcinfo_pkgver_matches_release() {
     let srcinfo = include_str!("../../aur/cosmostrix-bin/.SRCINFO");
+    if CURRENT_VERSION.contains('-') {
+        // night-cafe-5: same pre-release law as the PKGBUILD test — the
+        // .SRCINFO keeps the last stable pkgver (hyphen-free); equality
+        // with the pre-release Cargo version is not expected.
+        let ver = srcinfo
+            .lines()
+            .find(|l| l.trim_start().starts_with("pkgver = "))
+            .expect(".SRCINFO must carry a pkgver = line")
+            .trim_start()
+            .trim_start_matches("pkgver = ")
+            .trim();
+        assert!(
+            !ver.is_empty() && !ver.contains('-'),
+            ".SRCINFO pkgver must stay a hyphen-free pacman version on a pre-release (got {ver})"
+        );
+        return;
+    }
     let expected = format!("pkgver = {}", CURRENT_VERSION);
     assert!(
         srcinfo.contains(&expected),

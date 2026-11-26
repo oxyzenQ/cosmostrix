@@ -109,6 +109,18 @@ when the version line closes.
   frame digests + engine oracle), and a motion-ramping rewrite would
   churn the proof moat to chase an imperceptible single-frame step.
 
+### fix: night-cafe-5 follow-up - the version-sync tests learn the pre-release AUR law
+
+- The cafe-5 script patch shipped, but CI caught the second half of the
+  contract: test/docs_tests/metadata.rs asserted
+  PKGBUILD/.SRCINFO pkgver == the Cargo version unconditionally, so the
+  healed stable-base state (Cargo = 100.1.3-dragon.1, AUR = 100.1.2)
+  failed the musl nextest shards. The two tests now branch on the
+  pre-release shape (CURRENT_VERSION contains '-'): they assert the AUR
+  pkgver stays a hyphen-free pacman version instead of equality, and
+  keep the exact-match assertion for stable releases. docs_tests 21/21
+  locally; clippy -D warnings clean.
+
 ### fix: night-cafe-5 - pre-release bumps keep the AUR metadata at the last stable pkgver
 
 - The audit of the owner's v100.1.3-dragon.1 bump session caught the
