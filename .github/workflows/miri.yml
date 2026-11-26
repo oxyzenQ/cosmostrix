@@ -46,6 +46,9 @@ permissions:
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
+  # NIGHT-cafe-3: miri builds through cargo, so the strict-build law
+  # applies at the compiler too — a crate warning fails the lane.
+  RUSTFLAGS: "-D warnings"
 
 # Rapid pushes to the same ref cancel the superseded run instead of
 # queueing a duplicate miri build.

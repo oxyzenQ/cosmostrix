@@ -22,6 +22,18 @@ linker = "rust-lld"
 [net]
 retry = 5
 
+# NIGHT-cafe-3 (the owner's strict-build law): warning = failed for
+# EVERY local build shape. Plain cargo invocations (build, test,
+# clippy, run, bench) inherit this deny. The pro-* aliases below
+# carry the same deny inside their own build.rustflags arrays,
+# because an alias --config build.rustflags REPLACES this global
+# block (cargo precedence). CI workflows set the RUSTFLAGS env,
+# which overrides config files entirely and already carries
+# -D warnings, so CI behavior is unchanged; ci-strict-build.sh
+# remains the belt-and-suspenders lane wrapper there.
+[build]
+rustflags = ["-D", "warnings"]
+
 [alias]
 # night-dragon-maintenance-T1 (the estate-wide build-label contract,
 # the zelynic law): every local alias build stamps its ALIAS NAME under
@@ -43,7 +55,7 @@ pro-native-musl = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-native-musl\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-D\",\"warnings\"]",
   "--target",
   "x86_64-unknown-linux-musl",
 ]
@@ -78,7 +90,7 @@ pro-native-arm64-musl = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-native-arm64-musl\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-C\",\"target-feature=+crt-static\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-C\",\"target-feature=+crt-static\",\"-D\",\"warnings\"]",
   "--target",
   "aarch64-unknown-linux-musl",
 ]
@@ -98,7 +110,7 @@ pro-native-gnu = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-native-gnu\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-D\",\"warnings\"]",
 ]
 
 # NIGHT-blade-1 (zelynic pro-linux lineage): the Linux x86_64 alias
@@ -120,7 +132,7 @@ pro-linux-amd64-v3-musl = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-linux-amd64-v3-musl\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\",\"-D\",\"warnings\"]",
   "--target",
   "x86_64-unknown-linux-musl",
 ]
@@ -133,7 +145,7 @@ pro-linux-amd64-v4-musl = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-linux-amd64-v4-musl\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\",\"-D\",\"warnings\"]",
   "--target",
   "x86_64-unknown-linux-musl",
 ]
@@ -173,7 +185,7 @@ pro-macos-aarch64 = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-macos-aarch64\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-D\",\"warnings\"]",
 ]
 
 pro-win-amd64 = [
@@ -187,7 +199,7 @@ pro-win-amd64 = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-win-amd64\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64\",\"-D\",\"warnings\"]",
 ]
 
 pro-win-aarch64 = [
@@ -201,7 +213,7 @@ pro-win-aarch64 = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-win-aarch64\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-D\",\"warnings\"]",
 ]
 
 pro-freebsd-amd64 = [
@@ -213,7 +225,7 @@ pro-freebsd-amd64 = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-freebsd-amd64\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-D\",\"warnings\"]",
   "--target",
   "x86_64-unknown-freebsd",
 ]

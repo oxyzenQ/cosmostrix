@@ -89,7 +89,14 @@ jobs:
           echo "SOAK_MINUTES=$MINUTES" >> "$GITHUB_ENV"
 
       - name: Build the release binary
-        run: cargo build --profile release --locked --jobs 4
+        # NIGHT-cafe-3 (the strict-build law): the soak lane was the last
+        # cargo build without the deny — warnings passed here. Now the
+        # lane matches ci.yml: RUSTFLAGS env denies at the compiler and
+        # ci-strict-build.sh turns any surviving warning into a FAILED
+        # CI BUILD summary.
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: bash scripts/ci/ci-strict-build.sh -- build --profile release --locked --jobs 4
 
       - name: Run the determinism-anchored soak
         run: |

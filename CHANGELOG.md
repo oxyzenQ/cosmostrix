@@ -64,6 +64,39 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### build: night-cafe-3 - the strict-build law is total: warning = failed on every build shape
+
+- Owner law: ANY build whose output carries a warning is a failed build,
+  no exceptions. Three seats were already live (ci.yml global
+  RUSTFLAGS: "-D warnings" with the re-add discipline on step overrides,
+  ci-strict-build.sh wrapping the ci/maintenance/release lanes, and the
+  supermassive matrix rustflags). The audit found the gaps and closed
+  them all:
+  - soak.yml built the release binary bare — a warning-passing build
+    sailed through the 24h determinism anchor's precondition. The lane
+    now wraps ci-strict-build.sh and carries RUSTFLAGS: "-D warnings".
+  - miri.yml compiled through cargo with no deny — the env now carries
+    RUSTFLAGS: "-D warnings" (miri shares rustc's frontend; main is
+    warning-free, so the lane stays green unless a regression lands).
+  - .cargo/config.toml now carries a global [build]
+    rustflags = ["-D", "warnings"] block, so plain local cargo
+    build/test/clippy/run deny warnings on every machine. The nine
+    pro-* aliases each append "-D","warnings" inside their own
+    build.rustflags arrays — an alias --config build.rustflags REPLACES
+    the global block (cargo precedence), so each release shape must
+    carry the deny itself; pro-android (shell alias) and the
+    baseline-musl alias define no array and inherit the global block.
+    CI behavior is unchanged: the RUSTFLAGS env overrides config files
+    entirely and already carries -D warnings.
+  - kani.yml is deliberately left without RUSTFLAGS: kani compiles
+    through its own verification pipeline and forcing cargo's flag set
+    into it is unverified — forcing it blind would risk a false-red
+    proof lane, which the honesty contract ranks worse than a scoped
+    exception. Documented here rather than hidden.
+- Proof: cargo build on main runs clean UNDER the new deny (Finished,
+  zero warnings emitted with -D warnings active) — the law passes on
+  today's tree; every future warning is a hard failure everywhere.
+
 ### fix: night-echo-1 - the Backpressure verdict states the measured pressure instead of a hardcoded 0.000
 
 - The owner flagged it twice across two sessions: the report's Backpressure
