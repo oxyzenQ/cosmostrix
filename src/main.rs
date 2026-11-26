@@ -208,7 +208,6 @@ use clap::{CommandFactory, FromArgMatches};
 
 use std::env;
 
-use crate::charset::{build_chars, charset_from_str};
 use crate::config::{Args, ColorBg, color_enabled_stdout};
 use crate::constants::*;
 use crate::runtime::{BoldMode, ColorScheme, ShadingMode};
@@ -222,7 +221,7 @@ use crate::validation::{
 pub use app::{CloudConfig, auto_density_factor, effective_density};
 pub use cli::{
     color_mode_label, cycle_charset_preset, cycle_color_scheme, default_to_ascii,
-    detect_color_mode, detect_color_mode_auto, normalize_charset_preset_name, parse_color_scheme,
+    detect_color_mode, detect_color_mode_auto, parse_color_scheme,
 };
 pub use info::env_var_truthy;
 
@@ -605,51 +604,21 @@ fn main() -> std::io::Result<()> {
     // removing it would touch ~15 call sites with zero functional benefit.
     let user_ranges: Vec<(char, char)> = Vec::new();
 
-    let mut charset_preset = normalize_charset_preset_name(&args.charset);
-
-    // v25: Custom charset loading from [charset-custom.<name>] in config.toml.
-    // Replaces the legacy --charset-file CLI flag. If `args.charset` (after
-    // normalization) matches a custom block name, load its char pool;
-    // otherwise fall through to the built-in charset_from_str path.
-    //
-    // This runs BEFORE the verbose print so the verbose output can show
-    // whether a custom charset was used. The custom_palette block below
-    // follows the same pattern for --colors-custom.
-    let cfg_for_charset = configfile::load_config_file(args.config.as_deref());
-    let chars = if let Some(custom_chars) =
-        charset_custom::load_custom_charset_if_matches(&cfg_for_charset, &charset_preset)
-    {
-        // NIGHT-dragon-fly-2: the display surfaces keep the block's
-        // original spelling. The lowercase normalized name is the lookup
-        // key (matching contract), but the string carried through the
-        // runtime state — the HUD `chr:` line, the verbose line below,
-        // the session report — must show what the config spells
-        // (`Quantum`, not `quantum`), same contract the listing surfaces
-        // got in NIGHT-cafe-1. Glyph matching already happened above and
-        // every later lookup normalizes internally (the custom loader,
-        // the live-reload applier), so the swap is display-only; builtin
-        // names pass through unchanged.
-        if let Some(original) = charset_custom::original_case_custom_charset_name(
-            args.config.as_deref(),
-            &charset_preset,
-        ) {
-            charset_preset = original;
-        }
-        if args.verbose {
-            crate::output::eprintln_verbose_raw(&format!(
-                "charset: {} (custom, {} chars)",
-                charset_preset,
-                custom_chars.len()
-            ));
-        }
-        custom_chars
-    } else {
-        let charset = match charset_from_str(&args.charset, def_ascii) {
-            Ok(c) => c,
-            Err(e) => ux::die_input(e),
-        };
-        build_chars(charset, &user_ranges, def_ascii)
-    };
+    // v25: custom charsets load from [charset-custom.<name>] in config.toml
+    // via --charset <name>; the full startup resolution (custom load,
+    // builtin fallthrough, verbose line, and the NIGHT-dragon-fly-2
+    // original-case display swap) lives in charset_custom, next to the
+    // loader it calls. This runs BEFORE the verbose print so the verbose
+    // output can show whether a custom charset was used; the
+    // custom_palette block below follows the same pattern for
+    // --colors-custom.
+    let (charset_preset, chars) = charset_custom::resolve_startup_charset(
+        &args.charset,
+        args.config.as_deref(),
+        def_ascii,
+        args.verbose,
+        &user_ranges,
+    );
 
     // (custom_palette and custom_palette_name are now resolved above
     // in the unified color resolution block.)

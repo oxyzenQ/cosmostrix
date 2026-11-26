@@ -14,10 +14,12 @@ use crate::report::Report;
 use crate::runtime::{ColorMode, ColorPipeline};
 use std::path::Path;
 
-use super::{
-    color_mode_label, default_to_ascii, detect_color_mode, detect_color_mode_auto,
-    normalize_charset_preset_name,
-};
+use super::{color_mode_label, default_to_ascii, detect_color_mode, detect_color_mode_auto};
+
+// NIGHT-dragon-fly-2: main.rs no longer re-exports the charset helpers
+// (the startup resolution moved into charset_custom) — import from the
+// defining module instead of the crate-root relay.
+use crate::cli::normalize_charset_preset_name;
 
 #[cfg(target_os = "linux")]
 use super::env_var_truthy;
