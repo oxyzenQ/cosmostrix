@@ -4,11 +4,12 @@
 //! Post-loop session finalization — extracted from `event_loop.rs`.
 //!
 //! Owns the entire post-loop sequence: shutdown signal, terminal stats
-//! capture, the `--perf-stats` performance report (162 lines of
-//! `Report` formatting), terminal drop (AB-10 alt-screen restore), and
-//! the final-state handoff to `super::set_final_state` for the post-exit
-//! verbose summary. Extracting this block keeps `event_loop.rs` under
-//! the 800-LOC file cap without touching the loop body's tight coupling.
+//! capture, the `--perf-stats` performance report (the full `Report`
+//! telemetry block — its section set and length vary with the session),
+//! terminal drop (AB-10 alt-screen restore), and the final-state
+//! handoff to `super::set_final_state` for the post-exit verbose
+//! summary. Extracting this block keeps `event_loop.rs` under the
+//! 800-LOC file cap without touching the loop body's tight coupling.
 //!
 //! All counters are read-only borrows; `term` is moved in (consumed by
 //! `drop`). Nothing flows back to the caller except `Ok(())`.
