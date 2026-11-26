@@ -244,13 +244,13 @@ pub(crate) fn dump_config_text() -> &'static str {
 /// SHA-512 to BLAKE3 (`blake3_hex`, 64 lowercase hex chars) per owner
 /// mandate — blake3 is already in-tree (pure-Rust profile) and the
 /// "use blake3 for speed" contract from night-signature-advanced-3
-/// extends to this surface. Configs written by older versions carry a
-/// 128-char SHA-512 fingerprint; `extract_template_fingerprint` accepts
-/// both and `testconf::run` compares each against the matching
-/// algorithm's digest of the current template, so legacy configs keep
-/// verifying instead of reporting a false drift. The full-file hash
-/// (`testconf: file-sha512`, matching `sha512sum` on disk) is a
-/// separate, unchanged scope.
+/// extends to this surface. NIGHT-cafe-1 no-fallback follow-up (same
+/// day): the legacy acceptance is gone — `extract_template_fingerprint`
+/// takes exactly 64 lowercase hex chars and nothing else, so a header
+/// written by the pre-blake3 format reads as "not found" and the file
+/// is regenerated with `--dump-config <path> --force`. One hash family,
+/// one comparison path. The full-file hash (`testconf: file-sha512`,
+/// matching `sha512sum` on disk) is a separate, unchanged scope.
 ///
 /// Uses the same `sha2` crate already in-tree for live-reload change
 /// detection (zero new dependencies). SHA-512 chosen over SHA-256 for
@@ -339,16 +339,17 @@ pub(crate) fn sha512_hex(data: &[u8]) -> String {
 /// Extract the `template-fingerprint` hex digest from the header of a config
 /// file (if present).
 ///
-/// Looks for a line matching `# template-fingerprint: <64 or 128 hex chars>`
-/// in the first 6 lines of the file. Returns `None` if the header is missing
-/// or doesn't contain a fingerprint line (e.g., hand-written config, or
-/// pre-v50 format).
+/// Looks for a line matching `# template-fingerprint: <64 hex chars>` in the
+/// first 6 lines of the file. Returns `None` if the header is missing or
+/// doesn't contain a valid fingerprint line (e.g., hand-written config, or
+/// a pre-NIGHT-cafe-1 legacy header, which no longer qualifies).
 ///
-/// Accepts both digest widths: 64 hex chars = blake3 (NIGHT-cafe-1
-/// algorithm), 128 hex chars = legacy SHA-512 (configs written before
-/// NIGHT-cafe-1). The caller (`testconf::run`) compares each width against
-/// the matching algorithm's digest of the current template, so legacy
-/// configs keep verifying instead of reporting a false drift.
+/// NIGHT-cafe-1 no-fallback follow-up (2026-11-25): exactly 64 lowercase
+/// hex chars = blake3, nothing else. The dual-width acceptance (128 hex
+/// chars = legacy SHA-512) and the legacy v50 label (`# sha512
+/// (template):`) are removed per the owner's no-backward-compatibility
+/// contract — a legacy header reads as "not found" and `--testconf`
+/// points at regeneration instead of running a second comparison path.
 ///
 /// Used by `testconf::run()` to detect template drift: the extracted
 /// fingerprint is compared against a fresh digest of `dump_config_text()`
@@ -359,16 +360,13 @@ pub(crate) fn extract_template_fingerprint(content: &str) -> Option<String> {
         let trimmed = line.trim_start();
         if let Some(hex) = trimmed.strip_prefix("# template-fingerprint: ") {
             let hex = hex.trim();
-            // Validate: exactly 64 (blake3) or 128 (legacy sha512)
-            // lowercase hex characters.
-            if (hex.len() == 64 || hex.len() == 128) && hex.chars().all(|c| c.is_ascii_hexdigit()) {
-                return Some(hex.to_owned());
-            }
-        }
-        // Also accept the legacy v50 label for backward compat (sha512 only).
-        if let Some(hex) = trimmed.strip_prefix("# sha512 (template): ") {
-            let hex = hex.trim();
-            if hex.len() == 128 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            // Validate: exactly 64 lowercase hex characters (blake3, 32
+            // bytes). Any other width or case is not a fingerprint.
+            if hex.len() == 64
+                && hex
+                    .chars()
+                    .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+            {
                 return Some(hex.to_owned());
             }
         }

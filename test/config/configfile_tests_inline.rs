@@ -298,8 +298,9 @@ fn dump_config_with_header_starts_with_header_lines() {
     // Labelled "template-fingerprint" to distinguish from `sha512sum` of the
     // full file on disk — this hash covers only the template body, not the
     // header lines. NIGHT-cafe-1: the digest is blake3 (64 hex chars);
-    // pre-NIGHT-cafe-1 configs carry a 128-char sha512 fingerprint that
-    // --testconf still compares through the legacy path. Use `--testconf`
+    // the no-fallback follow-up removed the legacy 128-char sha512
+    // acceptance, so a pre-blake3 header reads as "not found" and is
+    // regenerated with --dump-config <path> --force. Use `--testconf`
     // or `sha512sum` for file-level checks.
     let line4 = lines[3];
     assert!(
@@ -632,43 +633,57 @@ fn extract_template_fingerprint_from_v501_header() {
 }
 
 #[test]
-fn extract_template_fingerprint_accepts_legacy_sha512_width() {
-    // NIGHT-cafe-1 back-compat: configs written before the blake3 switch
-    // carry a 128-hex sha512 fingerprint under the same label. The
-    // extractor must accept it (testconf::run compares it against the
-    // legacy sha512 digest of the current template) instead of dropping
-    // it as invalid and reporting "not found".
+fn extract_template_fingerprint_rejects_legacy_sha512_width() {
+    // NIGHT-cafe-1 no-fallback follow-up: the dual-width acceptance is
+    // gone. A 128-hex sha512 fingerprint under the modern label is NOT a
+    // fingerprint — the extractor must drop it so --testconf lands in the
+    // "not found" branch (which points at regeneration) instead of
+    // running a second comparison algorithm.
     let hash_hex = "1".repeat(128);
     let content = format!(
         "# cosmostrix config file\n# generated at 2026-01-01T00:00:00Z\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# template-fingerprint: {hash_hex}\n#\n# body here\n"
     );
     let fp = extract_template_fingerprint(&content);
-    assert!(fp.is_some(), "legacy 128-hex fingerprint must extract");
-    assert_eq!(fp.unwrap(), hash_hex);
+    assert!(
+        fp.is_none(),
+        "legacy 128-hex fingerprint must not extract (no fallback)"
+    );
+}
+
+#[test]
+fn extract_template_fingerprint_rejects_uppercase_hex() {
+    // blake3_hex emits lowercase only; the extractor must hold the same
+    // contract so a doctored uppercase digest cannot ride the field.
+    let hash_hex = "A".repeat(64);
+    let content = format!("# template-fingerprint: {hash_hex}\n# body here\n");
+    assert!(
+        extract_template_fingerprint(&content).is_none(),
+        "uppercase digest must not extract"
+    );
 }
 
 #[test]
 fn extract_template_fingerprint_rejects_bad_width() {
-    // Neither 64 nor 128 hex chars — must not extract a garbage digest.
+    // Not 64 hex chars — must not extract a garbage digest.
     let hash_hex = "a".repeat(40);
     let content = format!("# template-fingerprint: {hash_hex}\n# body here\n");
     assert!(extract_template_fingerprint(&content).is_none());
 }
 
 #[test]
-fn extract_template_fingerprint_from_legacy_v50_header() {
+fn extract_template_fingerprint_rejects_legacy_v50_label() {
     // Legacy v50 used the label `sha512 (template):` instead of
-    // `template-fingerprint:`.
+    // `template-fingerprint:`. The no-fallback contract removed that
+    // acceptance: a legacy header must read as "not found".
     let hash_hex = "a".repeat(128);
     let content = format!(
         "# cosmostrix config file\n# generated at 2026-01-01T00:00:00Z\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# sha512 (template): {hash_hex}\n#\n# body here\n"
     );
     let fp = extract_template_fingerprint(&content);
     assert!(
-        fp.is_some(),
-        "should extract fingerprint from legacy v50 header"
+        fp.is_none(),
+        "legacy v50 label must not extract (no fallback)"
     );
-    assert_eq!(fp.unwrap(), hash_hex);
 }
 
 #[test]
@@ -690,7 +705,9 @@ fn extract_template_fingerprint_invalid_hex() {
 #[test]
 fn extract_template_fingerprint_only_scans_first_6_lines() {
     // Fingerprint on line 8 (beyond the scan window) should be ignored.
-    let hash_hex = "b".repeat(128);
+    // 64 b's: a valid width, so the miss exercises the window, not the
+    // width validation.
+    let hash_hex = "b".repeat(64);
     let content = format!(
         "# line 1\n# line 2\n# line 3\n# line 4\n# line 5\n# line 6\n# line 7\n# template-fingerprint: {hash_hex}\n"
     );

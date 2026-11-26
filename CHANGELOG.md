@@ -64,6 +64,26 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-cafe-1 - the template fingerprint drops the legacy sha512 fallback (one hash family, one path)
+
+- The blake3 switch landed with a backward-compatible digest-width
+  selector: a 128-char sha512 header fingerprint still verified through
+  a second comparison path (`drift: none ... sha512 (legacy)`). The
+  owner's no-fallback contract closes that door:
+  `extract_template_fingerprint` now takes exactly 64 lowercase hex
+  chars and nothing else — the 128-char width, the uppercase-hex
+  loophole, and the legacy v50 label (`# sha512 (template):`) all
+  read as "not found". `--testconf` loses the width branch and always
+  compares blake3; the "not found" branch gained a regeneration hint
+  (`cosmostrix --dump-config <path> --force`) instead of silently
+  re-verifying a legacy header with a retired algorithm. The full-file
+  hash (`testconf: file-sha512`, matching `sha512sum` on disk) is a
+  separate scope and unchanged — coreutils-verifiable on any machine,
+  no `b3sum` install required. Tests flipped from accept-contract to
+  reject-contract (legacy width, legacy label, uppercase digest each
+  assert `None`), and the header-coverage test comment no longer
+  describes the legacy compare path.
+
 ### fix: night-hit-2 - the sig ladder names an unsigned commit UNSIGNED (a missing provenance link, not a modification)
 
 - A pristine local build with no GPG used to read

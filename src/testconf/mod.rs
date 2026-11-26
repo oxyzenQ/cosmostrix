@@ -104,7 +104,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // `sha512sum <path>` exactly). Lets the user verify exact config
     // state, detect config drift across machines, and prove config
     // identity in bug reports. NIGHT-cafe-1: the header's
-    // template-fingerprint is now blake3 — this full-file hash is a
+    // template-fingerprint is blake3 — this full-file hash is a
     // separate, unchanged scope, still served by sha2 alongside
     // live-reload change detection (zero new dependencies).
     let file_hash = configfile::sha512_hex(content.as_bytes());
@@ -113,34 +113,28 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // v50 (alpha.2): Extract template-fingerprint from the header (if present)
     // and compare against the current built-in template to detect drift.
     //
-    // NIGHT-cafe-1 (2026-11-25): the fingerprint algorithm moved from
-    // SHA-512 (128 hex chars) to blake3 (64 hex chars). The digest width
-    // selects the comparison algorithm, so configs written by older
-    // versions keep verifying against the legacy SHA-512 digest of the
-    // current template instead of reporting a false drift.
+    // NIGHT-cafe-1 (2026-11-25): the fingerprint is blake3 (64 lowercase
+    // hex chars), the same hash family as the depth anchor, the binary
+    // self-hash and the replay oracle. NIGHT-cafe-1 no-fallback follow-up
+    // (same day): one comparison path — the digest-width selector and the
+    // legacy sha512 compare are gone. A header written by the pre-blake3
+    // format extracts as None and falls through to the "not found" branch,
+    // which points at regeneration instead of silently re-verifying with a
+    // second algorithm.
     let header_fp = configfile::extract_template_fingerprint(&content);
     match &header_fp {
         Some(fp) => {
             println_safe!("testconf: template-fingerprint: {fp}");
-            let (current_template_hash, algo) = if fp.len() == 64 {
-                (
-                    configfile::blake3_hex(configfile::dump_config_text().as_bytes()),
-                    "blake3",
-                )
-            } else {
-                (
-                    configfile::sha512_hex(configfile::dump_config_text().as_bytes()),
-                    "sha512 (legacy)",
-                )
-            };
+            let current_template_hash =
+                configfile::blake3_hex(configfile::dump_config_text().as_bytes());
             if fp == &current_template_hash {
                 println_safe!(
-                    "testconf: template drift: none (matches built-in v{} template, {algo})",
+                    "testconf: template drift: none (matches built-in v{} template)",
                     env!("CARGO_PKG_VERSION")
                 );
             } else {
                 println_safe!(
-                    "testconf: template drift: detected — header fingerprint differs from built-in template ({algo})"
+                    "testconf: template drift: detected — header fingerprint differs from built-in template"
                 );
                 println_safe!("testconf:   built-in hash: {current_template_hash}");
                 crate::output::eprintln_suggestion_line(
@@ -150,7 +144,10 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         }
         None => {
             println_safe!(
-                "testconf: template-fingerprint: (not found in header — config may be hand-written or older)"
+                "testconf: template-fingerprint: (not found in header — config may be hand-written or a legacy pre-blake3 header)"
+            );
+            crate::output::eprintln_suggestion_line(
+                "testconf: hint: run `cosmostrix --dump-config <path> --force` to regenerate the header",
             );
         }
     }
