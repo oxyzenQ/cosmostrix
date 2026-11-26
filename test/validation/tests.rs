@@ -65,6 +65,77 @@ fn representative_cli_values_reject_cleanly() {
     }
 }
 
+#[test]
+fn attached_short_values_prevalidate_like_long_forms() {
+    // night-dragon-fly-2: `-S12.5` used to bypass the prevalidator (only
+    // whole tokens and `=` forms were inspected) while `--speed 12.5` was
+    // rejected — the two spellings of one option disagreed on the
+    // canonical-integer grammar. All spec'd shorts now validate their
+    // attached values.
+    let cases = [
+        ("-S12.5", "expected: canonical integer in range 1..=100"),
+        ("-f0", "expected: number in range 1..=240"),
+        ("-d9", "expected: number in range 0.01..=5"),
+    ];
+    for (token, expected) in cases {
+        let argv = ["cosmostrix", token]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = prevalidate_cli_args(&argv).expect_err("attached-short must validate");
+        assert!(err.contains(expected), "{token}: {err}");
+    }
+    // Valid attached values pass.
+    for token in ["-S12", "-f60", "-d0.75"] {
+        let argv = ["cosmostrix", token]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        assert!(
+            prevalidate_cli_args(&argv).is_ok(),
+            "{token} must pass prevalidation"
+        );
+    }
+    // Message-like attached shorts (`-mhello`, `-mfss`) are not spec'd and
+    // pass through untouched (the argv_expand lane owns them).
+    let argv = ["cosmostrix", "-mhello"]
+        .into_iter()
+        .map(OsString::from)
+        .collect::<Vec<_>>();
+    assert!(
+        prevalidate_cli_args(&argv).is_ok(),
+        "-mhello is message text"
+    );
+}
+
+#[test]
+fn removed_short_spellings_trigger_migration_hints() {
+    // night-dragon-fly-2: the hint texts advertise the short spellings
+    // (`-G`, `-r`, `-i`, `-a`) but the matcher skipped every non-`--`
+    // token, so users got clap's generic tip instead of the migration
+    // hint. Each retired short must now produce its table message.
+    for token in ["-G", "-r", "-i", "-a"] {
+        let argv = ["cosmostrix", token]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err =
+            check_removed_flags(&argv).expect_err("retired short spelling must be intercepted");
+        assert!(err.contains("has been removed"), "{token}: {err}");
+    }
+    // Live shorts are untouched (no migration hint exists for them).
+    for token in ["-c", "-m", "-s", "-S"] {
+        let argv = ["cosmostrix", token]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        assert!(
+            check_removed_flags(&argv).is_ok(),
+            "{token} is a live short and must pass"
+        );
+    }
+}
+
 // ── Stage 4b: removed-flag migration error tests ─────────────────────
 
 #[test]

@@ -128,14 +128,25 @@ pub(crate) fn expand_argv_shorthands(argv: &[std::ffi::OsString]) -> Vec<std::ff
 
         // -mb shorthand: expand to the hidden --message-border boolean
         // plus -m with the message text.
+        //
+        // night-dragon-fly-2: the bare form used to fall through and leak
+        // the raw `-mb` token to clap, which parsed it as `-m` with the
+        // ATTACHED value "b" — `cosmostrix -mb` displayed a bordered
+        // overlay spelling just "b". Now the bare form emits
+        // `--message-border -m` so clap reports the missing message
+        // value ("a value is required for '-m <MESSAGE>'"), the same
+        // no-silent-failure contract as bare `-m` and bare `-mfs`.
         if arg == "-mb" {
             expanded.push("--message-border".into());
             if i + 1 < argv.len() {
                 expanded.push("-m".into());
                 expanded.push(argv[i + 1].clone());
                 i += 2;
-                continue;
+            } else {
+                expanded.push("-m".into());
+                i += 1;
             }
+            continue;
         } else if let Some(s) = arg.to_str()
             && let Some(rest) = s.strip_prefix("-mb=")
         {
@@ -264,6 +275,16 @@ mod tests {
         assert_eq!(out, vec!["cosmostrix", "--message-border", "-m", "hello"]);
         let out = expand(&["cosmostrix", "-mb=hello"]);
         assert_eq!(out, vec!["cosmostrix", "--message-border", "-m", "hello"]);
+    }
+
+    #[test]
+    fn mb_bare_form_emits_flag_plus_m_for_clap_error() {
+        // night-dragon-fly-2: bare `-mb` must NOT leak the raw token (clap
+        // would parse it as `-m` with the attached value "b" — a bordered
+        // overlay spelling "b"). Emit `--message-border -m` so clap
+        // reports the missing message value instead.
+        let out = expand(&["cosmostrix", "-mb"]);
+        assert_eq!(out, vec!["cosmostrix", "--message-border", "-m"]);
     }
 
     #[test]

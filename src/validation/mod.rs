@@ -207,6 +207,19 @@ pub(crate) fn check_removed_flags(argv: &[OsString]) -> Result<(), String> {
         };
         // Normalize `--option=value` to `--option` for matching purposes.
         let token = s.split_once('=').map_or(s, |(flag, _)| flag);
+        // night-dragon-fly-2: the four retired SHORT spellings advertised
+        // in the hint texts (`-G`, `-r`, `-i`, `-a`) never matched — the
+        // matcher skipped every non-`--` token, so users got clap's
+        // generic "did you mean" tip instead of the migration hint. Map
+        // them onto their long names before the lookup; live shorts
+        // (`-c`, `-m`, `-s`, …) are not in the table and pass through.
+        let token = match token {
+            "-G" => "--glitchpct",
+            "-r" => "--rippct",
+            "-i" => "--info",
+            "-a" => "--async",
+            t => t,
+        };
         // Skip non-option tokens (positional values, etc.).
         if !token.starts_with("--") {
             continue;
@@ -337,6 +350,24 @@ pub(crate) fn prevalidate_cli_args(argv: &[OsString]) -> Result<(), String> {
             };
             validate_cli_value(spec.name, value)?;
             idx += 2;
+            continue;
+        }
+        // night-dragon-fly-2: attached-short values (`-S12.5`, `-f60`,
+        // `-d0.75`) must pass the same prevalidation as their long forms.
+        // The branch above only matches whole tokens and `=` forms, so
+        // `-S12.5` reached clap unvalidated while `--speed 12.5` was
+        // rejected — two spellings of one option disagreed on the
+        // canonical-integer grammar. The spec'd shorts are exactly
+        // `-f`/`-S`/`-d`; the multi-char shorthands `-m…`/`-mb`/`-mfs`
+        // (rewritten downstream in argv_expand) have no spec entry and
+        // pass through untouched, as do flag shorts without values.
+        if !arg.starts_with("--")
+            && let Some(short) = arg.strip_prefix('-')
+            && short.len() > 1
+            && let Some(spec) = cli_spec(&format!("-{}", &short[..1]))
+        {
+            validate_cli_value(spec.name, &short[1..])?;
+            idx += 1;
             continue;
         }
         idx += 1;

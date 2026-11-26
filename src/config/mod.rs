@@ -591,7 +591,13 @@ pub struct Args {
         // report with warmup running, which looks like a real measurement.
         // value_parser range(1..) makes clap reject --bench-frames 0 at
         // parse time with a clear error before any allocation or warmup.
-        value_parser = clap::value_parser!(u64).range(1..)
+        //
+        // night-dragon-fly-2: `1..` exposed the full u64 range, so a
+        // typo'd frame count ran unbounded — the only time knob without
+        // the courteous-guest ceiling. 1e9 is far past any real workload
+        // (even an 8K bench at ~6 fps would need ~4.7 years) and matches
+        // the documented ceiling in the --bench-frames help section.
+        value_parser = clap::value_parser!(u64).range(1..=1_000_000_000)
     )]
     pub bench_frames: Option<u64>,
 
