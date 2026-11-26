@@ -148,6 +148,112 @@ fn termux_prefix_etc_cosmostrix_rejected_when_prefix_unset() {
     );
 }
 
+// --- Allowed: $XDG_CONFIG_HOME/cosmostrix/ (non-Termux) ---
+//
+// NIGHT-dragon-fly-1: the read side (`default_config_file_path()`)
+// prefers XDG_CONFIG_HOME over $HOME/.config on every non-Termux
+// platform. The whitelist must mirror that resolution, or the binary
+// suggests a config path its own `--config`/`--dump-config` refuse.
+
+fn with_test_xdg<F: FnOnce()>(xdg: Option<&str>, f: F) {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_xdg = std::env::var("XDG_CONFIG_HOME").ok();
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        match xdg {
+            Some(v) => std::env::set_var("XDG_CONFIG_HOME", v),
+            None => std::env::remove_var("XDG_CONFIG_HOME"),
+        }
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    // Restore old XDG_CONFIG_HOME
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        match old_xdg {
+            Some(v) => std::env::set_var("XDG_CONFIG_HOME", v),
+            None => std::env::remove_var("XDG_CONFIG_HOME"),
+        }
+    }
+    if let Err(e) = result {
+        std::panic::resume_unwind(e);
+    }
+}
+
+#[test]
+fn xdg_config_home_cosmostrix_is_safe_non_termux() {
+    // Non-Termux: the XDG prefix joins the whitelist, so the exact path
+    // `--config-path` resolves under XDG_CONFIG_HOME is accepted by
+    // --config / --dump-config.
+    with_test_xdg(Some("/home/testuser/xdg"), || {
+        assert!(is_safe_path("/home/testuser/xdg/cosmostrix/config.toml"));
+        assert!(is_safe_path(
+            "/home/testuser/xdg/cosmostrix/profiles/nightcore.toml"
+        ));
+    });
+}
+
+#[test]
+fn xdg_path_outside_cosmostrix_is_rejected() {
+    // The XDG entry is a PREFIX under the user's XDG base, not a grant on
+    // the whole XDG tree: only the cosmostrix/ subdirectory is allowed.
+    with_test_xdg(Some("/home/testuser/xdg"), || {
+        assert!(!is_safe_path("/home/testuser/xdg/etc/shadow"));
+        assert!(!is_safe_path("/home/testuser/xdg/other/config.toml"));
+    });
+}
+
+#[test]
+fn xdg_is_ignored_on_termux() {
+    // Termux: the read side deliberately ignores XDG_CONFIG_HOME (it may
+    // point at $PREFIX/etc, a system location users do not edit), so the
+    // write side must ignore it too. With XDG_CONFIG_HOME set on a
+    // simulated Termux, an XDG-home config path stays rejected — while
+    // the legitimate $PREFIX/etc/cosmostrix/ entry keeps working.
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_home = std::env::var("HOME").ok();
+    let old_xdg = std::env::var("XDG_CONFIG_HOME").ok();
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::set_var("TERMUX_VERSION", "0.118.0");
+        std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
+        std::env::set_var("HOME", "/home/termuxuser");
+        std::env::set_var("XDG_CONFIG_HOME", "/home/termuxuser/xdg");
+    }
+    let xdg_rejected = !is_safe_path("/home/termuxuser/xdg/cosmostrix/config.toml");
+    let prefix_etc_allowed =
+        is_safe_path("/data/data/com.termux/files/usr/etc/cosmostrix/config.toml");
+    // Cleanup env vars (best-effort — don't leak the Termux simulation).
+    // SAFETY: test-only process environment mutation during
+    // single-threaded test setup (edition 2024 marks env
+    // set/remove unsafe); no concurrent env readers here.
+    unsafe {
+        std::env::remove_var("TERMUX_VERSION");
+        std::env::remove_var("PREFIX");
+        match old_home {
+            Some(h) => std::env::set_var("HOME", h),
+            None => std::env::remove_var("HOME"),
+        }
+        match old_xdg {
+            Some(v) => std::env::set_var("XDG_CONFIG_HOME", v),
+            None => std::env::remove_var("XDG_CONFIG_HOME"),
+        }
+    }
+    assert!(
+        xdg_rejected,
+        "Termux XDG path must stay rejected — the write side mirrors the read side's XDG ignorance"
+    );
+    assert!(
+        prefix_etc_allowed,
+        "the Termux $PREFIX/etc/cosmostrix/ entry must keep working alongside the XDG test"
+    );
+}
+
 // --- v14.0.0: /tmp/ now REJECTED (was allowed pre-v14) ---
 
 #[test]

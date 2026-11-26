@@ -10,6 +10,9 @@
 //!
 //! Linux:
 //! - `~/.config/cosmostrix/` — user config (XDG)
+//! - `$XDG_CONFIG_HOME/cosmostrix/` — user config when XDG_CONFIG_HOME is
+//!   set (non-Termux; mirrors `default_config_file_path()`'s read
+//!   resolution, NIGHT-dragon-fly-1)
 //! - `/etc/cosmostrix/` — system-wide config
 //!
 //! macOS:
@@ -196,6 +199,31 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
         );
     }
 
+    // XDG: $XDG_CONFIG_HOME/cosmostrix/ (Linux, macOS, FreeBSD — NOT
+    // Termux). NIGHT-dragon-fly-1 (2026-11-26): the read side
+    // (`default_config_file_path()`) prefers XDG_CONFIG_HOME over
+    // $HOME/.config on every non-Termux platform, but the whitelist only
+    // carried the $HOME prefix — so an XDG user's `--config-path` output
+    // (the XDG path) was refused by `--dump-config <that-path>` and
+    // `--config <that-path>`: the binary suggested a path it then
+    // rejected. The whitelist now mirrors the read resolution exactly.
+    // Termux keeps the HOME-only whitelist: the Termux fix in
+    // `default_config_file_path()` deliberately ignores XDG there (it may
+    // point at $PREFIX/etc, a system location users do not edit), so the
+    // write side must ignore it too — the two sides stay symmetric.
+    //
+    // Termux detection is centralized in `configfile::is_termux_environment()`
+    // — the canonical runtime check (`TERMUX_VERSION` env var or `PREFIX`
+    // containing "com.termux"). verbose.rs calls the same function; the
+    // single source of truth prevents drift if the detection heuristic ever
+    // needs to change.
+    let is_termux = crate::configfile::is_termux_environment();
+    if !is_termux {
+        if let Some(xdg) = std::env::var("XDG_CONFIG_HOME").ok().filter(|v| !v.is_empty()) {
+            push_normalized_allowed_prefix(&mut allowed_prefixes, format!("{xdg}/cosmostrix/"));
+        }
+    }
+
     // Linux/macOS/Android: /etc/cosmostrix/ (system-wide)
     #[cfg(unix)]
     push_normalized_allowed_prefix(&mut allowed_prefixes, "/etc/cosmostrix/".to_string());
@@ -233,8 +261,8 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
     // — the canonical runtime check (`TERMUX_VERSION` env var or `PREFIX`
     // containing "com.termux"). verbose.rs calls the same function; the
     // single source of truth prevents drift if the detection heuristic ever
-    // needs to change.
-    let is_termux = crate::configfile::is_termux_environment();
+    // needs to change. Computed once above and reused here and by the XDG
+    // block (XDG is a non-Termux-only whitelist entry).
     if is_termux {
         push_normalized_allowed_prefix(&mut allowed_prefixes, "/sdcard/cosmostrix/".to_string());
 

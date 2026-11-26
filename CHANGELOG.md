@@ -64,6 +64,27 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-dragon-fly-1 - the config-path whitelist mirrors the read side's XDG resolution
+
+- The read side (`default_config_file_path()`) prefers
+  `$XDG_CONFIG_HOME/cosmostrix/config.toml` over `$HOME/.config/...`
+  on every non-Termux platform, but the write-side whitelist
+  (`safepath::is_safe_path`) only carried the `$HOME` prefix. An XDG
+  user's `--config-path` output was refused by `--config <that-path>`
+  and `--dump-config <that-path>` with "outside allowed directories":
+  the binary suggested a path it then rejected. The whitelist now adds
+  the `$XDG_CONFIG_HOME/cosmostrix/` prefix on non-Termux platforms, so
+  the read and write sides resolve the same tree. Termux keeps the
+  HOME-only whitelist — the Termux fix deliberately ignores XDG there
+  (it may point at `$PREFIX/etc`, a system location users do not edit),
+  and the write side mirrors that ignorance. Verified live on the dev
+  binary: the exact repro that used to exit 2 with "outside allowed
+  directories" now writes the config, and the overwrite refusal is the
+  data-loss guard, not the whitelist. New safepath tests cover the
+  allowed XDG prefix, the rejection of XDG paths outside `cosmostrix/`,
+  and the Termux XDG ignorance (with `$PREFIX/etc/cosmostrix/` still
+  allowed alongside).
+
 ### fix: night-cafe-1 - the template fingerprint drops the legacy sha512 fallback (one hash family, one path)
 
 - The blake3 switch landed with a backward-compatible digest-width
