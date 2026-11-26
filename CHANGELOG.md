@@ -64,6 +64,45 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-firefly-1 - the runtime surfaces show a custom scene's original-case name, not the lowercase key
+
+- The same bug class NIGHT-dragon-fly-2 closed for charsets was still
+  open for scenes: a config `scene = "Tron_legacy"` resolving a
+  `[scene-custom.Tron_legacy]` block listed correctly in --list-scenes
+  (the NIGHT-cafe-1 original-case fix reached the listings) but the
+  startup verbose line printed `scene: tron_legacy` and the HUD
+  monitor showed `scn: tron_legacy` — config_apply stores the
+  NORMALIZED value (the matching contract) and that string flowed into
+  every display state. The owner hit it on the HUD after the listing
+  rendered `Tron_legacy`: the two surfaces disagreed about one name.
+- The original-case header record now rides the memoized config load
+  to the runtime: a display-only swap in main.rs (right after config
+  apply, before the verbose block and CloudConfig build) replaces
+  args.scene with the block's original spelling via the new
+  scene_custom helper, so the verbose `scene:` line, the HUD `scn:`
+  line (via CloudConfig.scene_name), the session report and the
+  benchmark scene field all show what the config spells. The swap is
+  display-only: every scene matching downstream normalizes internally
+  (the custom-scene tracker rides scene_custom_name, the live-reload
+  applier re-reads the raw value, the collision pre-check ran before
+  the swap), builtin scenes and no-config runs pass through unchanged,
+  and the s/S cycle behavior is identical (a custom name was never in
+  the builtin cycle list).
+- One consumer needed hardening for the swapped spelling:
+  sync_base_cfg_with_runtime_scene compared scene_name exactly, so a
+  startup display name differing only in case from a runtime switch's
+  normalized key would have triggered a spurious sync on the first
+  unrelated config edit — the compare is now case-insensitive
+  (eq_ignore_ascii_case).
+- Verified live on the dev binary with a `scene = "Tron_legacy"` +
+  `[scene-custom.Tron_legacy]` config: --list-scenes shows
+  `Tron_legacy`, the verbose line reads `scene: Tron_legacy`, and a
+  real-PTY session (100x36, HUD toggled with `i`) renders
+  `scn: Tron_legacy`; `chr: retro` stays verbatim. A unit test pins
+  the helper (lowercase key resolves the block's original spelling;
+  builtin/empty lookups return None so callers keep their normalized
+  name). Same-10s-benchmark sanity: the swap is startup-only.
+
 ### feat: night-nightjar-1 - the perf report carries the zero-heap proof (Memory alloc-ledger section)
 
 - The zero-heap frame was a CI-only contract: the README claims

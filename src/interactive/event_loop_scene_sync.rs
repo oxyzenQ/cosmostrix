@@ -48,8 +48,7 @@ pub(super) enum SceneBaseAction {
 /// Pure function (no I/O) — unit-testable in isolation:
 /// - new map has `scene` → [`SceneBaseAction::ApplyConfig`];
 /// - new map lacks `scene` but the previous map had it →
-///   [`SceneBaseAction::RestoreLocked`] (the override disappeared:
-///   fall back to the CLI lock);
+///   [`SceneBaseAction::RestoreLocked`] (override gone: CLI lock);
 /// - neither map has `scene` → [`SceneBaseAction::SyncRuntime`]
 ///   (keep whatever runtime scene is active).
 pub(super) fn resolve_scene_base_action(
@@ -77,11 +76,9 @@ pub(super) fn resolve_scene_base_action(
 /// Used by `apply_config_rebuild`: when the ambient keys disappear while
 /// the ambient phase owns the visual state, the SyncRuntime arm is
 /// upgraded to RestoreLocked — the ambient overlay lifts and the scene
-/// family falls back to the locked startup values, mirroring the plain
-/// `scene`-key contract (config present wins, absent reverts to the CLI
-/// lock). Without this, commenting out `ambient.*` left the engine stuck
-/// on the ambient-applied scene (the same "last value sticks" defect
-/// family v80.0.0-beta.1 fixed for the scene key).
+/// family falls back to the locked startup values (config present wins,
+/// absent reverts to the CLI lock; without this, commenting out
+/// `ambient.*` left the engine stuck on the ambient-applied scene).
 pub(super) fn ambient_removed_between_maps(
     new_map: &HashMap<String, String>,
     prev_map: Option<&HashMap<String, String>>,
@@ -100,17 +97,15 @@ pub(super) fn ambient_removed_between_maps(
 /// v80.0.0-beta.1: full scene-base decision including the ambient overlay rule.
 ///
 /// Composes [`resolve_scene_base_action`] with the ambient overlay lift:
-/// when the plain `scene`-key delta resolves to `SyncRuntime` (no scene
-/// key before or now), the ambient keys disappeared between the applied
-/// maps, AND the ambient phase owns the visual state (no user override
-/// since the last ambient apply + the live scene is the one ambient
-/// applied), the decision upgrades to `RestoreLocked` — the overlay lifts
-/// and the scene family falls back to the locked startup values.
+/// when the plain `scene`-key delta resolves to `SyncRuntime`, the
+/// ambient keys disappeared between the applied maps, AND the ambient
+/// phase owns the visual state, the decision upgrades to
+/// `RestoreLocked` — the overlay lifts and the scene family falls back
+/// to the locked startup values.
 ///
 /// Pure function over its inputs — the ambient-ownership state
 /// (`user_override_since_ambient` + the last applied ambient entry's
-/// scene) is passed in by the caller from the live cloud state BEFORE
-/// any ambient clearing runs.
+/// scene) comes from the live cloud state BEFORE any ambient clearing.
 pub(super) fn resolve_scene_base_with_ambient(
     new_map: &HashMap<String, String>,
     prev_map: Option<&HashMap<String, String>>,
@@ -213,7 +208,12 @@ pub(super) fn sync_base_cfg_with_runtime_scene(
     scene_name: &str,
     cfg_map: &HashMap<String, String>,
 ) {
-    if base_cfg.scene_name == scene_name {
+    let (active, incoming) = (base_cfg.scene_name.trim(), scene_name.trim());
+    // NIGHT-firefly-1: case-insensitive compare — startup keeps the
+    // original-case display name in scene_name while runtime switches
+    // (x/X cycle, ambient fires) pass normalized keys; spelling-only
+    // differences must not trigger a spurious sync.
+    if active.eq_ignore_ascii_case(incoming) {
         return;
     }
     base_cfg.scene_name = scene_name.to_string();

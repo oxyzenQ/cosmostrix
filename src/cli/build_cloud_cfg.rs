@@ -277,11 +277,22 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
             }
             Some(resolved)
         },
-        scene_name: args
-            .scene
-            .as_deref()
-            .unwrap_or(crate::scene::DEFAULT_SCENE)
-            .to_string(),
+        scene_name: {
+            // NIGHT-firefly-1: display-only original-case swap. The
+            // matching key stays lowercase (config_apply stores the
+            // normalized name; every lookup normalizes internally), but
+            // the string carried into runtime display state — the HUD
+            // `scn:` line, the startup verbose `scene:` line, the
+            // session report, the benchmark scene field — must show
+            // what the config spells (`Tron_legacy`, not
+            // `tron_legacy`), same contract the listings got in
+            // NIGHT-cafe-1 and the charset preset in
+            // NIGHT-dragon-fly-2. Builtin scenes and no-config runs
+            // pass through unchanged (the helper returns None).
+            let key = args.scene.as_deref().unwrap_or(crate::scene::DEFAULT_SCENE);
+            crate::scene_custom::original_case_custom_scene_name(args.config.as_deref(), key)
+                .unwrap_or_else(|| key.to_string())
+        },
         // v20: track active custom scene name so live reload can re-apply
         // its fields when the user edits [scene-custom.<name>] in config.
         scene_custom_name: args.scene_custom.clone(),

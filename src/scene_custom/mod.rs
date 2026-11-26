@@ -710,8 +710,8 @@ mod helpers;
 mod overrides;
 #[allow(unused_imports)]
 pub(crate) use helpers::{
-    is_explicit, parse_f32_override, parse_f64_override, parse_speed_override, profile_name_list,
-    warn_invalid,
+    is_explicit, original_case_custom_scene_name, parse_f32_override, parse_f64_override,
+    parse_speed_override, profile_name_list, warn_invalid,
 };
 #[allow(unused_imports)]
 pub(crate) use overrides::{

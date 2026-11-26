@@ -354,6 +354,20 @@ fn main() -> std::io::Result<()> {
         // cli/early_returns.rs handle_config_apply_failure.
         return crate::cli::early_returns::handle_config_apply_failure(&args, e);
     }
+    // NIGHT-firefly-1: display-only original-case swap for the active
+    // custom scene — config_apply stores the NORMALIZED name (matching
+    // contract), but the display surfaces (verbose `scene:` line, HUD
+    // `scn:` via CloudConfig.scene_name, session report, benchmark
+    // field) must show what the config spells, the same contract the
+    // listings (NIGHT-cafe-1) and the charset preset
+    // (NIGHT-dragon-fly-2) got. Builtin scenes / no-config runs pass
+    // through unchanged; downstream matching normalizes internally.
+    if let Some(ref scene) = args.scene
+        && let Some(original) =
+            crate::scene_custom::original_case_custom_scene_name(args.config.as_deref(), scene)
+    {
+        args.scene = Some(original);
+    }
     canonicalize_runtime_args(&mut args);
 
     // NIGHT-lts-6 (2026-09-10): the `if args.doctor { ... }` block that

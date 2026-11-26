@@ -105,3 +105,90 @@ pub(crate) fn warn_invalid(profile: &str, field: &str, value: &str, expected: &s
         "scene-custom: invalid {field}='{value}' in scene-custom '{profile}' (expected: {expected})"
     ));
 }
+
+/// Runtime display helper — the original-case spelling of a custom
+/// scene block's name.
+///
+/// NIGHT-firefly-1 (2026-11-26): the lookup key stays lowercase
+/// everywhere (the matching contract: `--scene tron_legacy` and the
+/// config value both resolve `[scene-custom.Tron_legacy]`), but the
+/// name carried into runtime display state — the HUD `scn:` line, the
+/// startup verbose `scene:` line, the session report, the benchmark
+/// scene field — must keep the block's original spelling, exactly like
+/// the listing surfaces since NIGHT-cafe-1 (`--list-scenes` already
+/// shows the original-case header record). Without this, a block
+/// spelled `[scene-custom.Tron_legacy]` rendered the startup verbose
+/// line as `scene: tron_legacy` although the listing showed
+/// `Tron_legacy` — the two surfaces disagreed about one name (the same
+/// bug class NIGHT-dragon-fly-2 closed for charsets).
+///
+/// Mirrors
+/// [`crate::scene::charset_custom::original_case_custom_charset_name`]:
+/// rides the memoized config load (no extra disk read; the startup
+/// caller just resolved the same file). Returns `None` when no
+/// `[scene-custom.<normalized>]` block exists (builtin scene, no
+/// config, or hand-built values map with no parse record) so the
+/// caller keeps its normalized name unchanged.
+#[must_use]
+pub(crate) fn original_case_custom_scene_name(
+    config_path: Option<&std::path::Path>,
+    normalized: &str,
+) -> Option<String> {
+    if normalized.is_empty() {
+        return None;
+    }
+    let key = format!("scene-custom.{normalized}");
+    crate::configfile::load_config_file_full(config_path)
+        .original_custom_name_map()
+        .get(&key)
+        .cloned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// NIGHT-firefly-1: the runtime display helper returns the block's
+    /// original-case spelling for a lowercase lookup key, and `None` for
+    /// anything that is not a custom scene block (builtin name, no
+    /// match, empty) — the caller then keeps its normalized name, so
+    /// builtin scenes and no-config runs pass through unchanged.
+    #[test]
+    fn original_case_scene_name_returns_block_spelling() {
+        let dir = std::env::temp_dir().join(format!(
+            "cosmostrix-nf1-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("config.toml");
+        std::fs::write(
+            &path,
+            "[scene-custom.Tron_legacy]\n\
+             rain = \"glyph\"\n\
+             color = \"energy-zen\"\n\
+             charset = \"retro\"\n\
+             fps = 60\n\
+             speed = \"50\"\n\
+             density = \"0.65\"\n\
+             glitch-level = \"subtle\"\n",
+        )
+        .expect("write config");
+        assert_eq!(
+            original_case_custom_scene_name(Some(&path), "tron_legacy").as_deref(),
+            Some("Tron_legacy"),
+            "lowercase lookup key must resolve to the block's original spelling"
+        );
+        assert_eq!(
+            original_case_custom_scene_name(Some(&path), "cosmos"),
+            None,
+            "a builtin name has no custom block record"
+        );
+        assert_eq!(
+            original_case_custom_scene_name(Some(&path), ""),
+            None,
+            "empty lookup never resolves"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
