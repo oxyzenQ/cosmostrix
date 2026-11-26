@@ -192,6 +192,17 @@ pub(crate) struct PerfCounters {
     pub dirty_sum: u64,
     /// Dirty-cell sample count.
     pub dirty_samples: u64,
+    /// NIGHT-nightjar-1: alloc-ledger baseline — the render thread's TLS
+    /// allocation counters (TraceAlloc global allocator, always on)
+    /// captured once at frame `PERF_ALLOC_WARMUP_FRAMES`, so the exit
+    /// report's Memory section can delta them into a post-warmup
+    /// alloc window: the runtime mirror of ledger INV-18/INV-25. `None`
+    /// until the warmup frame lands (very short sessions report
+    /// "window too short" instead of a diluted whole-session number —
+    /// startup allocations are not the per-frame path the zero-heap
+    /// claim talks about). Same-thread contract: captured and read on
+    /// the loop thread (update_perf_stats → finalize tail).
+    pub alloc_baseline: Option<crate::alloc_trace::AllocSnapshot>,
 }
 
 /// Per-frame draw observation — the outputs of the sim+draw phase and
@@ -424,6 +435,7 @@ impl LoopCtx {
                 utilization_max: 0.0,
                 dirty_sum: 0,
                 dirty_samples: 0,
+                alloc_baseline: None,
             },
             frame_time_tracker: FrameTimeTracker::new(),
         }

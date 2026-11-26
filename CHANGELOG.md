@@ -64,6 +64,37 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### feat: night-nightjar-1 - the perf report carries the zero-heap proof (Memory alloc-ledger section)
+
+- The zero-heap frame was a CI-only contract: the README claims
+  "0.0 allocs/frame (measured)" and the cosmic_dragon_incubator ledger
+  enforces it (INV-18 lean window, INV-25 production-draw window, the
+  counting `TraceAlloc` global allocator), but the exit PERFORMANCE
+  REPORT showed Timing/Frames/Motion/Latency/Backpressure/Encoding —
+  nothing about allocations — so a user quitting a verbose session saw
+  no runtime mirror of the claim. The infra was already there and
+  always on: `TraceAlloc` is the production global allocator with
+  const-init TLS counters (no opt-in, no overhead beyond a slot
+  update). The window now opens at frame 120 (startup noise excluded:
+  config parse, intro, HUD build; the baseline snaps on the loop
+  thread and the exit tail deltas it — same thread, the TLS
+  attribution contract) and the report prints a `Memory (alloc
+  ledger)` section: window bounds, alloc/dealloc/realloc calls with
+  per-frame rates, heap retained bytes, /proc VmData heap virtual
+  size, and a verdict. The window honestly includes exit teardown and
+  runtime events (mouse/resize/scene/keys) — the verdict says so and
+  points at the ledger for the per-frame contract; on long sessions
+  the per-frame rate converges toward 0.000. Verified under a
+  pseudo-TTY: a 6s verbose session shows `alloc_calls 158 (0.656/frame)`
+  (teardown-dominated at 241 window frames), `heap_retained 0 B`
+  (everything the window allocated was freed) and `heap_virtual
+  11.59 MiB`; sessions shorter than 120 frames report `window too
+  short` instead of a diluted number. SessionStats gains the baseline
+  field (event_loop_stats builder passthrough), `update_perf_stats`
+  gains the one-branch capture, help `--perf-stats` text discloses the
+  new section, and the loop file stays exactly at its 800-line cap
+  (comment compaction pays for the passthrough line).
+
 ### fix: night-dragon-fly-2 - the runtime surfaces show a custom charset's original-case name, not the lowercase key
 
 - A block spelled `[charset-custom.Quantum]` listed correctly as

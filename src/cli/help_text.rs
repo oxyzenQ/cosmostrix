@@ -652,10 +652,11 @@ Diagnostics:
       NIGHT-boost-3: in interactive mode -v also implies the full
       session telemetry — the per-frame performance accounting and the
       exit PERFORMANCE REPORT that --perf-stats prints (timing, frames,
-      motion/dirty-cell stats, backpressure, terminal encoding stats),
-      so one option is the complete debugging instrument: config at
-      startup, behavior during the run, telemetry at exit. Benchmark
-      mode is excluded (the bench report is the comprehensive one).
+      motion/dirty-cell stats, backpressure, alloc ledger, terminal
+      encoding stats), so one option is the complete debugging
+      instrument: config at startup, behavior during the run, telemetry
+      at exit. Benchmark mode is excluded (the bench report is the
+      comprehensive one).
 
 Discovery:
   --list-colors         Show color theme names.

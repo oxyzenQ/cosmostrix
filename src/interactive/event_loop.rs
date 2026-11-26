@@ -765,10 +765,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     }
 
     // Post-loop finalization extracted to event_loop_finalize.rs (file-cap
-    // compliance). Bundles shutdown signal, final FPS line, perf report,
-    // terminal drop (AB-10), final-state handoff.
-    // v50.0.0-beta.7 LOC refactor: SessionStats construction extracted
-    // to event_loop_stats.rs.
+    // compliance) — SessionStats construction to event_loop_stats.rs
+    // (v50.0.0-beta.7 LOC refactor). alloc_baseline is the
+    // NIGHT-nightjar-1 ledger window (see PerfCounters docs).
     let stats =
         super::event_loop_stats::build_session_stats(super::event_loop_stats::StatsInputs {
             start_time,
@@ -788,6 +787,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             power_manager: &ctx.power_manager,
             endurance_health: &ctx.endurance_health,
             cloud: &ctx.cloud,
+            alloc_baseline: ctx.perf.alloc_baseline,
         });
     finalize_session(
         &stats,

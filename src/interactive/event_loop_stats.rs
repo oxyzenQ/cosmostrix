@@ -30,6 +30,9 @@ pub(crate) struct StatsInputs<'a> {
     pub power_manager: &'a PowerManager,
     pub endurance_health: &'a EnduranceHealth,
     pub cloud: &'a Cloud,
+    /// NIGHT-nightjar-1: alloc-ledger baseline (None below the warmup
+    /// frame) — the exit report's Memory section deltas it.
+    pub alloc_baseline: Option<crate::alloc_trace::AllocSnapshot>,
 }
 
 /// Build the SessionStats struct from loop-local state.
@@ -55,6 +58,7 @@ pub(crate) fn build_session_stats(inp: StatsInputs<'_>) -> SessionStats<'_> {
         power_manager,
         endurance_health,
         cloud,
+        alloc_baseline,
     } = inp;
     SessionStats {
         start_time,
@@ -79,5 +83,6 @@ pub(crate) fn build_session_stats(inp: StatsInputs<'_>) -> SessionStats<'_> {
         power_manager_base_target_fps: power_manager.base_target_fps(),
         endurance_health_score: endurance_health.score(),
         endurance_health_classification: endurance_health.classification(),
+        alloc_baseline,
     }
 }

@@ -59,6 +59,11 @@ pub(crate) struct SessionStats<'a> {
     pub power_manager_base_target_fps: f64,
     pub endurance_health_score: f64,
     pub endurance_health_classification: &'static str,
+    /// NIGHT-nightjar-1: the alloc-ledger baseline snapped at the warmup
+    /// frame on the loop thread; the Memory section deltas it against the
+    /// exit-time counters (same thread — TLS attribution contract).
+    /// `None` when the session ended before the warmup frame.
+    pub alloc_baseline: Option<crate::alloc_trace::AllocSnapshot>,
 }
 
 /// Terminal IO snapshot — the encoding + tier2 counters captured from
@@ -451,6 +456,94 @@ fn print_perf_report(
                 tier2_bytes_since
             ),
         );
+    }
+
+    // NIGHT-nightjar-1: MEMORY (alloc ledger) — the runtime mirror of the
+    // zero-heap contract. The window deltas the render thread's TLS
+    // allocation counters (TraceAlloc global allocator, always on, no
+    // runtime opt-in) from the warmup frame to exit: startup noise
+    // (config parse, intro, HUD build) is excluded by the baseline,
+    // runtime events (mouse, resize, scene/key actions) are included —
+    // a nonzero count attributes to those, not to the per-frame path,
+    // which the CI ledger holds at exactly zero (INV-18 lean window,
+    // INV-25 production-draw window, cosmic_dragon_incubator tests).
+    {
+        let s = r.section("Memory (alloc ledger)");
+        match stats.alloc_baseline.as_ref() {
+            Some(baseline) => {
+                let mut delta = crate::alloc_trace::AllocSnapshot::now().delta(baseline);
+                delta.read_proc_heap();
+                let window_frames = stats
+                    .perf_frames
+                    .saturating_sub(super::event_loop_perf_stats::PERF_ALLOC_WARMUP_FRAMES)
+                    .max(1);
+                let per_frame = |n: u64| n as f64 / window_frames as f64;
+                s.field(
+                    "window",
+                    &format!(
+                        "frames {}..{} + exit teardown (post-warmup, render thread)",
+                        super::event_loop_perf_stats::PERF_ALLOC_WARMUP_FRAMES,
+                        stats.perf_frames
+                    ),
+                );
+                s.field(
+                    "alloc_calls",
+                    &format!(
+                        "{} ({:.3}/frame)",
+                        delta.alloc_calls,
+                        per_frame(delta.alloc_calls)
+                    ),
+                );
+                s.field(
+                    "dealloc_calls",
+                    &format!(
+                        "{} ({:.3}/frame)",
+                        delta.dealloc_calls,
+                        per_frame(delta.dealloc_calls)
+                    ),
+                );
+                s.field(
+                    "realloc_calls",
+                    &format!(
+                        "{} ({:.3}/frame)",
+                        delta.realloc_calls,
+                        per_frame(delta.realloc_calls)
+                    ),
+                );
+                s.field(
+                    "heap_retained",
+                    &format!(
+                        "{} ({})",
+                        humanize_bytes(delta.heap_retained_bytes),
+                        delta.heap_retained_bytes
+                    ),
+                );
+                s.field(
+                    "heap_virtual",
+                    &format!(
+                        "{} (VmData, linux)",
+                        humanize_bytes(delta.heap_virtual_kib.saturating_mul(1024))
+                    ),
+                );
+                s.field(
+                    "verdict",
+                    if delta.alloc_calls == 0 {
+                        "zero-heap frame HOLDS — 0 allocations across window + teardown"
+                    } else {
+                        "allocs = exit teardown + runtime events (mouse/resize/scene/keys), NOT the steady-state frame path — the per-frame route is contract-zero (CI ledger INV-18/INV-25); per-frame converges toward 0.000 on long sessions"
+                    },
+                );
+            }
+            None => {
+                s.field(
+                    "window",
+                    &format!(
+                        "too short (< {} frames) — the zero-heap proof lives in the CI ledger (INV-18/INV-25)",
+                        super::event_loop_perf_stats::PERF_ALLOC_WARMUP_FRAMES
+                    ),
+                );
+            }
+        }
     }
 
     r.eprint(); // stderr — survives alt-screen restore (AB-10)

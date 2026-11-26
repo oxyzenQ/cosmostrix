@@ -13,6 +13,11 @@
 
 use super::event_loop_ctx::{FrameObs, LoopCtx};
 
+/// NIGHT-nightjar-1: the alloc-ledger window opens at this frame.
+/// Small enough that startup noise (config parse, intro, HUD build) is
+/// gone, large enough that a sub-warmup session has no window to show.
+pub(crate) const PERF_ALLOC_WARMUP_FRAMES: u64 = 120;
+
 /// Update performance display counters when --perf-stats is enabled.
 ///
 /// Always increments `ctx.perf.frames` + pushes the frame time (for
@@ -21,6 +26,16 @@ use super::event_loop_ctx::{FrameObs, LoopCtx};
 /// accounting, work time, pressure, utilization, and overshoot.
 pub(crate) fn update_perf_stats(ctx: &mut LoopCtx, obs: &FrameObs) {
     ctx.perf.frames = ctx.perf.frames.saturating_add(1);
+    // NIGHT-nightjar-1: open the runtime alloc-ledger window — the
+    // render thread's TLS counters (TraceAlloc global allocator, always
+    // on) snapshotted once at the warmup frame; the exit report's Memory
+    // section deltas them into a post-warmup alloc window (the runtime
+    // mirror of ledger INV-18/INV-25). Same-thread contract: captured
+    // here and read at the finalize tail, both on the loop thread
+    // (alloc_trace.rs documents why attribution is per-thread).
+    if ctx.perf.frames == PERF_ALLOC_WARMUP_FRAMES {
+        ctx.perf.alloc_baseline = Some(crate::alloc_trace::AllocSnapshot::now());
+    }
     ctx.frame_time_tracker.push(obs.work_s as f64 * 1000.0);
     if ctx.config.startup.perf_stats {
         if obs.did_draw {
