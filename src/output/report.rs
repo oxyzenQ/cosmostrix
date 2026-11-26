@@ -176,7 +176,10 @@ impl Report {
     /// SECTION
     ///   key:   value
     /// ```
-    fn render_lines(&self, ansi: bool) -> Vec<String> {
+    // NIGHT-echo-1: pub(crate) so sibling report builders (bench_helpers'
+    // backpressure verdict) can assert rendered lines in their tests —
+    // print()/emit() stay the only runtime entry points.
+    pub(crate) fn render_lines(&self, ansi: bool) -> Vec<String> {
         let mut lines = Vec::new();
 
         let banner = banner_line(&self.title);

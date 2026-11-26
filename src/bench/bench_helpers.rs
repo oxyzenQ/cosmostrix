@@ -199,7 +199,29 @@ pub(crate) fn format_backpressure_section(
         "overshoot_frames",
         &format!("{} ({:.1}% of total)", overshoot_frames, overshoot_ratio),
     );
-    s.advice("pressure_avg/pressure_peak 0.000 = healthy (renderer kept up). budget_utilization shows how much of the frame budget was consumed by renderer WORK (always non-zero). frame_period_avg_ms > frame_period_target_ms explains why pressure can be non-zero while utilization is low. For real FPS see TIMING.avg_fps / TIMING.instant_fps.");
+    // NIGHT-echo-1: the advice line used to hardcode "0.000 = healthy" —
+    // printed verbatim under NON-zero pressure readings, it read like the
+    // section claiming the measured values were 0.000 (the owner flagged
+    // it twice: pressure_avg 0.437 then 0.323 with the line still saying
+    // 0.000). The verdict is now built from the measured values, rounded
+    // to the same 3 decimals the fields above display so the verdict can
+    // never disagree with them: zero pressure keeps the healthy wording,
+    // non-zero pressure states the actual numbers and their meaning (the
+    // period overshoot lived in sleep + poll, not renderer work).
+    let pressure_zero =
+        format!("{avg_pressure:.3}") == "0.000" && format!("{peak_pressure:.3}") == "0.000";
+    let advice_text = if pressure_zero {
+        "pressure_avg/pressure_peak 0.000 = healthy (renderer kept up). budget_utilization shows how much of the frame budget was consumed by renderer WORK (always non-zero). frame_period_avg_ms > frame_period_target_ms explains why pressure can be non-zero while utilization is low. For real FPS see TIMING.avg_fps / TIMING.instant_fps.".to_string()
+    } else {
+        format!(
+            "pressure_avg {avg_pressure:.3}/pressure_peak {peak_pressure:.3} > 0 = the frame PERIOD \
+             exceeded target (sleep + poll overshoot, not renderer work — \
+             budget_utilization {:.2}% is the WORK share). For real FPS see \
+             TIMING.avg_fps / TIMING.instant_fps.",
+            avg_util * 100.0
+        )
+    };
+    s.advice(&advice_text);
 }
 
 /// Resolve bench duration from --bench-duration (now accepts compound format).
@@ -471,6 +493,64 @@ mod tests {
         assert!(
             utilization_per_frame > 0.0,
             "utilization must be non-zero when work > 0"
+        );
+        // NIGHT-echo-1: zero pressure keeps the healthy verdict — the
+        // advice line may only say "0.000" when the displayed values ARE
+        // 0.000.
+        let lines = r.render_lines(false);
+        let advice = lines
+            .iter()
+            .find(|l| l.contains("0.000 = healthy"))
+            .expect("backpressure advice line present");
+        assert!(
+            advice.contains("0.000 = healthy"),
+            "zero-pressure verdict must keep the healthy wording, got {advice}"
+        );
+    }
+
+    #[test]
+    fn backpressure_verdict_states_measured_values_when_nonzero() {
+        // NIGHT-echo-1: the advice line used to hardcode
+        // "pressure_avg/pressure_peak 0.000 = healthy" — printed verbatim
+        // under measured pressure 0.437/0.600 (the owner's session) it
+        // read like the section claiming the values WERE 0.000. The
+        // verdict must carry the actual numbers at the same 3-decimal
+        // precision the fields display, and must never contradict them.
+        let mut r = Report::new("TEST");
+        let frames = 2271u64;
+        let utilization_per_frame = 0.142 / (1000.0 * (1.0 / 144.0));
+        format_backpressure_section(
+            &mut r,
+            &BackpressureStats {
+                avg_pressure: 0.437,
+                peak_pressure: 0.600,
+                utilization_sum: utilization_per_frame * frames as f64,
+                utilization_max: utilization_per_frame as f32,
+                frames,
+                target_period: Duration::from_secs_f64(1.0 / 144.0),
+                avg_work_ms: 0.142,
+                pressure_class: "high",
+                overshoot_frames: 0,
+                overshoot_ratio: 0.0,
+                avg_frame_period_ms: 6.939,
+            },
+        );
+        let lines = r.render_lines(false);
+        let advice = lines
+            .iter()
+            .find(|l| l.contains("pressure_avg 0.437"))
+            .expect("backpressure advice line present");
+        assert!(
+            advice.contains("pressure_avg 0.437/pressure_peak 0.600 > 0"),
+            "non-zero verdict must state the measured values, got {advice}"
+        );
+        assert!(
+            !advice.contains("0.000 = healthy"),
+            "non-zero verdict must not claim 0.000, got {advice}"
+        );
+        assert!(
+            advice.contains("not renderer work"),
+            "non-zero verdict must explain where the gap lives, got {advice}"
         );
     }
 

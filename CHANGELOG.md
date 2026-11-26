@@ -64,6 +64,36 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-echo-1 - the Backpressure verdict states the measured pressure instead of a hardcoded 0.000
+
+- The owner flagged it twice across two sessions: the report's Backpressure
+  section printed `! pressure_avg/pressure_peak 0.000 = healthy (renderer
+  kept up).` directly under `pressure_avg: 0.437` / `pressure_peak: 0.600`
+  (then 0.323/0.375) — the advice string hardcoded `0.000`, so the section
+  contradicted its own numbers and read like the renderer claiming a
+  healthy verdict it had no right to claim. Exactly the misleading-output
+  class the honesty contract forbids.
+- The verdict is now built from the measured values at the same 3-decimal
+  precision the fields display (so the verdict can never disagree with
+  them): zero pressure keeps the `0.000 = healthy (renderer kept up)`
+  wording, non-zero pressure prints
+  `pressure_avg 0.437/pressure_peak 0.600 > 0 = the frame PERIOD exceeded
+  target (sleep + poll overshoot, not renderer work — budget_utilization
+  N% is the WORK share). For real FPS see TIMING.avg_fps / TIMING.instant_fps.`
+  One shared builder (format_backpressure_section) serves the bench and
+  the interactive --perf-stats report, so both surfaces get the fix.
+- Two unit tests pin both branches end-to-end through the rendered lines
+  (render_lines widened to pub(crate) for cross-module test assertions;
+  print()/emit() stay the runtime entry points): zero pressure keeps the
+  healthy wording, 0.437/0.600 states the measured values and never
+  claims 0.000.
+- Also verified while reproducing the owner's report: the `Memory (alloc
+  ledger)` section and `frames_flushed` ARE unconditional — the owner's
+  terminal copy stopped mid-Encoding, which reads as "section missing".
+  Full-report capture order documented in the audit manual (Memory is
+  LAST, after Encoding and Tier2 xterm.js); `tail -40 report.txt` after
+  a `2>` redirect shows everything.
+
 ### feat: night-arc-1 - the perf report explains an avg_fps below target: idle_throttle_share
 
 - The owner reported felt "micro lag" and asked for a depth
