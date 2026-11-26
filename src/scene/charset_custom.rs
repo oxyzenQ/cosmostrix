@@ -322,6 +322,37 @@ pub(crate) fn load_custom_charset(
 /// v50.0.0-beta.6 Option D: when a custom charset shadows a builtin
 /// preset with the same name, emits a warning so the user knows the
 /// custom block won. Custom always wins (owner mandate).
+/// Display name for a custom charset block, from the parser-level
+/// original-case header record.
+///
+/// NIGHT-dragon-fly-2 (2026-11-26): the lookup key stays lowercase
+/// everywhere (the matching contract: `-C t1` loads
+/// `[charset-custom.T1]`), but the name carried into runtime display
+/// state — the HUD `chr:` line, the startup verbose line, session
+/// reports — must keep the block's original spelling, exactly like the
+/// listing surfaces since NIGHT-cafe-1. Without this, a block spelled
+/// `[charset-custom.Quantum]` rendered the HUD as `quantum` although
+/// `--list-charsets` correctly showed `Quantum`.
+///
+/// Rides the memoized config load (no extra disk read; the startup
+/// caller just resolved the same file). Returns `None` when no
+/// `[charset-custom.<normalized>]` block exists (builtin name or no
+/// config) so the caller keeps its normalized name unchanged.
+#[must_use]
+pub(crate) fn original_case_custom_charset_name(
+    config_path: Option<&std::path::Path>,
+    normalized: &str,
+) -> Option<String> {
+    if normalized.is_empty() {
+        return None;
+    }
+    let key = format!("charset-custom.{normalized}");
+    crate::configfile::load_config_file_full(config_path)
+        .original_custom_name_map()
+        .get(&key)
+        .cloned()
+}
+
 #[must_use]
 pub(crate) fn load_custom_charset_if_matches(
     cfg: &HashMap<String, String>,

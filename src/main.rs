@@ -605,7 +605,7 @@ fn main() -> std::io::Result<()> {
     // removing it would touch ~15 call sites with zero functional benefit.
     let user_ranges: Vec<(char, char)> = Vec::new();
 
-    let charset_preset = normalize_charset_preset_name(&args.charset);
+    let mut charset_preset = normalize_charset_preset_name(&args.charset);
 
     // v25: Custom charset loading from [charset-custom.<name>] in config.toml.
     // Replaces the legacy --charset-file CLI flag. If `args.charset` (after
@@ -619,6 +619,22 @@ fn main() -> std::io::Result<()> {
     let chars = if let Some(custom_chars) =
         charset_custom::load_custom_charset_if_matches(&cfg_for_charset, &charset_preset)
     {
+        // NIGHT-dragon-fly-2: the display surfaces keep the block's
+        // original spelling. The lowercase normalized name is the lookup
+        // key (matching contract), but the string carried through the
+        // runtime state — the HUD `chr:` line, the verbose line below,
+        // the session report — must show what the config spells
+        // (`Quantum`, not `quantum`), same contract the listing surfaces
+        // got in NIGHT-cafe-1. Glyph matching already happened above and
+        // every later lookup normalizes internally (the custom loader,
+        // the live-reload applier), so the swap is display-only; builtin
+        // names pass through unchanged.
+        if let Some(original) = charset_custom::original_case_custom_charset_name(
+            args.config.as_deref(),
+            &charset_preset,
+        ) {
+            charset_preset = original;
+        }
         if args.verbose {
             crate::output::eprintln_verbose_raw(&format!(
                 "charset: {} (custom, {} chars)",

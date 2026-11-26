@@ -64,6 +64,28 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### fix: night-dragon-fly-2 - the runtime surfaces show a custom charset's original-case name, not the lowercase key
+
+- A block spelled `[charset-custom.Quantum]` listed correctly as
+  `Quantum` in `--list-charsets` (the NIGHT-cafe-1 original-case fix
+  reached the listing surfaces only) but the runtime HUD monitor
+  showed `chr: quantum`: the startup path normalizes the preset name
+  to the lowercase lookup key and carried that same string into every
+  display state. The original-case header record now rides the
+  memoized config load to the runtime: after the glyph pool loads,
+  `original_case_custom_charset_name()` swaps the display name to the
+  block's original spelling, so the HUD `chr:` line, the startup
+  verbose line (`charset: Quantum (custom, 44 chars)`), the session
+  report and the benchmark `charset` field all show what the config
+  spells. The swap is display-only: glyph matching already happened,
+  every later lookup normalizes internally (the custom loader, the
+  live-reload applier), the parser-level key inventory stays lowercase
+  by contract, builtin names pass through unchanged, and the runtime
+  `s`/`S` cycle behavior is identical (a custom name was never in the
+  builtin cycle list). Verified live on the dev binary with a
+  `[charset-custom.Quantum]` 44-char block: `--list-charsets`,
+  the verbose startup line and the glyph pool all agree on `Quantum`.
+
 ### fix: night-dragon-fly-1 - the config-path whitelist mirrors the read side's XDG resolution
 
 - The read side (`default_config_file_path()`) prefers
