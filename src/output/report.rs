@@ -252,12 +252,21 @@ impl Report {
 
     /// Shared emit logic for `print()` (stdout) and `eprint()` (stderr).
     fn emit(&self, to_stderr: bool) {
-        let supports_ansi = if to_stderr {
+        // Mirror the canonical gate in `output::detect_color_capability`
+        // (night-dragon-fly-2: the report lane previously ignored
+        // CLICOLOR_FORCE=1 — a forced pipe kept every safe-lane line
+        // colored while this report rendered plain in the same stream).
+        // Precedence: NO_COLOR and CLICOLOR=0 always win; CLICOLOR_FORCE
+        // or a TTY on the target stream enables ANSI.
+        let target_is_tty = if to_stderr {
             std::io::stderr().is_terminal()
         } else {
             std::io::stdout().is_terminal()
-        } && std::env::var_os("NO_COLOR").is_none()
-            && !matches!(std::env::var("CLICOLOR").ok().as_deref(), Some("0"));
+        };
+        let supports_ansi = std::env::var_os("NO_COLOR").is_none()
+            && !matches!(std::env::var("CLICOLOR").ok().as_deref(), Some("0"))
+            && (matches!(std::env::var("CLICOLOR_FORCE").ok().as_deref(), Some("1"))
+                || target_is_tty);
 
         let out_fn: fn(&str) = if to_stderr {
             |s: &str| eprintln_safe!("{s}")
