@@ -11,6 +11,17 @@ document analyzes that dump, cross-checks the 18 round-1 findings, and
 answers the owner's question: is the UX CLI surface already peak
 masterclass LTS?
 
+STATUS 2026-11-26 (same day): the fix batch below was APPLIED —
+commits `459d921` (input-contract: bare `-mb`, attached-short
+prevalidation, retired-short hints, `--bench-frames` 1e9 ceiling),
+`74f281f` (baseline honesty + single error label + shared whitelist
+summary + spinner clear + interactive no-op warnings), `6799f4b`
+(help manual accuracy + doctor advice). Verified green: cargo
+fmt/clippy/build, 3124 tests, the 35-check regression battery, and a
+pre/post A/B benchmark at 80x24 (max metric delta 3.37%, visual gini
+-0.06% / entropy +0.12% — render path untouched). The two QUESTION
+items (EHS calibration, SGR cache hit rate) remain owner calls.
+
 Capture context: local build `v100.1.3-dragon.1` (commit 11a4ecd,
 local-pro-linux-amd64-v3-musl, build-time 2026-11-26 09:48Z) on CachyOS
 6.18 LTS, Ryzen 7 5800HS, 88x33 xterm-direct truecolor terminal,
