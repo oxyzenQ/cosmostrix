@@ -133,9 +133,9 @@ when the version line closes.
   surfaces were already correct at HEAD: `-V` prints
   `License: AGPL-3.0-only OR Commercial`, `sig` carries the identity
   block, `--doctor` has no license line, `--help` carries none by
-  design. Gates: check-headers 928 files dual ✓, check-version-
-  anti-patterns 322 files ✓, docs_tests 21/21 ✓, PKGBUILD bash -n ✓,
-  cargo build clean under the night-cafe-3 deny ✓.
+  design. Gates: check-headers 928 files dual, check-version-
+  anti-patterns 322 files, docs_tests 21/21, PKGBUILD bash -n,
+  cargo build clean under the night-cafe-3 deny - all pass.
 
 ### build: night-cafe-3 - the strict-build law is total: warning = failed on every build shape
 
