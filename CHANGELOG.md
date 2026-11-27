@@ -685,7 +685,7 @@ when the version line closes.
 
 - Full-walk finding A (DOC_AUDIT rule 4, same-pass sync — the audit
   inherited the split): docs/SUPPLY_CHAIN.md still told the
-  pre-AXP1-ZnQ lane story — "weekly cron runs cargo update + cargo
+  pre-AXP1-ZnQ (Architect's eXecution Protocol 1) lane story — "weekly cron runs cargo update + cargo
   audit + cargo deny", "resolves them by cargo update, re-auditing,
   pushing updated lockfile", a no-op early-exit step that no longer
   exists, and an advisory-response table where High advisories
@@ -902,7 +902,8 @@ and the verdict; yamllint clean on the edited workflow.
 ### feat: night-solid-defense-1 - the supply-chain verdict is AXP1-ZnQ: the estate sentinel comes home
 
 - Owner directive (night-solid-defense-1): the supply chain bot takes
-  the estate's sentinel identity - AXP1-ZnQ, the same bot the zejtron
+  the estate's sentinel identity - AXP1-ZnQ (Architect's eXecution
+  Protocol 1), the same bot the zejtron
   sibling runs (github.com/oxyzenQ/zejtron, the mature reference) -
   and its verdict adopts the mature semantics, not just the name.
 - The guard becomes `scripts/ci/supplychain-verdict.py` with the
