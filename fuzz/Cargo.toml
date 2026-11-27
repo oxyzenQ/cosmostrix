@@ -37,7 +37,7 @@
 
 [package]
 name = "cosmostrix-fuzz"
-version = "100.1.3-dragon.1"
+version = "100.1.3-dragon.2"
 publish = false
 edition = "2024"
 
