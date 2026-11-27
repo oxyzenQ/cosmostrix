@@ -96,15 +96,21 @@ fn attached_short_values_prevalidate_like_long_forms() {
             "{token} must pass prevalidation"
         );
     }
-    // Message-like attached shorts (`-mhello`, `-mfss`) are not spec'd and
-    // pass through untouched (the argv_expand lane owns them).
+    // Message-like attached shorts (`-mhello`, `-mfss`) are not spec'd
+    // here and pass prevalidation untouched (prevalidation pins the
+    // canonical grammar for the VALIDATED shorts only). They are owned
+    // downstream by the argv_expand lane, which since
+    // night-cafe-mclaren-4 REFUSES attached values on the whole message
+    // family (-m/-mb/-mfs) with a clap-format tip — free-form text is
+    // the one value class where a flag-shaped token would silently
+    // become data.
     let argv = ["cosmostrix", "-mhello"]
         .into_iter()
         .map(OsString::from)
         .collect::<Vec<_>>();
     assert!(
         prevalidate_cli_args(&argv).is_ok(),
-        "-mhello is message text"
+        "-mhello passes prevalidation; the argv_expand refusal lane owns it"
     );
 }
 

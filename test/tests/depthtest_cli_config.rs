@@ -264,22 +264,23 @@ fn stress_base_config() -> crate::app::CloudConfig {
 // 1. argv expansion stress (NIGHT-hunter-19)
 // ─────────────────────────────────────────────────────────────────
 
-/// Token pool for the expansion fuzz. Deliberately EXCLUDES any
-/// `-mfs…` token whose suffix is not a valid style: that arm is a
-/// designed process exit (clap-format typo UX), not a panic to
-/// catch — fuzzing it would kill the test harness.
+/// Token pool for the expansion fuzz. Deliberately EXCLUDES every
+/// attached message-shorthand blob (`-mhello`, `-mbx…`, `-mfsfade`):
+/// since night-cafe-mclaren-4 the WHOLE attached class on the message
+/// family is a designed process exit (clap-format refusal UX), not a
+/// panic to catch — fuzzing it would kill the test harness. The bare
+/// and equals forms stay in the pool; so do the validated shorts'
+/// attached spellings (`-f60`, `-S12`), which keep their getopt
+/// convention and die loudly in value validation on garbage.
 const ARGV_TOKENS: &[&str] = &[
     "-mb",
     "-mb=",
     "-mb=x",
     "-m",
-    "-mhello",
     "--message-border",
     "--msg-fill-style",
     "-mfs",
     "-mfs=fade",
-    "-mfsfade",
-    "-mfsradar",
     "--fps",
     "30",
     "-c",

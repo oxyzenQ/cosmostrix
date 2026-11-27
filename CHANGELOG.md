@@ -66,6 +66,66 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### audit: night-cafe-mclaren-4 - the message family refuses attached values outright: space and equals are the only accepted forms (-m, -mb, -mfs)
+
+- The gap: the owner's second probe after mclaren-3 - "masih bisa …
+  aneh". mclaren-3 made `-mb<text>` expand to a CORRECT bordered
+  message, but the token was still silently ACCEPTED as message data.
+  The strict contract the owner is driving at is refusal, not
+  reinterpretation: a flag-shaped token whose tail is message text
+  must error, exactly like a typo'd long flag does (`--mbx` → clap's
+  unknown-argument error). mclaren-3's expansion is superseded - both
+  fixes kill the silent swallow, this one kills it harder.
+- The full-flag audit that scoped the rule: 12 short flags exist
+  (`-c -C -f -S -d -s -m -h -V -v -b -g -l -M`). Every value-taking
+  short EXCEPT the message family already errors loudly on attached
+  garbage, proven against the binary: `-fabc` → "invalid value for
+  --fps: abc", `-czzz` → "unknown color", `-Czzz` → "unknown charset",
+  `-bzzz`/`-Mzzz` → invalid value, `-gzzz` → expected NUM1,NUM2,
+  `-dzzz`/`-Szzz` → invalid value, `-sfoo` → boolean cluster then
+  loud fps error (prevalidation also pins the canonical grammar for
+  the attached spellings). Free-form message text is the ONE value
+  class that cannot be validated - garbage silently SUCCEEDS there
+  and nowhere else - so the refusal lands exactly on the family:
+  `-m<text>`, `-mb<text>`, `-mfs<style>` (valid style suffixes
+  included) all exit 2 with a clap-format tip naming the accepted
+  forms. The validated lanes keep their getopt attached convention
+  (`-f60`, `-S12` verified end-to-end).
+- The refusal retires the old attached side effects with it: an
+  attached `-m` message starting with "fs" or "b" (`-mfss is my
+  message`, `-mblaze`) no longer resolves to a shorthand - it is
+  refused with the tip. Space and equals stay: `-m "hello"`,
+  `-m=hello` (clap-native, verified), `-mb "hello"`, `-mb=hello`,
+  `-mfs fade`, `-mfs=fade`. Bare `-mb`/`-mfs` keep their
+  missing-value clap errors (night-dragon-fly-2 contract).
+- Mechanics: one pure routing predicate
+  (`message_attached_refusal_token`) + one branded error helper
+  (`die_message_attached`, clap-format "unexpected argument … found"
+  - why-tip via `ux::die_input_with_usage`), checked after the bare
+  and equals arms so `-mb=x` still expands and never re-prefixes as
+  "-mb" + "=x". The first predicate draft leaked `-mfs=fade`/`-mb=x`
+  into the generic -m lane (their "-mf…"/"-mb…" prefix reads as
+  attached there) - caught by the spares test before any commit; the
+  generic lane now excludes every mfs/mb-lane token. The old
+  `die_mfs_typo` + `is_valid_style_value` + the ValueEnum import are
+  deleted (the attached lane no longer validates content - it refuses
+  the class; the equals form hands garbage to clap's ValueEnum check).
+- Ripple: the depthtest expansion-fuzz pool drops `-mhello`,
+  `-mfsfade`, `-mfsradar` (the whole attached class is now a designed
+  process exit - same reason the invalid-style suffixes were already
+  excluded); the prevalidation test's comment now states the ownership
+  handoff (prevalidation passes `-mhello`, argv_expand refuses it);
+  `--help` documents the refusal on `-m` and `-mb`.
+- Proof: 11/11 argv_expand tests (predicate covers the whole family +
+  the bare/equals/validated spare list), 40/40 depthtest, full bin
+  suite 3126/3126, clippy --all-targets clean, fmt clean. Binary:
+  all five refusal probes exit 2 with per-lane tips
+  (`-mbxxsaadadala`, `-msbg`, `-mhello`, `-mfsfade`, `-mblaze`); all
+  accepted forms render correctly in the verbose dump (`-m sbg` →
+  "sbg" border: false, `-m=sbg` → "sbg", `-mb hello`/`-mb=hello` →
+  border: true, `-mfs fade`/`-mfs=fade` → fade, `-f60`/`-S12` →
+  attached values on validated lanes untouched).
+
 ### audit: night-cafe-mclaren-3 - the -mb shorthand honors its own attached form: `-mb<text>` is a bordered message, never a silently unbordered one
 
 - The gap: the owner's probe `cosmostrix -v -mbxxsaadadala` displayed

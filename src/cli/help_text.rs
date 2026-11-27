@@ -268,14 +268,15 @@ Common options:
   -m <text>
       Display overlay message (no border).
       cosmostrix -m \"hello\"
+      Attached values are refused (-mhello errors) — a flag-shaped
+      token must never silently become message text. Use the space
+      form (-m \"hello\") or the equals form (-m=hello).
 
   -mb <text>
       Display overlay message with border.
       cosmostrix -mb \"hello\"
-      Attached form: -mb<text> (e.g. -mbhello) expands to the same
-      bordered message. Side effect: an attached -m message starting
-      with \"b\" (e.g. -mblaze) routes to the shorthand too — use
-      -m \"blaze …\" or -m=blaze for a literal unbordered one.
+      Same rule as -m: attached values are refused (-mbhello errors).
+      Use -mb \"hello\" or -mb=hello.
 
       Both -m and -mb can also be set in config.toml:
         message         = \"hello\"   (no border, matches -m)
