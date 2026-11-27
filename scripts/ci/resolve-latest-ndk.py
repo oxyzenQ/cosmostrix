@@ -20,13 +20,17 @@ closes that gap for the NDK in a way it cannot do itself:
 
 This script resolves the gap:
 
-1. Fetch Google's official SDK repository manifest (repository2-3.xml,
-   the same source sdkmanager reads).
-2. Keep NDK packages on the STABLE channel (channel-0) whose Linux
+1. Resolve the manifest base from the AXP1-ZnQ (Architect's eXecution
+   Protocol 1) repos-for-ci catalog (night-learning-into-darkness-1)
+   -- no hardcoded server: the resolver probes each candidate with the
+   manifest itself and hands back the first address that answers.
+2. Fetch Google's official SDK repository manifest (repository2-3.xml,
+   the same source sdkmanager reads) from that base.
+3. Keep NDK packages on the STABLE channel (channel-0) whose Linux
    archive is a final release -- beta/rc/canary/preview archives are
    excluded even when Google lists them on the stable channel (e.g.
    android-ndk-r30-beta3-linux.zip).
-3. Pick the highest revision and print its r-style name (e.g. r29),
+4. Pick the highest revision and print its r-style name (e.g. r29),
    extracted from the archive URL.
 
 Usage (CI):
@@ -40,23 +44,58 @@ not a version pin.
 """
 
 import re
+import subprocess
 import sys
 import urllib.request
+from pathlib import Path
 
-REPOSITORY_XML = "https://dl.google.com/android/repository/repository2-3.xml"
+REPOSITORY_XML_PATH = "android/repository/repository2-3.xml"
 FETCH_RETRIES = 5
 FETCH_TIMEOUT_S = 60
 MIN_MAJOR = 23
 PREVIEW_MARKERS = ("beta", "rc", "canary", "preview")
 
 
+def resolve_base() -> str:
+    """Pick the manifest base from the AXP1-ZnQ catalog; fail loud.
+
+    The resolver (scripts/ci/axp1znq_resolve.py) walks the catalog,
+    probes each candidate with the manifest itself (the file's own
+    # probe-path: directive) and prints the first live base. A total
+    miss is an exit 1 here -- a dead default is never a fallback, the
+    same law the manifest fetch below rides.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    catalog = repo_root / "repos-for-ci" / "google-android-ndk.txt"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "ci" / "axp1znq_resolve.py"),
+            "--file",
+            str(catalog),
+            "--first",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise SystemExit(
+            "error: the AXP1-ZnQ resolver found no live manifest base "
+            f"(exit {result.returncode}): {result.stderr.strip()}"
+        )
+    base = result.stdout.strip()
+    print(f"AXP1-ZnQ manifest base: {base}", file=sys.stderr)
+    return base
+
+
 def fetch_manifest() -> str:
     """Fetch the repository manifest with retries; exit 1 on total failure."""
+    manifest_url = f"{resolve_base().rstrip('/')}/{REPOSITORY_XML_PATH}"
     last_error: Exception | None = None
     for attempt in range(1, FETCH_RETRIES + 1):
         try:
             with urllib.request.urlopen(
-                REPOSITORY_XML, timeout=FETCH_TIMEOUT_S
+                manifest_url, timeout=FETCH_TIMEOUT_S
             ) as response:
                 return response.read().decode("utf-8", errors="replace")
         except OSError as error:
@@ -65,7 +104,7 @@ def fetch_manifest() -> str:
                 f"fetch attempt {attempt}/{FETCH_RETRIES} failed: {error}",
                 file=sys.stderr,
             )
-    raise SystemExit(f"error: could not fetch {REPOSITORY_XML}: {last_error}")
+    raise SystemExit(f"error: could not fetch {manifest_url}: {last_error}")
 
 
 def linux_archive_url(package_body: str) -> str | None:

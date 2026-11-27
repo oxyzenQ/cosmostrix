@@ -392,7 +392,15 @@ jobs:
           grep -v '^nameserver' /etc/resolv.conf | sudo tee -a /etc/resolv.conf.new >/dev/null || true
           sudo mv /etc/resolv.conf.new /etc/resolv.conf
           echo "resolver front: $(head -2 /etc/resolv.conf | tr '\n' ' ')"
-          POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/l/linux"
+          # night-learning-into-darkness-1: the pool base is not a hardcoded
+          # server anymore - the AXP1-ZnQ (Architect's eXecution Protocol 1)
+          # resolver walks the repos-for-ci ubuntu-old-releases catalog
+          # (probed with the era-true intrepid dists index itself) and
+          # hands back the first address that actually answers; line 1
+          # down, the lane moves on. Nothing alive fails loud here.
+          OLD_BASE="$(python3 scripts/ci/axp1znq_resolve.py \
+            --file repos-for-ci/ubuntu-old-releases.txt --first)"
+          POOL="${OLD_BASE}/pool/main/l/linux"
           LISTING="$(curl -fsSL --retry-all-errors --retry 3 --retry-delay 3 --connect-timeout 10 --max-time 60 "$POOL/")"
           IMG="$(printf '%s' "$LISTING" \
             | grep -oE 'linux-image-2\.6\.27-[0-9]+-generic_[^"]+_amd64\.deb' \
@@ -444,12 +452,21 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/kfloor
-          # night-T-2 round 14: the busybox fetch rides old-releases.ubuntu.com
-          # (the intrepid era pool + dists index; the zejtron DNS fix in the
-          # floor step above already healed this runner's resolver).
-          POOL="https://old-releases.ubuntu.com/ubuntu/pool/main/b/busybox"
+          # night-T-2 round 14: the busybox fetch rides the intrepid era
+          # pool + dists index (the zejtron DNS fix in the floor step
+          # above already healed this runner's resolver).
+          # night-learning-into-darkness-1: the archive base is not a
+          # hardcoded server anymore - the AXP1-ZnQ (Architect's
+          # eXecution Protocol 1) resolver walks the repos-for-ci
+          # ubuntu-old-releases catalog (the era-true intrepid dists
+          # index IS its probe artifact) and hands back the first
+          # address that actually answers; line 1 down, the lane moves
+          # on. Nothing alive fails loud here.
+          OLD_BASE="$(python3 scripts/ci/axp1znq_resolve.py \
+            --file repos-for-ci/ubuntu-old-releases.txt --first)"
+          POOL="${OLD_BASE}/pool/main/b/busybox"
           ERA_DEB="busybox-initramfs_1.10.2-1ubuntu6_amd64.deb"
-          DIST="https://old-releases.ubuntu.com/ubuntu/dists/intrepid/main/binary-amd64/Packages.gz"
+          DIST="${OLD_BASE}/dists/intrepid/main/binary-amd64/Packages.gz"
           if curl -fsI --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 25 "$POOL/$ERA_DEB" >/dev/null; then
             BUSY="$ERA_DEB"
             echo "resolved: $BUSY (pinned intrepid GA busybox-initramfs, era-true)"
@@ -467,7 +484,7 @@ jobs:
             fi
             BUSY="$(basename "$FNAME")"
             echo "resolved: $BUSY (from the intrepid dists index, era-true)"
-            curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 90 -C - -o "$BUSY" "https://old-releases.ubuntu.com/ubuntu/$FNAME"
+            curl -fsSL --retry-all-errors --retry 2 --retry-delay 3 --connect-timeout 10 --max-time 90 -C - -o "$BUSY" "${OLD_BASE}/${FNAME}"
           fi
           dpkg -x "$BUSY" pkg-busybox
           SRCBB="$(find pkg-busybox -name busybox -type f | head -1)"
