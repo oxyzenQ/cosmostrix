@@ -120,6 +120,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | [RELEASE_CANDIDATE.md](RELEASE_CANDIDATE.md) | Release candidate checklist |
 | [VERIFY_RELEASE.md](VERIFY_RELEASE.md) | Post-release artifact verification |
 | [SUPPLY_CHAIN.md](SUPPLY_CHAIN.md) | Supply-chain hardening (cargo-deny, audit, MSRV) |
+| [AXP1-ZnQ.md](AXP1-ZnQ.md) | The AXP1-ZnQ (Architect's eXecution Protocol 1) maintenance bot: the repos-for-ci address catalog, the failover resolver, the Sunday address refresh |
 | [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md) | Dependency inventory and audit record |
 | [SECURITY_AUDIT.md](SECURITY_AUDIT.md) | Security posture summary (unsafe policy, attack-surface notes) |
 | [SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md) | Kernel, libc (static musl releases), CPU, terminal matrix |

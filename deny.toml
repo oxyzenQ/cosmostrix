@@ -22,7 +22,8 @@ ignore = []
 # yanked is deny, not warn.
 yanked = "deny"
 # Tier contract with the maintenance lane (night-solid-defense-1):
-# advisory vulnerability gating belongs to the AXP1-ZnQ supply-chain
+# advisory vulnerability gating belongs to the AXP1-ZnQ (Architect's eXecution Protocol 1)
+# supply-chain
 # verdict (scripts/ci/supplychain-verdict.py), which runs upstream of
 # this policy check on the maintenance lane and fails hard on any
 # finding the dependency sweep cannot clear - so the two gates agree

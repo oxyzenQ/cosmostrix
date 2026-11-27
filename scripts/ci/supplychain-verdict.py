@@ -4,7 +4,8 @@
 # PLATFORM: UNIX-only (Linux, macOS, BSD). Optimal for Unix-like
 #   systems only; not for Windows cmd.exe or PowerShell (use WSL or
 #   Git Bash on Windows).
-"""The supply-chain verdict (night-solid-defense-1) - AXP1-ZnQ.
+"""The supply-chain verdict (night-solid-defense-1) - AXP1-ZnQ
+(Architect's eXecution Protocol 1).
 
 The Sunday maintenance lane audits every workspace lockfile against
 the RustSec advisory database and speaks the owner's two scenarios,
@@ -34,7 +35,8 @@ lockfile set, a malformed report or any cargo audit exit outside
 {0, 1} fails the lane.
 
 Identity: the banners, the annotations, and the step summary all
-sign as AXP1-ZnQ, so a red Sunday names its watcher.
+sign as AXP1-ZnQ (Architect's eXecution Protocol 1), so a red
+Sunday names its watcher.
 
 Modes:
   --pre   scan the as-committed lockfiles, store findings for the
@@ -415,9 +417,11 @@ def render_summary(
     still_bad: list[dict],
     informational: list[dict],
 ) -> str:
-    """The step summary: AXP1-ZnQ signed, mature table shape."""
+    """The step summary: AXP1-ZnQ (Architect's eXecution Protocol 1)
+    signed, mature table shape."""
     lines = [
-        "### AXP1-ZnQ supply-chain verdict (night-solid-defense-1)",
+        "### AXP1-ZnQ (Architect's eXecution Protocol 1) supply-chain "
+        "verdict (night-solid-defense-1)",
         "",
         (
             f"workspaces scanned: {ws_count} | pre-sweep findings: {pre_count} | "
@@ -489,7 +493,8 @@ def _fail_closed(detail: str) -> None:
     detail = detail.replace("\n", " ").strip()
     print(f"::error title=AXP1-ZnQ fail-closed::{detail}", file=sys.stderr)
     write_summary(
-        "### AXP1-ZnQ supply-chain verdict (night-solid-defense-1)\n"
+        "### AXP1-ZnQ (Architect's eXecution Protocol 1) supply-chain "
+        "verdict (night-solid-defense-1)\n"
         "\n"
         "AUDIT INFRASTRUCTURE FAILURE - fail closed: a scanner that\n"
         f"cannot run is a verdict failure, never a silent pass.\n"
@@ -872,7 +877,8 @@ def self_test() -> int:
     summary = render_summary(3, 2, [vuln_pre], [yank_pre], [])
     check(
         "summary signs as AXP1-ZnQ with the task tag",
-        "AXP1-ZnQ supply-chain verdict (night-solid-defense-1)" in summary,
+        "AXP1-ZnQ (Architect's eXecution Protocol 1) supply-chain "
+        "verdict (night-solid-defense-1)" in summary,
     )
     check(
         "summary counts line holds all four numbers",
@@ -896,7 +902,10 @@ def self_test() -> int:
 def main(argv: list[str] | None = None) -> int:
     """Entry point; returns the process exit code."""
     parser = argparse.ArgumentParser(
-        description="AXP1-ZnQ supply-chain verdict (night-solid-defense-1)"
+        description=(
+            "AXP1-ZnQ (Architect's eXecution Protocol 1) "
+            "supply-chain verdict (night-solid-defense-1)"
+        )
     )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument(

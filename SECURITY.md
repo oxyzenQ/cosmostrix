@@ -54,7 +54,7 @@ Both routes reach the maintainer privately.
 - [docs/SUPPLY_CHAIN.md](docs/SUPPLY_CHAIN.md) and
   [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) — the
   dependency inventory, `cargo-deny` and audit gates, MSRV, and the
-  AXP1-ZnQ supply-chain verdict that gates the Sunday lane
+  AXP1-ZnQ (Architect's eXecution Protocol 1) supply-chain verdict that gates the Sunday lane
   (night-solid-defense-1).
 - [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) — checksums,
   signatures, and per-artifact verification.

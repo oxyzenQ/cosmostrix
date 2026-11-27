@@ -223,12 +223,12 @@ jobs:
       # zejtron sibling's (0.22.2) so the resolved binary never drifts
       # under the lane - red means a new advisory, never a new scanner
       # release.
-      - name: Install the AXP1-ZnQ scanner (cargo-audit) + deny
+      - name: Install the AXP1-ZnQ (Architect's eXecution Protocol 1) scanner (cargo-audit) + deny
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit@0.22.2,cargo-deny
 
-      # night-supply-1 / night-solid-defense-1, the AXP1-ZnQ pre-pass:
+      # night-supply-1 / night-solid-defense-1, the AXP1-ZnQ (Architect's eXecution Protocol 1) pre-pass:
       # what the as-committed lane carries BEFORE the refresh touches
       # it, snapshotted to the run's scratch state. The verdict diffs
       # against this snapshot to tell the owner's two scenarios apart:
@@ -242,7 +242,7 @@ jobs:
       # refresh and the commit phase use (--list mode), so the
       # root-only cargo audit this replaces never audited fuzz/ or
       # pgo-runner/ here.
-      - name: AXP1-ZnQ pre-pass (scan the committed lane)
+      - name: AXP1-ZnQ (Architect's eXecution Protocol 1) pre-pass (scan the committed lane)
         run: python3 scripts/ci/supplychain-verdict.py --pre
 
       # night-zen-1 (the zejtron law): the refresh walks every committed
@@ -269,12 +269,12 @@ jobs:
       # nothing ships while a dangerous dep has no automatic update
       # path. The verdict runs before the heavy checks so a red Sunday
       # lands fast, inside the same budget.
-      - name: The AXP1-ZnQ verdict (the swept lane)
+      - name: The AXP1-ZnQ (Architect's eXecution Protocol 1) verdict (the swept lane)
         run: python3 scripts/ci/supplychain-verdict.py --post
 
       # night-zen-1: every workspace lockfile is in scope, so the gate
       # accepts any repo-relative Cargo.lock path, not just the root's.
-      # The AXP1-ZnQ address refresh deliberately runs AFTER this gate:
+      # The AXP1-ZnQ (Architect's eXecution Protocol 1) address refresh deliberately runs AFTER this gate:
       # the gate judges the dependency sweep's diff alone (the lockfile
       # law stays byte-for-byte honest), and the catalog half is judged
       # by the commit phase against its own exact manifest.
@@ -297,7 +297,7 @@ jobs:
 
           echo "locks_changed=true" >> "$GITHUB_OUTPUT"
 
-      # night-solid-defense-1: the AXP1-ZnQ verdict above already
+      # night-solid-defense-1: the AXP1-ZnQ (Architect's eXecution Protocol 1) verdict above already
       # gated every advisory - any finding the sweep cannot clear
       # failed the lane upstream - so this deny pass runs only when
       # the lane actually moved locks and stays hard on its own

@@ -51,7 +51,7 @@ lanes share the estate-wide Sunday 10:00 WIB slot, and the publish
 channels (release.yml, crates-io.yml, aur.yml) fire on tags and
 release events only.
 
-**Bot lane staging rule (night-zen-1 hotfix)**: the commit job stages an explicit path list derived from the manifest walk, never a glob, and the download-artifact staging directory lives under `runner.temp`, outside the work tree (`.auto-update/` is gitignored as a second wall). Incident class write-up: [KNOWN_ISSUES.md](../KNOWN_ISSUES.md).
+**Bot lane staging rule (night-zen-1 hotfix)**: the commit job stages an explicit path list derived from the manifest walk, never a glob, and the download-artifact staging directory lives under `runner.temp`, outside the work tree (`.auto-update/` is gitignored as a second wall). The allowed set is the workspace lockfile walk plus exactly the AXP1-ZnQ (Architect's eXecution Protocol 1) address-refresh manifest (night-learning-into-darkness-1): the catalog files the Sunday refresh rewrote ride the same exact-path law, and the one weekly commit carries dependencies AND addresses. Incident class write-up: [KNOWN_ISSUES.md](../KNOWN_ISSUES.md).
 
 ## 4. Security Advisory Response
 
