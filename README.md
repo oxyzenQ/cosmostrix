@@ -35,6 +35,9 @@
   <a href="https://ko-fi.com/rezky">
     <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
   </a>
+  <a href="https://youtu.be/hOt948rqEjI">
+    <img src="https://img.shields.io/badge/YouTube-demo_video-FF0000?style=flat-square&logo=youtube&logoColor=white&labelColor=111827" alt="Watch the cosmostrix demo video on YouTube">
+  </a>
 </p>
 
 ## Demo
@@ -50,7 +53,9 @@
 </p>
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=KSk-DWFdg3A">YouTube</a>
+  <a href="https://youtu.be/hOt948rqEjI">
+    <img src="https://img.shields.io/badge/WATCH_THE_FULL_DEMO_ON_YOUTUBE-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the full cosmostrix demo video on YouTube">
+  </a>
 </p>
 
 Signature Cinematic Cosmic, Monolith Rain, and message mode in a real terminal session.
