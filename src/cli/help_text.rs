@@ -272,6 +272,10 @@ Common options:
   -mb <text>
       Display overlay message with border.
       cosmostrix -mb \"hello\"
+      Attached form: -mb<text> (e.g. -mbhello) expands to the same
+      bordered message. Side effect: an attached -m message starting
+      with \"b\" (e.g. -mblaze) routes to the shorthand too — use
+      -m \"blaze …\" or -m=blaze for a literal unbordered one.
 
       Both -m and -mb can also be set in config.toml:
         message         = \"hello\"   (no border, matches -m)

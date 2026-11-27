@@ -66,6 +66,69 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### audit: night-cafe-mclaren-3 - the -mb shorthand honors its own attached form: `-mb<text>` is a bordered message, never a silently unbordered one
+
+- The gap: the owner's probe `cosmostrix -v -mbxxsaadadala` displayed
+  message "bxxsaadadala" with border: false. The expansion table
+  handled bare `-mb` + value and `-mb=<text>`, but the attached
+  `-mb<text>` had no arm - the raw token leaked to clap, which parsed
+  it as `-m` with the attached value "b<text>": both semantics of the
+  shorthand silently lost (the border dropped AND the leading "b"
+  eaten into the text), while a typo'd long flag (`--mbx`) gets
+  clap's strict unknown-argument error - the exact asymmetry the
+  owner flagged as "should be strict".
+- The fix mirrors the lane's own precedents (night-dragon-fly-2 fixed
+  the bare form's leak; the -mfs lane documents the principle: a
+  shorthand-shaped token must honor the shorthand, never silently
+  degrade into a different flag's semantics - "a silent footgun"):
+  `-mb<text>` now expands to `--message-border -m <text>` - the token
+  does exactly what it spells. Free-form text needs no validation
+  (unlike the -mfs style enum), so the attached form is always a
+  bordered message, and the equals form is checked first so `-mb=x`
+  never re-prefixes as "-mb" + "=x".
+- Documented side effect (same class as the -mfs one): an attached
+  `-m` message starting with "b" (`-mblaze`) routes to the shorthand
+  - bordered "laze". The space form (`-m "blaze …"`) or the equals
+  form (`-m=blaze`) reaches a literal unbordered one. The module doc
+  table, the side-effect paragraph, and `--help`'s `-mb` entry now
+  carry both the form and the side effect.
+- Proof: three new expansion tests (attached expansion, equals
+  precedence plus "=" inside text, side-effect and pass-through
+  guards covering the untouched `-m "blaze"` / `-m=blaze` /
+  `--mblaze` lanes) and an end-to-end binary run: `-v -mbxxsaadadala`
+  now reports `message: "xxsaadadala" (11 chars, border: true)` in
+  the verbose dump (was `"bxxsaadadala"` border: false), while the
+  space form `-mb hello` is byte-for-byte unchanged.
+
+### audit: night-cafe-mclaren-2 - every quoted runtime value in verbose and the perf report tracks its engine constant (entry backfilled - the commit landed without its ledger line)
+
+- The gap: two dishonesty-class ants from the owner's live `--verbose`
+  session. First, `cadence_secs` quoted its default twice and
+  hardcoded the value inside a string literal -
+  `60.0s (default (unset — 60.0s); …)`: if
+  `CRYSTAL_DRAGON_POLLING_SECS` ever changed, `--verbose` would keep
+  claiming 60.0s (the same class as the V80 ambient-snapback audit).
+  Second, the perf report showed two unlabeled frame-time averages
+  that read as a contradiction: `Timing.rolling_avg_frame_time` is
+  the mean WORK time of the last 60 frames (the tail window behind
+  instant_fps) while `Latency.avg_frame_time` is the mean WORK time
+  of the whole session - 0.144ms vs 0.069ms with no hint why.
+- The fix: both cadence sites (startup `verbose.rs`, exit
+  `final_state.rs`) use the sibling `ambient_snapback_secs`
+  provenance label `default (unset in config)` - no value in the
+  string, nothing to go stale, the effective value prints once up
+  front. All three frame-time rows now name their window, and the
+  `idle_throttle_share` row's hardcoded "after 30s" interpolates
+  `IDLE_THRESHOLD_SECS` so it tracks the constant.
+- Guardrail: the 11 `msg_fill_style` verbose labels quote pacing
+  values as `&'static str` and cannot interpolate - all 11 verified
+  against their engine constants, and a new lock test
+  (`verbose_label_values_track_engine_constants`) pins every label
+  fragment to its constant so a future constant change without a
+  label update fails CI instead of lying in `--verbose`. The entry
+  itself landed late (this backfill): the lane's own ledger
+  discipline applies to the lane's author too.
+
 ### audit: night-cafe-mclaren-1 - the version bump goes adaptive: every [package] manifest rides the root version, zero stale on the line
 
 - The gap: the ride-along lane was a hardcoded single-crate list -

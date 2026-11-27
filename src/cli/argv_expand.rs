@@ -13,6 +13,7 @@
 //! |------------------|------------------------------------|
 //! | `-mb` + value    | `--message-border -m <value>`      |
 //! | `-mb=<text>`     | `--message-border -m <text>`       |
+//! | `-mb<text>`      | `--message-border -m <text>` (attached form, free-form text) |
 //! | `-mfs` + value   | `--msg-fill-style <value>`         |
 //! | `-mfs=<style>`   | `--msg-fill-style <style>`         |
 //! | `-mfs<style>`    | `--msg-fill-style <style>` (attached form, value must be a valid style) |
@@ -31,9 +32,10 @@
 //! the attached message text "fss" — a silent footgun.
 //!
 //! Side effect (documented in `--help`): an attached `-m` message that
-//! itself starts with "fs" (e.g. `-mfss is my message`) now resolves to
-//! the style shorthand. Use the space-separated form `-m "fss …"` for
-//! such messages.
+//! itself starts with "fs" (e.g. `-mfss is my message`) or with "b"
+//! (e.g. `-mblaze` → bordered "laze", night-cafe-mclaren-3) now
+//! resolves to a shorthand. Use the space-separated form (`-m "fss …"`,
+//! `-m "blaze …"`) or the equals form (`-m=<text>`) for such messages.
 
 use clap::ValueEnum;
 
@@ -150,6 +152,31 @@ pub(crate) fn expand_argv_shorthands(argv: &[std::ffi::OsString]) -> Vec<std::ff
         } else if let Some(s) = arg.to_str()
             && let Some(rest) = s.strip_prefix("-mb=")
         {
+            expanded.push("--message-border".into());
+            expanded.push("-m".into());
+            expanded.push(rest.into());
+            i += 1;
+            continue;
+        } else if let Some(s) = arg.to_str()
+            && let Some(rest) = s.strip_prefix("-mb")
+        {
+            // night-cafe-mclaren-3 (owner probe: `cosmostrix -v
+            // -mbxxsaadadala` displayed message "bxxsaadadala" with
+            // border: false): the ATTACHED form `-mb<text>` had no
+            // expansion arm — the raw token leaked to clap, which parsed
+            // it as UNbordered `-m` with the message "b<text>". Both
+            // semantics of the shorthand silently lost: the border
+            // dropped AND the leading "b" eaten into the text.
+            // night-dragon-fly-2 fixed the bare form's leak; this is the
+            // same bug class surviving on the attached lane, and the
+            // -mfs lane already documents the principle: a shorthand-
+            // shaped token must honor the shorthand, never silently
+            // degrade into a different flag's semantics ("a silent
+            // footgun"). Free-form text has nothing to validate (unlike
+            // the -mfs style enum), so the attached form expands exactly
+            // like the `-mfs<style>` attached form does. The equals form
+            // is checked FIRST — "-mb=x" must not re-prefix as
+            // "-mb" + "=x".
             expanded.push("--message-border".into());
             expanded.push("-m".into());
             expanded.push(rest.into());
@@ -285,6 +312,53 @@ mod tests {
         // reports the missing message value instead.
         let out = expand(&["cosmostrix", "-mb"]);
         assert_eq!(out, vec!["cosmostrix", "--message-border", "-m"]);
+    }
+
+    #[test]
+    fn mb_attached_form_expands_to_border_and_text() {
+        // night-cafe-mclaren-3 (owner probe): `-mb<text>` attached, no
+        // space, no equals, must honor the shorthand — bordered message
+        // <text> — instead of leaking the raw token to clap, which parsed
+        // it as UNbordered `-m` with the message "b<text>" (the owner's
+        // `-mbxxsaadadala` displayed "bxxsaadadala" with border: false).
+        let out = expand(&["cosmostrix", "-mbxxsaadadala"]);
+        assert_eq!(
+            out,
+            vec!["cosmostrix", "--message-border", "-m", "xxsaadadala"]
+        );
+        let out = expand(&["cosmostrix", "-mbhello"]);
+        assert_eq!(out, vec!["cosmostrix", "--message-border", "-m", "hello"]);
+    }
+
+    #[test]
+    fn mb_attached_form_preserves_equals_in_text_and_mb_form_precedence() {
+        // The equals form is checked BEFORE the attached prefix — "-mb=x"
+        // is message "x" with border, never "=x" — and an "=" inside the
+        // attached text is just text.
+        let out = expand(&["cosmostrix", "-mb=x"]);
+        assert_eq!(out, vec!["cosmostrix", "--message-border", "-m", "x"]);
+        let out = expand(&["cosmostrix", "-mba=b"]);
+        assert_eq!(out, vec!["cosmostrix", "--message-border", "-m", "a=b"]);
+    }
+
+    #[test]
+    fn mb_attached_prefix_takes_attached_b_messages() {
+        // Documented side effect (same class as the -mfs one): an attached
+        // `-m` message starting with "b" now routes to the shorthand —
+        // `-mblaze` is bordered "laze". The workaround for a literal
+        // unbordered "blaze" is the space or equals form, exactly like
+        // the fs side effect documents.
+        let out = expand(&["cosmostrix", "-mblaze"]);
+        assert_eq!(out, vec!["cosmostrix", "--message-border", "-m", "laze"]);
+        // The space-separated -m lane is untouched.
+        let out = expand(&["cosmostrix", "-m", "blaze"]);
+        assert_eq!(out, vec!["cosmostrix", "-m", "blaze"]);
+        // The -m equals form is untouched ("-m=" never prefixes as "-mb").
+        let out = expand(&["cosmostrix", "-m=blaze"]);
+        assert_eq!(out, vec!["cosmostrix", "-m=blaze"]);
+        // Double-dash tokens are never shorthand candidates.
+        let out = expand(&["cosmostrix", "--mblaze"]);
+        assert_eq!(out, vec!["cosmostrix", "--mblaze"]);
     }
 
     #[test]
