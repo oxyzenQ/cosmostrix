@@ -40,10 +40,10 @@ The write law (mature LTS, minimal owner intervention):
     is STALE and fails the write (alive-but-frozen is a lie the
     catalog must not keep - but families whose artifact is legitimately
     frozen declare `# max-age-days: off` and are judged on aliveness
-    alone). A file with no probe-path directive probes the bare root,
-    and a root page's Last-Modified is not the lane's artifact - so
-    freshness checking turns itself off for such a file; the witness
-    must be what the lane consumes, never an incidental landing page;
+    alone). A probe that lands on a bare host root reads a landing
+    page's Last-Modified, which dates nothing the lane consumes - so
+    the age policy turns itself off there; the witness must be what
+    the lane consumes, never an incidental page;
   - idempotent: unchanged catalog, unchanged file - no write, no
     commit-note, no churn;
   - the refresher never blocks the ship lane: it exits 0 with its
@@ -136,13 +136,23 @@ def refresh_one(path: Path, args: argparse.Namespace, today: str) -> dict:
                 "summary": f"{banner}: {path.name} carries no active address - CALL THE OWNER"}
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(args.workers, len(entries))) as pool:
-        # Freshness rides the file's declared artifact: with no
-        # # probe-path: directive the probe hits the bare root, whose
-        # Last-Modified dates an incidental landing page, not anything
-        # the lane consumes - so the age policy turns itself off there.
-        effective_max_age = (
-            directives.max_age_days if directives.probe_path else None
-        )
+        # Freshness rides the artifact, not an incidental page: a probe
+        # that lands on a bare host root (no probe-path directive, no
+        # path in the address line) reads a landing page's
+        # Last-Modified, which dates nothing the lane consumes - so the
+        # age policy turns itself off there. A line that names its own
+        # artifact (or a file with a # probe-path: directive) keeps the
+        # declared policy.
+        def age_policy(entry) -> "int | None":
+            if entry.kind != "http":
+                return None
+            from urllib.parse import urlparse
+
+            path = urlparse(entry.target).path
+            if directives.probe_path or (path not in ("", "/")):
+                return directives.max_age_days
+            return None
+
         futures = {
             pool.submit(
                 probe_entry,
@@ -151,7 +161,7 @@ def refresh_one(path: Path, args: argparse.Namespace, today: str) -> dict:
                 args.connect_timeout,
                 args.total_timeout,
                 args.attempts,
-                effective_max_age,
+                age_policy(entry),
             ): entry
             for entry in entries
         }
