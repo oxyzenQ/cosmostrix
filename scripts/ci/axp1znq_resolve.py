@@ -63,6 +63,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="stop at the first live address and print it alone (for $(...) capture)",
     )
+    parser.add_argument(
+        "--alive-only",
+        action="store_true",
+        help="print every live address, one per line, in catalog order (for loop consumers)",
+    )
     parser.add_argument("--json", action="store_true", help="machine report instead of a table")
     parser.add_argument("--attempts", type=int, default=2, help="probe attempts per address")
     parser.add_argument("--connect-timeout", type=float, default=4.0, help="TCP connect timeout s")
@@ -130,8 +135,9 @@ def main() -> int:
     if not args.file:
         print("AXP1-ZnQ resolver: --file is required", file=sys.stderr)
         return 2
-    if args.first and args.json:
-        print("--first and --json cannot ride together", file=sys.stderr)
+    picked = sum(bool(flag) for flag in (args.first, args.alive_only, args.json))
+    if picked > 1:
+        print("--first, --alive-only and --json cannot ride together", file=sys.stderr)
         return 2
     try:
         with open(args.file, "r", encoding="utf-8") as handle:
@@ -192,6 +198,21 @@ def main() -> int:
             )
             return 1
         print(winner[0].target)
+        return 0
+
+    if args.alive_only:
+        alive_entries = [
+            entry for entry, result in results if result.verdict != VERDICT_DOWN
+        ]
+        if not alive_entries:
+            print(
+                f"{banner}: no address in {args.file} answered - the lane must fail loud, "
+                f"never fall back to a dead default",
+                file=sys.stderr,
+            )
+            return 1
+        for entry in alive_entries:
+            print(entry.target)
         return 0
 
     alive = sum(1 for _, result in results if result.verdict != VERDICT_DOWN)

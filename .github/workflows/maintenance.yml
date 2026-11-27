@@ -10,6 +10,14 @@
 #   Cargo.lock allowlist only (night-zen-1: every workspace lockfile,
 #   not just the root's)
 #
+# The AXP1-ZnQ (Architect's eXecution Protocol 1) address refresh rides
+# the same lane (night-learning-into-darkness-1): after the dependency
+# sweep and its checks, the whole repos-for-ci catalog is re-probed and
+# the tested survivors written back, so the one weekly commit carries
+# deps AND addresses (the owner's single-commit contract). The GPG key
+# fetch below is the lane's first catalog consumer: the keyserver list
+# is no longer a hardcoded pair.
+#
 # ── How this workflow authenticates WITHOUT a personal access token ──
 #
 # GitHub Actions auto-provisions a short-lived installation token
@@ -83,7 +91,22 @@ jobs:
           # identities get verified there later. Server output stays
           # visible so a future failure is diagnosable from the log.
           KEY_FETCHED=false
-          for SERVER in keyserver.ubuntu.com keys.openpgp.org; do
+          # The server list is not a hardcoded pair anymore: the
+          # AXP1-ZnQ (Architect's eXecution Protocol 1) resolver walks
+          # the repos-for-ci/keyservers.txt catalog (night-learning-
+          # into-darkness-1), probes each server with the lane's own
+          # artifact (the HKP lookup that returns this very key), and
+          # hands back the live servers in the owner's trust order -
+          # line 1 down, the loop moves on, exactly the resolver's
+          # contract. An empty result falls through to the existing
+          # non-fatal path: warn, skip the fetch, next Sunday re-runs.
+          SERVERS="$(python3 scripts/ci/axp1znq_resolve.py \
+            --file repos-for-ci/keyservers.txt --alive-only 2>/dev/null \
+            | sed 's|^https://||')" || SERVERS=""
+          if [[ -z "${SERVERS}" ]]; then
+            echo "::warning::AXP1-ZnQ keyserver catalog answered no live server - the key fetch is skipped this run"
+          fi
+          for SERVER in ${SERVERS}; do
             echo "Fetching ${GPG_KEY_FINGERPRINT} from ${SERVER} ..."
             gpg --batch --keyserver "${SERVER}" \
               --recv-keys "${GPG_KEY_FINGERPRINT}" || true
@@ -157,7 +180,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      changed: ${{ steps.changes.outputs.changed }}
+      locks_changed: ${{ steps.changes.outputs.locks_changed }}
+      addresses_changed: ${{ steps.axp1-refresh.outputs.addresses_changed }}
 
     steps:
       - name: Checkout repository
@@ -250,13 +274,17 @@ jobs:
 
       # night-zen-1: every workspace lockfile is in scope, so the gate
       # accepts any repo-relative Cargo.lock path, not just the root's.
+      # The AXP1-ZnQ address refresh deliberately runs AFTER this gate:
+      # the gate judges the dependency sweep's diff alone (the lockfile
+      # law stays byte-for-byte honest), and the catalog half is judged
+      # by the commit phase against its own exact manifest.
       - name: Enforce dependency-only diff
         id: changes
         shell: bash
         run: |
           set -euo pipefail
           if git diff --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "locks_changed=false" >> "$GITHUB_OUTPUT"
             echo "Dependencies are already up to date"
             exit 0
           fi
@@ -267,7 +295,7 @@ jobs:
             exit 1
           fi
 
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "locks_changed=true" >> "$GITHUB_OUTPUT"
 
       # night-solid-defense-1: the AXP1-ZnQ verdict above already
       # gated every advisory - any finding the sweep cannot clear
@@ -276,20 +304,20 @@ jobs:
       # classes (yanked / bans / licenses / sources; the arrayref
       # defense lives in deny.toml's yanked = "deny").
       - name: Dependency policy
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.locks_changed == 'true'
         run: cargo deny check all
 
       - name: Format check
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.locks_changed == 'true'
         run: cargo fmt --all -- --check
 
       - name: Build project (dev)
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.locks_changed == 'true'
         run: |
           bash scripts/ci/ci-strict-build.sh -- build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Build project (release-shape alias validation)
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.locks_changed == 'true'
         env:
           # night-dragon-maintenance-11 (the RUSTFLAGS env shadow, the
           # ci.yml v80 contract rule 3, the supermassive build_musl law):
@@ -315,28 +343,68 @@ jobs:
           bash scripts/ci/ci-strict-build.sh -- pro-linux-amd64-v3-musl --locked
 
       - name: Run tests
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.locks_changed == 'true'
         run: bash scripts/ci/ci-strict-build.sh -- test --all --locked
 
       - name: Clippy
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.locks_changed == 'true'
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
+
+      # AXP1-ZnQ (Architect's eXecution Protocol 1), the address
+      # refresh (night-learning-into-darkness-1): the whole repos-for-ci
+      # catalog is re-probed after the dependency sweep finished - the
+      # owner's sequencing law: the address refresh rides AFTER the
+      # dependency update, and the one weekly commit carries both. Each
+      # family is probed through its own declared artifact (the file's
+      # # probe-path: directive), survivors keep their authored order,
+      # the dead left as dated tombstones, bounded by the 100-line cap,
+      # the never-empty guard refusing to erase the owner's pool, and
+      # the 10-to-100 band reported loud (the bot never invents an
+      # address to fill the floor). The refresher never blocks the ship
+      # lane: it exits 0 with its warnings recorded, and fails only
+      # when the bot itself cannot run (a broken catalog tree is an
+      # infrastructure failure, and infrastructure failures stay loud).
+      - name: AXP1-ZnQ address refresh (repos-for-ci)
+        id: axp1-refresh
+        shell: bash
+        run: |
+          python3 scripts/ci/axp1znq_refresh.py \
+            --root repos-for-ci \
+            --note-file "${RUNNER_TEMP}/axp1-address-note.txt" \
+            --manifest-file "${RUNNER_TEMP}/axp1-address-manifest.txt"
+          if [[ -s "${RUNNER_TEMP}/axp1-address-manifest.txt" ]]; then
+            echo "addresses_changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       # night-zen-1: the artifact carries every workspace lockfile; the
       # glob picks up future workspaces without touching this file.
       - name: Upload validated Cargo.lock
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.locks_changed == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: validated-cargo-lock
           path: '**/Cargo.lock'
           if-no-files-found: error
 
+      # night-learning-into-darkness-1: the address half travels to the
+      # commit phase as its own artifact - the note lands in the commit
+      # body, the manifest drives the exact-path staging (never a glob,
+      # the same law the lockfiles ride).
+      - name: Upload AXP1-ZnQ address refresh outputs
+        if: steps.axp1-refresh.outputs.addresses_changed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: axp1znq-address-refresh
+          path: |
+            ${{ runner.temp }}/axp1-address-note.txt
+            ${{ runner.temp }}/axp1-address-manifest.txt
+          if-no-files-found: error
+
   commit:
     name: Cosmic Dragon Guard - Dependency Commit
     runs-on: ubuntu-24.04
     needs: validate
-    if: needs.validate.outputs.changed == 'true'
+    if: needs.validate.outputs.locks_changed == 'true' || needs.validate.outputs.addresses_changed == 'true'
     timeout-minutes: 5
     permissions:
       contents: write
@@ -348,6 +416,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download validated Cargo.lock
+        if: needs.validate.outputs.locks_changed == 'true'
         uses: actions/download-artifact@v8
         with:
           name: validated-cargo-lock
@@ -358,9 +427,23 @@ jobs:
           # is the second wall against any future in-tree regression.
           path: ${{ runner.temp }}/auto-update
 
+      # night-learning-into-darkness-1: the address half - the note
+      # feeds the commit body, the manifest feeds the exact-path staging.
+      - name: Download AXP1-ZnQ address refresh outputs
+        if: needs.validate.outputs.addresses_changed == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: axp1znq-address-refresh
+          path: ${{ runner.temp }}/axp1-refresh
+
       # night-zen-1: restore every workspace lockfile the validate job
       # uploaded (the artifact keeps the repo-relative layout).
-      - name: Commit dependency update
+      # night-learning-into-darkness-1: the repos-for-ci catalog files
+      # the refresh rewrote ride the same exact-path law - the manifest
+      # names them, never a glob, so no staging debris can ever join
+      # the bot commit; the allowlist below is the lockfile walk plus
+      # exactly that manifest, nothing else.
+      - name: Commit dependency and address update
         shell: bash
         run: |
           set -euo pipefail
@@ -379,31 +462,65 @@ jobs:
             fi
           done < /tmp/locks.txt
 
+          MANIFEST="${RUNNER_TEMP}/axp1-refresh/axp1-address-manifest.txt"
+          NOTE="${RUNNER_TEMP}/axp1-refresh/axp1-address-note.txt"
+          if [[ -s "${MANIFEST}" ]]; then
+            while IFS= read -r rel; do
+              if [[ -f "${STAGE}/${rel}" ]]; then
+                cp "${STAGE}/${rel}" "$rel"
+              else
+                echo "::warning::No refreshed catalog for ${rel} in the artifact"
+              fi
+            done < "${MANIFEST}"
+          fi
+
           if git diff --quiet; then
-            echo "Validated lockfile is already current"
+            echo "Validated lockfile and catalog are already current"
             exit 0
           fi
 
           git diff --name-only | tee /tmp/changed.txt
-          # The gate accepts only lockfiles in the expected set (exact
-          # paths, not a path pattern). grep -v exits 1 when every line
-          # matches the expected set — that is the pass case, hence the
-          # || true guard.
-          violations=$(grep -vxF -f /tmp/locks.txt /tmp/changed.txt || true)
+          # The gate accepts only the expected set (exact paths, not a
+          # path pattern): the lockfile walk plus exactly the refresh
+          # manifest. grep -v exits 1 when every line matches the
+          # expected set — that is the pass case, hence the || true
+          # guard.
+          cp /tmp/locks.txt /tmp/allowed.txt
+          if [[ -s "${MANIFEST}" ]]; then
+            cat "${MANIFEST}" >> /tmp/allowed.txt
+          fi
+          sort -u -o /tmp/allowed.txt /tmp/allowed.txt
+          violations=$(grep -vxF -f /tmp/allowed.txt /tmp/changed.txt || true)
           if [[ -n "$violations" ]]; then
-            echo "Unexpected files in the dependency-only diff:"
+            echo "Unexpected files in the dependency and address diff:"
             echo "$violations"
-            echo "::error::Only workspace Cargo.lock files may change"
+            echo "::error::Only workspace Cargo.lock files and the repos-for-ci catalog may change"
             exit 1
           fi
 
           # Identity comes from the workflow env block (single source).
           git config user.name "${GIT_BOT_NAME}"
           git config user.email "${GIT_BOT_EMAIL}"
-          # Stage exact paths from the manifest walk — never a glob, so
-          # no staging debris can ever join the bot commit.
+          # Stage exact paths — the lockfile walk and the refresh
+          # manifest — never a glob, so no staging debris can ever join
+          # the bot commit.
           xargs -d '\n' -r git add -- < /tmp/locks.txt
-          git commit -m "chore(deps): maintenance deps weekly"
+          if [[ -s "${MANIFEST}" ]]; then
+            xargs -d '\n' -r git add -- < "${MANIFEST}"
+          fi
+
+          # The one weekly commit carries both halves by the owner's
+          # contract; the subject names which half moved, the body
+          # carries the refresher's per-family summaries when the
+          # catalog moved.
+          message="chore(deps): maintenance deps weekly"
+          if [[ -s "${MANIFEST}" ]] && ! git diff --cached --name-only | grep -qE '(^|/)Cargo\.lock$'; then
+            message="chore(addresses): maintenance address refresh"
+          fi
+          if [[ -s "${NOTE}" ]]; then
+            message="${message}"$'\n\n'"$(cat "${NOTE}")"
+          fi
+          git commit -m "${message}"
           git push origin HEAD:main
 
 concurrency:
