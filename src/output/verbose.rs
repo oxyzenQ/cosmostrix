@@ -418,7 +418,13 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     let cd_secs_src = if crystal_dragon_secs.is_some() {
         "CLI/config"
     } else {
-        "default (unset — 60.0s)"
+        // Same provenance label as the ambient_snapback_secs sibling below
+        // (single convention across the Dragon Systems / Ambient sections).
+        // No hardcoded default value here — the effective value is already
+        // printed at the front, and a value inside a string literal would
+        // silently go stale if CRYSTAL_DRAGON_POLLING_SECS ever changes
+        // (same dishonesty class as the V80 LTS ambient audit).
+        "default (unset in config)"
     };
     output::eprintln_verbose(
         "  cadence_secs:",

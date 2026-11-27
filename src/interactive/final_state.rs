@@ -752,7 +752,10 @@ pub(crate) fn print_final_runtime_state(startup: &SessionState, start_time: Inst
     let cd_secs_src = if final_crystal_dragon_secs.is_some() {
         "CLI/config"
     } else {
-        "default (unset — 60.0s)"
+        // Same provenance label as the ambient_snapback_secs sibling above —
+        // no hardcoded default value (stale-prone; see the startup site in
+        // output/verbose.rs for the full rationale).
+        "default (unset in config)"
     };
     let cd_secs_was_label = if final_crystal_dragon_secs != startup.crystal_dragon_secs {
         format!(" (was {cd_secs_was:.1}s)")

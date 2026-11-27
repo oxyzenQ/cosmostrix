@@ -265,7 +265,14 @@ fn print_perf_report(
         s.field("instant_fps", &format!("{:.3}", final_instant_fps));
         s.field(
             "rolling_avg_frame_time",
-            &format!("{:.3}ms", stats.frame_time_tracker.rolling_avg_ms()),
+            // LTS strictness: name the window — this is the mean WORK time of
+            // the last 60 frames (the tail window behind instant_fps), NOT
+            // 1/avg_fps (the period) and NOT the whole-session mean below.
+            // Unlabeled, the two frame-time rows read as a contradiction.
+            &format!(
+                "{:.3}ms (mean work time of the last 60 frames)",
+                stats.frame_time_tracker.rolling_avg_ms()
+            ),
         );
         // NIGHT-arc-1: the idle throttle is the honest explanation for an
         // avg_fps far below target on a healthy renderer — the owner's
@@ -279,9 +286,10 @@ fn print_perf_report(
             "idle_throttle_share",
             &format!(
                 "{:.1}% of frames ran idle-paced (power_dragon idle reduction \
-                 after 30s without input) — avg_fps is an active/idle cadence \
+                 after {:.0}s without input) — avg_fps is an active/idle cadence \
                  mix, not a renderer shortfall",
-                idle_share * 100.0
+                idle_share * 100.0,
+                IDLE_THRESHOLD_SECS
             ),
         );
     }
@@ -364,10 +372,18 @@ fn print_perf_report(
 
     {
         let s = r.section("Latency");
-        s.field("avg_frame_time", &format!("{:.3}ms", avg_work_ms));
+        // LTS strictness: name the window — whole-session mean WORK time,
+        // distinct from Timing.rolling_avg_frame_time (last-60-frames tail).
+        s.field(
+            "avg_frame_time",
+            &format!("{:.3}ms (mean work time, whole session)", avg_work_ms),
+        );
         s.field(
             "max_frame_time",
-            &format!("{:.3}ms", stats.perf_work_max_s * 1000.0),
+            &format!(
+                "{:.3}ms (work time, session max)",
+                stats.perf_work_max_s * 1000.0
+            ),
         );
         s.field("jitter", stats.frame_time_tracker.jitter_classification());
     }

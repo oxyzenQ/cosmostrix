@@ -517,6 +517,84 @@ mod tests {
     }
 
     #[test]
+    fn verbose_label_values_track_engine_constants() {
+        // LTS strictness lock: every verbose_label quotes the pacing values
+        // of the engine constants that actually drive the animation. The
+        // labels are `&'static str` and cannot interpolate, so this test is
+        // the coupling: change a constant without updating its label and
+        // this fails — otherwise --verbose would silently lie (same
+        // dishonesty class as the V80 LTS ambient-snapback audit).
+        // Needle = the label fragment the constant must produce.
+        use crate::msg_fill_style::cascade::{CASCADE_COL_MS, CASCADE_DROP_MS};
+        use crate::msg_fill_style::engrave::{ENGRAVE_CHAR_MS, ENGRAVE_HEAT_MS};
+        use crate::msg_fill_style::fade::FADE_BLOCK_MS;
+        use crate::msg_fill_style::glitch::{
+            GLITCH_CHAR_MS, GLITCH_FLICKER_AMPLITUDE, GLITCH_SETTLE_MS,
+        };
+        use crate::msg_fill_style::hologram::{
+            HOLOGRAM_CHAR_MS, HOLOGRAM_FLICKER_MS, HOLOGRAM_RIPPLE_MS, HOLOGRAM_SCANLINE_MS,
+        };
+        use crate::msg_fill_style::instant::INSTANT_BORDER_MS;
+        use crate::msg_fill_style::radar::{RADAR_PING_MS, RADAR_SWEEP_MS};
+        use crate::msg_fill_style::scorch::{SCORCH_CHAR_MS, SCORCH_COOL_MS};
+        use crate::msg_fill_style::slide::SLIDE_CHAR_MS;
+        use crate::msg_fill_style::typewriter::{TYPEWRITER_CHAR_MS, TYPEWRITER_FADE_MS};
+        use crate::msg_fill_style::words::{WORDS_FADE_MS, WORDS_PER_WORD_MS};
+
+        let label = |s: MsgFillStyle| s.verbose_label().to_owned();
+
+        let typewriter = label(MsgFillStyle::Typewriter);
+        assert!(typewriter.contains(&format!("{} ms/char", TYPEWRITER_CHAR_MS)));
+        assert!(typewriter.contains(&format!("{} ms fade-in", TYPEWRITER_FADE_MS)));
+
+        let fade = label(MsgFillStyle::Fade);
+        assert!(fade.contains(&format!("over {} ms", FADE_BLOCK_MS)));
+
+        let words = label(MsgFillStyle::Words);
+        assert!(words.contains(&format!("{} ms/word", WORDS_PER_WORD_MS)));
+        assert!(words.contains(&format!("{} ms fade-in", WORDS_FADE_MS)));
+
+        assert!(label(MsgFillStyle::Slide).contains(&format!("{} ms/char", SLIDE_CHAR_MS)));
+
+        // INSTANT_BORDER_MS is quoted in whole seconds ("over 1 s").
+        assert_eq!(INSTANT_BORDER_MS % 1000, 0, "label formats whole seconds");
+        assert!(
+            label(MsgFillStyle::Instant).contains(&format!("over {} s", INSTANT_BORDER_MS / 1000))
+        );
+
+        let engrave = label(MsgFillStyle::Engrave);
+        assert!(engrave.contains(&format!("{} ms/char burn-in", ENGRAVE_CHAR_MS)));
+        assert!(engrave.contains(&format!("cooling over {} ms", ENGRAVE_HEAT_MS)));
+
+        let hologram = label(MsgFillStyle::Hologram);
+        assert!(hologram.contains(&format!("{} ms/char burn-in", HOLOGRAM_CHAR_MS)));
+        assert!(hologram.contains(&format!("{} ms flicker", HOLOGRAM_FLICKER_MS)));
+        assert_eq!(HOLOGRAM_RIPPLE_MS % 1000, 0, "label formats whole seconds");
+        assert!(hologram.contains(&format!("{} s hum", HOLOGRAM_RIPPLE_MS / 1000)));
+        assert!(hologram.contains(&format!("{} ms scanline sweep", HOLOGRAM_SCANLINE_MS)));
+
+        let glitch = label(MsgFillStyle::Glitch);
+        assert!(glitch.contains(&format!("{} ms/char scrambled", GLITCH_CHAR_MS)));
+        assert!(glitch.contains(&format!("{} ms wrong-glyph settle", GLITCH_SETTLE_MS)));
+        assert!(glitch.contains(&format!(
+            "±{}% flicker",
+            (GLITCH_FLICKER_AMPLITUDE * 100.0) as usize
+        )));
+
+        let scorch = label(MsgFillStyle::Scorch);
+        assert!(scorch.contains(&format!("{} ms/char ember burn", SCORCH_CHAR_MS)));
+        assert!(scorch.contains(&format!("{} ms cool tint", SCORCH_COOL_MS)));
+
+        let cascade = label(MsgFillStyle::Cascade);
+        assert!(cascade.contains(&format!("{} ms/col", CASCADE_COL_MS)));
+        assert!(cascade.contains(&format!("{} ms fall", CASCADE_DROP_MS)));
+
+        let radar = label(MsgFillStyle::Radar);
+        assert!(radar.contains(&format!("{} ms sonar sweep", RADAR_SWEEP_MS)));
+        assert!(radar.contains(&format!("{} ms ping", RADAR_PING_MS)));
+    }
+
+    #[test]
     fn none_elapsed_timeline_settles_everything() {
         // elapsed_ms = None (no animation state): every style must show
         // all cells at full brightness — matches pre-v80.0.0-beta.1 usize::MAX
