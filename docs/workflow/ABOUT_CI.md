@@ -446,8 +446,8 @@ The script updates:
 - `aur/cosmostrix-bin/PKGBUILD` (`pkgver=`, `_tag=`)
 - `aur/cosmostrix-bin/.SRCINFO` (regenerated from PKGBUILD)
 - `README.md` (the `TAG="vX.Y.Z"` install snippet)
-- `pgo-runner/Cargo.toml` (ride-along: the standalone crate's version follows the root's instead of shipping a drifting label)
-- `pgo-runner/Cargo.lock` (the name-anchored `pgo-runner` entry, manifest value only)
+- every ride-along crate manifest under the repo root (night-cafe-mclaren-1: each `[package]` manifest other than the primary `Cargo.toml` - `pgo-runner`, `cosmostrix-fuzz`, and any crate added tomorrow, wherever it lives - follows the root's version instead of shipping a drifting label; discovery is dynamic via `scripts/lib/ridealong.sh`, so a new `Cargo.toml` is adopted by the next bump and caught by `version-sync` with no script edit; there is no birth-version courtesy - a stale 0.0.0/0.1.0 label beside a v100 binary fails the check)
+- each ride-along crate's `Cargo.lock` (the name-anchored crate entry, manifest value only; a crate that has never been locked has no entry to move and warns instead)
 - `CHANGELOG.md` (the release ledger: a bare `vX.Y.Z` line under `## Released`, newest first - the section is created above `## Unreleased` on the first bump, pre-release and stable alike; every write verifies in place - a line that does not land inside the section restores the file and fails the bump)
 - `docs/workflow/ABOUT_CI.md` (the `TAG="vX.Y.Z"` install snippet, if present)
 

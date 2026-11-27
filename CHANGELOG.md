@@ -66,6 +66,49 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### audit: night-cafe-mclaren-1 - the version bump goes adaptive: every [package] manifest rides the root version, zero stale on the line
+
+- The gap: the ride-along lane was a hardcoded single-crate list -
+  pgo-runner only. `cosmostrix-fuzz` sat at 0.0.0 beside a
+  v100.1.3-dragon.1 binary (exactly the provenance hole the
+  night-improve-9 lane was built to close), and any crate the owner
+  added tomorrow would have drifted forever until a script edit
+  taught the lane its path. The lane now discovers every
+  `[package]` manifest under the repo root at run time
+  (`scripts/lib/ridealong.sh`, the awk state machine parses the
+  `[package]` table so a `[[bin]]` name or a dependency version
+  never leaks into the crate identity): nested crates, test crates,
+  future crates - wherever they live, the next bump adopts them and
+  `version-sync` guards them with no script edit.
+- The law got stricter, not looser: the pgo-runner birth-version
+  courtesy (report 0.1.0 instead of failing) is retired. A
+  ride-along crate at any version other than the root's fails
+  `--check`, and the next `version-to.sh` run adopts it. The
+  adoption landed in this same commit, so CI never sees a red tree:
+  `cosmostrix-fuzz` rides 100.1.3-dragon.1 from here on.
+- Bonus hunt (found while rewiring): `verify_version` incremented
+  its error tally with `((errors++))`, and under `set -e` a
+  post-increment from 0 returns nonzero status - the FIRST failed
+  check killed the script instead of listing every desync (proven
+  with `bash -ec 'e=0; ((e++))'` -> exit 1 before the echo). All
+  nine call sites now use the safe `errors=$((errors + 1))` form,
+  so a desync report lists the complete failure set.
+- The entry script shrank (963 -> 871 lines, well under the 1000
+  LOC cap) because the lane is a sourced module now, the same
+  de-monolith shape as `scripts/lib/changelog-ledger.sh`.
+- Proof, not vibes: a disposable git copy with two invented future
+  crates (nested `tools/testlab` with its own lock, `lab/nolock`
+  without one) bumped to 100.2.0-mclaren.1 - both adopted, the
+  lock-less crate warned honestly and wrote nothing, the ledger
+  downgrade gate still refuses a step-down, the post-bump check is
+  green, and a hand-drifted crate fails the check with the adopt
+  hint. Sim deleted after the run; the real tree carries only the
+  fuzz adoption. The MSRV lane (`rust-version-to.sh`, the
+  `rust-version` pair) is a different sync with its own gate and
+  was deliberately not generalized here - fuzz carries no
+  `rust-version` key today, and the owner decides when that lane
+  follows.
+
 ### audit: night-cafe-2 + night-arc-2 - pins parity/determinism proof, the config verify hint is NOT stale, and the throttle audit verdict
 
 - NIGHT-cafe-2 (actions-pin UX parity + determinism, zylaxion as the

@@ -27,12 +27,16 @@
 #   - Does not commit, tag, or push automatically
 #   - Only edits version-related files
 #
-# Ride-along lanes (night-improve-9, the zelynic NIGHT-improve-67 and
-# NIGHT-improve-76 shape): pgo-runner is a standalone crate whose
-# version rides the root's - a drifting 0.1.0 label shipping beside a
-# v100 binary is a provenance hole, so every bump rewrites
-# pgo-runner/Cargo.toml and its lock to the root version. Every bump
-# also records the release line in the root CHANGELOG.md ledger: a
+# Ride-along lane (night-cafe-mclaren-1, the generalized
+# night-improve-9 shape): every [package] manifest under the repo
+# root other than the primary Cargo.toml rides the root's version -
+# pgo-runner, cosmostrix-fuzz, and any crate the owner adds
+# tomorrow, wherever it lives. Discovery is dynamic (see
+# scripts/lib/ridealong.sh): a hardcoded path list is the exact
+# stale-data class this lane exists to close, so a new Cargo.toml
+# is adopted by the next bump with no script edit, and its drift
+# fails --check with no script edit either. Every bump also records
+# the release line in the root CHANGELOG.md ledger: a
 # bare vX.Y.Z line under a '## Released' heading above
 # '## Unreleased', newest first, pre-release and stable alike. The
 # ledger lane runs as a verified pre-flight before any file is
@@ -59,15 +63,7 @@ readonly PKGBUILD="${REPO_ROOT}/aur/cosmostrix-bin/PKGBUILD"
 readonly SRCINFO="${REPO_ROOT}/aur/cosmostrix-bin/.SRCINFO"
 readonly README="${REPO_ROOT}/README.md"
 readonly ABOUT_CI="${REPO_ROOT}/docs/workflow/ABOUT_CI.md"
-readonly PGO_CARGO_TOML="${REPO_ROOT}/pgo-runner/Cargo.toml"
-readonly PGO_CARGO_LOCK="${REPO_ROOT}/pgo-runner/Cargo.lock"
 readonly CHANGELOG="${REPO_ROOT}/CHANGELOG.md"
-# The version pgo-runner shipped with before the ride-along lane
-# existed (night-improve-9). While pgo-runner sits at this birth
-# version the lane has never adopted it, so --check reports instead
-# of failing; the first real bump moves it onto the root version
-# for good.
-readonly PGO_BIRTH_VERSION="0.1.0"
 
 # Files that contain active version references to update
 readonly DOC_FILES=(
@@ -105,6 +101,7 @@ log_err() { printf '%b[ERROR]%b %s\n' "${RED}" "${NC}" "$*" >&2; }
 # shellcheck disable=SC1091 # lib/ modules are analyzed standalone by
 # their own shellcheck run
 source "${REPO_ROOT}/scripts/lib/changelog-ledger.sh"
+source "${REPO_ROOT}/scripts/lib/ridealong.sh"
 
 #
 # Usage
@@ -179,26 +176,6 @@ read_current_version() {
 		exit 1
 	fi
 
-	echo "${ver}"
-}
-
-#
-# Read the current version from pgo-runner/Cargo.toml
-#
-# pgo-runner rides the root version, but its OWN current value is
-# read here - a drifted lane is exactly the state this lane exists
-# to heal, so nothing may assume it already matches (zelynic
-# NIGHT-improve-67). An absent manifest yields an empty string; the
-# callers decide between warn-skip and report.
-#
-read_pgo_version() {
-	if [[ ! -f "${PGO_CARGO_TOML}" ]]; then
-		echo ""
-		return 0
-	fi
-
-	local ver
-	ver="$(grep -E '^version = "' "${PGO_CARGO_TOML}" | head -1 | sed -E 's/^version = "(.+)"/\1/')"
 	echo "${ver}"
 }
 
@@ -297,67 +274,6 @@ update_cargo_lock() {
 		log_err "Cargo.lock update failed. Expected: ${new_ver}, Got: ${lock_ver}"
 		log_err "You may need to run 'cargo generate-lockfile' manually"
 		# Do not exit — let verification catch this
-	fi
-}
-
-#
-# Update pgo-runner/Cargo.toml + pgo-runner/Cargo.lock (night-improve-9)
-#
-# The standalone crate rides the root version. The manifest carries
-# no [dependencies] table, so the exact-match rewrite can only hit
-# the [package] version line; the lock edit is name-anchored
-# (name = "pgo-runner" followed by its version) and moves that entry
-# alone - dependency versions never do (they are cargo update's job,
-# not a version bump's).
-#
-update_pgo_runner() {
-	local new_ver="$1"
-
-	if [[ ! -f "${PGO_CARGO_TOML}" ]]; then
-		log_warn "pgo-runner/Cargo.toml not found - skipping ride-along bump"
-		return 0
-	fi
-
-	local pgo_ver
-	pgo_ver="$(read_pgo_version)"
-
-	if [[ -z "${pgo_ver}" ]]; then
-		log_warn "Could not read pgo-runner version - skipping ride-along bump"
-		return 0
-	fi
-
-	if [[ "${pgo_ver}" == "${new_ver}" ]]; then
-		log_ok "pgo-runner/Cargo.toml already at ${new_ver} (ride-along lane)"
-		return 0
-	fi
-
-	log_info "Updating pgo-runner/Cargo.toml: ${pgo_ver} -> ${new_ver} (rides the root version)"
-
-	sed -i -E "s|^version = \"${pgo_ver}\"|version = \"${new_ver}\"|" "${PGO_CARGO_TOML}"
-
-	local got
-	got="$(read_pgo_version)"
-	if [[ "${got}" != "${new_ver}" ]]; then
-		log_err "pgo-runner/Cargo.toml version update failed. Expected: ${new_ver}, Got: ${got}"
-		exit 1
-	fi
-
-	log_ok "pgo-runner/Cargo.toml updated: version = \"${new_ver}\""
-
-	if [[ ! -f "${PGO_CARGO_LOCK}" ]]; then
-		log_warn "pgo-runner/Cargo.lock not found - skipping lock update"
-		return 0
-	fi
-
-	sed -i -E "/^name = \"pgo-runner\"$/{n;s|^version = \"${pgo_ver}\"|version = \"${new_ver}\"|;}" "${PGO_CARGO_LOCK}"
-
-	local lock_ver
-	lock_ver="$(grep -A1 '^name = "pgo-runner"' "${PGO_CARGO_LOCK}" | grep '^version = "' | head -1 | sed -E 's/^version = "(.+)"/\1/')"
-	if [[ "${lock_ver}" == "${new_ver}" ]]; then
-		log_ok "pgo-runner/Cargo.lock updated: pgo-runner version = ${new_ver}"
-	else
-		log_err "pgo-runner/Cargo.lock update failed. Expected: ${new_ver}, Got: ${lock_ver}"
-		log_err "You may need to run 'cargo update --manifest-path pgo-runner/Cargo.toml -p pgo-runner' manually"
 	fi
 }
 
@@ -546,7 +462,7 @@ verify_version() {
 		log_ok "Cargo.toml: version = \"${expected_ver}\""
 	else
 		log_err "Cargo.toml: expected ${expected_ver}, got ${cargo_ver}"
-		((errors++))
+		errors=$((errors + 1))
 	fi
 
 	# 2. Cargo.lock
@@ -557,7 +473,7 @@ verify_version() {
 			log_ok "Cargo.lock: cosmostrix version = ${expected_ver}"
 		else
 			log_err "Cargo.lock: expected ${expected_ver}, got ${lock_ver}"
-			((errors++))
+			errors=$((errors + 1))
 		fi
 	fi
 
@@ -576,13 +492,13 @@ verify_version() {
 			log_ok "PKGBUILD: pkgver=${pkg_ver} (stable base, untouched — pre-release ${expected_ver} never syncs to AUR)"
 		else
 			log_err "PKGBUILD: pkgver=${pkg_ver} carries a hyphen — pacman forbids it; the AUR files must keep the last stable pkgver"
-			((errors++))
+			errors=$((errors + 1))
 		fi
 	elif [[ "${pkg_ver}" == "${expected_ver}" ]]; then
 		log_ok "PKGBUILD: pkgver=${expected_ver}"
 	else
 		log_err "PKGBUILD: expected pkgver=${expected_ver}, got ${pkg_ver}"
-		((errors++))
+		errors=$((errors + 1))
 	fi
 	if [[ -z "${pkg_tag}" ]]; then
 		log_ok "PKGBUILD: _tag= (empty, tag=v${pkg_ver})"
@@ -599,13 +515,13 @@ verify_version() {
 				log_ok ".SRCINFO: pkgver = ${srcinfo_pkgver} (stable base, untouched — pre-release never syncs to AUR)"
 			else
 				log_err ".SRCINFO: pkgver = ${srcinfo_pkgver:-<missing>} carries a hyphen — pacman forbids it"
-				((errors++))
+				errors=$((errors + 1))
 			fi
 		elif [[ "${srcinfo_pkgver}" == "${expected_ver}" ]]; then
 			log_ok ".SRCINFO: pkgver = ${expected_ver}"
 		else
 			log_err ".SRCINFO: expected pkgver = ${expected_ver}, got ${srcinfo_pkgver:-<missing>}"
-			((errors++))
+			errors=$((errors + 1))
 		fi
 
 		local expected_srcinfo
@@ -616,7 +532,7 @@ verify_version() {
 		else
 			log_err ".SRCINFO: metadata differs from PKGBUILD"
 			diff -u "${expected_srcinfo}" "${SRCINFO}" >&2 || true
-			((errors++))
+			errors=$((errors + 1))
 		fi
 		rm -f "${expected_srcinfo}"
 	fi
@@ -629,7 +545,7 @@ verify_version() {
 			log_ok "cargo metadata: package version = ${expected_ver}"
 		else
 			log_err "cargo metadata: expected ${expected_ver}, got ${meta_ver}"
-			((errors++))
+			errors=$((errors + 1))
 		fi
 	fi
 
@@ -653,39 +569,22 @@ verify_version() {
 		else
 			log_err "README.md: missing or stale install tag (expected ${expected_tag})"
 			log_err "  Run './scripts/dev/version-to.sh v${expected_ver}' to sync all active files"
-			((errors++))
+			errors=$((errors + 1))
 		fi
 	fi
 
-	# 7. pgo-runner ride-along (night-improve-9): the standalone crate
-	# rides the root version. While it sits at its birth version the
-	# lane has never adopted it - report, do not fail. Any other value
-	# that is not the expected version is real drift.
-	local pgo_ver=""
-	if [[ -f "${PGO_CARGO_TOML}" ]]; then
-		pgo_ver="$(read_pgo_version)"
-		if [[ "${pgo_ver}" == "${expected_ver}" ]]; then
-			log_ok "pgo-runner/Cargo.toml: version = \"${expected_ver}\" (rides the root version)"
-		elif [[ "${pgo_ver}" == "${PGO_BIRTH_VERSION}" ]]; then
-			log_info "pgo-runner still at its pre-adoption birth version ${PGO_BIRTH_VERSION} - the next version bump adopts it onto the root version"
-		else
-			log_err "pgo-runner/Cargo.toml: expected ${expected_ver} (root ride-along), got ${pgo_ver}"
-			log_err "  Run './scripts/dev/version-to.sh v${expected_ver}' to adopt it"
-			((errors++))
-		fi
-	fi
-
-	# 8. pgo-runner/Cargo.lock agrees with its manifest (night-improve-9)
-	if [[ -n "${pgo_ver}" && -f "${PGO_CARGO_LOCK}" ]]; then
-		local pgo_lock_ver
-		pgo_lock_ver="$(grep -A1 '^name = "pgo-runner"' "${PGO_CARGO_LOCK}" | grep '^version = "' | head -1 | sed -E 's/^version = "(.+)"/\1/')"
-		if [[ "${pgo_lock_ver}" == "${pgo_ver}" ]]; then
-			log_ok "pgo-runner/Cargo.lock: version = ${pgo_lock_ver} (agrees with the manifest)"
-		else
-			log_err "pgo-runner/Cargo.lock: expected ${pgo_ver} (manifest ride-along), got ${pgo_lock_ver}"
-			((errors++))
-		fi
-	fi
+	# 7. Ride-along crates (night-cafe-mclaren-1): every [package]
+	# manifest under the repo root other than the primary rides the
+	# root version, discovered at run time - pgo-runner,
+	# cosmostrix-fuzz, and any future crate. There is no birth-version
+	# courtesy: a drifting 0.0.0 or 0.1.0 label shipping beside a
+	# v100 binary is the provenance hole the lane exists to close,
+	# so any other value is real drift and the next version-to.sh run
+	# adopts it. Each lock must agree with its manifest. The lib
+	# verifier returns the failed-check count; add it to the tally.
+	local ride_errs=0
+	verify_ridealong_crates "${expected_ver}" || ride_errs=$?
+	errors=$((errors + ride_errs))
 
 	# 9. CHANGELOG.md release ledger (night-improve-9, the zelynic
 	# NIGHT-bump-1 verification law): the current version line must sit
@@ -941,14 +840,23 @@ main() {
 		fi
 	done
 
-	# 4b. Adopt pgo-runner onto the root version (night-improve-9)
-	update_pgo_runner "${NEW_VER}"
-	if ! git -C "${REPO_ROOT}" diff --quiet -- "${PGO_CARGO_TOML}"; then
-		changed_files+=("pgo-runner/Cargo.toml")
-	fi
-	if [[ -f "${PGO_CARGO_LOCK}" ]] && ! git -C "${REPO_ROOT}" diff --quiet -- "${PGO_CARGO_LOCK}"; then
-		changed_files+=("pgo-runner/Cargo.lock")
-	fi
+	# 4b. Adopt every ride-along crate onto the root version
+	# (night-cafe-mclaren-1): discovery is dynamic, so a new Cargo.toml
+	# anywhere under the repo root is adopted by this bump with no
+	# script edit. A manifest only counts as changed when the write
+	# landed; a crate with no lock has nothing to report.
+	update_ridealong_crates "${NEW_VER}"
+	local ride_manifest ride_lock
+	while IFS= read -r ride_manifest; do
+		[[ -z "${ride_manifest}" ]] && continue
+		if ! git -C "${REPO_ROOT}" diff --quiet -- "${ride_manifest}"; then
+			changed_files+=("${ride_manifest#"${REPO_ROOT}"/}")
+		fi
+		ride_lock="${ride_manifest%/Cargo.toml}/Cargo.lock"
+		if [[ -f "${ride_lock}" ]] && ! git -C "${REPO_ROOT}" diff --quiet -- "${ride_lock}"; then
+			changed_files+=("${ride_lock#"${REPO_ROOT}"/}")
+		fi
+	done < <(ridealong_manifests)
 
 	# 5. Audit workflows
 	audit_workflows "${NEW_VER}"
