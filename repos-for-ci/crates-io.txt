@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+#
+# AXP1-ZnQ (Architect's eXecution Protocol 1) - the repos-for-ci address
+# catalog (night-learning-into-darkness-1). One candidate address per
+# line; '#' comments occupy their own line. The failover resolver
+# (scripts/ci/axp1znq_resolve.py) walks this list top to bottom and uses
+# the first address that answers; the Sunday 10:00 WIB maintenance pass
+# re-probes the whole catalog and writes back the survivors
+# (scripts/ci/axp1znq_refresh.py), so the pool stays a tested pool.
+# Authored order = the owner's trust ranking, canonical first.
+#
+# Family: the crates.io surfaces - the publication check lane
+# (crates-io.yml), the sparse index and the static CDN every cargo
+# build in every lane rides. Each line IS the artifact URL the lane or
+# cargo consumes: the project's own crate record, the sparse index
+# config, and the project's own current-version crate file - witnesses
+# that are exactly what the estate fetches, not an arbitrary page.
+# max-age off: a crate file is immutable content (its Last-Modified
+# dates the upload, and old is correct), the API record is dynamic,
+# and the index config is a frozen contract - an age read would fail
+# truth on principle.
+# purpose: crates.io publication and cargo surfaces (crates-io.yml)
+# max-age-days: off
+https://crates.io/api/v1/crates/cosmostrix
+https://index.crates.io/config.json
+https://static.crates.io/crates/cosmostrix/cosmostrix-100.1.3-dragon.1.crate

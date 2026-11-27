@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+#
+# AXP1-ZnQ (Architect's eXecution Protocol 1) - the repos-for-ci address
+# catalog (night-learning-into-darkness-1). One candidate address per
+# line; '#' comments occupy their own line. The failover resolver
+# (scripts/ci/axp1znq_resolve.py) walks this list top to bottom and uses
+# the first address that answers; the Sunday 10:00 WIB maintenance pass
+# re-probes the whole catalog and writes back the survivors
+# (scripts/ci/axp1znq_refresh.py), so the pool stays a tested pool.
+# Authored order = the owner's trust ranking, canonical first.
+#
+# Family: the rustup-init script fetch behind the FreeBSD CI lane
+# (ci.yml, the curl-piped install). Each line IS the artifact URL - the
+# script itself - because the official hosts and the mirror disagree on
+# the script's path, so the failover pick is the whole URL the lane
+# curls. Authoring evidence: each shipped line answered HTTP 200 with
+# the real script body on probe date; university mirrors probed 404 on
+# every documented script path and are excluded on purpose until one
+# verifies.
+# max-age 60: rustup ships a new script every few weeks; a mirror more
+# than 60 days behind is a stale mirror, not a mirror.
+# purpose: rustup-init script fetch (ci.yml freebsd lane)
+# max-age-days: 60
+https://sh.rustup.rs/rustup-init.sh
+https://static.rust-lang.org/rustup/rustup-init.sh
+https://rsproxy.cn/rustup/rustup-init.sh

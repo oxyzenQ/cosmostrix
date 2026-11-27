@@ -50,6 +50,12 @@ other ai/
 
 # garbage stuff in root dir
 *.txt*
+# The AXP1-ZnQ (Architect's eXecution Protocol 1) address catalog
+# (night-learning-into-darkness-1): the repos-for-ci family files are
+# tracked on purpose - the tested address pool the failover resolver
+# reads and the Sunday maintenance pass rewrites. Same estate law as
+# the pinned fingerprint re-include below.
+!repos-for-ci/*.txt
 # The D5 pinned fingerprint is a tracked trust anchor (night-netrunner-Z1):
 # the wall above would swallow it and break build/gpg.rs's include_str! —
 # re-include it explicitly (the zelynic estate law).

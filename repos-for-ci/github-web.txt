@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+#
+# AXP1-ZnQ (Architect's eXecution Protocol 1) - the repos-for-ci address
+# catalog (night-learning-into-darkness-1). One candidate address per
+# line; '#' comments occupy their own line. The failover resolver
+# (scripts/ci/axp1znq_resolve.py) walks this list top to bottom and uses
+# the first address that answers; the Sunday 10:00 WIB maintenance pass
+# re-probes the whole catalog and writes back the survivors
+# (scripts/ci/axp1znq_refresh.py), so the pool stays a tested pool.
+# Authored order = the owner's trust ranking, canonical first.
+#
+# Family: the GitHub web surface the release lanes download from
+# (github.com release assets, the repo page). The probe path is the
+# estate's own repo page - a repo-true artifact, not a generic landing
+# page.
+# max-age off: the page's Last-Modified dates the estate's own latest
+# push, not a mirror's staleness.
+# purpose: github web and release asset surface
+# probe-path: oxyzenQ/cosmostrix
+# max-age-days: off
+https://github.com

@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+#
+# AXP1-ZnQ (Architect's eXecution Protocol 1) - the repos-for-ci address
+# catalog (night-learning-into-darkness-1). One candidate address per
+# line; '#' comments occupy their own line. The failover resolver
+# (scripts/ci/axp1znq_resolve.py) walks this list top to bottom and uses
+# the first address that answers; the Sunday 10:00 WIB maintenance pass
+# re-probes the whole catalog and writes back the survivors
+# (scripts/ci/axp1znq_refresh.py), so the pool stays a tested pool.
+# Authored order = the owner's trust ranking, canonical first.
+#
+# Family: the Android NDK repository manifest behind
+# scripts/ci/resolve-latest-ndk.py (the android CI lane's resolver).
+# The probe path is the resolver's own artifact: the repository XML
+# every NDK version is resolved from.
+# max-age off: dl.google.com is the canonical host - the Last-Modified
+# it returns dates Google's own update cadence, not a mirror's
+# staleness, so an age read would fail the canonical host on
+# principle. When a real mirror of this manifest materializes, it
+# joins the pool and the freshness policy moves to a real ceiling.
+# purpose: android ndk repository manifest (resolve-latest-ndk.py)
+# probe-path: android/repository/repository2-3.xml
+# max-age-days: off
+https://dl.google.com

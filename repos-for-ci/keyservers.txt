@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+#
+# AXP1-ZnQ (Architect's eXecution Protocol 1) - the repos-for-ci address
+# catalog (night-learning-into-darkness-1). One candidate address per
+# line; '#' comments occupy their own line. The failover resolver
+# (scripts/ci/axp1znq_resolve.py) walks this list top to bottom and uses
+# the first address that answers; the Sunday 10:00 WIB maintenance pass
+# re-probes the whole catalog and writes back the survivors
+# (scripts/ci/axp1znq_refresh.py), so the pool stays a tested pool.
+# Authored order = the owner's trust ranking, canonical first.
+#
+# Family: the GPG signing key fetch behind the Sunday dependency lane
+# (maintenance.yml). The probe path is the lane's own artifact: the
+# HKP lookup that returns the owner's release-signing public key. A
+# keyserver that answers its web portal but not the key lookup is DOWN
+# by this catalog's law. Authoring evidence: several well-known
+# keyserver hosts answer 200 on their portals yet serve no key material
+# on the lookup; they are excluded on purpose, never padded in.
+# max-age off: a key is immutable content - a frozen server serves the
+# truth, and the lookup response's Last-Modified dates the response,
+# not the key.
+# purpose: gpg signing key fetch (maintenance.yml key expiry check)
+# probe-path: pks/lookup?op=get&search=0xF5324E0967F104D58CE025F347A50AEF4B65AAC2
+# max-age-days: off
+https://keyserver.ubuntu.com
+https://keys.openpgp.org
