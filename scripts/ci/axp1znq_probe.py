@@ -56,9 +56,8 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
-from typing import List, Optional
 
 VERDICT_PASS = "PASS"
 VERDICT_STALE = "STALE"
@@ -74,7 +73,7 @@ class CatalogDirectives:
 
     purpose: str = ""
     probe_path: str = ""
-    max_age_days: Optional[int] = 14  # None = freshness check disabled
+    max_age_days: int | None = 14  # None = freshness check disabled
 
 
 @dataclass(frozen=True)
@@ -92,8 +91,8 @@ class ProbeResult:
     """The verdict for one catalog entry, shared by both commands."""
 
     verdict: str  # VERDICT_PASS / VERDICT_STALE / VERDICT_DOWN
-    latency_ms: Optional[int]  # the successful attempt's round trip
-    age_days: Optional[int]  # artifact age from Last-Modified, else None
+    latency_ms: int | None  # the successful attempt's round trip
+    age_days: int | None  # artifact age from Last-Modified, else None
     detail: str  # the human reason, written into dated catalog comments
 
 
@@ -115,18 +114,24 @@ def parse_directives(text: str) -> CatalogDirectives:
         key, value = match.group(1), match.group(2)
         if key == "purpose":
             directives = CatalogDirectives(
-                purpose=value, probe_path=directives.probe_path, max_age_days=directives.max_age_days
+                purpose=value,
+                probe_path=directives.probe_path,
+                max_age_days=directives.max_age_days,
             )
         elif key == "probe-path":
             directives = CatalogDirectives(
-                purpose=directives.purpose, probe_path=value, max_age_days=directives.max_age_days
+                purpose=directives.purpose,
+                probe_path=value,
+                max_age_days=directives.max_age_days,
             )
         else:
             max_age_raw = value
     if max_age_raw:
         if max_age_raw.lower() in ("off", "none", "disabled"):
             directives = CatalogDirectives(
-                purpose=directives.purpose, probe_path=directives.probe_path, max_age_days=None
+                purpose=directives.purpose,
+                probe_path=directives.probe_path,
+                max_age_days=None,
             )
         else:
             try:
@@ -135,14 +140,16 @@ def parse_directives(text: str) -> CatalogDirectives:
                 age = 14  # malformed directive falls back to the default policy
             if age > 0:
                 directives = CatalogDirectives(
-                    purpose=directives.purpose, probe_path=directives.probe_path, max_age_days=age
+                    purpose=directives.purpose,
+                    probe_path=directives.probe_path,
+                    max_age_days=age,
                 )
     return directives
 
 
-def parse_catalog(text: str) -> List[CatalogEntry]:
+def parse_catalog(text: str) -> list[CatalogEntry]:
     """Parse a catalog body into its active address lines, in order."""
-    entries: List[CatalogEntry] = []
+    entries: list[CatalogEntry] = []
     for lineno, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
         if not line or line.startswith("#"):
@@ -156,7 +163,7 @@ def parse_catalog(text: str) -> List[CatalogEntry]:
     return entries
 
 
-def artifact_age_days(modified_header: str, now: datetime) -> Optional[int]:
+def artifact_age_days(modified_header: str, now: datetime) -> int | None:
     """Age in whole days of the probed artifact from Last-Modified.
 
     The artifact a mirror serves carries its content's modification
@@ -177,7 +184,7 @@ def artifact_age_days(modified_header: str, now: datetime) -> Optional[int]:
     except (TypeError, ValueError):
         return None
     if modified.tzinfo is None:
-        modified = modified.replace(tzinfo=timezone.utc)
+        modified = modified.replace(tzinfo=UTC)
     return max(0, int((now - modified).total_seconds() // 86400))
 
 
@@ -187,7 +194,7 @@ def probe_http(
     connect_timeout: float = 4.0,
     total_timeout: float = 15.0,
     attempts: int = 2,
-    max_age_days: Optional[int] = None,
+    max_age_days: int | None = None,
 ) -> ProbeResult:
     """Probe one HTTP(S) address with a real GET, TLS verified.
 
@@ -211,10 +218,14 @@ def probe_http(
             with urllib.request.urlopen(request, timeout=total_timeout) as response:
                 latency_ms = int((time.perf_counter() - started) * 1000)
                 status = response.getcode()
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 age = artifact_age_days(response.headers.get("Last-Modified", ""), now)
                 if 200 <= status < 300:
-                    if age is not None and max_age_days is not None and age > max_age_days:
+                    if (
+                        age is not None
+                        and max_age_days is not None
+                        and age > max_age_days
+                    ):
                         return ProbeResult(
                             VERDICT_STALE,
                             latency_ms,
@@ -230,14 +241,18 @@ def probe_http(
                 )
         except urllib.error.HTTPError as why:
             last_detail = f"HTTP {why.code} on the probe path"
-        except (urllib.error.URLError, socket.timeout, OSError) as why:
+        except (TimeoutError, urllib.error.URLError, OSError) as why:
             reason = getattr(why, "reason", why)
-            last_detail = f"unreachable ({reason})" if reason else f"unreachable ({why})"
+            last_detail = (
+                f"unreachable ({reason})" if reason else f"unreachable ({why})"
+            )
         except ValueError as why:
             return ProbeResult(VERDICT_DOWN, None, None, f"bad address ({why})")
         if attempt < attempts:
             time.sleep(1.0)
-    return ProbeResult(VERDICT_DOWN, None, None, f"{last_detail} after {attempts} attempt(s)")
+    return ProbeResult(
+        VERDICT_DOWN, None, None, f"{last_detail} after {attempts} attempt(s)"
+    )
 
 
 def probe_tcp(
@@ -256,12 +271,16 @@ def probe_tcp(
         try:
             with socket.create_connection((host, port), timeout=connect_timeout):
                 latency_ms = int((time.perf_counter() - started) * 1000)
-                return ProbeResult(VERDICT_PASS, latency_ms, None, f"TCP {host}:{port} open")
+                return ProbeResult(
+                    VERDICT_PASS, latency_ms, None, f"TCP {host}:{port} open"
+                )
         except OSError as why:
             last_detail = f"no connection ({why})"
         if attempt < attempts:
             time.sleep(1.0)
-    return ProbeResult(VERDICT_DOWN, None, None, f"{last_detail} after {attempts} attempt(s)")
+    return ProbeResult(
+        VERDICT_DOWN, None, None, f"{last_detail} after {attempts} attempt(s)"
+    )
 
 
 def probe_entry(
@@ -270,11 +289,13 @@ def probe_entry(
     connect_timeout: float = 4.0,
     total_timeout: float = 15.0,
     attempts: int = 2,
-    max_age_days: Optional[int] = None,
+    max_age_days: int | None = None,
 ) -> ProbeResult:
     """Dispatch one catalog entry to the probe its kind wants."""
     if entry.kind == "tcp":
-        return probe_tcp(entry.target, connect_timeout=connect_timeout, attempts=attempts)
+        return probe_tcp(
+            entry.target, connect_timeout=connect_timeout, attempts=attempts
+        )
     return probe_http(
         entry.target,
         probe_path=probe_path,

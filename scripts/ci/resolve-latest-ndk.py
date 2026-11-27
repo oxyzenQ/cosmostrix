@@ -75,6 +75,7 @@ def resolve_base() -> str:
             str(catalog),
             "--first",
         ],
+        check=False,
         capture_output=True,
         text=True,
     )

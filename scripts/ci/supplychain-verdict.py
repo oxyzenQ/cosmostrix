@@ -420,8 +420,10 @@ def render_summary(
     """The step summary: AXP1-ZnQ (Architect's eXecution Protocol 1)
     signed, mature table shape."""
     lines = [
-        "### AXP1-ZnQ (Architect's eXecution Protocol 1) supply-chain "
-        "verdict (night-solid-defense-1)",
+        (
+            "### AXP1-ZnQ (Architect's eXecution Protocol 1) supply-chain "
+            "verdict (night-solid-defense-1)"
+        ),
         "",
         (
             f"workspaces scanned: {ws_count} | pre-sweep findings: {pre_count} | "

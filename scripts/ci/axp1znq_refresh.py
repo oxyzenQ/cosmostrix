@@ -56,7 +56,7 @@ import argparse
 import concurrent.futures
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from axp1znq_probe import (
@@ -78,12 +78,22 @@ def build_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument("--root", default="repos-for-ci", help="catalog directory")
-    parser.add_argument("--min-active", type=int, default=10, help="band floor, whole catalog")
-    parser.add_argument("--max-active", type=int, default=100, help="band ceiling, whole catalog")
+    parser.add_argument(
+        "--min-active", type=int, default=10, help="band floor, whole catalog"
+    )
+    parser.add_argument(
+        "--max-active", type=int, default=100, help="band ceiling, whole catalog"
+    )
     parser.add_argument("--max-lines", type=int, default=100, help="per-file line cap")
-    parser.add_argument("--attempts", type=int, default=2, help="probe attempts per address")
-    parser.add_argument("--connect-timeout", type=float, default=4.0, help="TCP connect timeout s")
-    parser.add_argument("--total-timeout", type=float, default=15.0, help="whole-request timeout s")
+    parser.add_argument(
+        "--attempts", type=int, default=2, help="probe attempts per address"
+    )
+    parser.add_argument(
+        "--connect-timeout", type=float, default=4.0, help="TCP connect timeout s"
+    )
+    parser.add_argument(
+        "--total-timeout", type=float, default=15.0, help="whole-request timeout s"
+    )
     parser.add_argument("--workers", type=int, default=8, help="concurrent probes")
     parser.add_argument(
         "--note-file",
@@ -95,7 +105,9 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="exact changed-path list to write (the maintenance lane stages these, never a glob)",
     )
-    parser.add_argument("--dry-run", action="store_true", help="report only, write nothing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="report only, write nothing"
+    )
     parser.add_argument(
         "--selftest",
         action="store_true",
@@ -132,10 +144,17 @@ def refresh_one(path: Path, args: argparse.Namespace, today: str) -> dict:
     directives = parse_directives(original)
     banner = "AXP1-ZnQ (Architect's eXecution Protocol 1) refresher"
     if not entries:
-        return {"path": path, "changed": False, "critical": True, "wrote": False,
-                "summary": f"{banner}: {path.name} carries no active address - CALL THE OWNER"}
+        return {
+            "path": path,
+            "changed": False,
+            "critical": True,
+            "wrote": False,
+            "summary": f"{banner}: {path.name} carries no active address - CALL THE OWNER",
+        }
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(args.workers, len(entries))) as pool:
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=min(args.workers, len(entries))
+    ) as pool:
         # Freshness rides the artifact, not an incidental page: a probe
         # that lands on a bare host root (no probe-path directive, no
         # path in the address line) reads a landing page's
@@ -143,7 +162,7 @@ def refresh_one(path: Path, args: argparse.Namespace, today: str) -> dict:
         # age policy turns itself off there. A line that names its own
         # artifact (or a file with a # probe-path: directive) keeps the
         # declared policy.
-        def age_policy(entry) -> "int | None":
+        def age_policy(entry) -> int | None:
             if entry.kind != "http":
                 return None
             from urllib.parse import urlparse
@@ -171,13 +190,24 @@ def refresh_one(path: Path, args: argparse.Namespace, today: str) -> dict:
         }
 
     alive = sum(1 for result in verdicts.values() if result.verdict == VERDICT_PASS)
-    stale = sum(1 for result in verdicts.values() if result.verdict not in (VERDICT_PASS, VERDICT_DOWN))
+    stale = sum(
+        1
+        for result in verdicts.values()
+        if result.verdict not in (VERDICT_PASS, VERDICT_DOWN)
+    )
     down = sum(1 for result in verdicts.values() if result.verdict == VERDICT_DOWN)
 
     if alive == 0:
-        return {"path": path, "changed": False, "critical": True, "wrote": False,
-                "summary": (f"{banner}: {path.name} 0 alive of {len(entries)} probed "
-                            f"({down} down, {stale} stale) - catalog untouched, CALL THE OWNER")}
+        return {
+            "path": path,
+            "changed": False,
+            "critical": True,
+            "wrote": False,
+            "summary": (
+                f"{banner}: {path.name} 0 alive of {len(entries)} probed "
+                f"({down} down, {stale} stale) - catalog untouched, CALL THE OWNER"
+            ),
+        }
 
     new_lines = []
     for raw in original.splitlines():
@@ -203,8 +233,22 @@ def refresh_one(path: Path, args: argparse.Namespace, today: str) -> dict:
     if changed and not args.dry_run:
         path.write_text(new_text, encoding="utf-8")
         wrote = True
-    return {"path": path, "changed": changed, "critical": False, "wrote": wrote,
-            "summary": summary}
+    return {
+        "path": path,
+        "changed": changed,
+        "critical": False,
+        "wrote": wrote,
+        "summary": summary,
+    }
+
+
+def band_state(count: int, floor: int, ceiling: int) -> str:
+    """Where an active-address total sits against the owner's band."""
+    if count < floor:
+        return "below the floor"
+    if count > ceiling:
+        return "above the ceiling"
+    return "in band"
 
 
 def selftest() -> int:
@@ -223,19 +267,30 @@ def selftest() -> int:
     assert directives.max_age_days is None, directives.max_age_days
     assert directives.probe_path == "dists/noble/InRelease", directives.probe_path
 
-    tombstone = dated_comment("2026-11-27", "unreachable (multi  line\nreason)", "https://x")
-    assert tombstone == "# down 2026-11-27 (unreachable (multi line reason)) - https://x", tombstone
+    tombstone = dated_comment(
+        "2026-11-27", "unreachable (multi  line\nreason)", "https://x"
+    )
+    assert (
+        tombstone == "# down 2026-11-27 (unreachable (multi line reason)) - https://x"
+    ), tombstone
 
-    lines = ["a", "# down 2025-01-01 (old) - x", "b", "# down 2024-01-01 (older) - y", "c"]
+    lines = [
+        "a",
+        "# down 2025-01-01 (old) - x",
+        "b",
+        "# down 2024-01-01 (older) - y",
+        "c",
+    ]
     pruned = prune_oldest_dead(list(lines), 4)
     assert "# down 2024-01-01 (older) - y" not in pruned, pruned
     assert "# down 2025-01-01 (old) - x" in pruned, pruned
     pruned_fully = prune_oldest_dead(list(lines), 2)
     assert pruned_fully == ["a", "b", "c"], pruned_fully  # actives are never pruned
 
-    band_ok = 10 <= 14 <= 100
-    band_low = 9 < 10
-    assert band_ok and band_low
+    band_floor, band_ceiling = 10, 100
+    assert band_state(14, band_floor, band_ceiling) == "in band"
+    assert band_state(band_floor - 1, band_floor, band_ceiling) == "below the floor"
+    assert band_state(band_ceiling + 1, band_floor, band_ceiling) == "above the ceiling"
     print("AXP1-ZnQ refresher selftest: PASS (tombstone, prune order, band law)")
     return 0
 
@@ -253,31 +308,36 @@ def main() -> int:
         print(f"AXP1-ZnQ refresher: no *.txt catalog under {root}", file=sys.stderr)
         return 1
 
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     records = [refresh_one(path, args, today) for path in catalogs]
 
     for record in records:
         print(record["summary"])
         if record["critical"]:
-            print("::warning::AXP1-ZnQ address refresh hit a critical state - CALL THE OWNER")
+            print(
+                "::warning::AXP1-ZnQ address refresh hit a critical state - CALL THE OWNER"
+            )
 
     active_total = 0
     for path in catalogs:
         active_total += len(parse_catalog(path.read_text(encoding="utf-8")))
-    if active_total < args.min_active:
+    state = band_state(active_total, args.min_active, args.max_active)
+    if state == "below the floor":
         print(
             f"AXP1-ZnQ refresher: {active_total} active address(es) across the catalog is "
             f"below the owner's floor of {args.min_active} - the bot never invents an "
             f"address; CALL THE OWNER to add candidates"
         )
         print("::warning::AXP1-ZnQ catalog below the 10-address floor - CALL THE OWNER")
-    elif active_total > args.max_active:
+    elif state == "above the ceiling":
         print(
             f"AXP1-ZnQ refresher: {active_total} active address(es) exceed the owner's "
             f"ceiling of {args.max_active} - the bot never prunes an active address; "
             f"CALL THE OWNER to trim the pool"
         )
-        print("::warning::AXP1-ZnQ catalog above the 100-address ceiling - CALL THE OWNER")
+        print(
+            "::warning::AXP1-ZnQ catalog above the 100-address ceiling - CALL THE OWNER"
+        )
 
     moved = [record for record in records if record["changed"]]
     if moved and not args.dry_run and args.note_file:
@@ -287,7 +347,9 @@ def main() -> int:
     if moved and not args.dry_run and args.manifest_file:
         manifest = "\n".join(str(record["path"]) for record in moved)
         Path(args.manifest_file).write_text(manifest + "\n", encoding="utf-8")
-        print(f"AXP1-ZnQ refresher: changed-path manifest written to {args.manifest_file}")
+        print(
+            f"AXP1-ZnQ refresher: changed-path manifest written to {args.manifest_file}"
+        )
     return 0
 
 

@@ -68,10 +68,18 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="print every live address, one per line, in catalog order (for loop consumers)",
     )
-    parser.add_argument("--json", action="store_true", help="machine report instead of a table")
-    parser.add_argument("--attempts", type=int, default=2, help="probe attempts per address")
-    parser.add_argument("--connect-timeout", type=float, default=4.0, help="TCP connect timeout s")
-    parser.add_argument("--total-timeout", type=float, default=15.0, help="whole-request timeout s")
+    parser.add_argument(
+        "--json", action="store_true", help="machine report instead of a table"
+    )
+    parser.add_argument(
+        "--attempts", type=int, default=2, help="probe attempts per address"
+    )
+    parser.add_argument(
+        "--connect-timeout", type=float, default=4.0, help="TCP connect timeout s"
+    )
+    parser.add_argument(
+        "--total-timeout", type=float, default=15.0, help="whole-request timeout s"
+    )
     parser.add_argument(
         "--selftest",
         action="store_true",
@@ -149,7 +157,9 @@ def main() -> int:
     directives = parse_directives(text)
     entries: list = parse_catalog(text)
     if not entries:
-        print(f"AXP1-ZnQ resolver: {args.file} carries no active address", file=sys.stderr)
+        print(
+            f"AXP1-ZnQ resolver: {args.file} carries no active address", file=sys.stderr
+        )
         return 2
 
     probe_path = args.probe_path or directives.probe_path
@@ -178,7 +188,9 @@ def main() -> int:
                 file=sys.stderr,
             )
             continue
-        age = f", artifact age {result.age_days}d" if result.age_days is not None else ""
+        age = (
+            f", artifact age {result.age_days}d" if result.age_days is not None else ""
+        )
         print(
             f"{banner}: line {entry.lineno} alive in {result.latency_ms} ms{age} "
             f"({entry.target})",
@@ -235,7 +247,9 @@ def main() -> int:
         for entry, result in results:
             age = str(result.age_days) if result.age_days is not None else "-"
             latency = str(result.latency_ms) if result.latency_ms is not None else "-"
-            print(f"{entry.lineno:>5}  {result.verdict:<7} {latency:>7}  {age:>5}  {entry.target}")
+            print(
+                f"{entry.lineno:>5}  {result.verdict:<7} {latency:>7}  {age:>5}  {entry.target}"
+            )
         print(f"{banner}: {alive}/{len(results)} alive")
     return 0 if alive > 0 else 1
 
