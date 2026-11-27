@@ -398,8 +398,11 @@ jobs:
           # (probed with the era-true intrepid dists index itself) and
           # hands back the first address that actually answers; line 1
           # down, the lane moves on. Nothing alive fails loud here.
-          OLD_BASE="$(python3 scripts/ci/axp1znq_resolve.py \
-            --file repos-for-ci/ubuntu-old-releases.txt --first)"
+          # Paths stay GITHUB_WORKSPACE-absolute: this step already cd'd
+          # to /tmp/kfloor, and a relative catalog path died on exactly
+          # that (run 46060780157 - instant exit, the honest CI catch).
+          OLD_BASE="$(python3 "${GITHUB_WORKSPACE}/scripts/ci/axp1znq_resolve.py" \
+            --file "${GITHUB_WORKSPACE}/repos-for-ci/ubuntu-old-releases.txt" --first)"
           POOL="${OLD_BASE}/pool/main/l/linux"
           LISTING="$(curl -fsSL --retry-all-errors --retry 3 --retry-delay 3 --connect-timeout 10 --max-time 60 "$POOL/")"
           IMG="$(printf '%s' "$LISTING" \
@@ -461,9 +464,10 @@ jobs:
           # ubuntu-old-releases catalog (the era-true intrepid dists
           # index IS its probe artifact) and hands back the first
           # address that actually answers; line 1 down, the lane moves
-          # on. Nothing alive fails loud here.
-          OLD_BASE="$(python3 scripts/ci/axp1znq_resolve.py \
-            --file repos-for-ci/ubuntu-old-releases.txt --first)"
+          # on. Nothing alive fails loud here. Paths stay
+          # GITHUB_WORKSPACE-absolute (this step cd'd to /tmp/kfloor).
+          OLD_BASE="$(python3 "${GITHUB_WORKSPACE}/scripts/ci/axp1znq_resolve.py" \
+            --file "${GITHUB_WORKSPACE}/repos-for-ci/ubuntu-old-releases.txt" --first)"
           POOL="${OLD_BASE}/pool/main/b/busybox"
           ERA_DEB="busybox-initramfs_1.10.2-1ubuntu6_amd64.deb"
           DIST="${OLD_BASE}/dists/intrepid/main/binary-amd64/Packages.gz"

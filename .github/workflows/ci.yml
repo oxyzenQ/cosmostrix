@@ -716,11 +716,11 @@ jobs:
       - name: Resolve AXP1-ZnQ (Architect's eXecution Protocol 1) rustup address
         run: |
           set -euo pipefail
-          mkdir -p .auto-update
-          python3 scripts/ci/axp1znq_resolve.py \
-            --file repos-for-ci/rustup-mirrors.txt \
-            --first > .auto-update/axp1-freebsd-rustup-url
-          echo "AXP1-ZnQ rustup pick: $(cat .auto-update/axp1-freebsd-rustup-url)"
+          mkdir -p "${GITHUB_WORKSPACE}/.auto-update"
+          python3 "${GITHUB_WORKSPACE}/scripts/ci/axp1znq_resolve.py" \
+            --file "${GITHUB_WORKSPACE}/repos-for-ci/rustup-mirrors.txt" \
+            --first > "${GITHUB_WORKSPACE}/.auto-update/axp1-freebsd-rustup-url"
+          echo "AXP1-ZnQ rustup pick: $(cat "${GITHUB_WORKSPACE}/.auto-update/axp1-freebsd-rustup-url")"
 
       - name: Build on FreeBSD VM
         uses: vmactions/freebsd-vm@v1

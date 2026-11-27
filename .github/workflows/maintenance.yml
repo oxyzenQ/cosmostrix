@@ -100,8 +100,8 @@ jobs:
           # line 1 down, the loop moves on, exactly the resolver's
           # contract. An empty result falls through to the existing
           # non-fatal path: warn, skip the fetch, next Sunday re-runs.
-          SERVERS="$(python3 scripts/ci/axp1znq_resolve.py \
-            --file repos-for-ci/keyservers.txt --alive-only 2>/dev/null \
+          SERVERS="$(python3 "${GITHUB_WORKSPACE}/scripts/ci/axp1znq_resolve.py" \
+            --file "${GITHUB_WORKSPACE}/repos-for-ci/keyservers.txt" --alive-only 2>/dev/null \
             | sed 's|^https://||')" || SERVERS=""
           if [[ -z "${SERVERS}" ]]; then
             echo "::warning::AXP1-ZnQ keyserver catalog answered no live server - the key fetch is skipped this run"
@@ -368,7 +368,14 @@ jobs:
         id: axp1-refresh
         shell: bash
         run: |
-          python3 scripts/ci/axp1znq_refresh.py \
+          # The refresher rides the workspace root: every Actions step
+          # starts at GITHUB_WORKSPACE and nothing cd's before this one,
+          # and the --root stays repo-relative BY CONTRACT - the
+          # manifest it writes feeds the commit phase's exact-path
+          # staging, which compares repo-relative paths (an absolute
+          # root would write absolute manifest paths and the gate would
+          # reject them).
+          python3 "${GITHUB_WORKSPACE}/scripts/ci/axp1znq_refresh.py" \
             --root repos-for-ci \
             --note-file "${RUNNER_TEMP}/axp1-address-note.txt" \
             --manifest-file "${RUNNER_TEMP}/axp1-address-manifest.txt"
