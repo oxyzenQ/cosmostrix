@@ -57,7 +57,7 @@ b3sum $(find . \( -name '*.png' -o -name '*.webp' \) -o -path './gpg/*' | sort)
 | cosmostrix-4-scene.png | 184,815 | `65cd77593207b365f6c8f3fb00b70ffac77803918356b49f7873eec2fa6d93ed` |
 | cosmostrix-original-logo-2026-old.png | 1,255,879 | `98b3862b7b7e0ed4dd286cd8dd6d63acec4ff1589c660ebf334a5722d3f135cd` |
 | cosmostrix-original-logo-2026.png | 1,288,029 | `dd99531e39307c0ea0766ab28651bb64bb7f1f9ecbc18bb8746cc38c4795e4ab` |
-| cosmostrix-video.webp | 4,703,808 | `61e2eb439a7ed505b4401b7028f2f2f9061bf6d3e30ca1c1518583f6f7352aaf` |
+| cosmostrix-video.webp | 9,217,878 | `554e86d755351c77d91c7e1d9a8fdd4c88760e174bc02b9bebd4eca24342751f` |
 | gpg/maintainer-47A50AEF4B65AAC2.asc | 4,918 | `639b5d94603e14fa9022cad8e26efff7711bdaedd92f08723ffa96c0b2d90d77` |
 | gpg/pinned-maintainer-fpr.txt | 40 | `dc6108d809afdbbb41756c37ef3ce3eec4b674ed1c8c225678c0103c1e4cfa3b` |
 | qr/bitcoin.png | 575 | `09ec09fcdc4815e23373cb266bb120aa4e1af140fb9d598e117d05478a791b47` |
