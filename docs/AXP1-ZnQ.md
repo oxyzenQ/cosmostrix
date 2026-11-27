@@ -149,6 +149,7 @@ server for a resolver call:
 | `maintenance.yml` GPG key fetch | `keyservers.txt` | the hardcoded `keyserver.ubuntu.com keys.openpgp.org` pair (the run #46 incident lane) |
 | `supermassive-kernel.yml` floor kernel + busybox fetch | `ubuntu-old-releases.txt` | two hardcoded `old-releases.ubuntu.com` bases |
 | `ci.yml` freebsd native build | `rustup-mirrors.txt` | the hardcoded `https://sh.rustup.rs` (picked on the host, passed to the VM through the workspace sync) |
+| `release.yml` freebsd native package | `rustup-mirrors.txt` | the hardcoded `https://sh.rustup.rs` (the ci.yml pattern applied verbatim: picked on the host, staged in the gitignored `.auto-update/` dir, passed to the VM through the workspace sync) |
 | `scripts/ci/resolve-latest-ndk.py` | `google-android-ndk.txt` | the hardcoded `dl.google.com` manifest URL |
 
 The remaining lanes adopt incrementally - a lane adopts by swapping

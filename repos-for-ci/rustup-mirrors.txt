@@ -20,7 +20,7 @@
 # verifies.
 # max-age 60: rustup ships a new script every few weeks; a mirror more
 # than 60 days behind is a stale mirror, not a mirror.
-# purpose: rustup-init script fetch (ci.yml freebsd lane)
+# purpose: rustup-init script fetch (ci.yml, release.yml freebsd lanes)
 # max-age-days: 60
 https://sh.rustup.rs/rustup-init.sh
 https://static.rust-lang.org/rustup/rustup-init.sh
