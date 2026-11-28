@@ -10,7 +10,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | every push + every PR (unfiltered) | fmt, clippy, test, build, security audit, version sync |
+| `ci.yml` | every push + every PR (unfiltered) | fmt, clippy, test, build, security audit, version sync, the registry tarball's size cap (the `package_size` seat: `scripts/gates/check-package-size.sh` asserts the .crate byte count under crates.io's 10,485,760-byte upload cap — the 413 refusal class fails here, not at the registry) |
 | `release.yml` | tag push `v*` (CI-gated: waits for the `ci.yml` run on the tagged SHA — NIGHT-improve-1) | 7-platform binaries + checksums + GPG sign + GitHub Release (PGO nitro release packages retired — night-dragon-maintenance-T1) |
 | `kani.yml` | every push + manual dispatch (night-fly-1: no schedule) | Bounded model checking over the proof harnesses (`#[cfg(kani)] kani_proofs`): density band, reseed ladder, blend hull - one micro job per harness, 15-minute cap (night-depth-cleanup-2; tightened from the 30-minute cap of NIGHT-depth-hardening-3) |
 | `loom.yml` | every push + manual dispatch (night-fly-1: no schedule) | Exhaustive interleaving model of the two-flag shutdown handshake under `--cfg loom` (NIGHT-depth-hardening-3) |
