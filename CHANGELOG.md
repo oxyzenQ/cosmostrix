@@ -32,6 +32,8 @@ tripwire note in the pre-v13 archive).
 
 ## Released
 
+v100.1.3
+
 v100.1.3-dragon.2
 
 v100.1.3-dragon.1
