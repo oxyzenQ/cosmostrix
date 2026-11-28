@@ -100,9 +100,29 @@ jobs:
           # line 1 down, the loop moves on, exactly the resolver's
           # contract. An empty result falls through to the existing
           # non-fatal path: warn, skip the fetch, next Sunday re-runs.
+          # The resolver prints its probe evidence (banner, per-server
+          # verdict, latency, DOWN detail: 429 vs timeout vs DNS) on
+          # stderr and the surviving servers on stdout. That stderr is
+          # captured here instead of being discarded (the old
+          # 2>/dev/null, run #61 lesson 2026-11-28: a "no live server"
+          # verdict arrived with no evidence trail), echoed to the job
+          # log and appended to the step summary on every run.
+          RESOLVER_LOG="${RUNNER_TEMP}/axp1znq_resolve.log"
           SERVERS="$(python3 "${GITHUB_WORKSPACE}/scripts/ci/axp1znq_resolve.py" \
-            --file "${GITHUB_WORKSPACE}/repos-for-ci/keyservers.txt" --alive-only 2>/dev/null \
+            --file "${GITHUB_WORKSPACE}/repos-for-ci/keyservers.txt" --alive-only \
+            2>"${RESOLVER_LOG}" \
             | sed 's|^https://||')" || SERVERS=""
+          if [[ -s "${RESOLVER_LOG}" ]]; then
+            echo "--- AXP1-ZnQ resolver probe log (stderr) ---"
+            sed 's/^/  /' "${RESOLVER_LOG}"
+            {
+              echo "### AXP1-ZnQ keyserver resolver probe log"
+              echo ""
+              echo '```'
+              cat "${RESOLVER_LOG}"
+              echo '```'
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
           if [[ -z "${SERVERS}" ]]; then
             echo "::warning::AXP1-ZnQ keyserver catalog answered no live server - the key fetch is skipped this run"
           fi
