@@ -14,7 +14,7 @@ current host.
 | Item | Value |
 | --- | --- |
 | CPU | Intel(R) Xeon(R) Processor (2 vCPUs) |
-| RAM | 4.1 GiB |
+| RAM | 3.9 GiB |
 | OS | Debian GNU/Linux 13 (trixie) |
 | Rust | 1.98.1 |
 | Build | `release` |
@@ -27,19 +27,16 @@ All sizes use `--scene monolith`. Duration is adaptive:
 
 | Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
 | ------ | ------: | --------: | ---------: | ---------: | ---------------: | -----------: | ---------- |
-| 1x1 | 1 | 1,467,248 | 595,948 | 0.001 | 0.2 | 6 | excellent |
-| 20x6 | 120 | 576,908 | 999,001 | 0.002 | 4.7 | 6 | excellent |
-| 80x24 | 1,920 | 66,343 | 91,283 | 0.020 | 90.8 | 6 | excellent |
-| 120x40 | 4,800 | 37,892 | 48,816 | 0.034 | 173.3 | 6 | excellent |
-| 200x80 | 16,000 | 19,416 | 23,217 | 0.063 | 361.2 | 7 | excellent |
-| 480x160 | 76,800 | 7,410 | 8,274 | 0.162 | 977.0 | 11 | excellent |
-| 960x270 | 259,200 | 3,255 | 3,680 | 0.378 | 2,037.2 | 24 | excellent |
-| 1920x540 | 1,036,800 | 1,238 | 1,335 | 0.975 | 4,249.8 | 76 | excellent |
-| 3840x1080 | 4,147,200 | 547 | 609 | 2.365 | 8,499.6 | 285 | good |
-| 7680x4320 | 33,177,600 | 189 | 229 | 5.868 | 18,167.9 | 2,099 | high |
-| 1920x540 | 1,036,800 | 1,727 | 1,894 | 0.677 | 2,590.9 | 68 | excellent |
-| 3840x1080 | 4,147,200 | 752 | 843 | 1.608 | 5,148.0 | 254 | good |
-| 7680x4320 | 33,177,600 | 301 | 350 | 3.473 | 10,933.4 | 1,853 | high |
+| 1x1 | 1 | 1,456,629 | 671,592 | 0.001 | 0.2 | 6 | excellent |
+| 20x6 | 120 | 572,891 | 999,001 | 0.002 | 4.7 | 6 | excellent |
+| 80x24 | 1,920 | 65,775 | 92,098 | 0.021 | 90.8 | 6 | excellent |
+| 120x40 | 4,800 | 37,586 | 48,452 | 0.034 | 173.2 | 6 | excellent |
+| 200x80 | 16,000 | 19,609 | 23,402 | 0.063 | 361.2 | 7 | excellent |
+| 480x160 | 76,800 | 7,356 | 8,275 | 0.169 | 977.6 | 11 | excellent |
+| 960x270 | 259,200 | 3,084 | 3,587 | 0.405 | 2,041.4 | 24 | excellent |
+| 1920x540 | 1,036,800 | 1,073 | 1,225 | 1.169 | 4,218.3 | 76 | excellent |
+| 3840x1080 | 4,147,200 | 478 | 525 | 2.563 | 8,701.6 | 285 | good |
+| 7680x4320 | 33,177,600 | 198 | 240 | 5.498 | 18,170.5 | 2,099 | high |
 
 FPS scales sub-linearly with cell count thanks to differential rendering;
 dirty cells now scale with grid size (~2x per 4x cell increase) because the
@@ -56,16 +53,17 @@ The benchmark path now routes through `reset_bench` (mirroring
 `Frame::new_bench`), so these numbers are the first honest full-grid
 measurements at the oversized tiers.
 
-At 8K (33M cells), memory pressure shifts to the allocator (538 MiB
-heap retained, 1.8 GiB RSS) and frame-time stability degrades to
+At 8K (33M cells), the frame buffer dominates memory (~2.0 GiB peak
+RSS, heap retained ~0) and frame-time stability degrades to
 "high". This is a memory benchmark, not a render benchmark — the
 engine itself remains compute-bound at all practical sizes.
 
-This sweep was regenerated on 2026-08-23 with the default `release`
-profile (no AVX-512 target). The previous `pro-linux-v4` sweep
-(2026-08-20) reached ~3,864 FPS at 8K — but note that sweep pre-dates
-the LOW-2 fix, so its oversized-tier numbers measured the hybrid
-(partially clamped) simulation state and are not comparable.
+This sweep was regenerated on 2026-11-28 with the default `release`
+profile (no AVX-512 target), Rust 1.98.1; the 80x24 tier reproduces
+the previous committed table within ~1% (65,775 vs 66,343 avg FPS).
+The tracked 2026-09-14 sweep CSV recorded 85,698 at the same tier on
+that day's host state — sweep numbers are machine- and load-dependent,
+per the disclaimer below.
 
 ## PGO A/B (2026-08-23)
 
@@ -78,7 +76,8 @@ complete the `docs/archive/research/IPC_RESEARCH.md` verification.
 
 ## Notes
 
-- Zero memory leaks across all sizes; `frame_time_stability: excellent` up to 4K.
+- Zero memory leaks across all sizes; `frame_time_stability`: `excellent`
+  up to 1920x540, `good` at 3840x1080, `high` at 7680x4320.
 - RAPL energy and perf microarchitecture counters unavailable (cloud VM).
 - Regenerate with: `./benchmark/benchmark.sh sweep` (requires Rust toolchain)
   or `SWEEP_BIN=target/<triple>/pro-linux-amd64-v4-gnu/cosmostrix ./benchmark/benchmark.sh sweep`

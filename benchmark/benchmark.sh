@@ -364,7 +364,13 @@ ${csv_rows}"
 		return 1
 	}
 	head -n 10 "$bench_labs" >"$tmp"
-	printf '%s\n' "$block" >>"$tmp"
+	# The intro prose ends at line 10 and the block opens with the
+	# ## Environment heading; without the separator blank the heading
+	# glues to the prose (the 2026-11-28 run produced exactly that).
+	{
+		printf '\n'
+		printf '%s\n' "$block"
+	} >>"$tmp"
 	tail -n +37 "$bench_labs" >>"$tmp"
 	mv "$tmp" "$bench_labs"
 
@@ -497,8 +503,14 @@ run_sweep() {
 		# generated sweep artifact carries the full expression the header
 		# gate enforces - the bare AGPL-3.0-only rung is the pre-Masterclass
 		# spelling and fails check-headers.sh when the artifact sits in the
-		# tree.
-		echo "<!-- SPDX-License-Identifier: AGPL-3.0-only OR Commercial -->"
+		# tree. The block is the multi-line spelling the gate's markdown
+		# parser reads: a single-line <!-- ... --> form glues the closing
+		# --> into the parsed expression and the gate calls it malformed
+		# (the 2026-11-28 sweep md trip).
+		echo "<!--"
+		echo "  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)"
+		echo "  SPDX-License-Identifier: AGPL-3.0-only OR Commercial"
+		echo "-->"
 		echo ""
 		echo "# cosmostrix Size Sweep"
 		echo ""

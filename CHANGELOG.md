@@ -68,6 +68,53 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### audit: night-cafe-mclaren-6 - the registry tarball gets its own CI gate (the 413 refusal class fails in CI now) and the bench labs sweep refreshes on the current host
+
+- The gate: scripts/gates/check-package-size.sh builds the real
+  .crate (cargo package --locked --no-verify) and asserts its byte
+  count against crates.io's documented hard upload cap of 10,485,760
+  bytes - equality fails too, headroom is the contract. It is wired
+  as its own package_size job in ci.yml (needs security +
+  version-sync, its own 5-minute timeout) because cargo package needs
+  the toolchain and the version-sync job above it is deliberately
+  toolchain-free. The gate refuses dirty trees on purpose: untracked
+  or modified files change the measured bytes, and a size verdict
+  over a tree that will never publish is a lie. Measured on this
+  tree: cosmostrix-100.1.3-dragon.2.crate = 2,724,062 bytes (2.60
+  MiB, 7.40 MiB headroom). The gate joins the check-release-ledger
+  family in shellcheck-clean form and carries the full incident story
+  in its header, so the next reader knows which 413 it prevents.
+- The sweep: ./benchmark/benchmark.sh sweep rebuilt the default
+  release profile and re-swept 1x1 through 7680x4320 (monolith) on
+  the current 2-vCPU Xeon host - the first fresh sweep since the
+  stable cut. Metric formulas were independently re-verified
+  (entropy exactly 1.0 at half-half, Gini exactly 0 on uniform and
+  -> 0.8 on monopoly; 2000 random cases, zero mismatches), and the
+  per-row consistency law avg_frame_ms x avg_fps = 1000 holds within
+  rounding on every tier. The 80x24 tier reproduces the previous
+  committed table within ~1% (65,775 vs 66,343 avg FPS). BENCH_LABS.md
+  lines 11-36 were re-injected from the new CSV; the stale leftover
+  oversized-tier rows from two older partial runs are gone, the
+  8K memory prose now reads the fresh run (~2.0 GiB RSS, heap
+  retained ~0, not the stale 538 MiB allocator figure), the
+  regeneration note carries the fresh date and the 2026-09-14 CSV
+  divergence (85,698 at 80x24 that day - machine- and load-dependent,
+  per the doc's own disclaimer), and the Notes stability line states
+  the fresh verdicts per tier. The new sweep CSV/MD pair rides the
+  commit force-added, continuing the tracked-on-purpose precedent of
+  the 2026-09-14 pair (the benchmark/.gitignore ignores sweep
+  artifacts; the tracked ones were force-added around them). The
+  sweep .md header now carries the multi-line SPDX spelling the
+  header gate parses - the generator's single-line form glued the
+  closing --> into the parsed expression and the gate called it
+  malformed, so the generator emits the block form from now on.
+- The inject script: the BENCH_LABS.md auto-inject ate the blank line
+  between the intro prose and the ## Environment heading on this run
+  (head -n 10 keeps the prose, the block opens with the heading) -
+  benchmark.sh now emits the separator blank explicitly, and the
+  shellcheck style finding that came with the first draft is settled
+  by the grouped redirect.
+
 ### audit: night-cafe-mclaren-5 - the registry tarball drops the 9.2 MB demo webp (HTTP 413 fix) and the README media rides absolute GitHub raw URLs
 
 - The failure: the v100.1.3-dragon.2 publish job died in 1m36s on
