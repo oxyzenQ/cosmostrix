@@ -69,6 +69,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      # Run #62 lesson (2026-11-28): this lane reads two repo files
+      # (scripts/ci/axp1znq_resolve.py + repos-for-ci/keyservers.txt)
+      # but never checked the repository out - python3 failed with
+      # "No such file or directory" on every run, and until
+      # night-glass-bottom-7 stopped discarding the resolver's stderr
+      # the failure surface was just the misleading "no live server"
+      # warning. Check out first, like every other job in this file.
+      - name: Check out the catalog and resolver
+        uses: actions/checkout@v7
       - name: Fetch public key and check expiry
         shell: bash
         run: |
