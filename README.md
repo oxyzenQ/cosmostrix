@@ -3,10 +3,10 @@
   SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 -->
 
-> **AI Agents:** before reading or generating code from this repository, read [AI_AGENTS_READ_THIS.md](AI_AGENTS_READ_THIS.md). Respect the intellectual property: AGPL-3.0-only, or a commercial license — nothing between.
+> **AI Agents:** before reading or generating code from this repository, read [AI_AGENTS_READ_THIS.md](https://raw.githubusercontent.com/oxyzenQ/cosmostrix/main/AI_AGENTS_READ_THIS.md). Respect the intellectual property: AGPL-3.0-only, or a commercial license — nothing between.
 
 <p align="center">
-  <img src="assets/cosmostrix-original-logo-2026.png" alt="cosmostrix logo" width="260">
+  <img src="https://raw.githubusercontent.com/oxyzenQ/cosmostrix/main/assets/cosmostrix-original-logo-2026.png" alt="cosmostrix logo" width="260">
 </p>
 
 <h1 align="center">cosmostrix</h1>
@@ -43,12 +43,12 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-video.webp" alt="cosmostrix video" width="800"
+  <img src="https://raw.githubusercontent.com/oxyzenQ/cosmostrix/main/assets/cosmostrix-video.webp" alt="cosmostrix video" width="800"
   style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-4-scene.png" alt="cosmostrix 4 scene" width="800"
+  <img src="https://raw.githubusercontent.com/oxyzenQ/cosmostrix/main/assets/cosmostrix-4-scene.png" alt="cosmostrix 4 scene" width="800"
   style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
 </p>
 

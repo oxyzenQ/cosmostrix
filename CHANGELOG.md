@@ -68,6 +68,36 @@ The next release cycle starts here: entries land in this section as
 they merge, and move to a per-era archive file under `docs/archive/`
 when the version line closes.
 
+### audit: night-cafe-mclaren-5 - the registry tarball drops the 9.2 MB demo webp (HTTP 413 fix) and the README media rides absolute GitHub raw URLs
+
+- The failure: the v100.1.3-dragon.2 publish job died in 1m36s on
+  crates.io's hard answer - `status 413 Payload Too Large: max upload
+  size is: 10485760`. Root cause: commit d980fcc grew the demo asset
+  assets/cosmostrix-video.webp from 4,703,808 to 9,217,878 bytes the
+  same day the tag was cut, and the [package] exclude lane covered
+  `assets/*.gif` and `assets/*.png` but not `*.webp` - the webp rode
+  the tarball (dragon.1 shipped the 4.7 MB webp inside a
+  7,285,202-byte crate; dragon.2 predicted ~11.25 MiB, over the cap by
+  ~1.25 MiB). No gate watched package size, so nothing flagged the
+  jump before the registry refused it.
+- The fix keeps the asset untouched - full quality, full 30-second
+  duration, blackhole scene intact, still tracked in git under its
+  BLAKE3 signature row: the lane now excludes `assets/*.webp`, so the
+  registry tarball drops to ~2.6 MB measured, and the README renders
+  the showcase media from absolute raw.githubusercontent URLs instead
+  of repo-relative paths. That also settles the crates.io showcase
+  question with the facts: crates.io serves only the README HTML it
+  renders from the tarball, never the tarball's other files, so
+  repo-relative media srcs were broken on the crate page all along
+  (the PNGs have been excluded since the lane existed). Absolute URLs
+  make GitHub, crates.io and docs.rs render the same media, and the
+  AI_AGENTS_READ_THIS.md gate link rides the same absolute form.
+- Verified before push: cargo package --locked builds a
+  cosmostrix-100.1.3-dragon.2.crate with no webp inside and README.md
+  still aboard (the readme field), the tarball bytes measure under
+  the 10 MiB cap with margin, and the release-ledger shape gate
+  passes on the edited file.
+
 ### audit: night-cafe-mclaren-4 - the message family refuses attached values outright: space and equals are the only accepted forms (-m, -mb, -mfs)
 
 - The gap: the owner's second probe after mclaren-3 - "masih bisa …
